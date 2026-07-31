@@ -2,7 +2,7 @@ import { style } from '@vanilla-extract/css';
 import { config, toRem } from 'folds';
 
 /**
- * Shared call chrome styles — the dark canvas shell, the glassmorphic control
+ * Shared call chrome styles: the dark canvas shell, the glassmorphic control
  * pill, and the on/off media toggle button. Both call surfaces (livekit-js and
  * native) render into these so the chrome reads consistently across engines
  * while each engine keeps its own video substrate and connection logic.
@@ -42,7 +42,7 @@ export const controlBarOverlay = style({
 /**
  * In-flow control bar that sits below the tile grid (native). The native video
  * overlay fully occludes anything beneath it, so controls live in normal flow
- * next to — never on top of — a video slot, and never auto-hide.
+ * next to (never on top of) a video slot, and never auto-hide.
  */
 export const controlBarFlow = style({
   flexShrink: 0,

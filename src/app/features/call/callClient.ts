@@ -6,9 +6,9 @@ import type { NativeCallLifecycle } from '$state/nativeCall';
 
 /**
  * Coarse lifecycle phase both call engines map to. The engine-specific
- * lifecycle unions genuinely differ — LiveKit JS splits "connecting" into
+ * lifecycle unions genuinely differ: LiveKit JS splits "connecting" into
  * joining-matrix / provisioning / connecting-livekit, and Native adds
- * "reconnecting" — so the shared chrome reasons about a coarse phase while each
+ * "reconnecting", so the shared chrome reasons about a coarse phase while each
  * engine keeps its own union and its own user-facing label map.
  */
 type CallPhase = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'stopping' | 'failed';
@@ -49,7 +49,7 @@ export type CallStatusView = {
 /**
  * Lifecycle → user-facing label maps. Colocated so the two surfaces share one
  * source of truth for status copy; they remain two maps because the lifecycle
- * unions (and therefore the distinct labels — "Preparing call", "Reconnecting",
+ * unions (and therefore the distinct labels "Preparing call", "Reconnecting",
  * …) genuinely differ.
  */
 const livekitJsLifecycleLabels: Record<LivekitJsControllerLifecycle, string> = {

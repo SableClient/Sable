@@ -70,10 +70,10 @@ export function CallLayout({
  * The control bar shell. `overlay` floats over the canvas and auto-hides
  * (livekit-js: `visible` drives opacity/visibility, the pill re-enables
  * hit-testing); `flow` sits in normal layout below the tiles and is always
- * visible (native). The actual controls are passed as children — the two
+ * visible (native). The actual controls are passed as children: the two
  * engines render different buttons (livekit-js uses its component-library
  * `ControlBar` with device menus; native uses the shared `CallMediaControls`
- * toggles) — so only the shell is shared.
+ * toggles), so only the shell is shared.
  */
 export type CallControlBarProps = {
   children: ReactNode;
@@ -195,7 +195,7 @@ export function CallMediaToggleButton({
  * bar; the livekit-js engine delegates to its component-library `ControlBar`
  * instead, so it does not use this.
  *
- * The props are the media slice of `CallClient`, required — the native session
+ * The props are the media slice of `CallClient`, required: the native session
  * always provides them.
  */
 export type CallMediaControlsProps = Required<

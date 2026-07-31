@@ -113,7 +113,7 @@ export const useCallStart = (dm = false) => {
       }
       const ownerLease = acquireCallOwner('element', room.roomId);
       if (!ownerLease) {
-        debugLog.warn('call', 'Failed to start call — another call is already active', {
+        debugLog.warn('call', 'Failed to start call: another call is already active', {
           roomId: room.roomId,
         });
         return;
@@ -121,7 +121,7 @@ export const useCallStart = (dm = false) => {
       const container = callEmbedRef.current;
       if (!container) {
         ownerLease.release();
-        debugLog.error('call', 'Failed to start call — no embed container', {
+        debugLog.error('call', 'Failed to start call: no embed container', {
           roomId: room.roomId,
         });
         Sentry.metrics.count('sable.call.start.error', 1, {

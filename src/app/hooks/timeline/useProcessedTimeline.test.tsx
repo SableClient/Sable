@@ -386,6 +386,38 @@ describe('useProcessedTimeline new-messages divider', () => {
 
     expect(dividerIds(processed)).toEqual([]);
   });
+
+  it('renders the divider on a filtered anchor with show-hidden-events enabled', () => {
+    const events = [
+      createEvent({ id: '$a' }),
+      createMembership('$member'),
+      createEvent({ id: '$b' }),
+      createReaction('$reaction', '$a'),
+    ];
+    const { result } = renderHook(() =>
+      useProcessedTimeline({
+        items: events.map((_, index) => index),
+        linkedTimelines: [createTimeline(events)],
+        ignoredUsersSet: new Set(),
+        // Reaction/edit rows merge into their target, which reprocesses every
+        // row through a second divider pass.
+        hiddenEvents: {
+          ...hiddenEvents,
+          showHiddenEvents: true,
+          hiddenEventReactions: true,
+          hiddenEventEdits: true,
+        },
+        mxUserId: MY_USER,
+        readUptoEventId: '$member',
+        hideMembershipEvents: true,
+        hideNickAvatarEvents: true,
+        isReadOnly: false,
+        hideMemberInReadOnly: false,
+      })
+    );
+
+    expect(dividerIds(result.current)).toEqual(['$b']);
+  });
 });
 
 describe('useProcessedTimeline append-only fast path', () => {

@@ -124,7 +124,10 @@ const flattenTimelineEvents = (linkedTimelines: EventTimeline[]): TimelineEventE
 const computeCollapseAndDividers = (
   drafts: ProcessedEventDraft[],
   mxUserId: string | null,
-  readUptoEventId: string | undefined
+  readUptoEventId: string | undefined,
+  // Row that already carries the divider. Drafts hold only rendered rows, so a
+  // receipt anchored on a filtered event is unresolvable from `drafts` alone.
+  carriedDividerId: string | undefined
 ): ProcessedEvent[] => {
   let prevEvent: MatrixEvent | undefined;
   let isPrevRendered = false;
@@ -137,7 +140,7 @@ const computeCollapseAndDividers = (
 
     if (!newDivider && readUptoEventId) {
       const prevId = prevEvent ? prevEvent.getId() : undefined;
-      newDivider = prevId === readUptoEventId;
+      newDivider = prevId === readUptoEventId || draft.id === carriedDividerId;
     }
 
     if (!dayDivider) {
@@ -298,7 +301,12 @@ const mergeRelationReactions = (
 
   const mergedDrafts = mergeDraftsAndExtras(baseDrafts, allExtras);
 
-  return computeCollapseAndDividers(mergedDrafts, mxUserId, readUptoEventId);
+  return computeCollapseAndDividers(
+    mergedDrafts,
+    mxUserId,
+    readUptoEventId,
+    result.find((event) => event.willRenderNewDivider)?.id
+  );
 };
 
 const mergeRelationEdits = (
@@ -347,7 +355,12 @@ const mergeRelationEdits = (
 
   const mergedDrafts = mergeDraftsAndExtras(baseDrafts, allExtras);
 
-  return computeCollapseAndDividers(mergedDrafts, mxUserId, readUptoEventId);
+  return computeCollapseAndDividers(
+    mergedDrafts,
+    mxUserId,
+    readUptoEventId,
+    result.find((event) => event.willRenderNewDivider)?.id
+  );
 };
 
 type TimelineProcessingState = {

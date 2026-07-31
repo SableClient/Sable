@@ -392,10 +392,8 @@ describe('native call controller', () => {
     harness.emitSnapshot(idleSnapshot(null));
     await vi.waitFor(() => expect(session.leaveRoomSession).toHaveBeenCalled());
     expect(order).toEqual(['native-disconnect', 'leave']);
-    expect(lastSession(harness.setSession)).toMatchObject({
-      lifecycle: 'error',
-      error: 'Native call ended.',
-    });
+    // A normal end clears the session; it is not an error the user must dismiss.
+    expect(lastSession(harness.setSession)).toBeUndefined();
     expect(getActiveCallOwner()).toBeUndefined();
   });
 
@@ -417,9 +415,10 @@ describe('native call controller', () => {
       lastError: { code: 'disconnected', message: 'disconnected' },
     });
     await vi.waitFor(() => expect(harness.disconnectCall).toHaveBeenCalled());
+    // The failure code is mapped to user-facing copy, not passed through raw.
     expect(lastSession(harness.setSession)).toMatchObject({
       lifecycle: 'error',
-      error: 'Native call connection failed.',
+      error: 'The connection to the call was lost.',
     });
   });
 
@@ -446,7 +445,7 @@ describe('native call controller', () => {
       expect(order).toEqual(['attach-keys', 'join', 'native-disconnect', 'leave']);
       const failed = lastSession(harness.setSession);
       expect(failed).toMatchObject({ lifecycle: 'error' });
-      expect(failed?.error).toContain('Native call setup failed during connecting.');
+      expect(failed?.error).toContain('Could not connect to the call.');
       // The surfaced message must never carry the provisioned token.
       expect(failed?.error).not.toContain('jwt');
       expect(getActiveCallOwner()).toBeUndefined();

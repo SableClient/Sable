@@ -125,12 +125,13 @@ describe('joinAndProvisionMatrixRTC', () => {
         getStateEvent: vi.fn<MatrixClient['getStateEvent']>().mockResolvedValue(undefined as never),
       });
       const opts = callOpts({ session, mx });
-      const rejects = expect(joinAndProvisionMatrixRTC(opts)).rejects.toThrow(
-        'MatrixRTC membership publication timed out'
-      );
+      const promise = joinAndProvisionMatrixRTC(opts);
+      // Handled by the assertion below; attached now so the rejection that
+      // lands during the timer flush is never seen as unhandled.
+      promise.catch(() => {});
 
       await vi.runAllTimersAsync();
-      await rejects;
+      await expect(promise).rejects.toThrow('MatrixRTC membership publication timed out');
     } finally {
       vi.useRealTimers();
     }
@@ -179,16 +180,15 @@ describe('joinAndProvisionMatrixRTC', () => {
           cancelMembership = cancel;
         },
       });
-      const rejects = expect(joinAndProvisionMatrixRTC(opts)).rejects.toThrow(
-        'MatrixRTC membership wait cancelled'
-      );
+      const promise = joinAndProvisionMatrixRTC(opts);
+      promise.catch(() => {});
 
       await vi.waitFor(() => expect(session.on).toHaveBeenCalled());
       expect(cancelMembership).toBeDefined();
 
       cancelMembership!();
       await vi.runAllTimersAsync();
-      await rejects;
+      await expect(promise).rejects.toThrow('MatrixRTC membership wait cancelled');
       // on cancel, getStateEvent should never have been polled with fake timers
       // (interval hasn't ticked yet, and cancel cleared it)
     } finally {

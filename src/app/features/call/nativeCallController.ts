@@ -20,6 +20,7 @@ import {
   switchNativeCallCamera,
   updateCallDisplay,
   type NativeCallEncryptionKeyPayload,
+  type NativeCallFailureCode,
   type NativeCallSnapshot,
   type SystemCallAction,
 } from './livekitMobileBridge';
@@ -40,10 +41,28 @@ const debugLog = createDebugLogger('nativeCallController');
 
 type SetupStage = 'joining the call' | 'authorizing' | 'connecting';
 
-const setupErrorMessage = (stage: SetupStage): string =>
-  `Native call setup failed during ${stage}.`;
-const failedMessage = 'Native call connection failed.';
-const endedMessage = 'Native call ended.';
+const setupErrorMessage = (stage: SetupStage): string => {
+  if (stage === 'joining the call') return 'Could not join the call.';
+  if (stage === 'authorizing') return 'Could not get permission to join the call.';
+  return 'Could not connect to the call.';
+};
+
+const failureMessages: Record<NativeCallFailureCode, string> = {
+  invalid_request: 'Could not start the call.',
+  busy: 'Another call is already in progress.',
+  permission_denied: 'Microphone or camera access was denied.',
+  connect_failed: 'Could not connect to the call.',
+  media_failed: 'Your microphone or camera stopped working.',
+  disconnected: 'The connection to the call was lost.',
+  cancelled: 'The call was cancelled.',
+  unavailable: 'Calls are not available on this device.',
+  unexpected: 'The call ended unexpectedly.',
+};
+
+const nativeFailureMessage = (code: NativeCallFailureCode | undefined): string =>
+  (code && failureMessages[code]) || 'The call ended unexpectedly.';
+
+const failedMessage = 'Native call failed:';
 
 const logFailure = (message: string): void => {
   debugLog.error('call', message);
@@ -308,12 +327,14 @@ export const createNativeCallController = (
     if (snapshot.connectionState === 'idle' || snapshot.connectionState === 'failed') {
       if (snapshot.callId === null && !record.connectResolved) return;
       if (snapshot.callId !== null && snapshot.callId !== record.callId) return;
-      if (snapshot.connectionState === 'failed') logFailure(failedMessage);
-      void cleanup(
-        record,
-        snapshot.connectionState === 'failed' ? failedMessage : endedMessage,
-        false
-      );
+      if (snapshot.connectionState === 'idle') {
+        // The call ended normally — usually the other side hung up. Clear the
+        // session rather than publishing an error the user has to dismiss.
+        void cleanup(record, undefined, true);
+        return;
+      }
+      logFailure(`${failedMessage} ${snapshot.lastError?.code ?? 'unknown'}`);
+      void cleanup(record, nativeFailureMessage(snapshot.lastError?.code), false);
       return;
     }
     if (snapshot.callId !== record.callId) return;
@@ -448,12 +469,12 @@ export const createNativeCallController = (
       }
     } catch (cause) {
       const detail = cause instanceof Error ? `${cause.name}: ${cause.message}` : String(cause);
-      logFailure(`${setupErrorMessage(stage)} ${detail}`);
+      logFailure(`Native call setup failed during ${stage}. ${detail}`);
       if (record) {
-        await cleanup(record, `${setupErrorMessage(stage)} ${detail}`, false);
+        await cleanup(record, setupErrorMessage(stage), false);
       } else {
         ownerLease.release();
-        setSetupError(room.roomId, '', `${setupErrorMessage(stage)} ${detail}`);
+        setSetupError(room.roomId, '', setupErrorMessage(stage));
         deps.onCleanup?.();
       }
     }

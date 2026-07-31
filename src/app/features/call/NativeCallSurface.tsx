@@ -375,9 +375,16 @@ function RemoteTile({
  * platform actually reports routes, which is how it stays hidden on Android,
  * where the command does not exist.
  */
-function AudioRouteControl({ session }: { session: NativeCallSession }) {
+function AudioRouteControl({
+  session,
+  onMenuOpenChange,
+}: {
+  session: NativeCallSession;
+  onMenuOpenChange: (open: boolean) => void;
+}) {
   const menu = useMenuAnchor<HTMLButtonElement>();
   const [routes, setRoutes] = useState<NativeCallAudioRoute[]>([]);
+  const open = menu.anchor !== undefined;
 
   useEffect(() => {
     let disposed = false;
@@ -390,6 +397,14 @@ function AudioRouteControl({ session }: { session: NativeCallSession }) {
       disposed = true;
     };
   }, [session]);
+
+  // The native video view sits above the webview, so it would paint over this
+  // menu. Report the open state so the surface can drop the overlay while it is
+  // up, the same way an occluding drawer does.
+  useEffect(() => {
+    onMenuOpenChange(open);
+    return () => onMenuOpenChange(false);
+  }, [open, onMenuOpenChange]);
 
   if (routes.length === 0) return null;
 
@@ -551,7 +566,8 @@ export function NativeCallSurface({ session, onHangup }: NativeCallSurfaceProps)
   // the slot finally clears the viewport. Route selection flips when the
   // transition starts, which is the earliest honest "no longer on screen".
   const selectedRoom = useSelectedRoom();
-  const overlayActive = connected && selectedRoom === session.roomId;
+  const [routeMenuOpen, setRouteMenuOpen] = useState(false);
+  const overlayActive = connected && selectedRoom === session.roomId && !routeMenuOpen;
 
   const [slotNode, setSlotNode] = useState<HTMLDivElement | null>(null);
   useNativeVideoOverlay(session.callId, overlayActive, featured, slotNode);
@@ -674,7 +690,7 @@ export function NativeCallSurface({ session, onHangup }: NativeCallSurfaceProps)
           // nothing.
           disabled={!connected}
         />
-        {connected && <AudioRouteControl session={session} />}
+        {connected && <AudioRouteControl session={session} onMenuOpenChange={setRouteMenuOpen} />}
         {session.cameraEnabled && connected && (
           <button
             type="button"

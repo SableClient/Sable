@@ -50,7 +50,9 @@ matrix-sdk = { version = "0.18", default-features = false, features = [
   "e2e-encryption",
   "sqlite",
 ], optional = true }
-matrix-sdk-crypto = { version = "0.18", optional = true }
+# `qrcode` is off by default upstream but Sable already supports QR device
+# verification, so the engine needs it to keep parity with the wasm backend.
+matrix-sdk-crypto = { version = "0.18", features = ["qrcode"], optional = true }
 matrix-sdk-sqlite = { version = "0.18", features = [
   "crypto-store",
 ], optional = true }

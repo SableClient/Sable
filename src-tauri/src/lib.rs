@@ -448,29 +448,11 @@ pub fn run() {
             #[cfg(feature = "matrix-crypto")]
             matrix_crypto_spike::spike_notification_client,
             #[cfg(feature = "matrix-crypto")]
+            matrix_crypto::engine_invoke,
+            #[cfg(feature = "matrix-crypto")]
             matrix_crypto::engine_open,
             #[cfg(feature = "matrix-crypto")]
             matrix_crypto::engine_close,
-            #[cfg(feature = "matrix-crypto")]
-            matrix_crypto::engine_receive_sync_changes,
-            #[cfg(feature = "matrix-crypto")]
-            matrix_crypto::engine_outgoing_requests,
-            #[cfg(feature = "matrix-crypto")]
-            matrix_crypto::engine_mark_request_sent,
-            #[cfg(feature = "matrix-crypto")]
-            matrix_crypto::engine_decrypt_event,
-            #[cfg(feature = "matrix-crypto")]
-            matrix_crypto::engine_encrypt_event,
-            #[cfg(feature = "matrix-crypto")]
-            matrix_crypto::engine_device_trust,
-            #[cfg(feature = "matrix-crypto")]
-            matrix_crypto::engine_user_trust,
-            #[cfg(feature = "matrix-crypto")]
-            matrix_crypto::engine_cross_signing_status,
-            #[cfg(feature = "matrix-crypto")]
-            matrix_crypto::engine_export_room_keys,
-            #[cfg(feature = "matrix-crypto")]
-            matrix_crypto::engine_import_room_keys,
             share_inbox::share_inbox_drain,
             share_inbox::share_inbox_read,
             share_inbox::share_inbox_clear,

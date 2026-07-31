@@ -46,6 +46,9 @@ importers:
       '@lottiefiles/dotlottie-react':
         specifier: ^0.12.0
         version: 0.12.3(react@18.3.1)
+      '@matrix-org/matrix-sdk-crypto-wasm':
+        specifier: ^18.3.1
+        version: 18.3.1
       '@noble/hashes':
         specifier: ^2.2.0
         version: 2.2.0

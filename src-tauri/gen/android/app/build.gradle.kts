@@ -61,6 +61,11 @@ android {
             )
         }
     }
+    compileOptions {
+        // tauri-plugin-livekit-mobile requires it: LiveKit/WebRTC call java.time
+        // APIs that only exist from API 26, and minSdk here is 24.
+        isCoreLibraryDesugaringEnabled = true
+    }
     kotlinOptions {
         jvmTarget = "1.8"
     }
@@ -74,10 +79,21 @@ rust {
 }
 
 dependencies {
+    // livekit-android pulls protobuf-javalite while tink (via unifiedpush connector)
+    // pulls protobuf-java, and the two ship the same com.google.protobuf classes.
+    // Only the full runtime has the RuntimeVersion class tink's gencode needs, so it
+    // wins; it is a superset of the lite classes livekit's gencode references.
+    modules {
+        module("com.google.protobuf:protobuf-javalite") {
+            replacedBy("com.google.protobuf:protobuf-java")
+        }
+    }
+
     implementation("androidx.webkit:webkit:1.14.0")
     implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("androidx.activity:activity-ktx:1.10.1")
     implementation("com.google.android.material:material:1.12.0")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.4")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.0")

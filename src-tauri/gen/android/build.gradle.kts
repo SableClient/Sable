@@ -14,6 +14,9 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        // livekit-android pulls com.github.davidliu:audioswitch, published only
+        // on JitPack.
+        maven { setUrl("https://jitpack.io") }
     }
 }
 

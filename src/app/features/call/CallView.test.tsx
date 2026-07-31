@@ -22,7 +22,7 @@ const nativeSession = (lifecycle: NativeCallSession['lifecycle']): NativeCallSes
   cameraEnabled: false,
   setMicrophoneEnabled: async () => {},
   setCameraEnabled: async () => {},
-    switchCamera: async () => {},
+  switchCamera: async () => {},
   hangup: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
 });
 
@@ -78,7 +78,7 @@ describe('native call surface', () => {
     expect(screen.getAllByRole('button')).toHaveLength(3);
     expect(screen.getByRole('button', { name: 'Mute microphone' })).toBeEnabled();
     expect(screen.getByRole('button', { name: 'Start camera' })).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'End' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'End call' })).toBeInTheDocument();
   });
 
   it('keeps media toggles disabled while connecting', () => {
@@ -87,7 +87,7 @@ describe('native call surface', () => {
     expect(screen.getByText('Connecting')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Mute microphone' })).toBeDisabled();
     expect(screen.getByRole('button', { name: 'Start camera' })).toBeDisabled();
-    expect(screen.getByRole('button', { name: 'End' })).toBeEnabled();
+    expect(screen.getByRole('button', { name: 'End call' })).toBeEnabled();
   });
 
   it('gives failed calls an explicit dismiss route', () => {

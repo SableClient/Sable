@@ -308,7 +308,7 @@ function LivekitJsCallContent({
   // "weird in-app PiP" overlay; disablePictureInPicture prevents it.
   useEffect(() => {
     const container = document.querySelector('[data-livekit-call-surface]');
-    if (!container) return;
+    if (!container) return undefined;
     const videos = container.querySelectorAll('video');
     videos.forEach((video) => {
       (video as HTMLVideoElement).disablePictureInPicture = true;

@@ -2,7 +2,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MatrixClient, MatrixRTCSession, CallMembership, Room } from '$types/matrix-sdk';
 import { MatrixRTCSessionEvent } from '$types/matrix-sdk';
 import { joinAndProvisionMatrixRTC } from './matrixRtcCallLifecycle';
-import type { LivekitProvisioningResult } from './livekitProvisioning';
+import type {
+  LivekitProvisioningResult,
+  getPreferredLivekitTransport,
+  provisionLivekitToken,
+} from './livekitProvisioning';
 
 type SessionHandler = (...args: unknown[]) => void;
 
@@ -16,11 +20,11 @@ const makeSession = (): TestSession => {
     handlers,
     memberships: [] as CallMembership[],
     slotId: 'm.call#slot',
-    on: vi.fn<(event: MatrixRTCSessionEvent, handler: SessionHandler) => void>().mockImplementation(
-      (event, handler) => {
+    on: vi
+      .fn<(event: MatrixRTCSessionEvent, handler: SessionHandler) => void>()
+      .mockImplementation((event, handler) => {
         handlers.set(event, handler);
-      }
-    ),
+      }),
     removeListener: vi
       .fn<(event: MatrixRTCSessionEvent, handler: SessionHandler) => void>()
       .mockImplementation((event, handler) => {
@@ -42,7 +46,9 @@ const makeClient = (overrides: Partial<MatrixClient> = {}): MatrixClient =>
   ({
     getDeviceId: () => 'ALICEDEVICE',
     getSafeUserId: () => '@alice:example.org',
-    getStateEvent: vi.fn().mockResolvedValue(undefined) as unknown as MatrixClient['getStateEvent'],
+    getStateEvent: vi
+      .fn<() => Promise<unknown>>()
+      .mockResolvedValue(undefined) as unknown as MatrixClient['getStateEvent'],
     ...overrides,
   }) as unknown as MatrixClient;
 
@@ -63,8 +69,10 @@ describe('joinAndProvisionMatrixRTC', () => {
     room: { roomId: '!room:example.org' } as unknown as Room,
     session: makeSession(),
     callIntent: 'audio' as const,
-    getPreferredTransport: vi.fn().mockResolvedValue(makeTransport()),
-    provisionToken: vi.fn().mockResolvedValue(provisioned),
+    getPreferredTransport: vi
+      .fn<typeof getPreferredLivekitTransport>()
+      .mockResolvedValue(makeTransport()),
+    provisionToken: vi.fn<typeof provisionLivekitToken>().mockResolvedValue(provisioned),
     ...overrides,
   });
 
@@ -85,8 +93,7 @@ describe('joinAndProvisionMatrixRTC', () => {
     session.memberships = [
       { userId: '@alice:example.org', deviceId: 'ALICEDEVICE' },
     ] as CallMembership[];
-    session
-      .handlers.get(MatrixRTCSessionEvent.MembershipsChanged)!([], session.memberships);
+    session.handlers.get(MatrixRTCSessionEvent.MembershipsChanged)!([], session.memberships);
 
     const result = await promise;
     expect(result.provisioned).toEqual(provisioned);
@@ -114,13 +121,16 @@ describe('joinAndProvisionMatrixRTC', () => {
     vi.useFakeTimers();
     try {
       const session = makeSession();
-      const mx = makeClient({ getStateEvent: vi.fn().mockResolvedValue(undefined) });
+      const mx = makeClient({
+        getStateEvent: vi.fn<MatrixClient['getStateEvent']>().mockResolvedValue(undefined as never),
+      });
       const opts = callOpts({ session, mx });
-      const promise = joinAndProvisionMatrixRTC(opts);
+      const rejects = expect(joinAndProvisionMatrixRTC(opts)).rejects.toThrow(
+        'MatrixRTC membership publication timed out'
+      );
 
       await vi.runAllTimersAsync();
-
-      await expect(promise).rejects.toThrow('MatrixRTC membership publication timed out');
+      await rejects;
     } finally {
       vi.useRealTimers();
     }
@@ -130,9 +140,9 @@ describe('joinAndProvisionMatrixRTC', () => {
     const session = makeSession();
     const mx = makeClient({
       getStateEvent: vi
-        .fn()
+        .fn<MatrixClient['getStateEvent']>()
         // first poll: no event yet
-        .mockResolvedValueOnce(undefined)
+        .mockResolvedValueOnce(undefined as never)
         // second poll: membership found on server
         .mockResolvedValueOnce({}),
     });
@@ -158,7 +168,9 @@ describe('joinAndProvisionMatrixRTC', () => {
     vi.useFakeTimers();
     try {
       const session = makeSession();
-      const mx = makeClient({ getStateEvent: vi.fn().mockResolvedValue(undefined) });
+      const mx = makeClient({
+        getStateEvent: vi.fn<MatrixClient['getStateEvent']>().mockResolvedValue(undefined as never),
+      });
       let cancelMembership!: (() => void) | undefined;
       const opts = callOpts({
         session,
@@ -167,15 +179,16 @@ describe('joinAndProvisionMatrixRTC', () => {
           cancelMembership = cancel;
         },
       });
-      const promise = joinAndProvisionMatrixRTC(opts);
+      const rejects = expect(joinAndProvisionMatrixRTC(opts)).rejects.toThrow(
+        'MatrixRTC membership wait cancelled'
+      );
 
       await vi.waitFor(() => expect(session.on).toHaveBeenCalled());
       expect(cancelMembership).toBeDefined();
 
       cancelMembership!();
       await vi.runAllTimersAsync();
-
-      await expect(promise).rejects.toThrow('MatrixRTC membership wait cancelled');
+      await rejects;
       // on cancel, getStateEvent should never have been polled with fake timers
       // (interval hasn't ticked yet, and cancel cleared it)
     } finally {
@@ -186,7 +199,9 @@ describe('joinAndProvisionMatrixRTC', () => {
   it('rejects on SDK error path even with fallback available', async () => {
     // MembershipManagerError wins — membership on server does not matter
     const session = makeSession();
-    const mx = makeClient({ getStateEvent: vi.fn().mockResolvedValue({}) });
+    const mx = makeClient({
+      getStateEvent: vi.fn<MatrixClient['getStateEvent']>().mockResolvedValue({}),
+    });
     const opts = callOpts({ session, mx });
     const promise = joinAndProvisionMatrixRTC(opts);
 
@@ -218,8 +233,7 @@ describe('joinAndProvisionMatrixRTC', () => {
     session.memberships = [
       { userId: '@alice:example.org', deviceId: 'ALICEDEVICE' },
     ] as CallMembership[];
-    session
-      .handlers.get(MatrixRTCSessionEvent.MembershipsChanged)!([], session.memberships);
+    session.handlers.get(MatrixRTCSessionEvent.MembershipsChanged)!([], session.memberships);
 
     await promise;
 

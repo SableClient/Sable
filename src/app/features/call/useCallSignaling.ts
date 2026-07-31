@@ -1,7 +1,12 @@
 import { useCallback, useEffect, useRef } from 'react';
 import * as Sentry from '@sentry/react';
 import { useAtomValue, useSetAtom, useStore } from 'jotai';
-import { EventType, type RoomEventHandlerMap, MatrixEvent, Room } from '$types/matrix-sdk';
+import {
+  EventType,
+  type RoomEventHandlerMap,
+  type MatrixEvent,
+  type Room,
+} from '$types/matrix-sdk';
 import { MatrixRTCSessionManagerEvents, RoomEvent } from '$types/matrix-sdk';
 import { mDirectAtom } from '$state/mDirectList';
 import {

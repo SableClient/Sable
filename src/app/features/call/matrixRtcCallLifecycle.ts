@@ -153,10 +153,14 @@ const waitForOwnMembership = (
         })
         .catch(() =>
           // Try the legacy event type as fallback
-          mx.getStateEvent(roomId, legacyCallMemberEventType, stateKey)
+          mx
+            .getStateEvent(roomId, legacyCallMemberEventType, stateKey)
             .then((event) => {
               if (event && !settled) {
-                debugLog.info('call', `fallback resolved (legacy): found server-side membership ${stateKey}`);
+                debugLog.info(
+                  'call',
+                  `fallback resolved (legacy): found server-side membership ${stateKey}`
+                );
                 settle(resolveWait);
               }
             })
@@ -199,7 +203,13 @@ export const joinAndProvisionMatrixRTC = async ({
   const userId = mx.getSafeUserId();
   const identity = { userId, deviceId, memberId: `${userId}:${deviceId}` };
   if (isCancelled?.()) throw new Error('MatrixRTC setup cancelled');
-  const membershipWait = waitForOwnMembership(session, identity.userId, identity.deviceId, mx, room.roomId);
+  const membershipWait = waitForOwnMembership(
+    session,
+    identity.userId,
+    identity.deviceId,
+    mx,
+    room.roomId
+  );
   onMembershipWait?.(membershipWait.cancel);
   onStage?.('joining-matrix');
 

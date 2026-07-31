@@ -268,9 +268,7 @@ export const listenNativeCallSnapshot = (
 ): Promise<UnlistenFn> =>
   listen<NativeCallSnapshot>(NATIVE_CALL_EVENT, ({ payload }) => handler(payload));
 
-export const reportSystemIncomingCall = (
-  request: ReportSystemIncomingCallRequest
-): Promise<void> =>
+export const reportSystemIncomingCall = (request: ReportSystemIncomingCallRequest): Promise<void> =>
   invoke<void>('plugin:livekit-mobile|reportSystemIncomingCall', { payload: request });
 
 export const startSystemCall = (request: StartSystemCallRequest): Promise<void> =>
@@ -297,9 +295,7 @@ export const fulfillEndCall = (uuid: string): Promise<void> =>
 export const reportSystemCallConnected = (uuid: string): Promise<void> =>
   invoke<void>('plugin:livekit-mobile|reportSystemCallConnected', { payload: { uuid } });
 
-export const getAudioRoutes = (
-  request: GetAudioRoutesRequest
-): Promise<GetAudioRoutesResponse> =>
+export const getAudioRoutes = (request: GetAudioRoutesRequest): Promise<GetAudioRoutesResponse> =>
   invoke<GetAudioRoutesResponse>('plugin:livekit-mobile|getAudioRoutes', { payload: request });
 
 export const setAudioRoute = (request: SetAudioRouteRequest): Promise<NativeCallSnapshot> =>
@@ -308,9 +304,7 @@ export const setAudioRoute = (request: SetAudioRouteRequest): Promise<NativeCall
 export const sendDTMF = (request: SendDTMFRequest): Promise<NativeCallSnapshot> =>
   invoke<NativeCallSnapshot>('plugin:livekit-mobile|sendDTMF', { payload: request });
 
-export const updateCallDisplay = (
-  request: UpdateCallDisplayRequest
-): Promise<NativeCallSnapshot> =>
+export const updateCallDisplay = (request: UpdateCallDisplayRequest): Promise<NativeCallSnapshot> =>
   invoke<NativeCallSnapshot>('plugin:livekit-mobile|updateCallDisplay', { payload: request });
 
 export const reportSystemCallAnsweredElsewhere = (
@@ -323,9 +317,7 @@ export const reportSystemCallDeclinedElsewhere = (
 ): Promise<void> =>
   invoke<void>('plugin:livekit-mobile|reportSystemCallDeclinedElsewhere', { payload: request });
 
-export const reportSystemCallUnanswered = (
-  request: ReportUnansweredRequest
-): Promise<void> =>
+export const reportSystemCallUnanswered = (request: ReportUnansweredRequest): Promise<void> =>
   invoke<void>('plugin:livekit-mobile|reportSystemCallUnanswered', { payload: request });
 
 export const declineSystemCall = (request: DeclineSystemCallRequest): Promise<void> =>
@@ -333,5 +325,4 @@ export const declineSystemCall = (request: DeclineSystemCallRequest): Promise<vo
 
 export const onSystemCallAction = (
   handler: (action: SystemCallAction) => void
-): Promise<PluginListener> =>
-  addPluginListener('livekit-mobile', 'callkit_event', handler);
+): Promise<PluginListener> => addPluginListener('livekit-mobile', 'callkit_event', handler);

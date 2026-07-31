@@ -218,7 +218,13 @@ export function createLivekitJsController(dependencies: LivekitJsControllerDepen
             },
           });
 
-          current.provider.setLocalOutboundIdentity(joined.ownMembership?.rtcBackendIdentity);
+          // RTCEncryptionManager emits our own key under the plain
+          // `userId:deviceId` unless `unstableSendStickyEvents` is set (we
+          // don't set it), so the membership's hashed rtcBackendIdentity would
+          // never match. Same reasoning as the native controller.
+          current.provider.setLocalOutboundIdentity(
+            `${connectOptions.mx.getSafeUserId()}:${connectOptions.mx.getDeviceId()}`
+          );
           if (current.e2eeFailure || current.provider.getKeyState().lastImportFailure) {
             failure = 'e2ee-import-failed';
           } else if (!current.cancelled) {

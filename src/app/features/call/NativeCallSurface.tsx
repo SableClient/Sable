@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { Text, config, toRem } from 'folds';
+import { type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { Text, toRem } from 'folds';
 import type { NativeCallSession } from '$state/nativeCall';
 import {
   ArrowsClockwise,
@@ -123,6 +123,20 @@ type OverlayTarget = {
 };
 
 /**
+ * True when the slot's center point is covered by another element (drawers,
+ * modal sheets, page transitions). Rect geometry alone cannot detect this —
+ * a drawer sliding over the call view moves nothing. Probing the topmost
+ * element at the slot's center is the reliable occlusion signal.
+ */
+function nativeSlotOccluded(slotNode: HTMLDivElement, rect: DOMRect): boolean {
+  const cx = rect.x + rect.width / 2;
+  const cy = rect.y + rect.height / 2;
+  if (cx < 0 || cy < 0 || cx > window.innerWidth || cy > window.innerHeight) return true;
+  const topElement = document.elementFromPoint(cx, cy);
+  return topElement === null || (topElement !== slotNode && !slotNode.contains(topElement));
+}
+
+/**
  * Reserves the featured tile's DOM slot and reports its viewport-relative
  * rect to the native video overlay. The native side renders a single remote
  * video view exactly over the reported rect, so only one slot is reported at
@@ -142,8 +156,24 @@ function useNativeVideoOverlay(
     let lastGeometryKey = '';
     const report = () => {
       const rect = slotNode.getBoundingClientRect();
-      if (rect.width <= 0 || rect.height <= 0) return;
-      const geometryKey = `${rect.x},${rect.y},${rect.width},${rect.height}`;
+      // Slot hidden or outside the viewport (display:none page, scrolled away):
+      // hide the native overlay too, otherwise it stays painted at a stale
+      // position over unrelated content.
+      const offscreen =
+        rect.width <= 0 ||
+        rect.height <= 0 ||
+        rect.right < 0 ||
+        rect.bottom < 0 ||
+        rect.left > window.innerWidth ||
+        rect.top > window.innerHeight;
+      if (offscreen) {
+        if (lastGeometryKey !== '') {
+          lastGeometryKey = '';
+          void clearNativeCallRemoteVideoOverlay({ callId }).catch(() => undefined);
+        }
+        return;
+      }
+      const geometryKey = `${Math.round(rect.x)},${Math.round(rect.y)},${Math.round(rect.width)},${Math.round(rect.height)}`;
       if (geometryKey === lastGeometryKey) return;
       lastGeometryKey = geometryKey;
       void setNativeCallRemoteVideoOverlay({
@@ -162,9 +192,14 @@ function useNativeVideoOverlay(
     const observer = new ResizeObserver(report);
     observer.observe(slotNode);
     window.addEventListener('resize', report);
+    // Scroll is the dominant rect-changing event: the message list (or any
+    // nested scroll container) moves the slot without resizing it. Capture
+    // phase reaches scrolls from nested containers, which don't bubble.
+    document.addEventListener('scroll', report, { capture: true, passive: true });
     return () => {
       observer.disconnect();
       window.removeEventListener('resize', report);
+      document.removeEventListener('scroll', report, { capture: true });
     };
   }, [targetKey, target, slotNode, callId]);
 
@@ -202,9 +237,29 @@ function useNativeLocalVideoOverlay(
 
     let lastGeometryKey = '';
     const report = () => {
+      // Never tear down the preview while the page is hidden (e.g. PiP owns
+      // the layer during backgrounding).
+      if (document.visibilityState !== 'visible') return;
       const rect = slotNode.getBoundingClientRect();
-      if (rect.width <= 0 || rect.height <= 0) return;
-      const geometryKey = `${rect.x},${rect.y},${rect.width},${rect.height}`;
+      // Slot hidden, outside the viewport (scrolled away), or occluded by an
+      // overlaying page/drawer: hide the native overlay too, otherwise it
+      // stays painted at a stale position over unrelated content.
+      const hidden =
+        rect.width <= 0 ||
+        rect.height <= 0 ||
+        rect.right < 0 ||
+        rect.bottom < 0 ||
+        rect.left > window.innerWidth ||
+        rect.top > window.innerHeight ||
+        nativeSlotOccluded(slotNode, rect);
+      if (hidden) {
+        if (lastGeometryKey !== '') {
+          lastGeometryKey = '';
+          void clearNativeCallLocalVideoOverlay({ callId }).catch(() => undefined);
+        }
+        return;
+      }
+      const geometryKey = `${Math.round(rect.x)},${Math.round(rect.y)},${Math.round(rect.width)},${Math.round(rect.height)}`;
       if (geometryKey === lastGeometryKey) return;
       lastGeometryKey = geometryKey;
       void setNativeCallLocalVideoOverlay({
@@ -220,10 +275,22 @@ function useNativeLocalVideoOverlay(
     report();
     const observer = new ResizeObserver(report);
     observer.observe(slotNode);
+    // Fires during slide transitions (transforms move the slot without any
+    // scroll/resize event) — this is how recovery after a room change works.
+    const intersectionObserver = new IntersectionObserver(report, {
+      threshold: [0, 0.25, 0.5, 0.75, 1],
+    });
+    intersectionObserver.observe(slotNode);
     window.addEventListener('resize', report);
+    // Scroll is the dominant rect-changing event: any nested scroll container
+    // moves the slot without resizing it. Capture phase reaches scrolls from
+    // nested containers, which don't bubble.
+    document.addEventListener('scroll', report, { capture: true, passive: true });
     return () => {
       observer.disconnect();
+      intersectionObserver.disconnect();
       window.removeEventListener('resize', report);
+      document.removeEventListener('scroll', report, { capture: true });
     };
   }, [callId, slotNode, active]);
 
@@ -243,12 +310,17 @@ function useNativeLocalVideoOverlay(
 function LocalTile({
   session,
   slotRef,
+  fixed,
 }: {
   session: NativeCallSession;
   slotRef?: (node: HTMLDivElement | null) => void;
+  fixed?: boolean;
 }) {
   return (
-    <div className={css.Tile} data-video-bound={session.cameraEnabled || undefined}>
+    <div
+      className={fixed ? `${css.Tile} ${css.TileFixed}` : css.Tile}
+      data-video-bound={session.cameraEnabled || undefined}
+    >
       {/* When the camera is on, the native local preview renders over this
           slot; the user icon stays mounted underneath as the placeholder. */}
       <div className={css.TileSlot} ref={slotRef}>
@@ -272,12 +344,16 @@ type RemoteTileProps = {
   participant: NativeCallRemoteParticipant;
   videoBound: boolean;
   slotRef?: (node: HTMLDivElement | null) => void;
+  fixed?: boolean;
 };
 
-function RemoteTile({ participant, videoBound, slotRef }: RemoteTileProps) {
+function RemoteTile({ participant, videoBound, slotRef, fixed }: RemoteTileProps) {
   const label = nativeParticipantLabel(participant.identity);
   return (
-    <div className={css.Tile} data-video-bound={videoBound || undefined}>
+    <div
+      className={fixed ? `${css.Tile} ${css.TileFixed}` : css.Tile}
+      data-video-bound={videoBound || undefined}
+    >
       {/* When video is bound, the native view renders exactly over this slot;
           the initials stay mounted underneath as the pre-video placeholder. */}
       <div className={css.TileSlot} ref={slotRef}>
@@ -286,6 +362,10 @@ function RemoteTile({ participant, videoBound, slotRef }: RemoteTileProps) {
         </div>
       </div>
       <div className={css.TileLabel}>
+        <span
+          className={css.QualityDot}
+          data-quality={participant.connectionQuality ?? 'unknown'}
+        />
         {participant.camera?.muted && (
           <span aria-label="Camera off" style={{ display: 'inline-flex', flexShrink: 0 }}>
             {sizedIcon(VideoCameraSlash, '200')}
@@ -295,6 +375,36 @@ function RemoteTile({ participant, videoBound, slotRef }: RemoteTileProps) {
           {label}
         </span>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Edge-to-edge tile for the layouts where one participant owns the whole
+ * stage: the local preview when the call is still empty, or the single remote
+ * in a two-person call (FaceTime-style).
+ */
+function DominantTile({
+  slotRef,
+  videoBound,
+  placeholder,
+  label,
+}: {
+  slotRef?: (node: HTMLDivElement | null) => void;
+  videoBound?: boolean;
+  placeholder: ReactNode;
+  label: ReactNode;
+}) {
+  return (
+    <div className={css.DominantTile} data-video-bound={videoBound || undefined}>
+      {/* The slot's rect is what JS reports to the native video overlay; the
+          placeholder stays mounted underneath as the pre-video fallback. */}
+      <div className={css.TileSlot} ref={slotRef}>
+        <div className={css.InitialsBadge} aria-hidden>
+          {placeholder}
+        </div>
+      </div>
+      <div className={css.TileLabel}>{label}</div>
     </div>
   );
 }
@@ -319,10 +429,17 @@ export function NativeCallSurface({ session, onHangup }: NativeCallSurfaceProps)
   const [localSlotNode, setLocalSlotNode] = useState<HTMLDivElement | null>(null);
   useNativeLocalVideoOverlay(session.callId, connected, session.cameraEnabled, localSlotNode);
 
-  const hasFeatured = connected && featured !== undefined;
-  const otherRemotes = hasFeatured
-    ? remoteParticipants.filter((p) => p.identity !== featured?.participantIdentity)
-    : remoteParticipants;
+  const remoteCount = remoteParticipants.length;
+  // Total tiles once the local self-tile joins the grid. 7+ switches the grid
+  // to its compact, scrollable three-column variant.
+  const tileCount = remoteCount + 1;
+  const compactGrid = tileCount > 6;
+
+  // Two-person layout: the remote owns the stage and is video-bound here
+  // whenever its camera is the featured track.
+  const duoRemote = remoteCount === 1 ? remoteParticipants[0] : undefined;
+  const duoLive =
+    duoRemote !== undefined && connected && featured?.participantIdentity === duoRemote.identity;
 
   if (isError) {
     return (
@@ -344,90 +461,83 @@ export function NativeCallSurface({ session, onHangup }: NativeCallSurfaceProps)
           </Text>
         </div>
       )}
-      {hasFeatured ? (
-        <>
-          <div className={css.FeaturedStage}>
-            <div className={css.FeaturedTile} data-video-bound>
-              <div className={css.TileSlot} ref={setSlotNode}>
-                <div className={css.InitialsBadge} aria-hidden>
-                  {nativeParticipantInitials(featured!.participantIdentity)}
-                </div>
-              </div>
-              <div className={css.TileLabel}>
-                {featured && (
-                  <span
-                    className={css.QualityDot}
-                    data-quality={
-                      remoteParticipants.find((p) => p.identity === featured.participantIdentity)
-                        ?.connectionQuality ?? 'unknown'
-                    }
-                  />
+      {duoRemote ? (
+        <div className={css.DominantStage}>
+          <DominantTile
+            videoBound={duoLive}
+            slotRef={duoLive ? setSlotNode : undefined}
+            placeholder={nativeParticipantInitials(duoRemote.identity)}
+            label={
+              <>
+                <span
+                  className={css.QualityDot}
+                  data-quality={duoRemote.connectionQuality ?? 'unknown'}
+                />
+                {duoRemote.camera?.muted && (
+                  <span aria-label="Camera off" style={{ display: 'inline-flex', flexShrink: 0 }}>
+                    {sizedIcon(VideoCameraSlash, '200')}
+                  </span>
                 )}
-                <span className={css.TileLabelName}>
-                  {nativeParticipantLabel(featured!.participantIdentity)}
+                <span className={css.TileLabelName} title={duoRemote.identity}>
+                  {nativeParticipantLabel(duoRemote.identity)}
                 </span>
-              </div>
-            </div>
-            {session.cameraEnabled && (
-              <div className={css.FloatingLocal} data-video-bound>
-                <div className={css.TileSlot} ref={setLocalSlotNode}>
-                  <div
-                    className={css.InitialsBadge}
-                    aria-hidden
-                    style={{ width: '40%', fontSize: toRem(14) }}
-                  >
-                    {sizedIcon(User, '200')}
-                  </div>
+              </>
+            }
+          />
+          {session.cameraEnabled && (
+            <div className={css.FloatingLocal} data-video-bound>
+              <div className={css.TileSlot} ref={setLocalSlotNode}>
+                <div
+                  className={css.InitialsBadge}
+                  aria-hidden
+                  style={{ width: '40%', fontSize: toRem(14) }}
+                >
+                  {sizedIcon(User, '200')}
                 </div>
               </div>
-            )}
-          </div>
-          {otherRemotes.length > 0 && (
-            <div className={css.Filmstrip}>
-              {otherRemotes.map((participant) => (
-                <div key={participant.identity} className={css.FilmstripTile}>
-                  <div className={css.TileSlot}>
-                    <div className={css.InitialsBadge} aria-hidden>
-                      {nativeParticipantInitials(participant.identity)}
-                    </div>
-                  </div>
-                  <div className={css.TileLabel} style={{ padding: `${config.space.S100}` }}>
-                    <span
-                      className={css.QualityDot}
-                      data-quality={participant.connectionQuality ?? 'unknown'}
-                    />
-                    <span className={css.TileLabelName} style={{ fontSize: toRem(11) }}>
-                      {nativeParticipantLabel(participant.identity)}
-                    </span>
-                  </div>
-                </div>
-              ))}
             </div>
           )}
-        </>
+        </div>
+      ) : remoteCount === 0 ? (
+        <div className={css.DominantStage}>
+          <DominantTile
+            videoBound={connected && session.cameraEnabled}
+            slotRef={connected && session.cameraEnabled ? setLocalSlotNode : undefined}
+            placeholder={sizedIcon(User, '400')}
+            label={
+              <>
+                {!session.microphoneEnabled && (
+                  <span
+                    aria-label="Microphone off"
+                    style={{ display: 'inline-flex', flexShrink: 0 }}
+                  >
+                    {sizedIcon(MicrophoneSlash, '200')}
+                  </span>
+                )}
+                <span className={css.TileLabelName}>You</span>
+              </>
+            }
+          />
+        </div>
       ) : (
-        <div className={css.TilesStage}>
+        <div className={css.TileGrid} data-cols={compactGrid ? '3' : '2'}>
+          {remoteParticipants.map((participant) => {
+            const live = connected && featured?.participantIdentity === participant.identity;
+            return (
+              <RemoteTile
+                key={participant.identity}
+                participant={participant}
+                videoBound={live}
+                slotRef={live ? setSlotNode : undefined}
+                fixed={compactGrid}
+              />
+            );
+          })}
           <LocalTile
             session={session}
             slotRef={connected && session.cameraEnabled ? setLocalSlotNode : undefined}
+            fixed={compactGrid}
           />
-          {remoteParticipants.map((participant) => (
-            <RemoteTile
-              key={participant.identity}
-              participant={participant}
-              videoBound={false}
-              slotRef={undefined}
-            />
-          ))}
-          {connected && remoteParticipants.length === 0 && (
-            <div className={css.Tile} style={{ gridColumn: '1 / -1' }}>
-              <div className={css.TileSlot}>
-                <Text as="span" size="T300" className={css.SlotCaption}>
-                  No one else is here yet
-                </Text>
-              </div>
-            </div>
-          )}
         </div>
       )}
       <CallControlBar layout="flow">

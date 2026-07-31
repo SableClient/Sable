@@ -11,7 +11,6 @@ import {
   listenNativeCallSnapshot,
   onSystemCallAction,
   reportSystemCallConnected,
-  reportSystemIncomingCall,
   setNativeCallCameraEnabled,
   setNativeCallEncryptionKey,
   setNativeCallMicrophoneEnabled,
@@ -20,7 +19,6 @@ import {
   startSystemCall,
   switchNativeCallCamera,
   updateCallDisplay,
-  type GetAudioRoutesResponse,
   type NativeCallEncryptionKeyPayload,
   type NativeCallSnapshot,
   type SystemCallAction,
@@ -169,9 +167,9 @@ export const createNativeCallController = (
     } else if (action.action === 'mute') {
       // System UI mute toggle — push to LiveKit.
       if (activeRecord && !activeRecord.cancelled && activeRecord.connectResolved) {
-        void deps.setMicrophone({ callId: activeRecord.callId, enabled: !action.muted }).catch(
-          () => undefined
-        );
+        void deps
+          .setMicrophone({ callId: activeRecord.callId, enabled: !action.muted })
+          .catch(() => undefined);
       }
     }
   }).catch(() => undefined);
@@ -281,7 +279,9 @@ export const createNativeCallController = (
       // End the system call so CallKit dismisses the active-call UI.
       void endSystemCall({ callId: record.callId, remoteEnded: true }).catch(() => undefined);
       // Disable native PiP on cleanup.
-      void setNativeCallPiPEnabled({ callId: record.callId, enabled: false }).catch(() => undefined);
+      void setNativeCallPiPEnabled({ callId: record.callId, enabled: false }).catch(
+        () => undefined
+      );
       await disconnectLivekitThenLeaveMatrixRTC(
         () => deps.disconnectCall({ callId: record.callId }).then(() => undefined),
         record.session
@@ -392,9 +392,10 @@ export const createNativeCallController = (
       });
       if (!isCurrent(currentRecord)) return;
 
-      forwarder.setLocalOutboundIdentity(
-        joined.ownMembership?.rtcBackendIdentity ?? `${mx.getSafeUserId()}:${mx.getDeviceId()}`,
-      );
+      // The SDK's RTCEncryptionManager identifies our own key by the plain
+      // `userId:deviceId` unless `unstableSendStickyEvents` is set (we don't
+      // set it), so do NOT use the membership's hashed rtcBackendIdentity here.
+      forwarder.setLocalOutboundIdentity(`${mx.getSafeUserId()}:${mx.getDeviceId()}`);
 
       stage = 'connecting';
       await forwarder.waitForOwnKey();
@@ -426,11 +427,13 @@ export const createNativeCallController = (
       void startSystemCall({ callId, uuid: systemUuid, callerName }).catch(() => undefined);
       // Update the system call display with the room name and video flag so
       // CallKit shows the correct caller info.
-      void deps.updateDisplay({
-        callId,
-        callerName,
-        hasVideo: video,
-      }).catch(() => undefined);
+      void deps
+        .updateDisplay({
+          callId,
+          callerName,
+          hasVideo: video,
+        })
+        .catch(() => undefined);
       // Report the call as connected to CallKit so the system UI updates.
       void reportSystemCallConnected(systemUuid).catch(() => undefined);
       // Enable native PiP when the call connects.

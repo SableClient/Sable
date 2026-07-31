@@ -1,9 +1,4 @@
-import type {
-  CSSProperties,
-  FocusEventHandler,
-  PointerEventHandler,
-  ReactNode,
-} from 'react';
+import type { CSSProperties, FocusEventHandler, PointerEventHandler, ReactNode } from 'react';
 import { Box, Button, color, Text } from 'folds';
 import {
   Microphone,
@@ -195,7 +190,10 @@ export function CallMediaToggleButton({
  * always provides them.
  */
 export type CallMediaControlsProps = Required<
-  Pick<CallClient, 'microphoneEnabled' | 'cameraEnabled' | 'setMicrophoneEnabled' | 'setCameraEnabled'>
+  Pick<
+    CallClient,
+    'microphoneEnabled' | 'cameraEnabled' | 'setMicrophoneEnabled' | 'setCameraEnabled'
+  >
 > & {
   disabled?: boolean;
 };

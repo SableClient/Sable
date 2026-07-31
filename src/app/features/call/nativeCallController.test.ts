@@ -20,12 +20,13 @@ import {
   type CallOwnerLease,
 } from '$state/callOwner';
 
+const OWN_IDENTITY = '@alice:example.org:DEVICE';
 const room = { roomId: '!room:example.org' } as Room;
 const transport = { type: 'livekit' as const, livekit_service_url: 'https://sfu.example' };
 const ownMembership = {
   userId: '@alice:example.org',
   deviceId: 'DEVICE',
-  rtcBackendIdentity: 'own-backend',
+  rtcBackendIdentity: OWN_IDENTITY,
 } as CallMembership;
 
 const idleSnapshot = (callId: string | null = null): NativeCallSnapshot => ({
@@ -206,7 +207,7 @@ describe('native call controller', () => {
     await waitForMembershipListener(session);
     expect(order).toEqual(['attach-keys', 'join']);
     emitOwnMembership(session);
-    emitKey(session, [1], 0, 'own-backend');
+    emitKey(session, [1], 0, OWN_IDENTITY);
     await startPromise;
 
     expect(session.joinRTCSession).toHaveBeenCalledWith(
@@ -232,7 +233,7 @@ describe('native call controller', () => {
     await Promise.resolve();
     expect(connectCall).not.toHaveBeenCalled();
 
-    emitKey(session, [1, 2, 3, 4], 1, 'own-backend');
+    emitKey(session, [1, 2, 3, 4], 1, OWN_IDENTITY);
     await startPromise;
 
     expect(connectCall).toHaveBeenCalledWith({
@@ -242,7 +243,7 @@ describe('native call controller', () => {
       microphoneEnabled: true,
       encryptionKeys: [
         { identity: 'remote-backend', keyIndex: 0, key: 'CQk=' },
-        { identity: 'own-backend', keyIndex: 1, key: 'AQIDBA==' },
+        { identity: OWN_IDENTITY, keyIndex: 1, key: 'AQIDBA==' },
       ],
     });
     expect(lastSession(dependencies.setSession as Harness['setSession'])).toMatchObject({
@@ -263,7 +264,7 @@ describe('native call controller', () => {
     await waitForMembershipListener(session);
     emitOwnMembership(session);
     await vi.waitFor(() => expect(session.joinRTCSession).toHaveBeenCalled());
-    emitKey(session, [1, 2, 3, 4], 1, 'own-backend');
+    emitKey(session, [1, 2, 3, 4], 1, OWN_IDENTITY);
     await startPromise;
 
     expect(connectCall).toHaveBeenCalledWith(expect.objectContaining({ microphoneEnabled: false }));
@@ -279,7 +280,7 @@ describe('native call controller', () => {
     await waitForMembershipListener(session);
     emitOwnMembership(session);
     emitKey(session, [9, 9], 0, 'remote-backend');
-    emitKey(session, [1], 0, 'own-backend');
+    emitKey(session, [1], 0, OWN_IDENTITY);
     expect(setEncryptionKey).not.toHaveBeenCalled();
     await startPromise;
     expect(setEncryptionKey).not.toHaveBeenCalled();
@@ -314,7 +315,7 @@ describe('native call controller', () => {
     const startPromise = controller.start(startOptions(session));
     await waitForMembershipListener(session);
     emitOwnMembership(session);
-    emitKey(session, [1], 0, 'own-backend');
+    emitKey(session, [1], 0, OWN_IDENTITY);
     await startPromise;
     order.length = 0;
 
@@ -342,7 +343,7 @@ describe('native call controller', () => {
     const startPromise = controller.start(startOptions(session, true));
     await waitForMembershipListener(session);
     emitOwnMembership(session);
-    emitKey(session, [1], 0, 'own-backend');
+    emitKey(session, [1], 0, OWN_IDENTITY);
     await startPromise;
 
     expect(order).toEqual(['attach-keys', 'join', 'connect']);
@@ -358,7 +359,7 @@ describe('native call controller', () => {
     const audioStart = audioController.start(startOptions(audioSession));
     await waitForMembershipListener(audioSession);
     emitOwnMembership(audioSession);
-    emitKey(audioSession, [1], 0, 'own-backend');
+    emitKey(audioSession, [1], 0, OWN_IDENTITY);
     await audioStart;
     expect(audioHarness.setCamera).not.toHaveBeenCalled();
   });
@@ -372,7 +373,7 @@ describe('native call controller', () => {
     const startPromise = controller.start(startOptions(session));
     await waitForMembershipListener(session);
     emitOwnMembership(session);
-    emitKey(session, [1], 0, 'own-backend');
+    emitKey(session, [1], 0, OWN_IDENTITY);
     await startPromise;
 
     harness.emitSnapshot({
@@ -407,7 +408,7 @@ describe('native call controller', () => {
     const startPromise = controller.start(startOptions(session));
     await waitForMembershipListener(session);
     emitOwnMembership(session);
-    emitKey(session, [1], 0, 'own-backend');
+    emitKey(session, [1], 0, OWN_IDENTITY);
     await startPromise;
 
     harness.emitSnapshot({
@@ -443,10 +444,11 @@ describe('native call controller', () => {
 
       expect(harness.connectCall).not.toHaveBeenCalled();
       expect(order).toEqual(['attach-keys', 'join', 'native-disconnect', 'leave']);
-      expect(lastSession(harness.setSession)).toMatchObject({
-        lifecycle: 'error',
-        error: 'Native call setup failed during connecting.',
-      });
+      const failed = lastSession(harness.setSession);
+      expect(failed).toMatchObject({ lifecycle: 'error' });
+      expect(failed?.error).toContain('Native call setup failed during connecting.');
+      // The surfaced message must never carry the provisioned token.
+      expect(failed?.error).not.toContain('jwt');
       expect(getActiveCallOwner()).toBeUndefined();
     } finally {
       vi.useRealTimers();
@@ -479,7 +481,7 @@ describe('native call controller', () => {
     const startPromise = controller.start(startOptions(session));
     await waitForMembershipListener(session);
     emitOwnMembership(session);
-    emitKey(session, [1], 0, 'own-backend');
+    emitKey(session, [1], 0, OWN_IDENTITY);
     await startPromise;
 
     const secondSession = makeSession();

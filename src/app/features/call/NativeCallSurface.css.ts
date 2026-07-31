@@ -18,8 +18,8 @@ export const StatusRow = style({
   textAlign: 'center',
 });
 
-/** Full-bleed stage for the featured remote participant (FaceTime-style). */
-export const FeaturedStage = style({
+/** Full-bleed stage for the dominant participant (FaceTime-style). */
+export const DominantStage = style({
   flex: 1,
   minHeight: 0,
   minWidth: 0,
@@ -28,8 +28,8 @@ export const FeaturedStage = style({
   flexDirection: 'column',
 });
 
-/** The featured remote tile — full-bleed, no rounding. */
-export const FeaturedTile = style({
+/** Edge-to-edge dominant tile — no rounding, full-bleed. */
+export const DominantTile = style({
   flex: 1,
   position: 'relative',
   display: 'flex',
@@ -54,40 +54,25 @@ export const FloatingLocal = style({
   background: '#14171f',
 });
 
-/** Horizontal filmstrip for non-featured remote participants. */
-export const Filmstrip = style({
-  display: 'flex',
-  gap: config.space.S200,
-  overflowX: 'auto',
-  padding: `${config.space.S100} ${config.space.S200}`,
-  flexShrink: 0,
-});
-
-export const FilmstripTile = style({
-  position: 'relative',
-  display: 'flex',
-  flexDirection: 'column',
-  width: '100px',
-  height: '100px',
-  flexShrink: 0,
-  overflow: 'hidden',
-  borderRadius: config.radii.R400,
-  background: '#14171f',
-  outline: '1px solid rgba(255, 255, 255, 0.06)',
-  outlineOffset: '-1px',
-});
-
-/** Grid layout for audio-only (no featured video). */
-export const TilesStage = style({
+/** Adaptive grid: 2 columns by default, 3 columns (compact, scrollable) at 7+ tiles. */
+export const TileGrid = style({
   flex: 1,
   minHeight: 0,
   minWidth: 0,
   display: 'grid',
-  gridTemplateColumns: 'repeat(auto-fit, minmax(min(100%, 150px), 1fr))',
-  gridAutoRows: '1fr',
   gap: config.space.S200,
   padding: config.space.S200,
   overflowY: 'auto',
+  selectors: {
+    '&[data-cols="2"]': {
+      gridTemplateColumns: 'repeat(2, 1fr)',
+      gridAutoRows: '1fr',
+    },
+    '&[data-cols="3"]': {
+      gridTemplateColumns: 'repeat(3, 1fr)',
+      gridAutoRows: 'min-content',
+    },
+  },
 });
 
 export const Tile = style({
@@ -101,6 +86,12 @@ export const Tile = style({
   background: '#14171f',
   outline: '1px solid rgba(255, 255, 255, 0.06)',
   outlineOffset: '-1px',
+});
+
+/** Fixed-aspect tile for the compact 3-column grid (7+ participants). */
+export const TileFixed = style({
+  aspectRatio: '3 / 4',
+  flexShrink: 0,
 });
 
 // The rect this element occupies is what JS reports to the native side; keep
@@ -128,12 +119,6 @@ export const InitialsBadge = style({
   fontWeight: 600,
   lineHeight: 1,
   userSelect: 'none',
-});
-
-export const SlotCaption = style({
-  color: 'rgba(255, 255, 255, 0.55)',
-  textAlign: 'center',
-  padding: `0 ${config.space.S200}`,
 });
 
 export const TileLabel = style({

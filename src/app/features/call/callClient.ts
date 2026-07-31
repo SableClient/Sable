@@ -1,4 +1,7 @@
-import type { LivekitJsControllerFailure, LivekitJsControllerLifecycle } from './livekitJsController';
+import type {
+  LivekitJsControllerFailure,
+  LivekitJsControllerLifecycle,
+} from './livekitJsController';
 import type { NativeCallLifecycle } from '$state/nativeCall';
 
 /**
@@ -8,13 +11,7 @@ import type { NativeCallLifecycle } from '$state/nativeCall';
  * "reconnecting" — so the shared chrome reasons about a coarse phase while each
  * engine keeps its own union and its own user-facing label map.
  */
-type CallPhase =
-  | 'idle'
-  | 'connecting'
-  | 'connected'
-  | 'reconnecting'
-  | 'stopping'
-  | 'failed';
+type CallPhase = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'stopping' | 'failed';
 
 /**
  * The contract every call engine satisfies. Both `NativeCallSession` (iOS,

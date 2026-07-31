@@ -218,8 +218,10 @@ pub async fn engine_receive_sync_changes(
 
 // ---------------------------------------------------------- request pump
 
+// No serde rename: tauri-typegen emits the Rust variant names verbatim and
+// ignores `rename_all`, so renaming here would make the generated TypeScript
+// disagree with the wire format.
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq, Clone, Copy)]
-#[serde(rename_all = "snake_case")]
 pub enum CryptoRequestKind {
     KeysUpload,
     KeysQuery,
@@ -513,5 +515,26 @@ mod tests {
         assert!(result.is_err(), "bogus megolm event must not decrypt");
 
         let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// tauri-typegen emits the Rust variant names verbatim and ignores
+    /// `#[serde(rename_all)]`, so the wire format has to stay PascalCase or the
+    /// generated TypeScript would describe a shape the engine cannot parse.
+    #[test]
+    fn request_kind_wire_format_matches_generated_bindings() {
+        for (kind, expected) in [
+            (CryptoRequestKind::KeysUpload, "\"KeysUpload\""),
+            (CryptoRequestKind::KeysQuery, "\"KeysQuery\""),
+            (CryptoRequestKind::KeysClaim, "\"KeysClaim\""),
+            (CryptoRequestKind::ToDevice, "\"ToDevice\""),
+            (CryptoRequestKind::SignatureUpload, "\"SignatureUpload\""),
+            (CryptoRequestKind::RoomMessage, "\"RoomMessage\""),
+        ] {
+            assert_eq!(serde_json::to_string(&kind).unwrap(), expected);
+            assert_eq!(
+                serde_json::from_str::<CryptoRequestKind>(expected).unwrap(),
+                kind
+            );
+        }
     }
 }

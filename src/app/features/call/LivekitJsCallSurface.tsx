@@ -223,10 +223,19 @@ function ConnectionFeedback() {
   const connectionState = useConnectionState();
   if (connectionState === ConnectionState.Connected) return null;
 
-  const reconnecting = connectionState === ConnectionState.Reconnecting;
+  // Only Disconnected is an actual loss. SignalReconnecting keeps media flowing
+  // while the signal link re-establishes, and Connecting is the initial
+  // handshake, so neither deserves the critical treatment.
+  const lost = connectionState === ConnectionState.Disconnected;
+  const label =
+    connectionState === ConnectionState.Connecting
+      ? 'Connecting…'
+      : lost
+        ? 'Connection lost'
+        : 'Reconnecting…';
   return (
     <Box
-      role={reconnecting ? 'status' : 'alert'}
+      role={lost ? 'alert' : 'status'}
       alignItems="Center"
       justifyContent="Center"
       style={{
@@ -237,12 +246,12 @@ function ConnectionFeedback() {
         zIndex: 3,
         padding: `${config.space.S100} ${config.space.S200}`,
         borderRadius: config.radii.R500,
-        background: reconnecting ? color.Warning.Container : color.Critical.Container,
-        color: reconnecting ? color.Warning.OnContainer : color.Critical.OnContainer,
+        background: lost ? color.Critical.Container : color.Warning.Container,
+        color: lost ? color.Critical.OnContainer : color.Warning.OnContainer,
         pointerEvents: 'none',
       }}
     >
-      <Text size="T200">{reconnecting ? 'Reconnecting…' : 'Connection lost'}</Text>
+      <Text size="T200">{label}</Text>
     </Box>
   );
 }

@@ -231,6 +231,12 @@ export function createLivekitJsController(dependencies: LivekitJsControllerDepen
             publish({ lifecycle: 'connecting-livekit' });
             current.worker = createWorker();
             current.room = createRoom({
+              // Both default to false in livekit-client. Without them a
+              // multi-party call receives every published layer at full quality
+              // and keeps sending video nobody is displaying. The native engine
+              // already enables both.
+              adaptiveStream: true,
+              dynacast: true,
               encryption: {
                 keyProvider: current.provider,
                 worker: current.worker,

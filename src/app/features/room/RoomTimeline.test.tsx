@@ -16,9 +16,9 @@ const {
   getRoomUnreadInfoMock,
   rendererCtxPermissions,
   rendererCtxSettings,
-  rowItemIndex,
   processedTimelineOptions,
   windowFocused,
+  rowItemIndex,
   rowRenders,
 } = vi.hoisted(() => ({
   vListHandle: {
@@ -166,7 +166,7 @@ vi.mock('$hooks/timeline/useProcessedTimeline', async (importOriginal) => {
       processedTimelineOptions.current = options;
       // Same object every call so the row memo can compare eventData by identity.
       fakeEvent.itemIndex = rowItemIndex.current;
-      return [fakeEvent];
+      return (options.items as number[]).length === 0 ? [] : [fakeEvent];
     },
   };
 });
@@ -427,6 +427,39 @@ describe('remote read receipts', () => {
     });
 
     expect(processedTimelineOptions.current?.readUptoEventId).toBe('$read:example.org');
+  });
+});
+
+describe('failed backfill on an empty timeline', () => {
+  it('surfaces the error with a working Retry instead of endless placeholders', () => {
+    timelineSync.eventsLength = 0;
+    timelineSync.canPaginateBack = true;
+    timelineSync.backwardStatus = 'error';
+
+    const { container, getByText } = renderTimeline();
+
+    expect(container.textContent).toContain('Failed to load history.');
+    expect(container.querySelector('[data-testid="vlist-content"]')?.textContent).not.toContain(
+      'placeholder'
+    );
+    const listWrapper = container.querySelector('[data-testid="vlist-scroll"]')
+      ?.parentElement as HTMLElement;
+    expect(listWrapper.style.opacity).toBe('1');
+
+    act(() => {
+      getByText('Retry').click();
+    });
+    expect(timelineSync.handleTimelinePagination).toHaveBeenCalledWith(true);
+  });
+
+  it('still shows placeholders while the first backfill is in flight', () => {
+    timelineSync.eventsLength = 0;
+    timelineSync.canPaginateBack = true;
+    timelineSync.backwardStatus = 'loading';
+
+    const { container } = renderTimeline();
+
+    expect(container.textContent).not.toContain('Failed to load history.');
   });
 });
 

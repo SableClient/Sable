@@ -1044,8 +1044,14 @@ export function RoomTimeline({
     [notifyScroll, syncAtBottom]
   );
 
+  // A failed backfill keeps its pagination token, so the placeholder condition
+  // would otherwise hold forever and never reach the error and its Retry.
+  const showEmptyPaginationError =
+    timelineSync.eventsLength === 0 && timelineSync.backwardStatus === 'error';
+
   const showLoadingPlaceholders =
     timelineSync.eventsLength === 0 &&
+    !showEmptyPaginationError &&
     (!isReady || timelineSync.canPaginateBack || timelineSync.backwardStatus === 'loading');
 
   let backPaginationJSX: ReactNode | undefined;
@@ -1116,11 +1122,10 @@ export function RoomTimeline({
       ? { top: `calc(${config.space.S400} + ${toRem(52)})` }
       : undefined;
 
-  const vListItemCount =
-    timelineSync.eventsLength === 0 &&
-    (!isReady || timelineSync.canPaginateBack || timelineSync.backwardStatus === 'loading')
-      ? 3
-      : timelineSync.eventsLength;
+  let vListItemCount = timelineSync.eventsLength;
+  if (showLoadingPlaceholders) vListItemCount = 3;
+  // One row so the error and its Retry have somewhere to render.
+  else if (showEmptyPaginationError) vListItemCount = 1;
   const vListIndices = useMemo(() => {
     // Keep the cache-busting timeline identity explicit for exhaustive-deps.
     void timelineSync.timeline;
@@ -1251,7 +1256,11 @@ export function RoomTimeline({
           minHeight: 0,
           overflow: 'hidden',
           position: 'relative',
-          opacity: !hideTimelineForRoomState && (isReady || showLoadingPlaceholders) ? 1 : 0,
+          opacity:
+            !hideTimelineForRoomState &&
+            (isReady || showLoadingPlaceholders || showEmptyPaginationError)
+              ? 1
+              : 0,
         }}
       >
         <TimelineScrollingProvider value={isTimelineScrolling}>

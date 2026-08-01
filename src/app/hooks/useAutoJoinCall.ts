@@ -26,6 +26,8 @@ export function useAutoJoinCall() {
           microphone: callPreferences.microphone,
           video: autoJoinIntent.video,
           sound: callPreferences.sound,
+          audioDeviceId: callPreferences.audioDeviceId,
+          videoDeviceId: callPreferences.videoDeviceId,
         });
         setAutoJoinIntent(null);
       }
@@ -38,6 +40,8 @@ export function useAutoJoinCall() {
     mDirects,
     callPreferences.microphone,
     callPreferences.sound,
+    callPreferences.audioDeviceId,
+    callPreferences.videoDeviceId,
     startDirectCall,
     startRoomCall,
   ]);

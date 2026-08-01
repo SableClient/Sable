@@ -13,6 +13,13 @@ import { CallMemberRenderer } from './CallMemberCard';
 import { PrescreenControls } from './PrescreenControls';
 import { callEmbedAtom, callEmbedStartErrorAtom } from '$state/callEmbed';
 import { canJoinCall } from './callStartCapabilities';
+import type { LivekitJsCallSession } from '$state/livekitJsCall';
+import { livekitJsCallAtom } from '$state/livekitJsCall';
+import { nativeCallAtom } from '$state/nativeCall';
+import { LivekitJsCallSurface } from './LivekitJsCallSurface';
+import { NativeCallSurface } from './NativeCallSurface';
+import { CallStatusBar } from './callChrome';
+import { livekitJsCallStatus } from './callClient';
 
 function LivekitServerMissingMessage() {
   return (
@@ -78,6 +85,16 @@ function WidgetPreparationErrorMessage({ message }: { message: string }) {
       {message}
     </Text>
   );
+}
+
+export function LivekitJsCallStatus({
+  session,
+  onHangup,
+}: {
+  session: Pick<LivekitJsCallSession, 'lifecycle' | 'failure'>;
+  onHangup: () => void;
+}) {
+  return <CallStatusBar status={livekitJsCallStatus(session)} onHangup={onHangup} />;
 }
 
 function CallPrescreen() {
@@ -168,11 +185,22 @@ export function CallView({ resizable }: CallViewProps) {
 
   const callEmbed = useCallEmbed();
   const callJoined = useCallJoined(callEmbed);
+  const livekitJsCall = useAtomValue(livekitJsCallAtom);
+  const nativeCall = useAtomValue(nativeCallAtom);
 
-  const currentJoined = callEmbed?.roomId === room.roomId && callJoined;
+  const livekitJsCallForRoom = livekitJsCall?.roomId === room.roomId ? livekitJsCall : undefined;
+  const nativeCallForRoom = nativeCall?.roomId === room.roomId ? nativeCall : undefined;
+  const livekitJsRoom =
+    livekitJsCallForRoom?.lifecycle === 'active' ? livekitJsCallForRoom.room : undefined;
+  const currentJoined =
+    !livekitJsCallForRoom && !nativeCallForRoom && callEmbed?.roomId === room.roomId && callJoined;
 
+  // A native call renders video tiles and a control bar, which need most of the
+  // viewport; the 0.3 default is sized for the Element Call participant list.
   const [heightRatio, setHeightRatio] = useState(isMobile ? 0.3 : 0.72);
   const [availableHeight, setAvailableHeight] = useState(0);
+  const effectiveHeightRatio =
+    isMobile && nativeCallForRoom ? Math.max(heightRatio, 0.75) : heightRatio;
 
   useEffect(() => {
     if (!resizable || !callViewRef.current) return undefined;
@@ -263,12 +291,18 @@ export function CallView({ resizable }: CallViewProps) {
         minWidth: toRem(280),
         height: resizable
           ? availableHeight > 0
-            ? `${availableHeight * heightRatio}px`
-            : `${heightRatio * 100}dvh`
+            ? `${availableHeight * effectiveHeightRatio}px`
+            : `${effectiveHeightRatio * 100}dvh`
           : undefined,
         borderBottom: `1px solid var(--sable-surface-container-line)`,
         zIndex: 20,
-        backgroundColor: currentJoined ? 'transparent' : undefined,
+        backgroundColor:
+          livekitJsRoom || nativeCallForRoom
+            ? color.Background.Container
+            : currentJoined
+              ? 'transparent'
+              : undefined,
+        overflow: livekitJsRoom || nativeCallForRoom ? 'hidden' : undefined,
         pointerEvents: currentJoined ? 'none' : 'all',
       }}
     >
@@ -284,8 +318,27 @@ export function CallView({ resizable }: CallViewProps) {
         />
       )}
 
-      {!currentJoined && <CallPrescreen />}
-      <CallJoined containerRef={callContainerRef} />
+      {!currentJoined && !livekitJsCallForRoom && !nativeCallForRoom && <CallPrescreen />}
+      {livekitJsCallForRoom && livekitJsRoom ? (
+        <LivekitJsCallSurface
+          room={livekitJsRoom}
+          mediaReady={livekitJsCallForRoom.mediaReady}
+          initialMedia={livekitJsCallForRoom.initialMedia}
+          onHangup={() => void livekitJsCallForRoom.hangup()}
+        />
+      ) : livekitJsCallForRoom ? (
+        <LivekitJsCallStatus
+          session={livekitJsCallForRoom}
+          onHangup={() => void livekitJsCallForRoom.hangup()}
+        />
+      ) : nativeCallForRoom ? (
+        <NativeCallSurface
+          session={nativeCallForRoom}
+          onHangup={() => void nativeCallForRoom.hangup()}
+        />
+      ) : (
+        <CallJoined containerRef={callContainerRef} />
+      )}
 
       {resizable && (
         <button

@@ -29,6 +29,23 @@ function PersonaToggle() {
   );
 }
 
+function NewCallsToggle() {
+  const [newCallsEnabled, setNewCallsEnabled] = useSetting(settingsAtom, 'newCallsEnabled');
+
+  return (
+    <Box direction="Column" gap="100">
+      <Text size="L400">New calls</Text>
+      <SettingToggle
+        title="Enable new calls"
+        focusId="new-calls"
+        description="Uses LiveKit JS on web and desktop, and native LiveKit on supported mobile devices. Element Call remains the fallback."
+        value={newCallsEnabled}
+        onChange={setNewCallsEnabled}
+      />
+    </Box>
+  );
+}
+
 type ExperimentalProps = {
   requestBack?: () => void;
   requestClose: () => void;
@@ -56,6 +73,7 @@ export function Experimental({ requestBack, requestClose }: Readonly<Experimenta
               <MSC4268HistoryShare />
               <BandwidthSavingEmojis />
               <PersonaToggle />
+              <NewCallsToggle />
               <MSC4274MediaGalleries />
             </Box>
           </PageContent>

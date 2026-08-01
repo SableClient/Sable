@@ -1,6 +1,7 @@
-import type { Room } from '$types/matrix-sdk';
+import { EventType, type Room } from '$types/matrix-sdk';
 
-const CALL_MEMBER_EVENT_TYPE = 'org.matrix.msc3401.call.member';
+const CALL_MEMBER_EVENT_TYPE = EventType.RTCMembership;
+const LEGACY_CALL_MEMBER_EVENT_TYPE = EventType.GroupCallMemberPrefix;
 
 export type CallStartBlocker =
   | 'missing_webrtc'
@@ -45,7 +46,9 @@ export const evaluateCallStartCapabilities = ({
 }: EvaluateCallStartCapabilitiesInput): CallStartCapabilities => {
   const blockers: CallStartBlocker[] = [];
   const hasCallMemberPermission =
-    room.currentState?.maySendStateEvent(CALL_MEMBER_EVENT_TYPE, myUserId) ?? false;
+    room.currentState?.maySendStateEvent(CALL_MEMBER_EVENT_TYPE, myUserId) ||
+    room.currentState?.maySendStateEvent(LEGACY_CALL_MEMBER_EVENT_TYPE, myUserId) ||
+    false;
   const inAnotherCall = !!activeCallRoomId && activeCallRoomId !== room.roomId;
 
   if (!rtcSupported) blockers.push('missing_webrtc');

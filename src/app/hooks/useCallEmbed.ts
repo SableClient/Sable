@@ -1,7 +1,7 @@
 import type { RefObject } from 'react';
 import { createContext, useCallback, useContext, useEffect, useState } from 'react';
 import type { MatrixClient, Room } from '$types/matrix-sdk';
-import { useSetAtom } from 'jotai';
+import { useSetAtom, useStore } from 'jotai';
 import * as Sentry from '@sentry/react';
 import type { ElementCallThemeKind } from '../plugins/call';
 import { CallEmbed, ElementWidgetActions, useClientWidgetApiEvent } from '../plugins/call';
@@ -15,6 +15,14 @@ import type { CallPreferences } from '../state/callPreferences';
 import { createDebugLogger } from '../utils/debugLogger';
 import { useClientConfig } from './useClientConfig';
 import { callEmbedStartErrorAtom } from '$state/callEmbed';
+import { settingsAtom } from '$state/settings';
+import { useSetting } from '$state/hooks/settings';
+import { acquireCallOwner } from '$state/callOwner';
+import { selectCallStartOwner } from '$features/call/callStartSelection';
+import { useLivekitJsCallManager } from '$features/call/livekitJsCallManager';
+import { getNativeCallAvailability } from '$features/call/nativeCallProbe';
+import { getNativeCallManager } from '$features/call/nativeCallManager';
+import { useAutoDiscoveryInfo } from './useAutoDiscoveryInfo';
 
 const debugLog = createDebugLogger('useCallEmbed');
 
@@ -66,12 +74,54 @@ export const useCallStart = (dm = false) => {
   const setCallEmbed = useSetAtom(callEmbedAtom);
   const setCallEmbedStartError = useSetAtom(callEmbedStartErrorAtom);
   const callEmbedRef = useCallEmbedRef();
+  const store = useStore();
+  const discovery = useAutoDiscoveryInfo();
+  const [newCallsEnabled] = useSetting(settingsAtom, 'newCallsEnabled');
+  const livekitJsCallManager = useLivekitJsCallManager();
 
   const startCall = useCallback(
     (room: Room, pref?: CallPreferences) => {
+      if (newCallsEnabled) {
+        if (!livekitJsCallManager) {
+          throw new Error('LiveKit JS call manager is not provided!');
+        }
+        // Resolved rather than cached in state so the first tap cannot race the
+        // native capability probe and fall through to the JS backend.
+        void getNativeCallAvailability(true).then((nativeCallAvailable) => {
+          if (selectCallStartOwner({ newCallsEnabled, nativeCallAvailable }) === 'livekit-mobile') {
+            getNativeCallManager(store).start({
+              mx,
+              room,
+              discovery,
+              dm,
+              video: pref?.video,
+              microphone: pref?.microphone,
+            });
+            return;
+          }
+          livekitJsCallManager.start({
+            room,
+            dm,
+            video: pref?.video,
+            microphone: pref?.microphone,
+            sound: pref?.sound,
+            audioDeviceId: pref?.audioDeviceId,
+            videoDeviceId: pref?.videoDeviceId,
+          });
+        });
+        return;
+      }
+      const ownerLease = acquireCallOwner('element', room.roomId);
+      if (!ownerLease) {
+        debugLog.warn('call', 'Failed to start call: another call is already active', {
+          roomId: room.roomId,
+        });
+        return;
+      }
       const container = callEmbedRef.current;
       if (!container) {
-        debugLog.error('call', 'Failed to start call — no embed container', {
+        ownerLease.release();
+        debugLog.error('call', 'Failed to start call: no embed container', {
           roomId: room.roomId,
         });
         Sentry.metrics.count('sable.call.start.error', 1, {
@@ -96,6 +146,7 @@ export const useCallStart = (dm = false) => {
         );
         setCallEmbed(callEmbed);
       } catch (err) {
+        ownerLease.release();
         debugLog.error('call', 'Call embed creation failed', {
           roomId: room.roomId,
           error: err instanceof Error ? err.message : String(err),
@@ -106,7 +157,19 @@ export const useCallStart = (dm = false) => {
         throw err;
       }
     },
-    [mx, dm, theme, setCallEmbed, callEmbedRef, clientConfig.elementCallUrl, setCallEmbedStartError]
+    [
+      mx,
+      dm,
+      theme,
+      setCallEmbed,
+      callEmbedRef,
+      store,
+      discovery,
+      clientConfig.elementCallUrl,
+      setCallEmbedStartError,
+      newCallsEnabled,
+      livekitJsCallManager,
+    ]
   );
 
   return startCall;

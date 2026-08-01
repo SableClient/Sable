@@ -9,6 +9,8 @@ export type CallPreferences = {
   microphone: boolean;
   video: boolean;
   sound: boolean;
+  audioDeviceId?: string;
+  videoDeviceId?: string;
 };
 
 const CALL_PREFERENCES = 'callPreferences';

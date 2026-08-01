@@ -17,6 +17,7 @@ import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { IncomingCallModal } from '$features/call/IncomingCallModal';
 import { toCallEmbedStartError } from '$plugins/call/callEmbedError';
+import { LivekitJsCallManagerProvider } from '$features/call/livekitJsCallManager';
 
 function CallUtils({ embed }: { embed: CallEmbed }) {
   const setCallEmbed = useSetAtom(callEmbedAtom);
@@ -80,8 +81,10 @@ export function CallEmbedProvider({ children }: CallEmbedProviderProps) {
       <IncomingCallModal />
       {callEmbed && <CallUtils embed={callEmbed} />}
       <CallEmbedRefContextProvider value={callEmbedRef}>
-        <AutoJoinManager />
-        {children}
+        <LivekitJsCallManagerProvider>
+          <AutoJoinManager />
+          {children}
+        </LivekitJsCallManagerProvider>
       </CallEmbedRefContextProvider>
 
       <div

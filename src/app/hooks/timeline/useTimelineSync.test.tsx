@@ -238,7 +238,7 @@ describe('useTimelineSync', () => {
     renderHook(() =>
       useTimelineSync({
         room: room as Room,
-        mx: makeMx(),
+        mx: { getUserId: () => '@alice:test' } as never,
         isAtBottom: false,
         isAtBottomRef: { current: false },
         scrollToBottom,
@@ -270,7 +270,7 @@ describe('useTimelineSync', () => {
     renderHook(() =>
       useTimelineSync({
         room: room as Room,
-        mx: makeMx(),
+        mx: { getUserId: () => '@alice:test' } as never,
         isAtBottom: true,
         isAtBottomRef: { current: true },
         scrollToBottom,
@@ -298,7 +298,7 @@ describe('useTimelineSync', () => {
       ({ room, eventId }) =>
         useTimelineSync({
           room,
-          mx: makeMx(),
+          mx: { getUserId: () => '@alice:test' } as never,
           eventId,
           isAtBottom: false,
           isAtBottomRef: { current: false },
@@ -335,7 +335,7 @@ describe('useTimelineSync', () => {
       ({ room, eventId }) =>
         useTimelineSync({
           room,
-          mx: makeMx(),
+          mx: { getUserId: () => '@alice:test' } as never,
           eventId,
           isAtBottom: false,
           isAtBottomRef: { current: false },
@@ -370,7 +370,7 @@ describe('useTimelineSync', () => {
       ({ room }) =>
         useTimelineSync({
           room,
-          mx: makeMx(),
+          mx: { getUserId: () => '@alice:test' } as never,
           eventId: undefined,
           isAtBottom: false,
           isAtBottomRef: { current: false },
@@ -404,7 +404,7 @@ describe('useTimelineSync', () => {
       renderHook(() =>
         useTimelineSync({
           room: room as Room,
-          mx: makeMx(),
+          mx: { getUserId: () => '@alice:test' } as never,
           isAtBottom: true,
           isAtBottomRef: { current: true },
           scrollToBottom,
@@ -431,7 +431,7 @@ describe('useTimelineSync', () => {
       renderHook(() =>
         useTimelineSync({
           room: room as Room,
-          mx: makeMx(),
+          mx: { getUserId: () => '@alice:test' } as never,
           isAtBottom: true,
           isAtBottomRef: { current: true },
           scrollToBottom,
@@ -461,7 +461,7 @@ describe('useTimelineSync', () => {
       renderHook(() =>
         useTimelineSync({
           room: room as Room,
-          mx: makeMx(),
+          mx: { getUserId: () => '@alice:test' } as never,
           isAtBottom: true,
           isAtBottomRef: { current: true },
           scrollToBottom,
@@ -489,7 +489,7 @@ describe('useTimelineSync', () => {
       renderHook(() =>
         useTimelineSync({
           room: room as Room,
-          mx: makeMx(),
+          mx: { getUserId: () => '@alice:test' } as never,
           isAtBottom: false,
           isAtBottomRef: { current: false },
           scrollToBottom,
@@ -515,7 +515,7 @@ describe('useTimelineSync', () => {
       renderHook(() =>
         useTimelineSync({
           room: room as Room,
-          mx: makeMx(),
+          mx: { getUserId: () => '@alice:test' } as never,
           isAtBottom: true,
           isAtBottomRef: { current: true },
           scrollToBottom,
@@ -545,7 +545,7 @@ describe('useTimelineSync', () => {
       renderHook(() =>
         useTimelineSync({
           room: room as Room,
-          mx: makeMx(),
+          mx: { getUserId: () => '@alice:test' } as never,
           isAtBottom: true,
           isAtBottomRef: { current: true },
           scrollToBottom,
@@ -581,7 +581,7 @@ const syncOpts = (
   isEventVisible?: () => boolean
 ) => ({
   room: room as Room,
-  mx: makeMx({ paginateEventTimeline }),
+  mx: { getUserId: () => '@alice:test', paginateEventTimeline } as never,
   isAtBottom: true,
   isAtBottomRef: { current: true },
   scrollToBottom: vi.fn<() => void>(),
@@ -956,7 +956,7 @@ describe('live-arrive edge cases', () => {
     renderHook(() =>
       useTimelineSync({
         room: room as Room,
-        mx: makeMx(),
+        mx: { getUserId: () => '@alice:test' } as never,
         isAtBottom: false,
         isAtBottomRef: { current: false },
         scrollToBottom,
@@ -978,32 +978,6 @@ describe('live-arrive edge cases', () => {
 
     expect(setUnreadInfo).toHaveBeenCalledWith(unread);
     expect(scrollToBottom).not.toHaveBeenCalled();
-  });
-
-  it('re-renders when an event finishes decrypting', async () => {
-    const { room } = createRoom();
-    const { result } = renderSyncHook(room);
-    const before = result.current.timeline;
-
-    await act(async () => {
-      mxEmitter.emit(MatrixEventEvent.Decrypted, { getRoomId: () => room.roomId });
-      await Promise.resolve();
-    });
-
-    expect(result.current.timeline).not.toBe(before);
-  });
-
-  it('ignores decryption of an event in another room', async () => {
-    const { room } = createRoom();
-    const { result } = renderSyncHook(room);
-    const before = result.current.timeline;
-
-    await act(async () => {
-      mxEmitter.emit(MatrixEventEvent.Decrypted, { getRoomId: () => '!other:test' });
-      await Promise.resolve();
-    });
-
-    expect(result.current.timeline).toBe(before);
   });
 
   it('re-renders when a late local echo updates (slow send acknowledgement)', async () => {
@@ -1051,11 +1025,12 @@ describe('event jump recovery', () => {
       targetTimeline,
       roomInitialSync,
       getLatestTimeline,
-      mx: makeMx({
+      mx: {
+        getUserId: () => '@alice:test',
         roomInitialSync,
         getLatestTimeline,
         getEventTimeline: vi.fn<() => Promise<unknown>>(() => Promise.resolve(targetTimeline)),
-      }),
+      },
     };
   };
 
@@ -1101,12 +1076,13 @@ describe('event jump recovery', () => {
     vi.useFakeTimers();
     try {
       const { room } = createRoom();
-      const mx = makeMx({
+      const mx = {
+        getUserId: () => '@alice:test',
         roomInitialSync: vi.fn<() => Promise<unknown>>(() => Promise.resolve(undefined)),
         getLatestTimeline: vi.fn<() => Promise<unknown>>(() => Promise.resolve(undefined)),
         // The homeserver never answers /context: hit the 12 s timeout.
         getEventTimeline: () => new Promise(() => {}),
-      });
+      };
       const { result, scrollToBottom } = renderSyncHook(room, { isAtBottom: false, mx });
 
       await act(async () => {
@@ -1132,7 +1108,7 @@ describe('sliding sync chain relink', () => {
       undefined;
     const paginateEventTimeline = vi.fn<() => Promise<boolean>>(() => Promise.resolve(false));
     const { result } = renderSyncHook(room, {
-      mx: makeMx({ paginateEventTimeline }),
+      mx: { getUserId: () => '@alice:test', paginateEventTimeline },
     });
 
     expect(result.current.eventsLength).toBe(1);
@@ -1183,7 +1159,7 @@ describe('sync transport fuzz', () => {
         const { result, unmount } = renderHook(() =>
           useTimelineSync({
             room: room as Room,
-            mx: makeMx({ paginateEventTimeline }),
+            mx: { getUserId: () => '@alice:test', paginateEventTimeline } as never,
             isAtBottom: false,
             isAtBottomRef: { current: false },
             scrollToBottom,

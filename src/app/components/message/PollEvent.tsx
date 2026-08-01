@@ -11,9 +11,9 @@ import {
   RoomEvent,
   type MatrixEvent,
 } from 'matrix-js-sdk';
+import { MsgType, RelationType } from '$types/matrix-sdk';
 import * as css from './PollEvent.css';
 import { useCallback, useEffect, useState } from 'react';
-import { MsgType, RelationType } from '$types/matrix-sdk';
 import { PollResponsesViewer } from '$features/room/poll-modals';
 import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 import { useMatrixEvent } from '$hooks/useMatrixEvent';

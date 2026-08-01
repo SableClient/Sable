@@ -18,6 +18,8 @@ export const useCallPreferences = (): CallPreferences & {
   toggleMicrophone: () => void;
   toggleVideo: () => void;
   toggleSound: () => void;
+  setAudioDeviceId: (deviceId: string) => void;
+  setVideoDeviceId: (deviceId: string) => void;
   setPreferences: (prefs: CallPreferences) => void;
 } => {
   const callPrefAtom = useCallPreferencesAtom();
@@ -27,8 +29,8 @@ export const useCallPreferences = (): CallPreferences & {
     const microphone = !pref.microphone;
 
     setPref({
+      ...pref,
       microphone,
-      video: pref.video,
       sound: !pref.sound && microphone ? true : pref.sound,
     });
   }, [setPref, pref]);
@@ -36,25 +38,33 @@ export const useCallPreferences = (): CallPreferences & {
   const toggleVideo = useCallback(() => {
     const video = !pref.video;
 
-    setPref({
-      microphone: pref.microphone,
-      video,
-      sound: pref.sound,
-    });
+    setPref({ ...pref, video });
   }, [setPref, pref]);
 
   const toggleSound = useCallback(() => {
     const sound = !pref.sound;
 
     setPref({
+      ...pref,
       microphone: !sound ? false : pref.microphone,
-      video: pref.video,
       sound,
     });
   }, [setPref, pref]);
 
+  const setAudioDeviceId = useCallback(
+    (audioDeviceId: string) => setPref({ ...pref, audioDeviceId }),
+    [setPref, pref]
+  );
+
+  const setVideoDeviceId = useCallback(
+    (videoDeviceId: string) => setPref({ ...pref, videoDeviceId }),
+    [setPref, pref]
+  );
+
   return {
     ...pref,
+    setAudioDeviceId,
+    setVideoDeviceId,
     toggleMicrophone,
     toggleVideo,
     toggleSound,

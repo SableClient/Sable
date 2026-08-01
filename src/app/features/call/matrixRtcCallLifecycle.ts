@@ -85,7 +85,10 @@ const hydrateCallRoster = async (room: Room): Promise<void> => {
   // the room is encrypted, so an unencrypted room can be answered from a stale
   // cache. Clearing it forces the next load to fetch.
   if (!rosterComplete(room) && !fromServer) {
-    debugLog.warn('call', `roster stale for ${room.roomId}, refetching: ${rosterState(room, false)}`);
+    debugLog.warn(
+      'call',
+      `roster stale for ${room.roomId}, refetching: ${rosterState(room, false)}`
+    );
     try {
       await room.clearLoadedMembersIfNeeded();
     } catch (error) {
@@ -96,7 +99,10 @@ const hydrateCallRoster = async (room: Room): Promise<void> => {
   }
 
   if (!rosterComplete(room)) {
-    debugLog.error('call', `roster incomplete for ${room.roomId}: ${rosterState(room, fromServer)}`);
+    debugLog.error(
+      'call',
+      `roster incomplete for ${room.roomId}: ${rosterState(room, fromServer)}`
+    );
     throw new Error(ROSTER_HYDRATION_ERROR);
   }
   debugLog.info('call', `roster hydrated for ${room.roomId}: ${rosterState(room, fromServer)}`);

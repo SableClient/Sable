@@ -180,6 +180,7 @@ export interface Settings {
   developerTools: boolean;
   enableMSC4268CMD: boolean;
   enableMediaGalleries: boolean;
+  newCallsEnabled: boolean;
   settingsSyncEnabled: boolean;
 
   // Cosmetics!
@@ -339,6 +340,7 @@ export const defaultSettings: Settings = {
 
   enableMSC4268CMD: false,
   enableMediaGalleries: false,
+  newCallsEnabled: false,
 
   // Push notifications (SW/Sygnal): default on for mobile, opt-in on desktop.
   // In-app pill banner: default on for mobile (primary foreground alert), opt-in on desktop.
@@ -523,6 +525,16 @@ function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
   }
   delete parsed.themeChatPreviewAnyUrl;
   delete parsed.themeChatPreviewApprovedCatalogOnly;
+
+  // Consolidate the legacy LiveKit JS experiments into the single new-call gate.
+  if (
+    typeof parsed.newCallsEnabled !== 'boolean' &&
+    (parsed.livekitJsCallsEnabled === true || parsed.livekitJsMediaTestEnabled === true)
+  ) {
+    parsed.newCallsEnabled = true;
+  }
+  delete parsed.livekitJsCallsEnabled;
+  delete parsed.livekitJsMediaTestEnabled;
 
   if (typeof parsed.callRingtoneVolume === 'number' && Number.isFinite(parsed.callRingtoneVolume)) {
     parsed.callRingtoneVolume = clampPercent(parsed.callRingtoneVolume);

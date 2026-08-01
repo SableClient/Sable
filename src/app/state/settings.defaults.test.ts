@@ -12,6 +12,46 @@ beforeEach(() => {
 });
 
 describe('mergePersistedSettings', () => {
+  it('defaults new calls off and persists the opt-in', () => {
+    expect(defaultSettings.newCallsEnabled).toBe(false);
+
+    localStorage.setItem('settings', JSON.stringify({ newCallsEnabled: true }));
+    expect(mergePersistedSettings(localStorage.getItem('settings'), {}).newCallsEnabled).toBe(true);
+  });
+
+  it('enables new calls when either legacy experimental setting was on', () => {
+    localStorage.setItem('settings', JSON.stringify({ livekitJsCallsEnabled: true }));
+    const merged = mergePersistedSettings(localStorage.getItem('settings'), {});
+    expect(merged.newCallsEnabled).toBe(true);
+    expect(merged).not.toHaveProperty('livekitJsCallsEnabled');
+
+    localStorage.setItem('settings', JSON.stringify({ livekitJsMediaTestEnabled: true }));
+    const mergedMedia = mergePersistedSettings(localStorage.getItem('settings'), {});
+    expect(mergedMedia.newCallsEnabled).toBe(true);
+    expect(mergedMedia).not.toHaveProperty('livekitJsMediaTestEnabled');
+  });
+
+  it('keeps new calls off when both legacy settings were off or absent', () => {
+    localStorage.setItem(
+      'settings',
+      JSON.stringify({ livekitJsCallsEnabled: false, livekitJsMediaTestEnabled: false })
+    );
+    const merged = mergePersistedSettings(localStorage.getItem('settings'), {});
+    expect(merged.newCallsEnabled).toBe(false);
+    expect(merged).not.toHaveProperty('livekitJsCallsEnabled');
+    expect(merged).not.toHaveProperty('livekitJsMediaTestEnabled');
+  });
+
+  it('does not override an explicit new calls preference with legacy keys', () => {
+    localStorage.setItem(
+      'settings',
+      JSON.stringify({ newCallsEnabled: false, livekitJsCallsEnabled: true })
+    );
+    const merged = mergePersistedSettings(localStorage.getItem('settings'), {});
+    expect(merged.newCallsEnabled).toBe(false);
+    expect(merged).not.toHaveProperty('livekitJsCallsEnabled');
+  });
+
   it('layers deployer defaults over code defaults when localStorage is empty', () => {
     const merged = mergePersistedSettings(null, { twitterEmoji: false });
     expect(merged.twitterEmoji).toBe(false);
@@ -86,6 +126,19 @@ describe('sanitizeSettingsDefaults', () => {
     expect(sanitizeSettingsDefaults({ twitterEmoji: false })).toEqual({
       twitterEmoji: false,
     });
+  });
+
+  it('accepts the new calls setting', () => {
+    expect(sanitizeSettingsDefaults({ newCallsEnabled: true })).toEqual({
+      newCallsEnabled: true,
+    });
+    expect(sanitizeSettingsDefaults({ newCallsEnabled: 'yes' })).toEqual({});
+  });
+
+  it('drops the legacy LiveKit JS experimental settings', () => {
+    expect(
+      sanitizeSettingsDefaults({ livekitJsCallsEnabled: true, livekitJsMediaTestEnabled: true })
+    ).toEqual({});
   });
 
   it('drops unknown keys', () => {

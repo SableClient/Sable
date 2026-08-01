@@ -111,8 +111,7 @@ type FakeProvider = {
 const makeProvider = (state: Partial<LivekitMatrixKeyProviderState> = {}): FakeProvider => {
   const listeners = new Set<(state: Readonly<LivekitMatrixKeyProviderState>) => void>();
   const provider = {
-    emit: (next: LivekitMatrixKeyProviderState) =>
-      listeners.forEach((listener) => listener(next)),
+    emit: (next: LivekitMatrixKeyProviderState) => listeners.forEach((listener) => listener(next)),
     state: {
       ready: false,
       localOutboundIdentity: null,

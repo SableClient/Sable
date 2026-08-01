@@ -580,16 +580,6 @@ export function useTimelineSync({
 
   useMatrixEvent(room, RoomEvent.LocalEchoUpdated, handleLocalEchoUpdated);
 
-  const handleDecrypted = useCallback(
-    (mEvent: MatrixEvent) => {
-      if (mEvent.getRoomId() !== room.roomId) return;
-      setTimeline((ct) => ({ ...ct }));
-    },
-    [room, setTimeline]
-  );
-
-  useMatrixEvent(mx, MatrixEventEvent.Decrypted, handleDecrypted);
-
   useLiveTimelineRefresh(
     room,
     useCallback(() => {

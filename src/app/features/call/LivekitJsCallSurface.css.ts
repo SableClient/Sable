@@ -1,5 +1,5 @@
 import { globalStyle, style } from '@vanilla-extract/css';
-import { config, toRem } from 'folds';
+import { color, config, toRem } from 'folds';
 
 /**
  * Scoped base styles for the @livekit/components-react primitives used by
@@ -13,7 +13,7 @@ const surface = CallSurface;
 globalStyle(`${surface} .lk-participant-tile`, {
   position: 'relative',
   flexShrink: 0,
-  background: '#14171f',
+  background: color.Surface.Container,
   borderRadius: config.radii.R400,
   overflow: 'hidden',
 });
@@ -28,7 +28,7 @@ globalStyle(`${surface} .lk-participant-tile > video`, {
 
 globalStyle(`${surface} .lk-participant-tile[data-lk-source='screen_share'] > video`, {
   objectFit: 'contain',
-  background: '#07080c',
+  background: color.Background.Container,
 });
 
 globalStyle(`${surface} .lk-participant-tile[data-lk-video-muted='true'] > video`, {
@@ -51,7 +51,7 @@ globalStyle(`${surface} .lk-participant-placeholder`, {
   inset: 0,
   display: 'grid',
   placeItems: 'center',
-  background: '#14171f',
+  background: color.Surface.Container,
 });
 
 globalStyle(`${surface} .lk-participant-placeholder > svg`, {
@@ -130,8 +130,8 @@ globalStyle(`${surface} .lk-pagination-control`, {
   gap: config.space.S100,
   padding: config.space.S100,
   borderRadius: config.radii.R400,
-  background: 'rgba(9, 11, 16, 0.72)',
-  color: '#ffffff',
+  background: color.Surface.Container,
+  color: color.Surface.OnContainer,
 });
 
 globalStyle(`${surface} .lk-pagination-indicator`, {
@@ -172,15 +172,15 @@ globalStyle(`${surface} .lk-button`, {
   padding: `0 ${config.space.S200}`,
   border: 'none',
   borderRadius: config.radii.R400,
-  background: 'rgba(255, 255, 255, 0.08)',
-  color: '#ffffff',
+  background: color.SurfaceVariant.Container,
+  color: color.SurfaceVariant.OnContainer,
   font: 'inherit',
   cursor: 'pointer',
   transition: 'background-color 120ms ease',
 });
 
 globalStyle(`${surface} .lk-button:hover:not(:disabled)`, {
-  background: 'rgba(255, 255, 255, 0.16)',
+  background: color.SurfaceVariant.ContainerHover,
 });
 
 globalStyle(`${surface} .lk-button:focus-visible`, {
@@ -189,7 +189,7 @@ globalStyle(`${surface} .lk-button:focus-visible`, {
 });
 
 globalStyle(`${surface} .lk-button[aria-pressed='false']:not(.lk-button-menu)`, {
-  background: 'rgba(204, 74, 74, 0.45)',
+  background: color.Critical.Container,
 });
 
 // MediaDeviceMenu renders an empty button and relies on the stylesheet for its
@@ -227,11 +227,11 @@ globalStyle(`${surface} .lk-button-group-menu > .lk-button`, {
   minWidth: toRem(28),
   padding: `0 ${config.space.S100}`,
   borderRadius: `0 ${config.radii.R400} ${config.radii.R400} 0`,
-  background: 'rgba(255, 255, 255, 0.05)',
+  background: color.SurfaceVariant.Container,
 });
 
 globalStyle(`${surface} .lk-button-group-menu > .lk-button:hover:not(:disabled)`, {
-  background: 'rgba(255, 255, 255, 0.16)',
+  background: color.SurfaceVariant.ContainerHover,
 });
 
 globalStyle(`${surface} .lk-device-menu`, {
@@ -241,9 +241,9 @@ globalStyle(`${surface} .lk-device-menu`, {
   padding: config.space.S100,
   border: '1px solid rgba(255, 255, 255, 0.1)',
   borderRadius: config.radii.R400,
-  background: '#171a22',
+  background: color.Surface.Container,
   boxShadow: '0 8px 24px rgba(0, 0, 0, 0.5)',
-  color: '#ffffff',
+  color: color.Surface.OnContainer,
 });
 
 globalStyle(`${surface} .lk-device-menu > ul`, {
@@ -271,7 +271,7 @@ globalStyle(`${surface} .lk-device-menu .lk-button`, {
 });
 
 globalStyle(`${surface} .lk-device-menu li[data-lk-active='true'] > .lk-button`, {
-  color: 'var(--sable-primary-main, #7aa2ff)',
+  color: color.Primary.Main,
 });
 
 export const AudioParticipant = style({

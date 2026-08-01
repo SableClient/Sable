@@ -298,7 +298,7 @@ export function CallView({ resizable }: CallViewProps) {
         zIndex: 20,
         backgroundColor:
           livekitJsRoom || nativeCallForRoom
-            ? '#090b10'
+            ? color.Background.Container
             : currentJoined
               ? 'transparent'
               : undefined,

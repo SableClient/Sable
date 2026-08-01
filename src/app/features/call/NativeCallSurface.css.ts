@@ -37,7 +37,7 @@ export const DominantTile = style({
   minWidth: 0,
   minHeight: 0,
   overflow: 'hidden',
-  background: '#090b10',
+  background: color.Background.Container,
 });
 
 /** Small floating local preview card (bottom-right, above controls). */
@@ -50,8 +50,8 @@ export const FloatingLocal = style({
   zIndex: 3,
   borderRadius: config.radii.R400,
   overflow: 'hidden',
-  border: '1px solid rgba(255, 255, 255, 0.1)',
-  background: '#14171f',
+  border: `1px solid ${color.Surface.ContainerLine}`,
+  background: color.Surface.Container,
 });
 
 /** Adaptive grid: 2 columns by default, 3 columns (compact, scrollable) at 7+ tiles. */
@@ -83,8 +83,8 @@ export const Tile = style({
   minHeight: 0,
   overflow: 'hidden',
   borderRadius: config.radii.R400,
-  background: '#14171f',
-  outline: '1px solid rgba(255, 255, 255, 0.06)',
+  background: color.Surface.Container,
+  outline: `1px solid ${color.Surface.ContainerLine}`,
   outlineOffset: '-1px',
 });
 
@@ -113,8 +113,8 @@ export const InitialsBadge = style({
   width: 'min(72px, 45%)',
   aspectRatio: '1 / 1',
   borderRadius: '50%',
-  background: 'rgba(255, 255, 255, 0.10)',
-  color: 'rgba(255, 255, 255, 0.92)',
+  background: color.SurfaceVariant.Container,
+  color: color.SurfaceVariant.OnContainer,
   fontSize: toRem(22),
   fontWeight: 600,
   lineHeight: 1,
@@ -127,10 +127,10 @@ export const TileLabel = style({
   alignItems: 'center',
   gap: config.space.S100,
   padding: `${config.space.S100} ${config.space.S200}`,
-  color: 'rgba(255, 255, 255, 0.9)',
+  color: color.Surface.OnContainer,
   fontSize: toRem(13),
   lineHeight: toRem(18),
-  borderTop: '1px solid rgba(255, 255, 255, 0.06)',
+  borderTop: `1px solid ${color.Surface.ContainerLine}`,
 });
 
 export const TileLabelName = style({
@@ -152,7 +152,7 @@ export const QualityDot = style({
     '&[data-quality="excellent"]': { background: color.Success.Main },
     // Neutral rather than a token: it reads as "no signal yet" against the dark
     // video stage, where a themed surface colour would look like a real state.
-    '&[data-quality="unknown"]': { background: 'rgba(255,255,255,0.3)' },
+    '&[data-quality="unknown"]': { background: color.Surface.ContainerLine },
   },
 });
 
@@ -175,7 +175,7 @@ export const HangupButton = style({
       filter: 'brightness(1.12)',
     },
     '&:focus-visible': {
-      outline: `2px solid var(--sable-primary-main, #7aa2ff)`,
+      outline: `2px solid ${color.Primary.Main}`,
       outlineOffset: '2px',
     },
   },

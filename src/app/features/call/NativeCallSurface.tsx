@@ -3,6 +3,7 @@ import { Box, config, Menu, MenuItem, Text, toRem } from 'folds';
 import type { NativeCallSession } from '$state/nativeCall';
 import {
   ArrowsClockwise,
+  Check,
   MicrophoneSlash,
   PhoneDisconnect,
   SpeakerHigh,
@@ -424,12 +425,16 @@ function AudioRouteControl({
                 size="300"
                 radii="300"
                 variant="Surface"
+                aria-checked={route.current}
+                before={
+                  route.current ? sizedIcon(Check, '200') : <span style={{ width: toRem(16) }} />
+                }
                 onClick={() => {
                   void session.selectAudioRoute(route.id);
                   menu.close();
                 }}
               >
-                <Text size="T300">{route.label || route.name}</Text>
+                <Text size="T300">{route.name}</Text>
               </MenuItem>
             ))}
           </Box>

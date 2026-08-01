@@ -168,12 +168,12 @@ export type DeclineSystemCallRequest = {
   reason: string;
 };
 
-/** `type` is the platform's own route vocabulary, so it stays a plain string. */
+/** `name` is display-ready; `type` is the bounded platform vocabulary. */
 export type NativeCallAudioRoute = {
   id: string;
   name: string;
   type: string;
-  label: string;
+  current: boolean;
 };
 
 export type GetAudioRoutesResponse = {

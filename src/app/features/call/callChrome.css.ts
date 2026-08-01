@@ -1,8 +1,8 @@
 import { style } from '@vanilla-extract/css';
-import { config, toRem } from 'folds';
+import { color, config, toRem } from 'folds';
 
 /**
- * Shared call chrome styles: the dark canvas shell, the glassmorphic control
+ * Shared call chrome styles: the canvas shell, the glassmorphic control
  * pill, and the on/off media toggle button. Both call surfaces (livekit-js and
  * native) render into these so the chrome reads consistently across engines
  * while each engine keeps its own video substrate and connection logic.
@@ -17,7 +17,7 @@ import { config, toRem } from 'folds';
 export const callLayout = style({
   minHeight: 0,
   overflow: 'hidden',
-  background: 'var(--sable-livekit-canvas, #090b10)',
+  background: color.Background.Container,
 });
 
 /**
@@ -65,9 +65,9 @@ export const controlPill = style({
   gap: config.space.S200,
   maxWidth: '100%',
   padding: config.space.S100,
-  border: '1px solid rgba(255, 255, 255, 0.08)',
+  border: `1px solid ${color.Surface.ContainerLine}`,
   borderRadius: config.radii.R500,
-  background: 'rgba(9, 11, 16, 0.72)',
+  background: color.Surface.Container,
   backdropFilter: 'blur(12px)',
 });
 
@@ -90,18 +90,18 @@ export const controlButton = style({
   transition: 'background-color 120ms ease',
   selectors: {
     '&[data-on="true"]': {
-      background: 'rgba(255, 255, 255, 0.14)',
-      color: '#ffffff',
+      background: color.SurfaceVariant.Container,
+      color: color.SurfaceVariant.OnContainer,
     },
     '&[data-on="true"]:hover:not(:disabled)': {
-      background: 'rgba(255, 255, 255, 0.22)',
+      background: color.SurfaceVariant.ContainerHover,
     },
     '&[data-on="false"]': {
-      background: 'rgba(204, 74, 74, 0.55)',
-      color: '#ffffff',
+      background: color.Critical.Container,
+      color: color.Critical.OnContainer,
     },
     '&[data-on="false"]:hover:not(:disabled)': {
-      background: 'rgba(204, 74, 74, 0.7)',
+      background: color.Critical.ContainerHover,
     },
     '&:focus-visible': {
       outline: `2px solid var(--sable-primary-main, #7aa2ff)`,

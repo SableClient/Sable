@@ -15,6 +15,7 @@ import type {
   LivekitMatrixKeyProvider,
   LivekitMatrixKeyProviderState,
 } from './livekitMatrixKeyProvider';
+import type { LocalCallIdentity } from './livekitCallIdentity';
 import { resetCallOwnerForTests } from '$state/callOwner';
 
 const transport = {
@@ -65,6 +66,7 @@ const makeSession = (order: string[] = []): TestSession => {
     joinRTCSession: vi
       .fn<(...args: unknown[]) => void>()
       .mockImplementation(() => order.push('join')),
+    getOldestMembership: vi.fn<() => CallMembership | undefined>().mockReturnValue(undefined),
     leaveRoomSession: vi.fn<MatrixRTCSession['leaveRoomSession']>().mockImplementation(async () => {
       order.push('leave');
       return true;
@@ -80,9 +82,8 @@ const emitOwnMembership = (session: TestSession): void => {
 
 type FakeProvider = {
   state: LivekitMatrixKeyProviderState;
-  attach: Mock<(session: MatrixRTCSession) => void>;
+  attach: Mock<(session: MatrixRTCSession, localIdentity: LocalCallIdentity) => void>;
   detach: Mock<() => void>;
-  setLocalOutboundIdentity: Mock<(identity: string | undefined) => void>;
   getKeyState: Mock<() => LivekitMatrixKeyProviderState>;
   subscribe: Mock<
     (listener: (state: Readonly<LivekitMatrixKeyProviderState>) => void) => () => void
@@ -98,9 +99,8 @@ const makeProvider = (state: Partial<LivekitMatrixKeyProviderState> = {}): FakeP
       lastImportFailure: null,
       ...state,
     },
-    attach: vi.fn<(session: MatrixRTCSession) => void>(),
+    attach: vi.fn<(session: MatrixRTCSession, localIdentity: LocalCallIdentity) => void>(),
     detach: vi.fn<() => void>(),
-    setLocalOutboundIdentity: vi.fn<(identity: string | undefined) => void>(),
     getKeyState: vi.fn<() => LivekitMatrixKeyProviderState>(),
     subscribe:
       vi.fn<(listener: (state: Readonly<LivekitMatrixKeyProviderState>) => void) => () => void>(),
@@ -213,16 +213,21 @@ describe('livekit JS controller', () => {
       'connect',
     ]);
     expect(provider.attach).toHaveBeenCalledBefore(session.joinRTCSession as Mock);
+    expect(provider.attach).toHaveBeenCalledWith(session, {
+      userId: '@alice:example.org',
+      deviceId: 'DEVICE',
+    });
     expect(session.joinRTCSession).toHaveBeenCalledWith(
       {
         userId: '@alice:example.org',
         deviceId: 'DEVICE',
         memberId: '@alice:example.org:DEVICE',
       },
-      [transport],
+      [{ ...transport, livekit_alias: room.roomId }],
       undefined,
       {
         callIntent: 'audio',
+        membershipEventExpiryMs: 30 * 60 * 1000,
         notificationType: 'notification',
         manageMediaKeys: true,
       }

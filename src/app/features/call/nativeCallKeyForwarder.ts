@@ -4,6 +4,7 @@ import {
   type MatrixRTCSession,
 } from '$types/matrix-sdk';
 import type { NativeCallEncryptionKeyPayload } from './livekitMobileBridge';
+import type { LocalCallIdentity } from './livekitCallIdentity';
 import { createDebugLogger } from '$utils/debugLogger';
 
 const debugLog = createDebugLogger('nativeCallKeyForwarder');
@@ -14,9 +15,8 @@ export const OWN_KEY_UNAVAILABLE_ERROR = 'Native call own encryption key unavail
 export const OWN_KEY_WAIT_CANCELLED_ERROR = 'Native call own key wait cancelled';
 
 export type NativeCallKeyForwarder = {
-  attach: (session: MatrixRTCSession) => void;
+  attach: (session: MatrixRTCSession, localIdentity: LocalCallIdentity) => void;
   detach: () => void;
-  setLocalOutboundIdentity: (identity: string | undefined) => void;
   waitForOwnKey: () => Promise<void>;
   getKeys: () => NativeCallEncryptionKeyPayload[];
   setOnKey: (listener: ((key: NativeCallEncryptionKeyPayload) => void) | undefined) => void;
@@ -33,6 +33,7 @@ const toBase64 = (key: Uint8Array): string => {
 export const createNativeCallKeyForwarder = (): NativeCallKeyForwarder => {
   let rtcSession: MatrixRTCSession | undefined;
   const keys = new Map<string, NativeCallEncryptionKeyPayload>();
+  let localIdentity: LocalCallIdentity | null = null;
   let localOutboundIdentity: string | null = null;
   let onKey: ((key: NativeCallEncryptionKeyPayload) => void) | undefined;
 
@@ -59,13 +60,19 @@ export const createNativeCallKeyForwarder = (): NativeCallKeyForwarder => {
   const onEncryptionKeyChanged = (
     encryptionKey: Uint8Array<ArrayBuffer>,
     encryptionKeyIndex: number,
-    _membershipParts: CallMembershipIdentityParts,
+    membershipParts: CallMembershipIdentityParts,
     rtcBackendIdentity: string
   ): void => {
     debugLog.debug(
       'call',
       `key changed identity=${rtcBackendIdentity} index=${encryptionKeyIndex} ownIdentity=${localOutboundIdentity ?? 'unset'}`
     );
+    if (
+      membershipParts.userId === localIdentity?.userId &&
+      membershipParts.deviceId === localIdentity?.deviceId
+    ) {
+      localOutboundIdentity = rtcBackendIdentity;
+    }
     const accepted = keys.get(rtcBackendIdentity);
     if (accepted && encryptionKeyIndex <= accepted.keyIndex) return;
 
@@ -85,22 +92,19 @@ export const createNativeCallKeyForwarder = (): NativeCallKeyForwarder => {
       rtcSession = undefined;
     }
     keys.clear();
+    localIdentity = null;
     localOutboundIdentity = null;
     onKey = undefined;
     const reject = waitReject;
     if (reject) settleWait(() => reject(new Error(OWN_KEY_WAIT_CANCELLED_ERROR)));
   };
 
-  const attach = (session: MatrixRTCSession): void => {
+  const attach = (session: MatrixRTCSession, identity: LocalCallIdentity): void => {
     detach();
     rtcSession = session;
+    localIdentity = identity;
     session.on(MatrixRTCSessionEvent.EncryptionKeyChanged, onEncryptionKeyChanged);
     session.reemitEncryptionKeys();
-  };
-
-  const setLocalOutboundIdentity = (identity: string | undefined): void => {
-    localOutboundIdentity = identity ?? null;
-    maybeResolveOwnKey();
   };
 
   const waitForOwnKey = (): Promise<void> => {
@@ -119,7 +123,6 @@ export const createNativeCallKeyForwarder = (): NativeCallKeyForwarder => {
   return {
     attach,
     detach,
-    setLocalOutboundIdentity,
     waitForOwnKey,
     getKeys: () => [...keys.values()],
     setOnKey: (listener) => {

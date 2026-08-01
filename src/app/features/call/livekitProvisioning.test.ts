@@ -5,7 +5,11 @@ const fetchMock = vi.hoisted(() => vi.fn<typeof globalThis.fetch>());
 
 vi.mock('$utils/fetch', () => ({ fetch: fetchMock }));
 
-import { getPreferredLivekitTransport, provisionLivekitToken } from './livekitProvisioning';
+import {
+  getPreferredLivekitTransport,
+  provisionLivekitToken,
+  useStickyMemberships,
+} from './livekitProvisioning';
 
 const openidToken: IOpenIDToken = {
   access_token: 'openid-secret',
@@ -82,7 +86,7 @@ describe('provisionLivekitToken', () => {
     userId: '@alice:example.org',
   };
 
-  it('provisions through the modern endpoint with the MatrixRTC request body', async () => {
+  it('provisions through the endpoint that matches the advertised membership format', async () => {
     fetchMock.mockResolvedValueOnce(
       response(200, { url: 'wss://livekit.example', jwt: 'jwt-secret' })
     );
@@ -94,40 +98,39 @@ describe('provisionLivekitToken', () => {
 
     expect(fetchMock).toHaveBeenCalledOnce();
     const [url, request] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe('https://sfu.example/get_token');
-    expect(JSON.parse(request.body as string)).toEqual({
-      room_id: '!room:example.org',
-      slot_id: 'm.call#real-slot',
-      openid_token: openidToken,
-      member: {
-        id: 'member-id',
-        claimed_user_id: '@alice:example.org',
-        claimed_device_id: 'DEVICE',
-      },
-    });
+    expect(url).toBe(
+      useStickyMemberships ? 'https://sfu.example/get_token' : 'https://sfu.example/sfu/get'
+    );
+    expect(JSON.parse(request.body as string)).toEqual(
+      useStickyMemberships
+        ? {
+            room_id: '!room:example.org',
+            slot_id: 'm.call#real-slot',
+            openid_token: openidToken,
+            member: {
+              id: 'member-id',
+              claimed_user_id: '@alice:example.org',
+              claimed_device_id: 'DEVICE',
+            },
+          }
+        : {
+            room: '!room:example.org',
+            openid_token: openidToken,
+            device_id: 'DEVICE',
+          }
+    );
   });
 
-  it('falls back to the legacy endpoint when the modern one is unimplemented', async () => {
-    fetchMock
-      .mockResolvedValueOnce(response(404, { error: 'not found' }))
-      .mockResolvedValueOnce(response(200, { url: 'wss://legacy.example', jwt: 'legacy-jwt' }));
+  it('never tries the other endpoint, whose identity convention would not match', async () => {
+    fetchMock.mockResolvedValueOnce(response(404, { error: 'not found' }));
 
-    await expect(provisionLivekitToken(options)).resolves.toEqual({
-      url: 'wss://legacy.example',
-      jwt: 'legacy-jwt',
-    });
-
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    const [url, request] = fetchMock.mock.calls[1] as [string, RequestInit];
-    expect(url).toBe('https://sfu.example/sfu/get');
-    expect(JSON.parse(request.body as string)).toEqual({
-      room: '!room:example.org',
-      openid_token: openidToken,
-      device_id: 'DEVICE',
-    });
+    await expect(provisionLivekitToken(options)).rejects.toThrow(
+      'LiveKit token provisioning failed'
+    );
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('rejects an invalid modern response without retrying', async () => {
+  it('rejects an invalid response without retrying', async () => {
     fetchMock.mockResolvedValueOnce(response(200, { url: 'wss://livekit.example' }));
 
     await expect(provisionLivekitToken(options)).rejects.toThrow(
@@ -136,7 +139,7 @@ describe('provisionLivekitToken', () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
-  it('does not retry the legacy endpoint after a server error', async () => {
+  it('does not retry after a server error', async () => {
     fetchMock.mockResolvedValueOnce(response(500, { error: 'boom' }));
 
     await expect(provisionLivekitToken(options)).rejects.toThrow(

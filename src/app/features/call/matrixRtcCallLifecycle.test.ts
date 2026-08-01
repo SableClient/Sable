@@ -1,7 +1,13 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { MatrixClient, MatrixRTCSession, CallMembership, Room } from '$types/matrix-sdk';
+import { beforeEach, describe, expect, it, vi, type Mock } from 'vitest';
+import type {
+  MatrixClient,
+  MatrixRTCSession,
+  CallMembership,
+  JoinSessionConfig,
+  Room,
+} from '$types/matrix-sdk';
 import { MatrixRTCSessionEvent } from '$types/matrix-sdk';
-import { joinAndProvisionMatrixRTC } from './matrixRtcCallLifecycle';
+import { joinAndProvisionMatrixRTC, leaveMatrixRTCOnPageHide } from './matrixRtcCallLifecycle';
 import type {
   LivekitProvisioningResult,
   getPreferredLivekitTransport,
@@ -33,7 +39,8 @@ const makeSession = (): TestSession => {
         }
       }),
     joinRTCSession: vi.fn<(identity: unknown, transports: unknown[], ..._: unknown[]) => void>(),
-    leaveRoomSession: vi.fn<MatrixRTCSession['leaveRoomSession']>(),
+    getOldestMembership: vi.fn<() => CallMembership | undefined>().mockReturnValue(undefined),
+    leaveRoomSession: vi.fn<MatrixRTCSession['leaveRoomSession']>().mockResolvedValue(true),
   } as unknown as TestSession;
   return session;
 };
@@ -101,6 +108,76 @@ describe('joinAndProvisionMatrixRTC', () => {
     const result = await promise;
     expect(result.provisioned).toEqual(provisioned);
     expect(opts.getPreferredTransport).toHaveBeenCalledOnce();
+  });
+
+  it('advertises the transport with a livekit alias and a bounded membership expiry', async () => {
+    const session = makeSession();
+    const opts = callOpts({ session });
+    const promise = joinAndProvisionMatrixRTC(opts);
+
+    await vi.waitFor(() => expect(session.joinRTCSession).toHaveBeenCalled());
+    session.memberships = [
+      { userId: '@alice:example.org', deviceId: 'ALICEDEVICE' },
+    ] as CallMembership[];
+    session.handlers.get(MatrixRTCSessionEvent.MembershipsChanged)!([], session.memberships);
+    await promise;
+
+    const [, transports, , joinConfig] = (session.joinRTCSession as Mock).mock.calls[0] as [
+      unknown,
+      unknown[],
+      unknown,
+      JoinSessionConfig,
+    ];
+    expect(transports).toEqual([{ ...makeTransport(), livekit_alias: '!room:example.org' }]);
+    expect(joinConfig.membershipEventExpiryMs).toBe(30 * 60 * 1000);
+    expect(joinConfig.unstableSendStickyEvents).toBeUndefined();
+  });
+
+  it('provisions against the oldest membership transport, not our own preference', async () => {
+    const session = makeSession();
+    const oldestTransport = { type: 'livekit' as const, livekit_service_url: 'https://oldest.sfu' };
+    const oldest = {
+      userId: '@bob:example.org',
+      deviceId: 'BOBDEVICE',
+      getTransport: () => oldestTransport,
+    } as unknown as CallMembership;
+    (session.getOldestMembership as Mock<() => CallMembership | undefined>).mockReturnValue(oldest);
+    const opts = callOpts({ session });
+    const promise = joinAndProvisionMatrixRTC(opts);
+
+    await vi.waitFor(() => expect(session.on).toHaveBeenCalled());
+    session.memberships = [
+      { userId: '@alice:example.org', deviceId: 'ALICEDEVICE' },
+    ] as CallMembership[];
+    session.handlers.get(MatrixRTCSessionEvent.MembershipsChanged)!([], session.memberships);
+    await promise;
+
+    expect(opts.provisionToken).toHaveBeenCalledWith(
+      expect.objectContaining({ serviceUrl: 'https://oldest.sfu' })
+    );
+  });
+
+  it('falls back to the preferred transport when the oldest membership has none', async () => {
+    const session = makeSession();
+    const oldest = {
+      userId: '@bob:example.org',
+      deviceId: 'BOBDEVICE',
+      getTransport: () => undefined,
+    } as unknown as CallMembership;
+    (session.getOldestMembership as Mock<() => CallMembership | undefined>).mockReturnValue(oldest);
+    const opts = callOpts({ session });
+    const promise = joinAndProvisionMatrixRTC(opts);
+
+    await vi.waitFor(() => expect(session.on).toHaveBeenCalled());
+    session.memberships = [
+      { userId: '@alice:example.org', deviceId: 'ALICEDEVICE' },
+    ] as CallMembership[];
+    session.handlers.get(MatrixRTCSessionEvent.MembershipsChanged)!([], session.memberships);
+    await promise;
+
+    expect(opts.provisionToken).toHaveBeenCalledWith(
+      expect.objectContaining({ serviceUrl: 'https://sfu.example' })
+    );
   });
 
   it('rejects on MembershipManagerError', async () => {
@@ -248,5 +325,35 @@ describe('joinAndProvisionMatrixRTC', () => {
       MatrixRTCSessionEvent.MembershipManagerError,
       expect.any(Function)
     );
+  });
+});
+
+const firePageHide = (persisted: boolean): void => {
+  const event = new Event('pagehide') as PageTransitionEvent;
+  Object.defineProperty(event, 'persisted', { value: persisted });
+  window.dispatchEvent(event);
+};
+
+describe('leaveMatrixRTCOnPageHide', () => {
+  it('leaves the session when the page is torn down for good', () => {
+    const session = makeSession();
+    const remove = leaveMatrixRTCOnPageHide(session);
+
+    firePageHide(false);
+    expect(session.leaveRoomSession).toHaveBeenCalledOnce();
+
+    remove();
+    firePageHide(false);
+    expect(session.leaveRoomSession).toHaveBeenCalledOnce();
+  });
+
+  it('stays in the call when the page is only frozen', () => {
+    const session = makeSession();
+    const remove = leaveMatrixRTCOnPageHide(session);
+
+    firePageHide(true);
+
+    expect(session.leaveRoomSession).not.toHaveBeenCalled();
+    remove();
   });
 });

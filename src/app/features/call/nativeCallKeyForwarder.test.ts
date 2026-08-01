@@ -18,6 +18,13 @@ type EncryptionKeyHandler = (
   rtcBackendIdentity: string
 ) => void;
 
+const localIdentity = { userId: '@alice:example.org', deviceId: 'ALICEDEVICE' };
+const localParts = localIdentity as CallMembershipIdentityParts;
+const remoteParts = {
+  userId: '@bob:example.org',
+  deviceId: 'BOBDEVICE',
+} as CallMembershipIdentityParts;
+
 const makeSession = () => {
   const handlers = new Map<MatrixRTCSessionEvent, EncryptionKeyHandler>();
   const session = {
@@ -36,11 +43,16 @@ const makeSession = () => {
   return {
     session,
     handlers,
-    emitKey: (key: number[], keyIndex: number, identity: string) =>
+    emitKey: (
+      key: number[],
+      keyIndex: number,
+      identity: string,
+      parts: CallMembershipIdentityParts = remoteParts
+    ) =>
       handlers.get(MatrixRTCSessionEvent.EncryptionKeyChanged)?.(
         new Uint8Array(key) as Uint8Array<ArrayBuffer>,
         keyIndex,
-        {} as CallMembershipIdentityParts,
+        parts,
         identity
       ),
   };
@@ -59,7 +71,7 @@ describe('native call key forwarder', () => {
     const { session, handlers } = makeSession();
     const forwarder = createNativeCallKeyForwarder();
 
-    forwarder.attach(session);
+    forwarder.attach(session, localIdentity);
 
     expect(session.on).toHaveBeenCalledWith(
       MatrixRTCSessionEvent.EncryptionKeyChanged,
@@ -78,7 +90,7 @@ describe('native call key forwarder', () => {
   it('caches raw keys as standard padded base64 per identity', () => {
     const { session, emitKey } = makeSession();
     const forwarder = createNativeCallKeyForwarder();
-    forwarder.attach(session);
+    forwarder.attach(session, localIdentity);
 
     emitKey([1, 2, 3, 4], 0, 'backend-a');
     emitKey([0, 1, 2], 2, 'backend-b');
@@ -92,7 +104,7 @@ describe('native call key forwarder', () => {
   it('keeps the latest key index per identity and ignores stale events', () => {
     const { session, emitKey } = makeSession();
     const forwarder = createNativeCallKeyForwarder();
-    forwarder.attach(session);
+    forwarder.attach(session, localIdentity);
 
     emitKey([1, 2, 3, 4], 2, 'backend-a');
     emitKey([9, 9], 1, 'backend-a');
@@ -104,7 +116,7 @@ describe('native call key forwarder', () => {
   it('notifies the key listener only for accepted rotations', () => {
     const { session, emitKey } = makeSession();
     const forwarder = createNativeCallKeyForwarder();
-    forwarder.attach(session);
+    forwarder.attach(session, localIdentity);
     const onKey = vi.fn<(entry: { identity: string; keyIndex: number; key: string }) => void>();
     forwarder.setOnKey(onKey);
 
@@ -116,26 +128,24 @@ describe('native call key forwarder', () => {
     expect(onKey).toHaveBeenLastCalledWith({ identity: 'backend-a', keyIndex: 1, key: 'BwcH' });
   });
 
-  it('resolves the own-key wait once a key arrives for the outbound identity', async () => {
+  it('resolves the own-key wait on the key whose membership is ours', async () => {
     const { session, emitKey } = makeSession();
     const forwarder = createNativeCallKeyForwarder();
-    forwarder.attach(session);
-    forwarder.setLocalOutboundIdentity('own-backend');
+    forwarder.attach(session, localIdentity);
 
     const wait = forwarder.waitForOwnKey();
     emitKey([1], 0, 'other-backend');
 
-    emitKey([2], 0, 'own-backend');
+    emitKey([2], 0, 'own-backend', localParts);
     await expect(wait).resolves.toBeUndefined();
   });
 
-  it('resolves the own-key wait for a key cached before the identity was known', async () => {
+  it('resolves the own-key wait for a key that arrived before the wait started', async () => {
     const { session, emitKey } = makeSession();
     const forwarder = createNativeCallKeyForwarder();
-    forwarder.attach(session);
-    emitKey([2], 0, 'own-backend');
+    forwarder.attach(session, localIdentity);
+    emitKey([2], 0, 'own-backend', localParts);
 
-    forwarder.setLocalOutboundIdentity('own-backend');
     await expect(forwarder.waitForOwnKey()).resolves.toBeUndefined();
   });
 
@@ -143,8 +153,7 @@ describe('native call key forwarder', () => {
     vi.useFakeTimers();
     const { session } = makeSession();
     const forwarder = createNativeCallKeyForwarder();
-    forwarder.attach(session);
-    forwarder.setLocalOutboundIdentity('own-backend');
+    forwarder.attach(session, localIdentity);
 
     const waitError = forwarder.waitForOwnKey().catch((error: unknown) => error);
     await vi.advanceTimersByTimeAsync(ownKeyWaitTimeoutMs);
@@ -156,8 +165,7 @@ describe('native call key forwarder', () => {
   it('rejects a pending own-key wait on detach', async () => {
     const { session } = makeSession();
     const forwarder = createNativeCallKeyForwarder();
-    forwarder.attach(session);
-    forwarder.setLocalOutboundIdentity('own-backend');
+    forwarder.attach(session, localIdentity);
 
     const waitError = forwarder.waitForOwnKey().catch((error: unknown) => error);
     forwarder.detach();

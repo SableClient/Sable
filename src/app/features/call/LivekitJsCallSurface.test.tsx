@@ -1,9 +1,9 @@
 import { type CSSProperties, type Context, type ReactNode } from 'react';
-import { act, fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Room } from 'livekit-client';
-import { createStore, Provider } from 'jotai';
-import { livekitJsCallSoundAtom } from '$state/livekitJsCall';
+import { createStore, getDefaultStore, Provider } from 'jotai';
+import { livekitJsCallInitialMediaAppliedAtom, livekitJsCallSoundAtom } from '$state/livekitJsCall';
 import { LivekitJsCallSurface } from './LivekitJsCallSurface';
 
 const mocks = vi.hoisted(() => ({
@@ -42,8 +42,16 @@ vi.mock('@livekit/components-react', async () => {
     MediaDeviceMenu: ({ kind }: { kind?: string }) => (
       <div data-testid="device-menu" data-kind={kind} />
     ),
-    FocusLayout: ({ trackRef }: { trackRef?: { source?: string } }) => (
-      <div data-testid="focus-layout" data-focus-source={trackRef?.source} />
+    FocusLayout: ({
+      trackRef,
+      children,
+    }: {
+      trackRef?: { source?: string };
+      children?: ReactNode;
+    }) => (
+      <div data-testid="focus-layout" data-focus-source={trackRef?.source}>
+        {children}
+      </div>
     ),
     FocusLayoutContainer: ({ children }: { children: ReactNode }) => (
       <div data-testid="focus-layout-container">{children}</div>
@@ -174,6 +182,7 @@ const surfaceElement = () => document.body.querySelector('[data-livekit-call-sur
 const controlsElement = () => document.body.querySelector('[data-livekit-controls]');
 
 beforeEach(() => {
+  getDefaultStore().set(livekitJsCallInitialMediaAppliedAtom, false);
   mocks.useConnectionState.mockReset().mockReturnValue('connected');
   mocks.useTracks.mockReset().mockReturnValue([]);
   mocks.useParticipants.mockReset().mockReturnValue([]);
@@ -243,6 +252,20 @@ describe('LiveKit JS call surface', () => {
 
     expect(mocks.setMicrophoneEnabled).toHaveBeenCalledWith(false, undefined);
     expect(mocks.setCameraEnabled).not.toHaveBeenCalled();
+  });
+
+  it('keeps the call bar state when the surface remounts, instead of re-muting', () => {
+    const media = { microphone: false, camera: false, sound: true };
+    const view = render(
+      <LivekitJsCallSurface room={room} e2eeReady initialMedia={media} onHangup={() => {}} />
+    );
+
+    expect(mocks.setMicrophoneEnabled).toHaveBeenCalledTimes(1);
+    view.unmount();
+
+    render(<LivekitJsCallSurface room={room} e2eeReady initialMedia={media} onHangup={() => {}} />);
+
+    expect(mocks.setMicrophoneEnabled).toHaveBeenCalledTimes(1);
   });
 
   it('publishes nothing until encryption is ready', () => {
@@ -380,6 +403,21 @@ describe('LiveKit JS call surface', () => {
     expect(screen.getByTestId('carousel-layout')).toHaveAttribute('data-track-count', '1');
     expect(screen.queryByTestId('grid-layout')).not.toBeInTheDocument();
     expect(screen.queryByText('Audio call')).not.toBeInTheDocument();
+  });
+
+  it('labels the focused screen share instead of leaving the default tile on top', () => {
+    mocks.useTracks.mockReturnValue([
+      videoTrack('screen_share', false),
+      videoTrack('camera', false),
+    ]);
+
+    render(
+      <LivekitJsCallSurface room={room} e2eeReady initialMedia={initialMedia} onHangup={() => {}} />
+    );
+
+    const focus = within(screen.getByTestId('focus-layout'));
+    expect(focus.getByText("@alice:example.org's screen")).toBeInTheDocument();
+    expect(focus.queryByText(/hash-/)).not.toBeInTheDocument();
   });
 
   it('keeps an active local screen share on stage instead of suppressing it', () => {

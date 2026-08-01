@@ -8,11 +8,22 @@ import {
   type MatrixRTCSession,
   type Room,
 } from '$types/matrix-sdk';
-import { getPreferredLivekitTransport, provisionLivekitToken } from './livekitProvisioning';
+import {
+  getPreferredLivekitTransport,
+  isLivekitTransportConfig,
+  provisionLivekitToken,
+  useStickyMemberships,
+} from './livekitProvisioning';
 import type { LivekitProvisioningResult } from './livekitProvisioning';
 import { createDebugLogger } from '$utils/debugLogger';
 
 const debugLog = createDebugLogger('matrixRtcCallLifecycle');
+
+// Without delayed events nothing on the server retracts our membership when the
+// app dies, so the expiry is what bounds a ghost participant. The SDK refreshes
+// the event 5s before it lapses, so half an hour is far more headroom than a
+// live call needs while cutting the stale window down from the 4h default.
+const membershipEventExpiryMs = 30 * 60 * 1000;
 
 const membershipWaitTimeoutMs = 30_000;
 const fallbackPollIntervalMs = 1_000;
@@ -197,8 +208,14 @@ export const joinAndProvisionMatrixRTC = async ({
   const deviceId = mx.getDeviceId();
   if (!deviceId) throw new Error('MatrixRTC device unavailable');
 
-  const transport = await getPreferredTransport(mx, discovery);
-  if (!transport) throw new Error('No LiveKit transport available');
+  const preferredTransport = await getPreferredTransport(mx, discovery);
+  if (!preferredTransport) throw new Error('No LiveKit transport available');
+
+  // Element Call builds that predate Matrix 2.0 read `livekit_alias` off the
+  // advertised transport, so the legacy path keeps carrying it.
+  const advertisedTransport = useStickyMemberships
+    ? preferredTransport
+    : { livekit_alias: room.roomId, ...preferredTransport };
 
   const userId = mx.getSafeUserId();
   const identity = { userId, deviceId, memberId: `${userId}:${deviceId}` };
@@ -224,11 +241,13 @@ export const joinAndProvisionMatrixRTC = async ({
   try {
     const joinConfig: JoinSessionConfig = {
       callIntent,
+      membershipEventExpiryMs,
       ...(notificationType ? { notificationType } : {}),
       ...(manageMediaKeys ? { manageMediaKeys: true } : {}),
+      ...(useStickyMemberships ? { unstableSendStickyEvents: true } : {}),
     };
     onJoinStarted?.();
-    session.joinRTCSession(identity, [transport], undefined, joinConfig);
+    session.joinRTCSession(identity, [advertisedTransport], undefined, joinConfig);
     await membershipWait.promise;
   } catch (error) {
     membershipWait.cancel();
@@ -245,19 +264,41 @@ export const joinAndProvisionMatrixRTC = async ({
       membership.userId === identity.userId && membership.deviceId === identity.deviceId
   );
 
+  // We pass no multiSfuFocus, so the SDK advertises
+  // `focus_selection: "oldest_membership"`: every participant owes media to the
+  // oldest membership's transport. Publishing to our own preference instead
+  // puts us on an SFU the others never connect to.
+  const oldestMembership = session.getOldestMembership();
+  const oldestTransport = oldestMembership?.getTransport(oldestMembership);
+  const callTransport =
+    oldestTransport && isLivekitTransportConfig(oldestTransport)
+      ? oldestTransport
+      : preferredTransport;
+
   onStage?.('provisioning');
   const provisioned = await provisionToken({
     mx,
     roomId: room.roomId,
     slotId,
     deviceId,
-    serviceUrl: transport.livekit_service_url,
+    serviceUrl: callTransport.livekit_service_url,
     memberId: identity.memberId,
     userId: identity.userId,
   });
   if (isCancelled?.()) throw new Error('MatrixRTC setup cancelled');
 
   return { ownMembership, provisioned };
+};
+
+export const leaveMatrixRTCOnPageHide = (session: MatrixRTCSession): (() => void) => {
+  const handlePageHide = (event: PageTransitionEvent): void => {
+    // A persisted page is only frozen (mobile app switch, back/forward cache)
+    // and the call is still ours when it resumes; only a real teardown leaves.
+    if (event.persisted) return;
+    void session.leaveRoomSession().catch(() => undefined);
+  };
+  window.addEventListener('pagehide', handlePageHide);
+  return () => window.removeEventListener('pagehide', handlePageHide);
 };
 
 export const disconnectLivekitThenLeaveMatrixRTC = async (

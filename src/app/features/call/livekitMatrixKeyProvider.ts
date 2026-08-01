@@ -4,6 +4,7 @@ import {
   type CallMembershipIdentityParts,
   type MatrixRTCSession,
 } from '$types/matrix-sdk';
+import type { LocalCallIdentity } from './livekitCallIdentity';
 
 export const isLivekitE2EESupported = (): boolean => {
   const subtle = globalThis.crypto?.subtle;
@@ -28,11 +29,13 @@ type KeyImportResult =
       keyMaterial: CryptoKey;
       rtcBackendIdentity: string;
       encryptionKeyIndex: number;
+      isLocal: boolean;
     }
   | { failure: LivekitMatrixKeyImportFailure };
 
 export class LivekitMatrixKeyProvider extends BaseKeyProvider {
   private rtcSession?: MatrixRTCSession;
+  private localIdentity: LocalCallIdentity | null = null;
   private attachmentGeneration = 0;
   private nextImportSequence = 0;
   private nextUpdateSequence = 0;
@@ -55,9 +58,10 @@ export class LivekitMatrixKeyProvider extends BaseKeyProvider {
     });
   }
 
-  public attach(session: MatrixRTCSession): void {
+  public attach(session: MatrixRTCSession, localIdentity: LocalCallIdentity): void {
     this.detach();
     this.rtcSession = session;
+    this.localIdentity = localIdentity;
     session.on(MatrixRTCSessionEvent.EncryptionKeyChanged, this.onEncryptionKeyChanged);
     session.reemitEncryptionKeys();
   }
@@ -68,8 +72,11 @@ export class LivekitMatrixKeyProvider extends BaseKeyProvider {
     this.nextUpdateSequence = 0;
     this.pendingUpdates.clear();
     this.acceptedKeyIndices.clear();
+    this.localIdentity = null;
+    this.localOutboundIdentity = null;
     this.updateState({
       ready: false,
+      localOutboundIdentity: null,
       keyIndex: null,
       lastImportFailure: null,
     });
@@ -78,16 +85,6 @@ export class LivekitMatrixKeyProvider extends BaseKeyProvider {
 
     this.rtcSession.off(MatrixRTCSessionEvent.EncryptionKeyChanged, this.onEncryptionKeyChanged);
     this.rtcSession = undefined;
-  }
-
-  public setLocalOutboundIdentity(identity: string | undefined): void {
-    this.localOutboundIdentity = identity ?? null;
-    const keyIndex = identity === undefined ? undefined : this.acceptedKeyIndices.get(identity);
-    this.updateState({
-      localOutboundIdentity: this.localOutboundIdentity,
-      ready: keyIndex !== undefined,
-      keyIndex: keyIndex ?? null,
-    });
   }
 
   public getKeyState(): Readonly<LivekitMatrixKeyProviderState> {
@@ -105,11 +102,14 @@ export class LivekitMatrixKeyProvider extends BaseKeyProvider {
   private readonly onEncryptionKeyChanged = (
     encryptionKey: Uint8Array<ArrayBuffer>,
     encryptionKeyIndex: number,
-    _membershipParts: CallMembershipIdentityParts,
+    membershipParts: CallMembershipIdentityParts,
     rtcBackendIdentity: string
   ): void => {
     const generation = this.attachmentGeneration;
     const sequence = this.nextImportSequence++;
+    const isLocal =
+      membershipParts.userId === this.localIdentity?.userId &&
+      membershipParts.deviceId === this.localIdentity?.deviceId;
     const subtle = globalThis.crypto?.subtle;
     if (!subtle || typeof subtle.importKey !== 'function') {
       this.enqueueUpdate(generation, sequence, {
@@ -135,6 +135,7 @@ export class LivekitMatrixKeyProvider extends BaseKeyProvider {
           keyMaterial,
           rtcBackendIdentity,
           encryptionKeyIndex,
+          isLocal,
         });
       },
       () => {
@@ -182,9 +183,11 @@ export class LivekitMatrixKeyProvider extends BaseKeyProvider {
 
       // Only the local key clears the failure flag: a remote participant's key
       // succeeding says nothing about whether our own outbound key imported.
-      if (update.rtcBackendIdentity === this.localOutboundIdentity) {
+      if (update.isLocal) {
+        this.localOutboundIdentity = update.rtcBackendIdentity;
         this.updateState({
           ready: true,
+          localOutboundIdentity: update.rtcBackendIdentity,
           keyIndex: update.encryptionKeyIndex,
           lastImportFailure: null,
         });

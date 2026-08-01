@@ -28,6 +28,14 @@ export const livekitJsCallAtom = atom<LivekitJsCallSession | undefined>(undefine
 
 export const livekitJsCallSoundAtom = atom(true);
 
+/**
+ * Whether `initialMedia` has been published for the current call. The surface
+ * unmounts when the user navigates out of the room while the call keeps
+ * running, so this has to outlive it or coming back re-applies the prescreen
+ * choice and undoes anything toggled from the call bar.
+ */
+export const livekitJsCallInitialMediaAppliedAtom = atom(false);
+
 export const isLivekitJsCallActive = (session: LivekitJsCallSession | undefined): boolean =>
   session?.lifecycle !== undefined &&
   session.lifecycle !== 'idle' &&

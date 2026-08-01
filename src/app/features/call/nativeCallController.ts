@@ -35,6 +35,7 @@ import {
 import {
   joinAndProvisionMatrixRTC,
   disconnectLivekitThenLeaveMatrixRTC,
+  leaveMatrixRTCOnPageHide,
 } from './matrixRtcCallLifecycle';
 import { acquireCallOwner, type CallOwnerLease } from '$state/callOwner';
 import type { NativeCallLifecycle, NativeCallSession } from '$state/nativeCall';
@@ -92,6 +93,7 @@ type NativeCallRecord = {
   connectResolved: boolean;
   sentKeyIndices: Map<string, number>;
   cancelMembershipWait?: () => void;
+  removePageHideListener?: () => void;
   snapshotUnlistenPromise?: Promise<() => void>;
   cleanupPromise?: Promise<void>;
 };
@@ -285,6 +287,8 @@ export const createNativeCallController = (
     record.cancelled = true;
     record.cancelMembershipWait?.();
     record.cancelMembershipWait = undefined;
+    record.removePageHideListener?.();
+    record.removePageHideListener = undefined;
     record.forwarder.setOnKey(undefined);
     if (failure && activeRecord === record) {
       try {
@@ -400,7 +404,7 @@ export const createNativeCallController = (
       );
       await record.snapshotUnlistenPromise;
 
-      forwarder.attach(session);
+      forwarder.attach(session, { userId: mx.getSafeUserId(), deviceId: mx.getDeviceId() });
 
       const joined = await joinAndProvisionMatrixRTC({
         mx,
@@ -419,13 +423,11 @@ export const createNativeCallController = (
         onMembershipWait: (cancel) => {
           currentRecord.cancelMembershipWait = cancel;
         },
+        onJoinStarted: () => {
+          currentRecord.removePageHideListener = leaveMatrixRTCOnPageHide(session);
+        },
       });
       if (!isCurrent(currentRecord)) return;
-
-      // The SDK's RTCEncryptionManager identifies our own key by the plain
-      // `userId:deviceId` unless `unstableSendStickyEvents` is set (we don't
-      // set it), so do NOT use the membership's hashed rtcBackendIdentity here.
-      forwarder.setLocalOutboundIdentity(`${mx.getSafeUserId()}:${mx.getDeviceId()}`);
 
       stage = 'connecting';
       await forwarder.waitForOwnKey();

@@ -4,6 +4,7 @@ import type { MatrixClient, MatrixRTCSession, Room as MatrixRoom } from '$types/
 import {
   disconnectLivekitThenLeaveMatrixRTC,
   joinAndProvisionMatrixRTC,
+  leaveMatrixRTCOnPageHide,
 } from './matrixRtcCallLifecycle';
 import {
   LivekitMatrixKeyProvider,
@@ -71,6 +72,7 @@ type ControllerRecord = {
   cancelled: boolean;
   e2eeFailure: boolean;
   cancelMembershipWait?: () => void;
+  removePageHideListener?: () => void;
   removeKeyStateListener?: () => void;
   cleanupPromise?: Promise<void>;
   resourcesReady: Promise<void>;
@@ -166,6 +168,8 @@ export function createLivekitJsController(dependencies: LivekitJsControllerDepen
         }
       }
       current.worker?.terminate();
+      current.removePageHideListener?.();
+      current.removePageHideListener = undefined;
       current.removeKeyStateListener?.();
       current.removeKeyStateListener = undefined;
       current.ownerLease.release();
@@ -190,7 +194,10 @@ export function createLivekitJsController(dependencies: LivekitJsControllerDepen
       if (!supportsE2EE()) {
         failure = 'e2ee-unsupported';
       } else {
-        current.provider.attach(current.session);
+        current.provider.attach(current.session, {
+          userId: connectOptions.mx.getSafeUserId(),
+          deviceId: connectOptions.mx.getDeviceId(),
+        });
         if (current.e2eeFailure || current.provider.getKeyState().lastImportFailure) {
           failure = 'e2ee-import-failed';
         } else {
@@ -215,16 +222,10 @@ export function createLivekitJsController(dependencies: LivekitJsControllerDepen
             },
             onJoinStarted: () => {
               current.matrixJoinStarted = true;
+              current.removePageHideListener = leaveMatrixRTCOnPageHide(current.session);
             },
           });
 
-          // RTCEncryptionManager emits our own key under the plain
-          // `userId:deviceId` unless `unstableSendStickyEvents` is set (we
-          // don't set it), so the membership's hashed rtcBackendIdentity would
-          // never match. Same reasoning as the native controller.
-          current.provider.setLocalOutboundIdentity(
-            `${connectOptions.mx.getSafeUserId()}:${connectOptions.mx.getDeviceId()}`
-          );
           if (current.e2eeFailure || current.provider.getKeyState().lastImportFailure) {
             failure = 'e2ee-import-failed';
           } else if (!current.cancelled) {

@@ -24,7 +24,19 @@ export type LivekitProvisioningResult = {
   jwt: string;
 };
 
-const isLivekitTransportConfig = (transport: Transport): transport is LivekitTransportConfig =>
+/**
+ * Membership format for MatrixRTC. It also picks the JWT endpoint below,
+ * because the two cannot be chosen independently: `/get_token` grants a LiveKit
+ * identity hashed from the sticky membership, `/sfu/get` grants
+ * `${userId}:${deviceId}`, and LiveKit binds E2EE keys strictly to the identity
+ * the JWT carries. Sticky memberships need delayed events, which this
+ * homeserver does not support, so both stay on the legacy side.
+ */
+export const useStickyMemberships = false;
+
+export const isLivekitTransportConfig = (
+  transport: Transport
+): transport is LivekitTransportConfig =>
   transport.type === 'livekit' && typeof transport.livekit_service_url === 'string';
 
 const isProvisioningResult = (value: unknown): value is LivekitProvisioningResult =>
@@ -65,13 +77,6 @@ type LegacyProvisioningRequest = {
   device_id: string;
 };
 
-class LivekitProvisioningHttpError extends Error {
-  public constructor(public readonly status: number) {
-    super(`LiveKit provisioning request failed with status ${status}`);
-    this.name = 'LivekitProvisioningHttpError';
-  }
-}
-
 const requestLivekitToken = async (
   endpoint: string,
   body: ModernProvisioningRequest | LegacyProvisioningRequest
@@ -83,7 +88,7 @@ const requestLivekitToken = async (
   });
 
   if (response.status < 200 || response.status >= 300) {
-    throw new LivekitProvisioningHttpError(response.status);
+    throw new Error(`LiveKit provisioning request failed with status ${response.status}`);
   }
 
   const data = (await response.json()) as unknown;
@@ -112,40 +117,31 @@ export const provisionLivekitToken = async ({
   }
 
   const endpoint = trimTrailingSlash(serviceUrl);
-  const modernRequest: ModernProvisioningRequest = {
-    room_id: roomId,
-    slot_id: slotId,
-    openid_token: openidToken,
-  };
-
-  if (memberId && userId && deviceId) {
-    modernRequest.member = {
-      id: memberId,
-      claimed_user_id: userId,
-      claimed_device_id: deviceId,
-    };
-  }
 
   try {
-    return await requestLivekitToken(`${endpoint}/get_token`, modernRequest);
-  } catch (error) {
-    // Only an SFU that does not implement the modern endpoint is worth a second
-    // round trip; network and server errors would fail the same way twice.
-    const unimplemented =
-      error instanceof LivekitProvisioningHttpError &&
-      (error.status === 404 || error.status === 405);
-    if (!unimplemented) throw new Error('LiveKit token provisioning failed', { cause: error });
+    if (useStickyMemberships) {
+      const modernRequest: ModernProvisioningRequest = {
+        room_id: roomId,
+        slot_id: slotId,
+        openid_token: openidToken,
+      };
+      if (memberId && userId && deviceId) {
+        modernRequest.member = {
+          id: memberId,
+          claimed_user_id: userId,
+          claimed_device_id: deviceId,
+        };
+      }
+      return await requestLivekitToken(`${endpoint}/get_token`, modernRequest);
+    }
 
     const legacyRequest: LegacyProvisioningRequest = {
       room: roomId,
       openid_token: openidToken,
       device_id: deviceId,
     };
-
-    try {
-      return await requestLivekitToken(`${endpoint}/sfu/get`, legacyRequest);
-    } catch {
-      throw new Error('LiveKit token provisioning failed');
-    }
+    return await requestLivekitToken(`${endpoint}/sfu/get`, legacyRequest);
+  } catch {
+    throw new Error('LiveKit token provisioning failed');
   }
 };

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useAtomValue } from 'jotai';
+import { useAtom, useAtomValue } from 'jotai';
 import { Box, Button, color, config, Text, toRem } from 'folds';
 import {
   CarouselLayout,
@@ -25,7 +25,11 @@ import { ConnectionState, Track, type Participant, type Room } from 'livekit-cli
 import { SpeakerHigh, sizedIcon } from '$components/icons/phosphor';
 import { useCallMembers, useCallSession } from '$hooks/useCall';
 import { useRoom } from '$hooks/useRoom';
-import { livekitJsCallSoundAtom, type LivekitJsCallMedia } from '$state/livekitJsCall';
+import {
+  livekitJsCallInitialMediaAppliedAtom,
+  livekitJsCallSoundAtom,
+  type LivekitJsCallMedia,
+} from '$state/livekitJsCall';
 import { buildRtcIdentityMap, type UserIdByRtcIdentity } from './livekitCallIdentity';
 import {
   CallParticipantAvatar,
@@ -187,7 +191,9 @@ function MediaLayout({
         <FocusLayout
           trackRef={screenShare}
           style={{ position: 'relative', flex: 1, minWidth: 0, minHeight: 0, overflow: 'hidden' }}
-        />
+        >
+          <CallTileContent userIdByIdentity={userIdByIdentity} />
+        </FocusLayout>
         {remainingTracks.length > 0 && (
           <CarouselLayout
             tracks={remainingTracks}
@@ -285,7 +291,9 @@ function LivekitJsCallContent({
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const { localParticipant } = useLocalParticipant();
   const soundEnabled = useAtomValue(livekitJsCallSoundAtom);
-  const appliedInitialMedia = useRef(false);
+  const [appliedInitialMedia, setAppliedInitialMedia] = useAtom(
+    livekitJsCallInitialMediaAppliedAtom
+  );
 
   const handleDeviceError = useCallback(({ source }: { source: Track.Source }) => {
     setDeviceError(deviceErrorMessages[source] ?? 'A media device is unavailable.');
@@ -294,8 +302,8 @@ function LivekitJsCallContent({
   // Publishing before the local key is imported would send unencrypted frames,
   // so the prescreen choice is applied on the first render where E2EE is ready.
   useEffect(() => {
-    if (!e2eeReady || appliedInitialMedia.current) return;
-    appliedInitialMedia.current = true;
+    if (!e2eeReady || appliedInitialMedia) return;
+    setAppliedInitialMedia(true);
     localParticipant
       .setMicrophoneEnabled(
         initialMedia.microphone,
@@ -310,7 +318,14 @@ function LivekitJsCallContent({
         )
         .catch(() => handleDeviceError({ source: Track.Source.Camera }));
     }
-  }, [e2eeReady, initialMedia, localParticipant, handleDeviceError]);
+  }, [
+    e2eeReady,
+    initialMedia,
+    localParticipant,
+    handleDeviceError,
+    appliedInitialMedia,
+    setAppliedInitialMedia,
+  ]);
 
   // Disable HTML5 PiP on all video elements in the LiveKit call surface.
   // iOS WKWebView enables automatic PiP for video elements, which causes a

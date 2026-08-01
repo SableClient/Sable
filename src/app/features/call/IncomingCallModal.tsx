@@ -18,6 +18,8 @@ import {
   mutedCallRoomIdAtom,
   type IncomingCall,
 } from '$state/callEmbed';
+import { livekitJsCallAtom } from '$state/livekitJsCall';
+import { nativeCallAtom, selectActiveCallSessionIncludingNative } from '$state/nativeCall';
 import { createDebugLogger } from '$utils/debugLogger';
 import { dismissSystemCallNotifications } from '$features/call/callNotificationBridge';
 import { getIncomingCallBlockers } from '$features/call/getIncomingCallBlockers';
@@ -49,6 +51,8 @@ export function IncomingCallInternal({ room, incomingCall, onClose }: IncomingCa
   const useAuthentication = useMediaAuthentication();
   const roomName = useRoomName(room);
   const callEmbed = useCallEmbed();
+  const livekitJsCall = useAtomValue(livekitJsCallAtom);
+  const nativeCall = useAtomValue(nativeCallAtom);
   const { navigateRoom } = useRoomNavigate();
   const roomAvatarUrl = getRoomAvatarUrl(mx, room, 96, useAuthentication);
   const setAutoJoinIntent = useSetAtom(autoJoinCallIntentAtom);
@@ -65,7 +69,10 @@ export function IncomingCallInternal({ room, incomingCall, onClose }: IncomingCa
   const isRingNotification = incomingCall.notificationType === 'ring';
   const isDirectRing = incomingCall.isDirect && incomingCall.notificationType === 'ring';
   const isVideoIntent = incomingCall.intentKind === 'video';
-  const inAnotherCall = Boolean(callEmbed && callEmbed.roomId !== room.roomId);
+  // All three engines refuse to start while another call is live, so the modal
+  // has to know about all three or answering silently does nothing.
+  const activeCall = selectActiveCallSessionIncludingNative(callEmbed, livekitJsCall, nativeCall);
+  const inAnotherCall = Boolean(activeCall && activeCall.roomId !== room.roomId);
   const canUseWebRTC = webRTCSupported();
   const myUserId = mx.getSafeUserId();
   const hasCallMemberPermission =

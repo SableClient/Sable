@@ -43,6 +43,9 @@ const handlerFor = (testSession: TestSession): EncryptionKeyChangedHandler =>
   )?.[1] as EncryptionKeyChangedHandler;
 
 describe('LivekitMatrixKeyProvider', () => {
+  const localIdentity = { userId: '@alice:example.org', deviceId: 'ALICEDEVICE' };
+  const localParts = { userId: '@alice:example.org', deviceId: 'ALICEDEVICE' };
+  const remoteParts = { userId: '@bob:example.org', deviceId: 'BOBDEVICE' };
   const importedKey = { imported: true } as unknown as CryptoKey;
   const importKey = vi.fn<typeof crypto.subtle.importKey>().mockResolvedValue(importedKey);
 
@@ -61,7 +64,6 @@ describe('LivekitMatrixKeyProvider', () => {
       'onSetEncryptionKey'
     );
     const matrixKey = new Uint8Array([1, 2, 3, 4]);
-    provider.setLocalOutboundIdentity('hashed-member');
 
     expect(provider.getOptions()).toMatchObject({
       ratchetWindowSize: 10,
@@ -69,7 +71,7 @@ describe('LivekitMatrixKeyProvider', () => {
       sharedKey: false,
     });
 
-    provider.attach(testSession as never);
+    provider.attach(testSession as never, localIdentity);
 
     expect(testSession.on).toHaveBeenCalledWith(
       MatrixRTCSessionEvent.EncryptionKeyChanged,
@@ -77,7 +79,7 @@ describe('LivekitMatrixKeyProvider', () => {
     );
     expect(testSession.reemitEncryptionKeys).toHaveBeenCalledOnce();
 
-    handlerFor(testSession)(matrixKey, 7, { userId: '@alice:example.org' }, 'hashed-member');
+    handlerFor(testSession)(matrixKey, 7, localParts, 'hashed-member');
     await vi.waitFor(() => expect(onSetEncryptionKey).toHaveBeenCalledOnce());
 
     expect(importKey).toHaveBeenCalledWith('raw', matrixKey, 'HKDF', false, [
@@ -98,9 +100,9 @@ describe('LivekitMatrixKeyProvider', () => {
     const newSession = session();
     const provider = new LivekitMatrixKeyProvider();
 
-    provider.attach(oldSession as never);
+    provider.attach(oldSession as never, localIdentity);
     const oldHandler = handlerFor(oldSession);
-    provider.attach(newSession as never);
+    provider.attach(newSession as never, localIdentity);
 
     expect(oldSession.off).toHaveBeenCalledWith(
       MatrixRTCSessionEvent.EncryptionKeyChanged,
@@ -117,7 +119,7 @@ describe('LivekitMatrixKeyProvider', () => {
     const provider = new LivekitMatrixKeyProvider();
     const rawKey = new Uint8Array([9, 8, 7]);
 
-    provider.attach(testSession as never);
+    provider.attach(testSession as never, localIdentity);
     const handler = handlerFor(testSession);
     handler(rawKey, 3, {}, 'member');
     await vi.waitFor(() => expect(provider.getKeys()).toHaveLength(1));
@@ -143,7 +145,7 @@ describe('LivekitMatrixKeyProvider', () => {
       'onSetEncryptionKey'
     );
 
-    provider.attach(testSession as never);
+    provider.attach(testSession as never, localIdentity);
     handlerFor(testSession)(new Uint8Array([1]), 1, {}, 'member');
     await vi.waitFor(() => expect(importKey).toHaveBeenCalledOnce());
     provider.detach();
@@ -167,10 +169,10 @@ describe('LivekitMatrixKeyProvider', () => {
       'onSetEncryptionKey'
     );
 
-    provider.attach(oldSession as never);
+    provider.attach(oldSession as never, localIdentity);
     handlerFor(oldSession)(new Uint8Array([1]), 1, {}, 'old-member');
     await vi.waitFor(() => expect(importKey).toHaveBeenCalledOnce());
-    provider.attach(newSession as never);
+    provider.attach(newSession as never, localIdentity);
     pendingImport.resolve(importedKey);
     await Promise.resolve();
     await Promise.resolve();
@@ -186,7 +188,6 @@ describe('LivekitMatrixKeyProvider', () => {
       .mockImplementationOnce(() => firstImport.promise)
       .mockImplementationOnce(() => secondImport.promise);
     const provider = new LivekitMatrixKeyProvider();
-    provider.setLocalOutboundIdentity('member');
     const onSetEncryptionKey = vi.spyOn(
       provider as unknown as {
         onSetEncryptionKey: (key: CryptoKey, identity: string, index: number) => void;
@@ -194,10 +195,10 @@ describe('LivekitMatrixKeyProvider', () => {
       'onSetEncryptionKey'
     );
 
-    provider.attach(testSession as never);
+    provider.attach(testSession as never, localIdentity);
     const handler = handlerFor(testSession);
-    handler(new Uint8Array([1]), 1, {}, 'member');
-    handler(new Uint8Array([2]), 2, {}, 'member');
+    handler(new Uint8Array([1]), 1, localParts, 'member');
+    handler(new Uint8Array([2]), 2, localParts, 'member');
     await vi.waitFor(() => expect(importKey).toHaveBeenCalledTimes(2));
 
     secondImport.resolve(importedKey);
@@ -214,7 +215,6 @@ describe('LivekitMatrixKeyProvider', () => {
   it('tracks key-index regression independently for each participant', async () => {
     const testSession = session();
     const provider = new LivekitMatrixKeyProvider();
-    provider.setLocalOutboundIdentity('local-member');
     const onSetEncryptionKey = vi.spyOn(
       provider as unknown as {
         onSetEncryptionKey: (key: CryptoKey, identity: string, index: number) => void;
@@ -222,10 +222,10 @@ describe('LivekitMatrixKeyProvider', () => {
       'onSetEncryptionKey'
     );
 
-    provider.attach(testSession as never);
+    provider.attach(testSession as never, localIdentity);
     const handler = handlerFor(testSession);
-    handler(new Uint8Array([1]), 10, {}, 'remote-member');
-    handler(new Uint8Array([2]), 1, {}, 'local-member');
+    handler(new Uint8Array([1]), 10, remoteParts, 'remote-member');
+    handler(new Uint8Array([2]), 1, localParts, 'local-member');
 
     await vi.waitFor(() => expect(onSetEncryptionKey).toHaveBeenCalledTimes(2));
 
@@ -243,15 +243,14 @@ describe('LivekitMatrixKeyProvider', () => {
     const testSession = session();
     importKey.mockRejectedValueOnce(new Error('raw key internals'));
     const provider = new LivekitMatrixKeyProvider();
-    provider.setLocalOutboundIdentity('member');
 
-    provider.attach(testSession as never);
-    handlerFor(testSession)(new Uint8Array([1]), 1, {}, 'member');
+    provider.attach(testSession as never, localIdentity);
+    handlerFor(testSession)(new Uint8Array([1]), 1, localParts, 'member');
 
     await vi.waitFor(() => expect(provider.getKeyState().lastImportFailure).toBe('import-failed'));
     expect(JSON.stringify(provider.getKeyState())).not.toContain('raw key internals');
 
-    handlerFor(testSession)(new Uint8Array([2]), 2, {}, 'member');
+    handlerFor(testSession)(new Uint8Array([2]), 2, localParts, 'member');
     await vi.waitFor(() => expect(provider.getKeyState().ready).toBe(true));
     expect(provider.getKeyState().lastImportFailure).toBeNull();
   });
@@ -261,7 +260,7 @@ describe('LivekitMatrixKeyProvider', () => {
     const testSession = session();
     const provider = new LivekitMatrixKeyProvider();
 
-    provider.attach(testSession as never);
+    provider.attach(testSession as never, localIdentity);
     handlerFor(testSession)(new Uint8Array([1]), 1, {}, 'member');
 
     await vi.waitFor(() =>

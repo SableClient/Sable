@@ -21,6 +21,14 @@ import {
 } from '$state/callOwner';
 
 const OWN_IDENTITY = '@alice:example.org:DEVICE';
+const OWN_PARTS = {
+  userId: '@alice:example.org',
+  deviceId: 'DEVICE',
+} as CallMembershipIdentityParts;
+const REMOTE_PARTS = {
+  userId: '@bob:example.org',
+  deviceId: 'BOBDEVICE',
+} as CallMembershipIdentityParts;
 const room = {
   roomId: '!room:example.org',
   loadMembersIfNeeded: () => Promise.resolve(),
@@ -78,6 +86,7 @@ const makeSession = (order: string[] = []): TestSession => {
     ),
     reemitEncryptionKeys: vi.fn<() => void>(),
     joinRTCSession: vi.fn<() => void>(() => order.push('join')),
+    getOldestMembership: vi.fn<() => CallMembership | undefined>(() => undefined),
     leaveRoomSession: vi.fn<() => Promise<boolean>>(async () => {
       order.push('leave');
       return true;
@@ -91,11 +100,17 @@ const emitOwnMembership = (session: TestSession): void => {
   session.handlers.get(MatrixRTCSessionEvent.MembershipsChanged)?.([], [ownMembership]);
 };
 
-const emitKey = (session: TestSession, key: number[], keyIndex: number, identity: string): void => {
+const emitKey = (
+  session: TestSession,
+  key: number[],
+  keyIndex: number,
+  identity: string,
+  parts: CallMembershipIdentityParts = OWN_PARTS
+): void => {
   session.handlers.get(MatrixRTCSessionEvent.EncryptionKeyChanged)?.(
     new Uint8Array(key),
     keyIndex,
-    {} as CallMembershipIdentityParts,
+    parts,
     identity
   );
 };
@@ -215,9 +230,14 @@ describe('native call controller', () => {
 
     expect(session.joinRTCSession).toHaveBeenCalledWith(
       { userId: '@alice:example.org', deviceId: 'DEVICE', memberId: '@alice:example.org:DEVICE' },
-      [transport],
+      [{ ...transport, livekit_alias: room.roomId }],
       undefined,
-      { callIntent: 'audio', notificationType: 'notification', manageMediaKeys: true }
+      {
+        callIntent: 'audio',
+        membershipEventExpiryMs: 30 * 60 * 1000,
+        notificationType: 'notification',
+        manageMediaKeys: true,
+      }
     );
     expect(connectCall).toHaveBeenCalled();
   });
@@ -232,7 +252,7 @@ describe('native call controller', () => {
     await waitForMembershipListener(session);
     emitOwnMembership(session);
     await vi.waitFor(() => expect(session.joinRTCSession).toHaveBeenCalled());
-    emitKey(session, [9, 9], 0, 'remote-backend');
+    emitKey(session, [9, 9], 0, 'remote-backend', REMOTE_PARTS);
     await Promise.resolve();
     expect(connectCall).not.toHaveBeenCalled();
 
@@ -282,13 +302,13 @@ describe('native call controller', () => {
     const startPromise = controller.start(startOptions(session));
     await waitForMembershipListener(session);
     emitOwnMembership(session);
-    emitKey(session, [9, 9], 0, 'remote-backend');
+    emitKey(session, [9, 9], 0, 'remote-backend', REMOTE_PARTS);
     emitKey(session, [1], 0, OWN_IDENTITY);
     expect(setEncryptionKey).not.toHaveBeenCalled();
     await startPromise;
     expect(setEncryptionKey).not.toHaveBeenCalled();
 
-    emitKey(session, [5, 6, 7, 8], 4, 'remote-backend');
+    emitKey(session, [5, 6, 7, 8], 4, 'remote-backend', REMOTE_PARTS);
     expect(connectCall).toHaveBeenCalledTimes(1);
     expect(setEncryptionKey).toHaveBeenCalledWith({
       callId: 'call-id',
@@ -298,8 +318,8 @@ describe('native call controller', () => {
     });
 
     setEncryptionKey.mockClear();
-    emitKey(session, [5, 6, 7, 8], 4, 'remote-backend');
-    emitKey(session, [8, 8], 2, 'remote-backend');
+    emitKey(session, [5, 6, 7, 8], 4, 'remote-backend', REMOTE_PARTS);
+    emitKey(session, [8, 8], 2, 'remote-backend', REMOTE_PARTS);
     expect(setEncryptionKey).not.toHaveBeenCalled();
   });
 

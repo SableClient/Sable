@@ -6,6 +6,7 @@ import { createLivekitJsController } from './livekitJsController';
 import {
   isLivekitJsCallActive,
   livekitJsCallAtom,
+  livekitJsCallInitialMediaAppliedAtom,
   livekitJsCallSoundAtom,
   type LivekitJsCallMedia,
 } from '$state/livekitJsCall';
@@ -132,6 +133,7 @@ export function LivekitJsCallManagerProvider({ children }: LivekitJsCallManagerP
         videoDeviceId,
       };
       store.set(livekitJsCallSoundAtom, sound ?? true);
+      store.set(livekitJsCallInitialMediaAppliedAtom, false);
       void activeController
         .connect({
           mx,

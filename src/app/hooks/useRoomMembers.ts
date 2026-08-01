@@ -1,6 +1,7 @@
 import type { MatrixClient, MatrixEvent, RoomMember } from '$types/matrix-sdk';
 import { EventType, RoomMemberEvent, RoomStateEvent } from '$types/matrix-sdk';
 import { useEffect, useState } from 'react';
+import { hydrateAllRoomMembers } from '$client/roomMemberHydration';
 
 export const useRoomMembers = (mx: MatrixClient, roomId: string, enabled = true): RoomMember[] => {
   const [members, setMembers] = useState<RoomMember[]>([]);
@@ -23,11 +24,13 @@ export const useRoomMembers = (mx: MatrixClient, roomId: string, enabled = true)
 
     if (room) {
       setMembers(room.getMembers());
-      room.loadMembersIfNeeded().then(() => {
+      const stopLoading = () => {
         loadingMembers = false;
         if (disposed) return;
         updateMemberList();
-      });
+        void hydrateAllRoomMembers(mx, roomId).then(() => updateMemberList());
+      };
+      room.loadMembersIfNeeded().then(stopLoading, stopLoading);
     }
 
     const handleStateEvent = (event: MatrixEvent) => {

@@ -33,7 +33,7 @@ export const useRoomMemberHydration = (
 
     if (member && profileDisplayName && profileDisplayName !== member.rawDisplayName) {
       let disposed = false;
-      void hydrateRoomMember(mx, room.roomId, userId, true).then(() => {
+      void hydrateRoomMember(mx, room.roomId, userId, { force: true }).then(() => {
         if (!disposed && room.getMember(userId)) setVersion((v) => v + 1);
       });
       return () => {

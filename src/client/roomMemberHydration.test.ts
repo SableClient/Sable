@@ -2,7 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { MatrixClient, Room, RoomMember } from '$types/matrix-sdk';
 import { EventType } from '$types/matrix-sdk';
 
-import { hydrateRoomMember, hydrateRoomMembers } from './roomMemberHydration';
+import {
+  hydrateAllRoomMembers,
+  hydrateRoomMember,
+  hydrateRoomMembers,
+} from './roomMemberHydration';
 
 const ROOM_ID = '!room:server';
 const USER_ID = '@ghost:server';
@@ -129,7 +133,7 @@ describe('hydrateRoomMember (force)', () => {
     const { mx, getStateEvent, setStateEvents, getMember } = makeFakes();
     getMember.mockReturnValue({ rawDisplayName: 'OldName' } as RoomMember);
 
-    await hydrateRoomMember(mx, ROOM_ID, USER_ID, true);
+    await hydrateRoomMember(mx, ROOM_ID, USER_ID, { force: true });
 
     expect(getStateEvent).toHaveBeenCalledTimes(1);
     expect(setStateEvents).toHaveBeenCalledTimes(1);
@@ -139,19 +143,136 @@ describe('hydrateRoomMember (force)', () => {
     const { mx, getStateEvent, getMember } = makeFakes();
     getMember.mockReturnValue({ rawDisplayName: 'OldName' } as RoomMember);
 
-    await hydrateRoomMember(mx, ROOM_ID, USER_ID, true);
-    await hydrateRoomMember(mx, ROOM_ID, USER_ID, true);
+    await hydrateRoomMember(mx, ROOM_ID, USER_ID, { force: true });
+    await hydrateRoomMember(mx, ROOM_ID, USER_ID, { force: true });
 
     expect(getStateEvent).toHaveBeenCalledTimes(1);
 
     vi.advanceTimersByTime(10 * 60_000 + 1);
-    await hydrateRoomMember(mx, ROOM_ID, USER_ID, true);
+    await hydrateRoomMember(mx, ROOM_ID, USER_ID, { force: true });
+
+    expect(getStateEvent).toHaveBeenCalledTimes(2);
+  });
+
+  it('can bypass the refresh cooldown when current state becomes stale again', async () => {
+    const { mx, getStateEvent, getMember } = makeFakes();
+    getMember.mockReturnValue({ rawDisplayName: 'OldName' } as RoomMember);
+
+    await hydrateRoomMember(mx, ROOM_ID, USER_ID, { force: true });
+    await hydrateRoomMember(mx, ROOM_ID, USER_ID, {
+      force: true,
+      bypassRefreshCooldown: true,
+    });
 
     expect(getStateEvent).toHaveBeenCalledTimes(2);
   });
 });
 
+type BulkFakeSetup = {
+  mx: MatrixClient;
+  members: ReturnType<typeof vi.fn>;
+  setStateEvents: ReturnType<typeof vi.fn>;
+};
+
+const makeBulkFakes = (
+  joinedMembers: number,
+  joinedCount: number,
+  knownMemberIds: string[] = []
+): BulkFakeSetup => {
+  const setStateEvents = vi.fn<() => void>();
+  const room = {
+    roomId: ROOM_ID,
+    getJoinedMembers: () => Array.from({ length: joinedMembers }, () => ({}) as RoomMember),
+    getJoinedMemberCount: () => joinedCount,
+    getMember: (userId: string) => (knownMemberIds.includes(userId) ? ({} as RoomMember) : null),
+    currentState: { setStateEvents },
+  } as unknown as Room;
+  const members = vi.fn<() => Promise<object>>(() =>
+    Promise.resolve({
+      chunk: [
+        {
+          type: EventType.RoomMember,
+          state_key: USER_ID,
+          room_id: ROOM_ID,
+          sender: USER_ID,
+          content: { membership: 'join' },
+        },
+      ],
+    })
+  );
+  const mx = {
+    getRoom: () => room,
+    members,
+  } as unknown as MatrixClient;
+  return { mx, members, setStateEvents };
+};
+
+describe('hydrateAllRoomMembers', () => {
+  beforeEach(() => {
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it('fetches the full member list when the roster is short of the joined count', async () => {
+    const { mx, members, setStateEvents } = makeBulkFakes(2, 20);
+
+    await hydrateAllRoomMembers(mx, ROOM_ID);
+
+    expect(members).toHaveBeenCalledWith(ROOM_ID, undefined, 'leave');
+    const [events] = setStateEvents.mock.calls[0] as [Array<{ getType: () => string }>];
+    expect(events[0]?.getType()).toBe(EventType.RoomMember);
+  });
+
+  it('skips members the room already knows', async () => {
+    const { mx, setStateEvents } = makeBulkFakes(2, 20, [USER_ID]);
+
+    await hydrateAllRoomMembers(mx, ROOM_ID);
+
+    expect(setStateEvents).not.toHaveBeenCalled();
+  });
+
+  it('does nothing when the roster already matches the joined count', async () => {
+    const { mx, members } = makeBulkFakes(20, 20);
+
+    await hydrateAllRoomMembers(mx, ROOM_ID);
+
+    expect(members).not.toHaveBeenCalled();
+  });
+
+  it('does not refetch within the TTL and retries after it', async () => {
+    const { mx, members } = makeBulkFakes(2, 20);
+
+    await hydrateAllRoomMembers(mx, ROOM_ID);
+    await hydrateAllRoomMembers(mx, ROOM_ID);
+    expect(members).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(5 * 60_000 + 1);
+    await hydrateAllRoomMembers(mx, ROOM_ID);
+    expect(members).toHaveBeenCalledTimes(2);
+  });
+
+  it('swallows a failed fetch', async () => {
+    const { mx, members, setStateEvents } = makeBulkFakes(2, 20);
+    members.mockRejectedValueOnce(new Error('403'));
+
+    await expect(hydrateAllRoomMembers(mx, ROOM_ID)).resolves.toBeUndefined();
+    expect(setStateEvents).not.toHaveBeenCalled();
+  });
+});
+
 describe('hydrateRoomMembers', () => {
+  it('forwards force=true to each member hydration', async () => {
+    const { mx, getStateEvent, getMember } = makeFakes();
+    getMember.mockReturnValue({ rawDisplayName: 'OldName' } as RoomMember);
+
+    await hydrateRoomMembers(mx, ROOM_ID, [USER_ID], { force: true });
+
+    expect(getStateEvent).toHaveBeenCalledOnce();
+  });
+
   it('dedups user ids and filters non-user ids', async () => {
     const { mx, getStateEvent } = makeFakes();
 

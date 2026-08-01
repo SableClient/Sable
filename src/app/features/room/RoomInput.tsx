@@ -18,6 +18,7 @@ import type {
   MatrixEvent,
   Room,
   IEventRelation,
+  IPreviewUrlResponse,
   RoomMessageEventContent,
   StickerEventContent,
 } from '$types/matrix-sdk';
@@ -28,6 +29,7 @@ import { Editor, Point, Range, Transforms } from 'slate';
 import type { RectCords } from 'folds';
 import {
   Box,
+  Button,
   color,
   config,
   Dialog,
@@ -112,6 +114,7 @@ import type { EditorButtonId } from '$state/settings';
 import { settingsAtom } from '$state/settings';
 import { matchesShortcut } from '../../keyboard/shortcuts';
 import { getEditedEvent, getMentionContent, getThreadReplyEvents } from '$utils/room/relations';
+import { isServerUrlPreviewEnabled } from '$utils/room/urlPreview';
 import { buildReplacementContent } from './buildReplacementContent';
 import { htmlToMarkdown } from '$plugins/markdown';
 import { Command, SHRUG, TABLEFLIP, UNFLIP, useCommands } from '$hooks/useCommands';
@@ -141,6 +144,7 @@ import {
 } from '$utils/delayedEvents';
 import { timeHourMinute, timeDayMonthYear, daysToMs } from '$utils/time';
 import { stopPropagation } from '$utils/keyboard';
+import { UrlPreviewCard } from '$components/url-preview';
 
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { useRoomCreators } from '$hooks/useRoomCreators';
@@ -273,6 +277,12 @@ export const getReplyContent = (
 
 const log = createLogger('RoomInput');
 const debugLog = createDebugLogger('RoomInput');
+type BundledPreview = IPreviewUrlResponse & { matched_url: string };
+type BundledPreviewStatus =
+  | { status: 'loading' }
+  | { status: 'ready'; bundle: BundledPreview }
+  | { status: 'error' }
+  | { status: 'dismissed' };
 interface ReplyEventContent {
   'm.relates_to'?: IEventRelation;
 }
@@ -322,6 +332,13 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
     const [mentionInReplies] = useSetting(settingsAtom, 'mentionInReplies');
+    const [urlPreview] = useSetting(settingsAtom, 'urlPreview');
+    const [encUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
+    const serverEmbedsEnabled = isServerUrlPreviewEnabled(
+      room.hasEncryptionStateEvent(),
+      urlPreview,
+      encUrlPreview
+    );
     const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
     const commands = useCommands(mx, room);
     const imagePacksUsedRef = useRef(new SerializableMap<string, MSC4459ImagePackReference>());
@@ -495,10 +512,66 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const handlePaste = useFilePasteHandler(handleFiles);
     const dropZoneVisible = useFileDropZone(fileDropContainerRef, handleFiles);
     const [hasText, setHasText] = useState(false);
+    const [, setComposerRevision] = useState(0);
     const handleEditorChange = useCallback(() => {
       setHasText(!isEmptyEditor(editor));
+      setComposerRevision((revision) => revision + 1);
     }, [editor]);
     const hasContent = hasText || selectedFiles.length > 0;
+    const composerLinks = getLinks(editor.children) ?? [];
+    const composerLinksKey = composerLinks.join('\n');
+    const [bundledPreviews, setBundledPreviews] = useState<Record<string, BundledPreviewStatus>>(
+      {}
+    );
+    const bundledPreviewRequestsRef = useRef(new Set<string>());
+    const bundledPreviewGenerationRef = useRef(0);
+
+    useEffect(() => {
+      const links = new Set(composerLinksKey ? composerLinksKey.split('\n') : []);
+      setBundledPreviews((current) => {
+        const next = Object.fromEntries(Object.entries(current).filter(([url]) => links.has(url)));
+        return Object.keys(next).length === Object.keys(current).length ? current : next;
+      });
+    }, [composerLinksKey]);
+
+    const generateBundledPreview = useCallback(
+      (url: string) => {
+        if (!serverEmbedsEnabled) return;
+        const generation = bundledPreviewGenerationRef.current;
+        const requestKey = `${generation}:${url}`;
+        if (bundledPreviewRequestsRef.current.has(requestKey)) return;
+        bundledPreviewRequestsRef.current.add(requestKey);
+        setBundledPreviews((current) => ({ ...current, [url]: { status: 'loading' } }));
+        mx.getUrlPreview(url, Date.now())
+          .then(
+            (preview) => {
+              if (generation !== bundledPreviewGenerationRef.current) return;
+              setBundledPreviews((current) => ({
+                ...current,
+                [url]: { status: 'ready', bundle: { ...preview, matched_url: url } },
+              }));
+            },
+            () => {
+              if (generation !== bundledPreviewGenerationRef.current) return;
+              setBundledPreviews((current) => ({ ...current, [url]: { status: 'error' } }));
+            }
+          )
+          .finally(() => bundledPreviewRequestsRef.current.delete(requestKey));
+      },
+      [mx, serverEmbedsEnabled]
+    );
+
+    useEffect(() => {
+      if (!serverEmbedsEnabled) {
+        bundledPreviewGenerationRef.current += 1;
+        setBundledPreviews((current) => (Object.keys(current).length === 0 ? current : {}));
+        return;
+      }
+      const links = composerLinksKey ? composerLinksKey.split('\n') : [];
+      links.forEach((url) => {
+        if (bundledPreviews[url] === undefined) generateBundledPreview(url);
+      });
+    }, [composerLinksKey, bundledPreviews, generateBundledPreview, serverEmbedsEnabled]);
 
     const isComposing = useComposingCheck();
 
@@ -1333,12 +1406,13 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         imagePacksUsedRef.current.toJSON();
 
       const links = getLinks(serializedChildren);
-      content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME] = [];
-      links?.forEach((link) =>
-        content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME].push({
-          matched_url: link,
-        })
-      );
+      const bundles = links?.flatMap((link) => {
+        const preview = bundledPreviews[link];
+        return preview?.status === 'ready' ? [preview.bundle] : [];
+      });
+      if (serverEmbedsEnabled && bundles && bundles.length > 0) {
+        content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME] = bundles;
+      }
 
       if (replyDraft || !customHtmlEqualsPlainText(formattedBody, body)) {
         content.format = 'org.matrix.custom.html';
@@ -1402,6 +1476,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         resetEditorHistory(editor);
         setInputKey((prev) => prev + 1);
         imagePacksUsedRef.current.clear();
+        setBundledPreviews({});
         setReplyDraft(replyDraftBase);
         sendTypingStatus(false);
       };
@@ -1538,6 +1613,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       getEditingContent,
       onCancelEdit,
       latchedPersona,
+      bundledPreviews,
+      serverEmbedsEnabled,
     ]);
 
     const handleKeyDown: KeyboardEventHandler = useCallback(
@@ -1900,6 +1977,59 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                     </Scroll>
                   )}
                 </UploadBoard>
+              )}
+              {serverEmbedsEnabled && composerLinks.length > 0 && (
+                <Box direction="Column" gap="100" style={{ padding: config.space.S200 }}>
+                  {composerLinks.map((url) => {
+                    const preview = bundledPreviews[url];
+                    if (preview?.status === 'dismissed') return null;
+                    if (preview?.status === 'ready') {
+                      return (
+                        <Box key={url} direction="Column" gap="100">
+                          <UrlPreviewCard urlPreview={false} url={url} bundle={preview.bundle} />
+                          <Button
+                            size="300"
+                            variant="Secondary"
+                            fill="Soft"
+                            radii="300"
+                            onClick={() =>
+                              setBundledPreviews((current) => ({
+                                ...current,
+                                [url]: { status: 'dismissed' },
+                              }))
+                            }
+                          >
+                            Remove embed
+                          </Button>
+                        </Box>
+                      );
+                    }
+                    if (preview?.status === 'error') {
+                      return (
+                        <Box key={url} alignItems="Center" gap="200">
+                          <Button
+                            size="300"
+                            variant="Secondary"
+                            fill="Soft"
+                            radii="300"
+                            onClick={() => generateBundledPreview(url)}
+                          >
+                            Retry embed
+                          </Button>
+                          <Text size="T200" style={{ color: color.Critical.Main }}>
+                            Could not generate this embed.
+                          </Text>
+                        </Box>
+                      );
+                    }
+                    return (
+                      <Box key={url} alignItems="Center" gap="200">
+                        <Spinner variant="Secondary" size="300" />
+                        <Text size="T300">Generating embed...</Text>
+                      </Box>
+                    );
+                  })}
+                </Box>
               )}
               {scheduledTime && (
                 <div>

@@ -197,14 +197,12 @@ function RenderMessageContentInternal({
   const renderBundledPreviews = useCallback(
     (bundles: IPreviewUrlResponse[]) => (
       <UrlPreviewHolder>
-        {bundles.map((bundle) => (
-          <UrlPreviewCard
-            urlPreview={urlPreview === true}
-            key={bundle['og:url']}
-            url={bundle['og:url']}
-            bundle={bundle}
-          />
-        ))}
+        {bundles.map((bundle) => {
+          const matchedUrl = (bundle as IPreviewUrlResponse & { matched_url?: string }).matched_url;
+          const url = bundle['og:url'] ?? matchedUrl;
+          if (!url) return null;
+          return <UrlPreviewCard urlPreview={false} key={url} url={url} bundle={bundle} />;
+        })}
       </UrlPreviewHolder>
     ),
     [urlPreview]

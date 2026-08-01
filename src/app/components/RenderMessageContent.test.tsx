@@ -20,7 +20,12 @@ vi.mock('./url-preview', () => ({
   UrlPreviewHolder: ({ children }: { children: React.ReactNode }) => (
     <div data-testid="url-preview-holder">{children}</div>
   ),
-  UrlPreviewCard: ({ url }: { url: string }) => <div data-testid="url-preview-card">{url}</div>,
+  UrlPreviewCard: ({ url, bundle }: { url: string; bundle?: unknown }) => (
+    <div data-testid="url-preview-card">
+      {bundle ? 'bundle:' : 'dynamic:'}
+      {url}
+    </div>
+  ),
   ClientPreview: ({ url }: { url: string }) => <div data-testid="client-preview">{url}</div>,
   youtubeUrl: () => false,
 }));
@@ -72,6 +77,77 @@ afterEach(() => {
 });
 
 describe('RenderMessageContent', () => {
+  it('does not render previews when the sender supplied an empty bundle', () => {
+    render(
+      <ClientConfigProvider value={{}}>
+        <RenderMessageContent
+          displayName="Alice"
+          msgType={MsgType.Text}
+          ts={0}
+          bundledPreview
+          urlPreview
+          getContent={() =>
+            ({ body: 'https://example.com', 'com.beeper.linkpreviews': [] }) as never
+          }
+          htmlReactParserOptions={{}}
+          linkifyOpts={{}}
+        />
+      </ClientConfigProvider>
+    );
+
+    expect(screen.queryByTestId('url-preview-card')).not.toBeInTheDocument();
+  });
+
+  it('renders bundled metadata without fetching the URL again', () => {
+    render(
+      <ClientConfigProvider value={{}}>
+        <RenderMessageContent
+          displayName="Alice"
+          msgType={MsgType.Text}
+          ts={0}
+          bundledPreview
+          urlPreview
+          getContent={() =>
+            ({
+              body: 'https://example.com',
+              'com.beeper.linkpreviews': [
+                { matched_url: 'https://example.com', 'og:title': 'Example' },
+              ],
+            }) as never
+          }
+          htmlReactParserOptions={{}}
+          linkifyOpts={{}}
+        />
+      </ClientConfigProvider>
+    );
+
+    expect(screen.getByTestId('url-preview-card')).toHaveTextContent('bundle:https://example.com');
+  });
+
+  it('keeps dynamic previews for URL-only bundle markers', () => {
+    render(
+      <ClientConfigProvider value={{}}>
+        <RenderMessageContent
+          displayName="Alice"
+          msgType={MsgType.Text}
+          ts={0}
+          bundledPreview
+          urlPreview
+          getContent={() =>
+            ({
+              body: 'https://example.com',
+              'com.beeper.linkpreviews': [{ matched_url: 'https://example.com' }],
+            }) as never
+          }
+          htmlReactParserOptions={{}}
+          linkifyOpts={{}}
+        />
+      </ClientConfigProvider>
+    );
+
+    expect(screen.getByTestId('url-preview-card')).toHaveTextContent('dynamic:https://example.com');
+  });
+
   it('does not render url previews for settings links', () => {
     renderMessage(
       'https://app.example/settings/account?focus=status&moe.sable.client.action=settings'

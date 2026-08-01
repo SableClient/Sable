@@ -171,13 +171,23 @@ const getUrlsFromContent = (
     urls = urls.filter((url) => safeUrlsSet.has(url) && !url.startsWith(MATRIX_TO_BASE));
   }
 
-  let bundleContent = content[
-    prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME
-  ] as BundleContent[];
+  const rawBundleContent = content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME];
+  let bundleContent = Array.isArray(rawBundleContent)
+    ? (rawBundleContent as BundleContent[])
+    : undefined;
   try {
     bundleContent = bundleContent?.filter((bundle) => !!urls?.includes(bundle.matched_url));
-    if (renderUrlsPreview && bundleContent)
-      urls = bundleContent.map((bundle) => bundle.matched_url);
+    if (bundleContent) {
+      const bundledUrls = new Set(bundleContent.map((bundle) => bundle.matched_url));
+      urls = urls?.filter((url) => bundledUrls.has(url));
+      bundleContent = bundleContent.filter((bundle) =>
+        Object.keys(bundle).some((key) => key.startsWith('og:'))
+      );
+      if (renderUrlsPreview && bundleContent.length > 0) {
+        const completeUrls = new Set(bundleContent.map((bundle) => bundle.matched_url));
+        urls = urls?.filter((url) => !completeUrls.has(url));
+      }
+    }
   } catch {
     urls = [];
   }
@@ -264,11 +274,11 @@ export function MText({
           })}
           {edited && <MessageEditedContent />}
         </MessageTextBody>
-        {(renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls)) ||
-          (renderBundledPreviews &&
-            bundleContent &&
-            bundleContent.length > 0 &&
-            renderBundledPreviews(bundleContent as IPreviewUrlResponse[]))}
+        {renderBundledPreviews &&
+          bundleContent &&
+          bundleContent.length > 0 &&
+          renderBundledPreviews(bundleContent as IPreviewUrlResponse[])}
+        {renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls)}
       </>
     );
   }
@@ -281,11 +291,11 @@ export function MText({
           customBody: unwrappedForwardedContent,
         })}
         {edited && <MessageEditedContent />}
-        {(renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls)) ||
-          (renderBundledPreviews &&
-            bundleContent &&
-            bundleContent.length > 0 &&
-            renderBundledPreviews(bundleContent as IPreviewUrlResponse[]))}
+        {renderBundledPreviews &&
+          bundleContent &&
+          bundleContent.length > 0 &&
+          renderBundledPreviews(bundleContent as IPreviewUrlResponse[])}
+        {renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls)}
       </MessageTextBody>
     );
   }
@@ -303,11 +313,11 @@ export function MText({
         })}
         {edited && <MessageEditedContent />}
       </MessageTextBody>
-      {(renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls)) ||
-        (renderBundledPreviews &&
-          bundleContent &&
-          bundleContent.length > 0 &&
-          renderBundledPreviews(bundleContent as IPreviewUrlResponse[]))}
+      {renderBundledPreviews &&
+        bundleContent &&
+        bundleContent.length > 0 &&
+        renderBundledPreviews(bundleContent as IPreviewUrlResponse[])}
+      {renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls)}
     </>
   );
 }
@@ -360,11 +370,11 @@ export function MEmote({
         })}
         {edited && <MessageEditedContent />}
       </MessageTextBody>
-      {(renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls)) ||
-        (renderBundledPreviews &&
-          bundleContent &&
-          bundleContent.length > 0 &&
-          renderBundledPreviews(bundleContent as IPreviewUrlResponse[]))}
+      {renderBundledPreviews &&
+        bundleContent &&
+        bundleContent.length > 0 &&
+        renderBundledPreviews(bundleContent as IPreviewUrlResponse[])}
+      {renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls)}
     </>
   );
 }
@@ -414,11 +424,11 @@ export function MNotice({
         })}
         {edited && <MessageEditedContent />}
       </MessageTextBody>
-      {(renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls)) ||
-        (renderBundledPreviews &&
-          bundleContent &&
-          bundleContent.length > 0 &&
-          renderBundledPreviews(bundleContent as IPreviewUrlResponse[]))}
+      {renderBundledPreviews &&
+        bundleContent &&
+        bundleContent.length > 0 &&
+        renderBundledPreviews(bundleContent as IPreviewUrlResponse[])}
+      {renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls)}
     </>
   );
 }

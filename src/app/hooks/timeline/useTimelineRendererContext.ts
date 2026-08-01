@@ -20,6 +20,7 @@ import { buildAbbrReplaceTextNode } from '$components/message/RenderBody';
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
+import { isServerUrlPreviewEnabled } from '$utils/room/urlPreview';
 import { useGetMemberPowerTag } from '$hooks/useMemberPowerTag';
 import { useMemberEventParser } from '$hooks/useMemberEventParser';
 import type { ResolvedHiddenEventSettings } from '$state/hooks/settings';
@@ -100,7 +101,11 @@ export function useTimelineRendererContext(room: Room): TimelineRendererContextV
 
   // Derived settings
   const showMaps = room.hasEncryptionStateEvent() ? showEncInteractiveMap : showInteractiveMap;
-  const showUrlPreview = room.hasEncryptionStateEvent() ? encUrlPreview : urlPreview;
+  const showUrlPreview = isServerUrlPreviewEnabled(
+    room.hasEncryptionStateEvent(),
+    urlPreview,
+    encUrlPreview
+  );
   const showClientUrlPreview = room.hasEncryptionStateEvent()
     ? clientUrlPreview && encClientUrlPreview
     : clientUrlPreview;

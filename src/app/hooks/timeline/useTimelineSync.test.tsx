@@ -992,6 +992,32 @@ describe('live-arrive edge cases', () => {
 
     expect(result.current.timeline).not.toBe(before);
   });
+
+  it('re-renders when an event finishes decrypting', async () => {
+    const { room } = createRoom();
+    const { result } = renderSyncHook(room);
+    const before = result.current.timeline;
+
+    await act(async () => {
+      mxEmitter.emit(MatrixEventEvent.Decrypted, { getRoomId: () => room.roomId });
+      await Promise.resolve();
+    });
+
+    expect(result.current.timeline).not.toBe(before);
+  });
+
+  it('ignores decryption of an event in another room', async () => {
+    const { room } = createRoom();
+    const { result } = renderSyncHook(room);
+    const before = result.current.timeline;
+
+    await act(async () => {
+      mxEmitter.emit(MatrixEventEvent.Decrypted, { getRoomId: () => '!other:test' });
+      await Promise.resolve();
+    });
+
+    expect(result.current.timeline).toBe(before);
+  });
 });
 
 describe('event jump recovery', () => {

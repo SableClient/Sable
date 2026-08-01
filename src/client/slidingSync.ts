@@ -43,6 +43,7 @@ const DEFAULT_POLL_TIMEOUT_MS = 45000;
 const LIST_SORT_ORDER = ['by_recency', 'by_name'];
 
 const ACTIVE_ROOM_SUBSCRIPTION_KEY = 'active_room';
+const CALL_ROOM_SUBSCRIPTION_KEY = 'call_room';
 const SIDEBAR_ROOM_SUBSCRIPTION_KEY = 'sidebar_room';
 const SPACE_SUBSCRIPTION_KEY = 'space';
 const IMAGE_PACK_SUBSCRIPTION_KEY = 'image_packs';
@@ -87,6 +88,8 @@ export type SlidingSyncDiagnostics = {
 };
 
 export type HydrationProgress = { loadedRooms: number; totalRooms: number };
+
+export type CallRoomSubscription = () => void;
 
 const clampPositive = (value: number | undefined, fallback: number): number => {
   if (typeof value !== 'number' || Number.isNaN(value) || value <= 0) return fallback;
@@ -209,6 +212,13 @@ const buildUnencryptedSubscription = (timelineLimit: number): MSC3575RoomSubscri
   required_state: ACTIVE_ROOM_REQUIRED_STATE,
 });
 
+const buildCallRoomSubscription = (timelineLimit: number): MSC3575RoomSubscription => ({
+  timeline_limit: timelineLimit,
+  // MatrixRTC ignores memberships for users that are absent from the room
+  // roster. Unlike a timeline, calls need every membership continuously.
+  required_state: [...ACTIVE_ROOM_REQUIRED_STATE, [EventType.RoomMember, MSC3575_WILDCARD]],
+});
+
 const IMAGE_PACK_REQUIRED_STATE: MSC3575RoomSubscription['required_state'] = [
   [CustomStateEvent.ImagePack, MSC3575_WILDCARD],
   [CustomStateEvent.PoniesRoomEmotes, MSC3575_WILDCARD],
@@ -301,6 +311,8 @@ export class SlidingSyncManager {
   private readonly listKeys: string[];
 
   private readonly activeRoomSubscriptions = new Set<string>();
+
+  private readonly callRoomSubscriptions = new Set<string>();
 
   /**
    * Rooms joined locally via reconcileRoomMembership(Join) but not yet confirmed
@@ -444,6 +456,10 @@ export class SlidingSyncManager {
     this.slidingSync.addCustomSubscription(
       ACTIVE_ROOM_SUBSCRIPTION_KEY,
       buildUnencryptedSubscription(roomTimelineLimit)
+    );
+    this.slidingSync.addCustomSubscription(
+      CALL_ROOM_SUBSCRIPTION_KEY,
+      buildCallRoomSubscription(roomTimelineLimit)
     );
     this.slidingSync.addCustomSubscription(
       SIDEBAR_ROOM_SUBSCRIPTION_KEY,
@@ -1309,6 +1325,7 @@ export class SlidingSyncManager {
 
   private syncRoomSubscriptions(): void {
     const desiredSubscriptions = new Set([
+      ...this.callRoomSubscriptions,
       ...this.activeRoomSubscriptions,
       ...this.sidebarRoomSubscriptions,
       ...this.spaceSubscriptions,
@@ -1316,7 +1333,9 @@ export class SlidingSyncManager {
     ]);
 
     desiredSubscriptions.forEach((roomId) => {
-      if (this.activeRoomSubscriptions.has(roomId)) {
+      if (this.callRoomSubscriptions.has(roomId)) {
+        this.slidingSync.useCustomSubscription(roomId, CALL_ROOM_SUBSCRIPTION_KEY);
+      } else if (this.activeRoomSubscriptions.has(roomId)) {
         this.slidingSync.useCustomSubscription(roomId, ACTIVE_ROOM_SUBSCRIPTION_KEY);
       } else if (this.sidebarRoomSubscriptions.has(roomId)) {
         this.slidingSync.useCustomSubscription(roomId, SIDEBAR_ROOM_SUBSCRIPTION_KEY);
@@ -1515,6 +1534,19 @@ export class SlidingSyncManager {
     if (this.disposed || !this.addActiveRoomSubscription(roomId)) return;
     this.syncRoomSubscriptions();
     this.reportActiveSubscriptionCount();
+  }
+
+  public subscribeToCallRoom(roomId: string): CallRoomSubscription {
+    if (this.disposed) return () => undefined;
+
+    this.callRoomSubscriptions.add(roomId);
+    this.syncRoomSubscriptions();
+    return () => this.unsubscribeFromCallRoom(roomId);
+  }
+
+  public unsubscribeFromCallRoom(roomId: string): void {
+    if (this.disposed || !this.callRoomSubscriptions.delete(roomId)) return;
+    this.syncRoomSubscriptions();
   }
 
   public unsubscribeFromRoom(roomId: string): void {

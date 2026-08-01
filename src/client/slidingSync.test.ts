@@ -500,6 +500,39 @@ describe('SlidingSyncManager initial request', () => {
 });
 
 describe('SlidingSyncManager room subscription coordination', () => {
+  it('uses the full-membership subscription for the lifetime of a call', () => {
+    const manager = makeManager(makeMockMx());
+    const roomId = '!call:example.com';
+
+    const subscription = manager.subscribeToCallRoom(roomId);
+
+    expect(mocks.slidingSyncInstance.useCustomSubscription).toHaveBeenLastCalledWith(
+      roomId,
+      'call_room'
+    );
+    expect(mocks.slidingSyncInstance.modifyRoomSubscriptions).toHaveBeenLastCalledWith(
+      new Set([roomId])
+    );
+
+    subscription();
+
+    expect(mocks.slidingSyncInstance.modifyRoomSubscriptions).toHaveBeenLastCalledWith(new Set());
+  });
+
+  it('restores an active room subscription after a call ends', () => {
+    const manager = makeManager(makeMockMx());
+    const roomId = '!call:example.com';
+    manager.subscribeToRoom(roomId);
+
+    const subscription = manager.subscribeToCallRoom(roomId);
+    subscription();
+
+    expect(mocks.slidingSyncInstance.useCustomSubscription).toHaveBeenLastCalledWith(
+      roomId,
+      'active_room'
+    );
+  });
+
   it('replaces route subscriptions atomically without cycling the retained space', () => {
     const manager = makeManager(makeMockMx());
     const spaceId = '!space:example.com';
@@ -701,11 +734,16 @@ describe('SlidingSyncManager room subscription coordination', () => {
       { timeline_limit: number; required_state: [string, string][] },
     ][];
     const activeRoom = calls.find(([name]) => name === 'active_room');
+    const callRoom = calls.find(([name]) => name === 'call_room');
     const sidebarRoom = calls.find(([name]) => name === 'sidebar_room');
 
     expect(activeRoom).toBeDefined();
     expect(activeRoom![1].timeline_limit).toBe(50);
     expect(activeRoom![1].required_state).toContainEqual([EventType.RoomMember, '$LAZY']);
+
+    expect(callRoom).toBeDefined();
+    expect(callRoom![1].timeline_limit).toBe(50);
+    expect(callRoom![1].required_state).toContainEqual([EventType.RoomMember, '*']);
 
     expect(sidebarRoom).toBeDefined();
     expect(sidebarRoom![1].timeline_limit).toBe(1);

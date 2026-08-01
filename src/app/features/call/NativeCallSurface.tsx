@@ -299,23 +299,27 @@ function useNativeLocalVideoOverlay(
 
 function LocalTile({
   session,
+  userIdByIdentity,
   slotRef,
   fixed,
 }: {
   session: NativeCallSession;
+  userIdByIdentity: UserIdByRtcIdentity;
   slotRef?: (node: HTMLDivElement | null) => void;
   fixed?: boolean;
 }) {
+  const profile = useCallParticipantProfile('', true, userIdByIdentity);
+
   return (
     <div
       className={fixed ? `${css.Tile} ${css.TileFixed}` : css.Tile}
       data-video-bound={session.cameraEnabled || undefined}
     >
       {/* When the camera is on, the native local preview renders over this
-          slot; the user icon stays mounted underneath as the placeholder. */}
+          slot; the avatar stays mounted underneath as the placeholder. */}
       <div className={css.TileSlot} ref={slotRef}>
         <div className={css.InitialsBadge} aria-hidden>
-          {sizedIcon(User, '400')}
+          <CallParticipantAvatar profile={profile} size="100%" />
         </div>
       </div>
       <div className={css.TileLabel}>
@@ -679,6 +683,7 @@ export function NativeCallSurface({ session, onHangup }: NativeCallSurfaceProps)
           })}
           <LocalTile
             session={session}
+            userIdByIdentity={userIdByIdentity}
             slotRef={connected && session.cameraEnabled ? setLocalSlotNode : undefined}
             fixed={compactGrid}
           />

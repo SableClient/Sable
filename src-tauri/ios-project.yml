@@ -60,9 +60,7 @@ targets:
         # APPLICATION_EXTENSION_API_ONLY must stay unset: NO fails Xcode's
         # validation, YES breaks UIApplication.open in ShareViewController.
         SKIP_INSTALL: YES
-        {{#if apple.development-team}}
-        DEVELOPMENT_TEAM: {{apple.development-team}}
-        {{/if}}
+        DEVELOPMENT_TEAM: PK66NJM372
   {{app.name}}_iOS:
     type: application
     platform: iOS
@@ -107,7 +105,6 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         CFBundleShortVersionString: {{apple.bundle-version-short}}
         CFBundleVersion: "{{apple.bundle-version}}"
-        UIBackgroundModes: [audio, voip]
         NSPhotoLibraryAddUsageDescription: Sable saves images you download to your photo library.
         # Mirrors plugins.deep-link in tauri.conf.json: the plugin only patches
         # these in when cargo reruns its build script, so a fresh `tauri ios
@@ -121,10 +118,6 @@ targets:
         {{this.key}}: {{this.value}}{{/each}}
     entitlements:
       path: {{app.name}}_iOS/{{app.name}}_iOS.entitlements
-      properties:
-        aps-environment: development
-        com.apple.security.application-groups:
-          - group.{{app.identifier}}
     scheme:
       environmentVariables:
         RUST_BACKTRACE: full

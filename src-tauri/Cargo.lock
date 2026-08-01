@@ -5424,6 +5424,7 @@ dependencies = [
  "tauri-plugin-fs",
  "tauri-plugin-global-shortcut",
  "tauri-plugin-http",
+ "tauri-plugin-livekit-mobile",
  "tauri-plugin-log",
  "tauri-plugin-notifications",
  "tauri-plugin-opener",
@@ -6728,6 +6729,20 @@ dependencies = [
  "tokio",
  "url",
  "urlpattern",
+]
+
+[[package]]
+name = "tauri-plugin-livekit-mobile"
+version = "0.2.0"
+source = "git+https://github.com/SableClient/tauri-plugin-livekit-mobile.git?rev=94530182a86a344f562e288ca419a8f34ba4c87d#94530182a86a344f562e288ca419a8f34ba4c87d"
+dependencies = [
+ "base64 0.22.1",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-plugin",
+ "thiserror 2.0.19",
+ "tokio",
 ]
 
 [[package]]

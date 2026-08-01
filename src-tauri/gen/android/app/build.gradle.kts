@@ -61,6 +61,11 @@ android {
             )
         }
     }
+    compileOptions {
+        // tauri-plugin-livekit-mobile requires it: LiveKit/WebRTC call java.time
+        // APIs that only exist from API 26, and minSdk here is 24.
+        isCoreLibraryDesugaringEnabled = true
+    }
     kotlinOptions {
         jvmTarget = "1.8"
     }
@@ -73,11 +78,24 @@ rust {
     rootDirRel = "../../../"
 }
 
+// tink (via the unifiedpush connector) pulls protobuf-java, which collides with
+// the protobuf-javalite livekit-android is generated against: its Timestamp
+// extends GeneratedMessage rather than GeneratedMessageLite, so livekit's
+// classes fail dex verification at runtime. tink-android shades its own
+// protobuf and needs none, which leaves javalite as the only protobuf.
+configurations.all {
+    resolutionStrategy.dependencySubstitution {
+        substitute(module("com.google.crypto.tink:tink"))
+            .using(module("com.google.crypto.tink:tink-android:1.18.0"))
+    }
+}
+
 dependencies {
     implementation("androidx.webkit:webkit:1.14.0")
     implementation("androidx.appcompat:appcompat:1.7.1")
     implementation("androidx.activity:activity-ktx:1.10.1")
     implementation("com.google.android.material:material:1.12.0")
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.5")
     testImplementation("junit:junit:4.13.2")
     androidTestImplementation("androidx.test.ext:junit:1.1.4")
     androidTestImplementation("androidx.test.espresso:espresso-core:3.5.0")

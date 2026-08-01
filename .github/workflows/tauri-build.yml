@@ -461,6 +461,10 @@ jobs:
         shell: bash
         run: mise -y run tauri:setup:ios
 
+      - name: Download iOS frameworks
+        shell: bash
+        run: pnpm ios:frameworks
+
       - name: Symlink icons to the ios folder
         shell: bash
         run: mise run icons:symlink --write --force

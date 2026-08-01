@@ -24,7 +24,13 @@
     },
     "iOS": {
       "template": "src-tauri/ios-project.yml",
-      "frameworks": ["AudioToolbox", "Photos"]
+      "minimumSystemVersion": "16.0",
+      "frameworks": [
+        "AudioToolbox",
+        "Photos",
+        "Frameworks/LiveKitWebRTC.xcframework",
+        "Frameworks/RustLiveKitUniFFI.xcframework"
+      ]
     },
     "linux": {
       "deb": {

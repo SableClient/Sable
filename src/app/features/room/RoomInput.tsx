@@ -25,7 +25,7 @@ import { MatrixError } from '$types/matrix-sdk';
 import { EventType, MsgType, RelationType } from '$types/matrix-sdk';
 import { ReactEditor } from 'slate-react';
 import { Editor, Point, Range, Transforms } from 'slate';
-import type { RectCords } from 'folds';
+import {RectCords, Switch} from 'folds';
 import {
   Box,
   color,
@@ -92,14 +92,15 @@ import { useTypingStatusUpdater } from '$hooks/useTypingStatusUpdater';
 import { useFilePicker } from '$hooks/useFilePicker';
 import { useFilePasteHandler } from '$hooks/useFilePasteHandler';
 import { useFileDropZone } from '$hooks/useFileDrop';
-import type { TUploadItem, TUploadMetadata, IReplyDraft } from '$state/room/roomInputDrafts';
+import {TUploadItem, TUploadMetadata, IReplyDraft, TEmbeddItem} from '$state/room/roomInputDrafts';
 import {
   roomIdToMsgDraftAtomFamily,
   roomIdToReplyDraftAtomFamily,
   roomIdToUploadItemsAtomFamily,
   roomUploadAtomFamily,
+  roomIdToEmbeddItemsAtomFamily
 } from '$state/room/roomInputDrafts';
-import { UploadCardRenderer } from '$components/upload-card';
+import {UploadCardRenderer, EmbedCardRenderer, UploadCard} from '$components/upload-card';
 import type { UploadBoardImperativeHandlers } from '$components/upload-board';
 import { UploadBoard, UploadBoardContent, UploadBoardHeader } from '$components/upload-board';
 import type { Upload, UploadSuccess } from '$state/upload';
@@ -176,7 +177,7 @@ import {
   Smiley,
   Sticker,
   Stop,
-  X,
+  X, sizedIcon, Check,
 } from '$components/icons/phosphor';
 import { getSupportedAudioExtension } from '$plugins/voice-recorder-kit/supportedCodec';
 import { ErrorCode } from '../../cs-errorcode';
@@ -369,6 +370,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [msgDraft, setMsgDraft] = useAtom(roomIdToMsgDraftAtomFamily(draftKey));
     const [replyDraft, setReplyDraft] = useAtom(roomIdToReplyDraftAtomFamily(draftKey));
 
+
+    const [embedLinks, setEmbedLinks] = useAtom(roomIdToEmbeddItemsAtomFamily(draftKey));
+    const [embedsEnabled, setEmbedsEnabled] = useState(false);
+
     const [uploadBoard, setUploadBoard] = useState(true);
     const [uploadSending, setUploadSending] = useState(false);
     const [uploadBusy, setUploadBusy] = useState(false);
@@ -501,6 +506,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const lastEncryptionPreparationAt = useRef(0);
     const handleEditorChange = useCallback(() => {
       setHasText(!isEmptyEditor(editor));
+      checkForEmbedables(Editor.string(editor, []));
       if (!room.hasEncryptionStateEvent()) return;
 
       const now = Date.now();
@@ -1705,6 +1711,34 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       [editor, sendTypingStatus, hideActivity]
     );
 
+    const checkForEmbedables = (text: string) => {
+      //from https://regex101.com/r/3fYy3x/1
+      const URL_REGEX = RegExp(/http[s]?:\/\/.(?:www\.)?[-a-zA-Z0-9@%._\+~#=]{2,256}\.[a-z]{2,10}\b(?:[-a-zA-Z0-9@:%_\+.~#?&\/\/=]*)/gm)
+      const urls = Array.from(text.matchAll(URL_REGEX)
+          //dont include the url if its in angled braces  like <https://example.org> cant do this in regex because braces are context free (yay computer science)
+          .filter((e) => !(e.index > 0 && text[e.index - 1] == '<' && text[e.index + e[0].length] == '>') )
+          .map((e) => e[0]));
+      if (urls.length > 0) {
+        setUploadBoard(true);
+        const embedItems = urls.map((url): TEmbeddItem =>  ({
+          url: url
+        }));
+        setEmbedLinks({
+          type: 'CLEAR'
+        });
+        setEmbedLinks({
+          type: "PUT",
+          item: embedItems
+        })
+
+      } else {
+        setEmbedLinks({
+          type: 'CLEAR'
+        });
+        setEmbedsEnabled(false);
+      }
+    };
+
     const handleEmoticonSelect = (key: string, shortcode: string) => {
       const emoticonEl = createEmoticonElement(key, shortcode);
       if (autocompleteQuery) {
@@ -1922,6 +1956,47 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                               }
                             />
                           ))}
+
+                          {Array.from(embedLinks).length > 0 && (<><Box style={{borderLeft: '1px solid currentColor'}}/><UploadCard
+                              key="embed_toggle"
+                              radii="300"
+                              compact
+                              style={{maxWidth: toRem(400), flexShrink: 0}}
+                              before={<></>}
+                              after={
+                                //fake close button to keep box size
+                                <div style={{visibility: "hidden"}}>
+                                  <IconButton
+                                      aria-label="Cancel Upload"
+                                      variant="SurfaceVariant"
+                                      radii="Pill"
+                                      size="300"
+                                  >
+                                    {sizedIcon(X, '200')}
+                                  </IconButton>
+
+                                </div>}
+                              bottom={<>
+                                <Box wrap="Wrap" alignItems={"Center"} direction="Column" gap={"200"}>
+                                  <Text>
+                                    Bundled <br/> Embeds
+                                  </Text>
+
+                                  <Switch value={embedsEnabled} onChange={setEmbedsEnabled}/>
+                                </Box>
+
+                              </>}
+                          >
+                            <Text size="H6" truncate style={{minWidth: 0, flexGrow: 1}}>
+                              {"Links found"}
+                            </Text>
+                          </UploadCard></>)}
+                        {embedsEnabled && Array.from(embedLinks)
+                            .toReversed()
+                            .map((link) => (
+
+                                <EmbedCardRenderer url={link.url}/>
+                            ))}
                       </UploadBoardContent>
                     </Scroll>
                   )}

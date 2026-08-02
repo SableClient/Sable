@@ -28,6 +28,7 @@ import { useRelations } from '$hooks/useRelations';
 import { stopPropagation } from '$utils/keyboard';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useDismissOnBack } from '$utils/androidBack';
+import { dedupeAnnotationsBySender } from '$utils/room/reactions';
 import { ReactionViewer } from '$features/room/reaction-viewer';
 import * as css from './styles.css';
 
@@ -90,7 +91,7 @@ export const Reactions = as<'div', ReactionsProps>(
         ref={ref}
       >
         {reactions.map(([key, events]) => {
-          const rEvents = Array.from(events);
+          const rEvents = dedupeAnnotationsBySender(events);
           if (rEvents.length === 0 || typeof key !== 'string') return null;
           const myREvent = myUserId ? rEvents.find(factoryEventSentBy(myUserId)) : undefined;
           const isPressed = !!myREvent?.getRelation();
@@ -116,7 +117,7 @@ export const Reactions = as<'div', ReactionsProps>(
                   key={key}
                   mx={mx}
                   reaction={key}
-                  count={events.size}
+                  count={rEvents.length}
                   onClick={canToggle ? () => onReactionToggle(mEventId, key) : undefined}
                   onContextMenu={handleViewReaction}
                   onTouchStart={(evt) => evt.stopPropagation()}

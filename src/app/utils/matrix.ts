@@ -3,12 +3,10 @@ import { decryptAttachment } from 'browser-encrypt-attachment';
 import { Channel, invoke, isTauri } from '@tauri-apps/api/core';
 import type {
   AccountDataEvents,
-  EventTimelineSet,
   MatrixClient,
   MatrixEvent,
   Room,
   RoomMember,
-  TimelineEvents,
   UploadProgress,
   UploadResponse,
 } from '$types/matrix-sdk';
@@ -25,9 +23,7 @@ import type { IImageInfo, IThumbnailContent, IVideoInfo } from '$types/matrix/co
 import * as Sentry from '@sentry/react';
 import { encryptBlobInWorker } from '$utils/mediaWorker';
 import { encryptAttachmentStreaming } from '$utils/attachmentCrypto';
-import { getEventReactions } from './room/relations';
 import { getStateEvent } from './room/hierarchy';
-import { getReactionContent } from './messageReaction';
 import { matchMxId, validMxId } from './mxIdHelper';
 
 export { mxcUrlToHttp, rewriteAuthenticatedMediaUrl } from './mediaUrl';
@@ -525,42 +521,4 @@ export const rateLimitedActions = async <T, R = void>(
       await sleepForMs(actionInterval);
     }
   }
-};
-
-export const toggleReaction = (
-  mx: MatrixClient,
-  room: Room,
-  targetEventId: string,
-  key: string,
-  shortcode?: string,
-  timelineSet?: EventTimelineSet
-) => {
-  const relations = getEventReactions(
-    timelineSet ?? room.getUnfilteredTimelineSet(),
-    targetEventId
-  );
-  const allReactions = relations?.getSortedAnnotationsByKey() ?? [];
-  const [, reactionsSet] = allReactions.find(([k]) => k === key) ?? [];
-  const reactions: MatrixEvent[] = reactionsSet ? Array.from(reactionsSet) : [];
-  const myReaction = reactions.find(factoryEventSentBy(mx.getUserId()!));
-
-  if (myReaction && myReaction.isRelation?.()) {
-    const eventId = myReaction.getId();
-    if (eventId) mx.redactEvent(room.roomId, eventId);
-    return;
-  }
-  const rShortcode =
-    shortcode || (reactions.find(eventWithShortcode)?.getContent().shortcode as string | undefined);
-  // send the reaction
-  mx.sendEvent(
-    room.roomId,
-    EventType.Reaction as string as unknown as keyof TimelineEvents,
-    getReactionContent(
-      targetEventId,
-      key,
-      mx,
-      room,
-      rShortcode
-    ) as TimelineEvents[keyof TimelineEvents]
-  );
 };

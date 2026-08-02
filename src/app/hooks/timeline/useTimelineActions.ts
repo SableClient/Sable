@@ -6,11 +6,15 @@ import { EventStatus, RelationType } from '$types/matrix-sdk';
 import type { Editor } from 'slate';
 import { ReactEditor } from 'slate-react';
 
-import { getMxIdLocalPart, toggleReaction } from '$utils/matrix';
+import { getMxIdLocalPart } from '$utils/matrix';
+import { toggleReaction } from '$utils/room/reactions';
 import { getMemberDisplayName } from '$utils/room/display';
 import { extractReplyDraftBody, resolveReplyDraftTarget } from '$utils/room/relations';
 import { createMentionElement, moveCursor } from '$components/editor';
+import { createDebugLogger } from '$utils/debugLogger';
 import * as prefix from '$unstable/prefixes';
+
+const debugLog = createDebugLogger('TimelineActions');
 
 /**
  * The profile popup reads name, avatar and the identity fields off the room
@@ -205,14 +209,11 @@ export function useTimelineActions({
 
   const handleReactionToggle = useCallback(
     (targetEventId: string, key: string, shortcode?: string) => {
-      // Thread reactions live in the thread's own timeline set; without it the
-      // existing reaction is never found and un-reacting sends a second one.
-      const threadTimelineSet = threadRootId
-        ? room.getThread(threadRootId)?.timelineSet
-        : undefined;
-      toggleReaction(mx, room, targetEventId, key, shortcode, threadTimelineSet);
+      toggleReaction(mx, room, targetEventId, key, shortcode).catch((err: unknown) => {
+        debugLog.error('ui', 'Reaction toggle failed', { targetEventId, key, err });
+      });
     },
-    [mx, room, threadRootId]
+    [mx, room]
   );
 
   const handleResend = useCallback(

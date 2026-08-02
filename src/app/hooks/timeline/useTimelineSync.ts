@@ -37,6 +37,16 @@ import { isWindowFocused } from '$utils/dom';
 
 const EVENT_TIMELINE_LOAD_TIMEOUT_MS = 12000;
 
+const NO_PENDING_EVENTS: MatrixEvent[] = [];
+
+const getPendingEvents = (room: Room): MatrixEvent[] => {
+  try {
+    return room.getPendingEvents();
+  } catch {
+    return NO_PENDING_EVENTS;
+  }
+};
+
 type PaginationStatus = 'idle' | 'loading' | 'error';
 
 type TimelineState = {
@@ -451,8 +461,20 @@ export function useTimelineSync({
   const resetAutoScrollPendingRef = useRef(false);
   const pendingAutoScrollBehaviorRef = useRef<'instant' | 'smooth' | undefined>(undefined);
 
-  const eventsLength = getTimelinesEventsCount(timeline.linkedTimelines);
   const liveTimelineLinked = timeline.linkedTimelines.at(-1) === getLiveTimeline(room);
+
+  const livePendingEvents = liveTimelineLinked ? getPendingEvents(room) : NO_PENDING_EVENTS;
+  const pendingEventIds = livePendingEvents.map((mEvent) => mEvent.getId()).join(',');
+  const pendingEventIdsRef = useRef<string>();
+  const pendingEventsRef = useRef<MatrixEvent[]>(NO_PENDING_EVENTS);
+  if (pendingEventIdsRef.current !== pendingEventIds) {
+    pendingEventIdsRef.current = pendingEventIds;
+    pendingEventsRef.current =
+      livePendingEvents.length === 0 ? NO_PENDING_EVENTS : [...livePendingEvents];
+  }
+  const pendingEvents = pendingEventsRef.current;
+
+  const eventsLength = getTimelinesEventsCount(timeline.linkedTimelines) + pendingEvents.length;
 
   const canPaginateBack =
     typeof timeline.linkedTimelines[0]?.getPaginationToken(Direction.Backward) === 'string';
@@ -689,6 +711,7 @@ export function useTimelineSync({
     timeline,
     setTimeline,
     eventsLength,
+    pendingEvents,
     liveTimelineLinked,
     canPaginateBack,
     backwardStatus,

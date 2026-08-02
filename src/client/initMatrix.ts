@@ -10,6 +10,7 @@ import {
   IndexedDBStore,
   IndexedDBCryptoStore,
   KnownMembership,
+  PendingEventOrdering,
   SyncState,
 } from '$types/matrix-sdk';
 import { fetch } from '$utils/fetch';
@@ -459,6 +460,7 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
       () =>
         mx.startClient({
           lazyLoadMembers: true,
+          pendingEventOrdering: PendingEventOrdering.Detached,
           slidingSync: manager?.slidingSync,
           threadSupport: true,
         }),

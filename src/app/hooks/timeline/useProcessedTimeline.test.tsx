@@ -140,12 +140,14 @@ function createTimeline(events: MatrixEvent[]): EventTimeline {
 
 function processTimeline(
   events: MatrixEvent[],
-  readUptoEventId: string | undefined
+  readUptoEventId: string | undefined,
+  pendingEvents: MatrixEvent[] = []
 ): ProcessedEvent[] {
   const { result } = renderHook(() =>
     useProcessedTimeline({
-      items: events.map((_, i) => i),
+      items: [...events, ...pendingEvents].map((_, i) => i),
       linkedTimelines: [createTimeline(events)],
+      pendingEvents,
       ignoredUsersSet: new Set(),
       hiddenEvents,
       mxUserId: MY_USER,
@@ -162,6 +164,16 @@ function processTimeline(
 const renderedIds = (processed: ProcessedEvent[]) => processed.map((e) => e.id);
 const dividerIds = (processed: ProcessedEvent[]) =>
   processed.filter((e) => e.willRenderNewDivider).map((e) => e.id);
+
+describe('useProcessedTimeline pending events', () => {
+  it('appends detached pending events after the live timeline', () => {
+    const processed = processTimeline([createEvent({ id: '$sent' })], undefined, [
+      createEvent({ id: '~pending', sender: MY_USER }),
+    ]);
+
+    expect(renderedIds(processed)).toEqual(['$sent', '~pending']);
+  });
+});
 
 describe('useProcessedTimeline new-messages divider', () => {
   it('renders an event that is still encrypted', () => {

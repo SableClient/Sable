@@ -16,6 +16,7 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { useSpaceOptionally } from '$hooks/useSpace';
 import { getMouseEventCords } from '$utils/dom';
+import { dedupeAnnotationsBySender } from '$utils/room/reactions';
 import * as css from './ReactionViewer.css';
 
 type ReactionViewerProps = {
@@ -50,7 +51,7 @@ export const ReactionViewer = as<'div', ReactionViewerProps>(
     const getReactionsForKey = (key: string): MatrixEvent[] => {
       const reactSet = reactions.find(([k]) => k === key)?.[1];
       if (!reactSet) return [];
-      return Array.from(reactSet);
+      return dedupeAnnotationsBySender(reactSet);
     };
 
     const selectedReactions = getReactionsForKey(selectedKey);

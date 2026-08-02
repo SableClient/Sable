@@ -1135,6 +1135,7 @@ export function RoomTimeline({
   const processedEvents = useProcessedTimeline({
     items: vListIndices,
     linkedTimelines: timelineSync.timeline.linkedTimelines,
+    pendingEvents: timelineSync.pendingEvents,
     ignoredUsersSet,
     hiddenEvents,
     mxUserId: mx.getUserId(),

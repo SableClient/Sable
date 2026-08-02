@@ -78,13 +78,8 @@ import type { GifData } from '$components/emoji-board';
 import { EmojiBoard, EmojiBoardTab } from '$components/emoji-board';
 import { UseStateProvider } from '$components/UseStateProvider';
 import type { TUploadContent } from '$utils/matrix';
-import {
-  cancelUploadContent,
-  encryptFile,
-  getImageInfo,
-  mxcUrlToHttp,
-  toggleReaction,
-} from '$utils/matrix';
+import { cancelUploadContent, encryptFile, getImageInfo, mxcUrlToHttp } from '$utils/matrix';
+import { toggleReaction } from '$utils/room/reactions';
 import { useTypingStatusUpdater } from '$hooks/useTypingStatusUpdater';
 import { useFilePicker } from '$hooks/useFilePicker';
 import { useFilePasteHandler } from '$hooks/useFilePasteHandler';
@@ -108,6 +103,7 @@ import type { EditorButtonId } from '$state/settings';
 import { settingsAtom } from '$state/settings';
 import { matchesShortcut } from '../../keyboard/shortcuts';
 import { getEditedEvent, getThreadReplyEvents } from '$utils/room/relations';
+import { resolveRemoteEventId } from '$utils/room/redaction';
 import { htmlToMarkdown } from '$plugins/markdown';
 import { Command, useCommands } from '$hooks/useCommands';
 import { isMobileOrTablet } from '$utils/platform';
@@ -1373,7 +1369,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           const lastMessageId = lastMessage?.getId();
 
           if (lastMessageId) {
-            toggleReaction(mx, room, lastMessageId, key, shortcode);
+            toggleReaction(mx, room, lastMessageId, key, shortcode).catch((err: unknown) => {
+              debugLog.error('ui', 'Reaction toggle failed', { eventId: lastMessageId, key, err });
+            });
           }
         }
 
@@ -1401,6 +1399,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         const submittedSilentReply = submission.replyClaim?.silentReply ?? silentReply;
         try {
           if (editingEvent && isMobile) {
+            if (!(await resolveRemoteEventId(editingEvent))) return;
             const content = buildEditReplacement(submission.children, {
               mx,
               room,

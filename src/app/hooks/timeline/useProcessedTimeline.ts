@@ -21,6 +21,7 @@ import { M_POLL_START } from 'matrix-js-sdk';
 export interface UseProcessedTimelineOptions {
   items: number[];
   linkedTimelines: EventTimeline[];
+  pendingEvents?: MatrixEvent[];
   ignoredUsersSet: Set<string>;
   hiddenEvents: ResolvedHiddenEventSettings;
   mxUserId: string | null;
@@ -116,20 +117,32 @@ type TimelineEventEntry = {
   clearContent: unknown;
 };
 
-const flattenTimelineEvents = (linkedTimelines: EventTimeline[]): TimelineEventEntry[] => {
+const toEntry = (mEvent: MatrixEvent, timelineSet: EventTimelineSet): TimelineEventEntry => {
+  const encrypted = mEvent.isEncrypted();
+  return {
+    mEvent,
+    timelineSet,
+    clearType: encrypted ? mEvent.getType() : undefined,
+    clearContent: encrypted ? mEvent.getContent() : undefined,
+  };
+};
+
+const flattenTimelineEvents = (
+  linkedTimelines: EventTimeline[],
+  pendingEvents: MatrixEvent[]
+): TimelineEventEntry[] => {
   const entries: TimelineEventEntry[] = [];
   linkedTimelines.forEach((timeline) => {
     const timelineSet = timeline.getTimelineSet();
     timeline.getEvents().forEach((mEvent) => {
-      const encrypted = mEvent.isEncrypted();
-      entries.push({
-        mEvent,
-        timelineSet,
-        clearType: encrypted ? mEvent.getType() : undefined,
-        clearContent: encrypted ? mEvent.getContent() : undefined,
-      });
+      entries.push(toEntry(mEvent, timelineSet));
     });
   });
+  const liveTimelineSet = linkedTimelines.at(-1)?.getTimelineSet();
+  if (liveTimelineSet)
+    pendingEvents.forEach((mEvent) => {
+      entries.push(toEntry(mEvent, liveTimelineSet));
+    });
   return entries;
 };
 
@@ -589,6 +602,7 @@ type ProcessingCache = {
 export function useProcessedTimeline({
   items,
   linkedTimelines,
+  pendingEvents = [],
   ignoredUsersSet,
   hiddenEvents,
   mxUserId,
@@ -612,7 +626,7 @@ export function useProcessedTimeline({
   const cacheRef = useRef<ProcessingCache>();
 
   return useMemo(() => {
-    const timelineEvents = flattenTimelineEvents(linkedTimelines);
+    const timelineEvents = flattenTimelineEvents(linkedTimelines, pendingEvents);
     const processingOptions: TimelineProcessingOptions = {
       ignoredUsersSet,
       showHiddenEvents,
@@ -731,6 +745,7 @@ export function useProcessedTimeline({
   }, [
     items,
     linkedTimelines,
+    pendingEvents,
     ignoredUsersSet,
     showHiddenEvents,
     showTombstoneEvents,

@@ -1,0 +1,430 @@
+# Push Notifications Rework: On-Device Crypto (Element X model)
+
+Status: **plan** — researched 2026-07-31. **Decision (2026-07-31): full crypto
+migration ("Path C")** — matrix-sdk-crypto in Rust is the single engine on Tauri
+builds. Rejected: separate notification device ("Path B"), silent-push/background
+wake ("Path A"). Web stays on wasm + SW relay.
+**Phase 0 spike (host): done** — `matrix-crypto` cargo feature + spike module
+`src-tauri/src/matrix_crypto_spike.rs` (commands `spike_matrix_crypto`,
+`spike_notification_client`); offline round-trip test passes.
+
+## Goal
+
+Decrypt push-triggered Matrix events **on the device, in native code, without
+launching the app or its webview**, so notifications on iOS and Android are fast and
+reliable — the way Element X does it.
+
+## Why
+
+Today's pipeline is app-process-bound:
+
+- Sygnal sends `event_id_only` payloads (`src/app/features/settings/notifications/PushPusherConfig.ts`) — good, keep.
+- Events are fetched and decrypted in **TypeScript inside the webview** using
+  `matrix-sdk-crypto-wasm` with its store in IndexedDB
+  (`src/app/features/settings/notifications/UnifiedPushNotifications.ts`,
+  `NativePushNotifications.ts`).
+- On web, the service worker (`src/sw.ts`) has **no crypto at all** — it relays the
+  raw event to a running app tab (`notifications.tsx` `decryptPushEvent` handler),
+  waits ≤5 s, and falls back to a generic "New Message" notification.
+- There is **no iOS Notification Service Extension** and **no Android
+  `FirebaseMessagingService`** of our own; the plugin's receivers just wake the app.
+
+Consequence: every notification pays the cost of booting the webview + matrix-js-sdk
++ wasm crypto before it can be shown, and fails entirely when the app can't run in
+the background.
+
+## Core architecture decision
+
+**One device = one Olm account = one crypto engine = one store.** The iOS NSE / Android
+notification handler acts as *the same Matrix device* as the app, so they must share
+one crypto store. You cannot run wasm crypto (IndexedDB) in the app and a second Rust
+crypto with its own store in the extension — Element/m Element X hit exactly these
+wedge bugs (matrix-rust-sdk issues #3313, #3110).
+
+**Decision: `matrix-sdk-crypto` (Rust, vodozemac, `SqliteCryptoStore` from
+`matrix-sdk-sqlite`) becomes the single crypto engine on Tauri builds** (iOS, Android,
+desktop). The TS app talks to it over Tauri IPC through an adapter that implements
+matrix-js-sdk's crypto interfaces.
+
+**Web is exempt, by design.** A browser session is a *different* Matrix device with its
+own Olm account; it has no native extension process, so the "must share one store"
+constraint doesn't apply. Web keeps `matrix-sdk-crypto-wasm` + IndexedDB + the existing
+SW→tab decrypt relay. Same codebase: crypto sits behind matrix-js-sdk's
+`CryptoBackend`/`CryptoApi` interfaces, with two swappable engines selected at init.
+
+### What Element X actually does (verified from source)
+
+| Concern | iOS (element-x-ios `NSE/`) | Android (element-x-android) |
+|---|---|---|
+| Entry point | `NotificationServiceExtension : UNNotificationServiceExtension` → actor per notification | `VectorFirebaseMessagingService.onMessageReceived` (in the **app's own process**) |
+| Trigger payload | APNs: `room_id`, `event_id`, `pusher_notification_client_identifier`, `unread_count` | FCM `message.data` → `PushData(eventId, roomId, clientSecret)` |
+| Session location | `RestorationToken` (Session + store paths + optional passphrase + client-id) in **Keychain access group** | Session DB in app-internal storage (same process) |
+| Store location | sqlite stores in **App Group shared container** | app-internal storage |
+| Fetch+decrypt | `client.notificationClient(processSetup: .multipleProcesses).getNotification(roomId, eventId)` | `client.notificationClient(processSetup: .singleProcess(syncService)).getNotifications([...])` |
+| Push rules | evaluated **inside the SDK**; `NotificationStatus.EventFilteredOut` = filtered; `NotificationItem.{isNoisy, hasMention, actions}` | same |
+| Resilience | `.systemIsMemoryConstrained()`, `RoomLoadSettings::one(roomId)`, 15 s request timeout, best-attempt delivery at `serviceExtensionTimeWillExpire` | WorkManager job + persistent `PushRequest` room-DB for durability/retry; notifications keyed by eventId so re-posts replace |
+| Dedup w/ foreground app | n/a (separate process; lock serializes) | no skip — same notification ID is updated |
+
+**Notification identity: sable deliberately differs from Element X.** EX keys
+notifications by event id. Sable keys them **per room**
+(`hashCode(userId + '' + roomId)`), mirrored in the plugin's
+`UnifiedPushNotifier` so the cold native post and the warm JS post collide on one
+entry, and MessagingStyle accumulates the conversation. That per-room grouping is a
+product requirement (user feedback 2026-07-31: an account-level summary that
+collapsed 8 rooms into "68 messages in 8 conversations" was removed for this
+reason). Phase 4 must keep room keying and must not reintroduce an app-level
+group summary — Android bundles per-room notifications on its own.
+
+Key API surface (`matrix-org/matrix-rust-sdk`, `bindings/matrix-sdk-ffi` / `crates/matrix-sdk-ui`):
+
+```rust
+Client::notification_client(NotificationProcessSetup::MultipleProcesses | SingleProcess{sync_service})
+  -> Arc<NotificationClient>
+NotificationClient::get_notification(room_id, event_id) -> NotificationStatus
+NotificationClient::get_notifications(Vec<NotificationItemsRequest>) -> HashMap<event_id, BatchNotificationResult>
+enum NotificationStatus { Event{item: NotificationItem}, EventNotFound, EventFilteredOut, EventRedacted }
+struct NotificationItem { event, raw_event, sender_info, room_info, is_noisy, has_mention, thread_id, actions }
+```
+
+`get_notification` runs a **short-lived sliding sync** scoped to the room (to-device
+extension enabled so queued room keys arrive) and falls back to `/context`. This is the
+battle-tested path against UTDs — copying it is strongly preferred over hand-rolling
+"fetch event + `OlmMachine::decrypt_room_event`".
+
+### Cross-process store safety
+
+Two processes may open the same sqlite DB (WAL), but the OlmMachine must be used under
+the **cross-process lock** (`matrix_sdk_common::store_locks` / `Store::create_store_lock`)
+whenever another process might also do crypto. `NotificationProcessSetup::MultipleProcesses`
+wraps the notification sync in that lock and reloads caches when the store generation is
+"dirty" (PRs #6326, #6404; "R2D2" redecrypt PR #5746). On Android, FCM wakes the app's own
+process → `SingleProcess` sharing the app's `SyncService`, no cross-process crypto at all.
+
+### Memory & size budgets
+
+- Apple NSE hard jetsam limit: **24 MB** (`InactiveHard`, element-x-ios#3785).
+- Element X NSE memory went from >20 MiB to **~6.5 MiB** after `RoomLoadSettings::One`,
+  `SqliteStoreConfig::with_low_memory_config`, and a lightweight tokio runtime
+  (matrix-rust-sdk#4801, PRs #4894/#4870/#4766; TWIM 2025-04-11).
+- `matrix-sdk-crypto-ffi` Android AAR ≈ 6–8 MB/arm64; the full `matrix-sdk-ffi` is much
+  larger (~134 MB all-ABIs uncompressed). For Rust-side embedding (our case — NSE helper
+  and Android service can both load our existing `cdylib`) we can use `matrix-sdk` /
+  `matrix-sdk-ui` directly, no UniFFI needed for Rust callers.
+
+## Prior art (2026-07, verified)
+
+| Approach | Who | Outcome |
+|---|---|---|
+| Keep-alive foreground service so the webview stays running to decrypt | considered for sable 2026-07-31, **rejected** | A `dataSync` FGS is capped at 6h/24h on API 35+ (sable targets 36) and needs `onTimeout`→`stopSelf` or Android throws a fatal `RemoteServiceException`; it costs every user a permanent notification; and it cannot help at all once the Activity is destroyed. Same class as "Path A". Element only runs a sync FGS in its **no-push** F-Droid flavour, never to decrypt a push. |
+| FCM → wake app → WorkManager → **full background sync** → decrypt in app SDK | Element classic Android | Works, but notification latency = sync latency; gappy-sync misses. This is roughly sable's current shape. |
+| NSE sharing crypto store with **homegrown** locking | Element classic iOS | **Failed.** Multi-process crypto-store races; extensions disabled in 2023 (element-ios#7618). Do not invent our own locking. |
+| Background Dart isolate sharing the app's DB | FluffyChat (Android) | Works, but impossible on iOS (no Flutter in a 24 MB NSE) and not applicable to our webview/wasm stack. |
+| One Rust engine, shared sqlite store, `NotificationClient`, SDK-managed cross-process lock | Element X iOS/Android | The model this plan copies. Everyone who got iOS right converged here. |
+
+## Migration constraints (researched, confirmed)
+
+- **No IndexedDB→sqlite migration tooling exists.** The only migrators are libolm-pickle
+  → vodozemac (`migrate_sessions` in matrix-sdk-crypto-ffi). matrix-sdk-crypto-wasm has no
+  account export path.
+- **A new device is unavoidable.** The wasm store's Olm account cannot be exported, and a
+  homeserver will not let a second account claim an existing device id, so the migration
+  forces a re-authentication. Budget for that in the UX.
+- **Revised (2026-07-31): hand the room keys over locally, do not restore from backup.**
+  The original plan restored megolm sessions from server-side key backup and accepted UTDs
+  for anything never backed up. That trade is unnecessary: `CryptoApi.exportRoomKeys()`
+  (wasm) and the engine's `engine_import_room_keys` use the *same* wire format — verified
+  field-for-field between js-sdk's `IMegolmSessionData` and matrix-sdk-crypto's
+  `ExportedRoomKey` (`algorithm`, `room_id`, `sender_key`, `session_id`, `session_key`,
+  `sender_claimed_keys`, `forwarding_curve25519_key_chain`). The old device's store is a
+  *superset* of key backup — it holds every session it ever received, backed up or not — so
+  a direct local handover preserves strictly more history than the backup route, needs no 4S
+  secret, and works offline. Implemented as `handOverRoomKeys` in `src/app/crypto/migration.ts`,
+  batched (500 sessions by default) because a long-lived account holds thousands and the
+  whole export would otherwise cross the IPC bridge as one multi-megabyte string.
+  Key backup restore stays useful as a *fallback* for a device that has no local store to
+  hand over from (fresh install, or a user who wiped data).
+- **matrix-js-sdk has no pluggable crypto seam.** `MatrixClient.initRustCrypto()`
+  hardcodes `import('./rust-crypto/index.js')` (wasm). `CryptoBackend` is `@internal`, and
+  `CryptoApi` leaks wasm types (`SecretsBundle`). Our adapter must therefore **replicate
+  the `RustCrypto` class's role** over IPC (details below).
+
+## The JS surface the Rust engine must replicate
+
+Source of truth: `node_modules/matrix-js-sdk/lib/common-crypto/CryptoBackend.d.ts` and
+`lib/crypto-api/index.d.ts` (~1189 lines), consumed in sable via the barrel
+`src/types/matrix-sdk.ts`.
+
+The IPC adapter must provide:
+
+1. **Sync feed (`SyncCryptoCallbacks`)** — driven by sliding-sync extensions:
+   - `preprocessToDeviceMessages(events)` ← `ExtensionToDevice` (`to_device`, since/limit 100)
+   - `processDeviceLists(deviceLists)`, `processKeyCounts(oneTimeKeys, unusedFallbackKeys)`,
+     `markAllTrackedUsersAsDirty()`, `onSyncCompleted()` ← `ExtensionE2EE` (`e2ee`)
+   - `onCryptoEvent(room, event)` for `m.room.encryption` state
+2. **`CryptoBackend`**: `stop()`, `encryptEvent`, `decryptEvent`, `getBackupDecryptor`,
+   `importBackedUpRoomKeys`, history-sharing (MSC4268: `shareRoomHistoryWithUser`,
+   `maybeAcceptKeyBundle`, `markRoomAsPendingKeyBundle`)
+3. **`CryptoApi`** (~60 methods): device info/verification state, cross-signing
+   bootstrap/status/reset, secret storage (4S) bootstrap + recovery key, key backup
+   (status/trust/restore/reset/delete), interactive verification
+   (`VerificationRequest`/`Verifier` with SAS/QR callbacks), room key import/export,
+   to-device encryption (`encryptToDeviceMessages` — used by call/widget drivers),
+   dehydration.
+4. **Outgoing request pump**: the Rust crypto engine pushes HTTP (`/keys/query`,
+   `/keys/claim`, `/sendToDevice`, backup up/download) — today via js-sdk's
+   `OutgoingRequestProcessor`; our adapter does the same over events/commands.
+5. **`CryptoEvent` re-emission** onto `MatrixClient` (KeyBackupStatus, DevicesUpdated,
+   VerificationRequestReceived, …) — `src/app/hooks/*` listen to these.
+6. Keep in JS regardless: `mx.secretStorage` (4S account-data I/O) and
+   `CryptoCallbacks.getSecretStorageKey/cacheSecretStorageKey`
+   (`src/client/secretStorageKeys.js`).
+
+Direct crypto touchpoints in `src/` to re-point at the adapter (all currently go through
+`mx.getCrypto()`): `client/initMatrix.ts` (init + store-mismatch wipe/retry),
+`components/DeviceVerification*.tsx`, `ManualVerification.tsx`,
+`components/BackupRestore.tsx`, `features/settings/devices/*`, `LocalBackup.tsx`,
+`hooks/useVerificationRequest.ts`, `useKeyBackup.ts`, `useDeviceList.ts`,
+`useRestoreBackupOnVerification.ts`, `useCrossSigningResetDetect.ts` (pokes
+`processDeviceLists` directly), `features/call/callSignalingDecrypt.ts`, widget/call
+drivers, `utils/delayedEvents.ts`, and `UnifiedPushNotifications.ts:359` /
+`notifications.tsx` (push decrypt relay — becomes dead code on mobile).
+
+## Target end-state diagram
+
+```
+                    +------------------ one Rust store per device ------------------+
+                    |  matrix-sdk-crypto + SqliteCryptoStore (CrossProcessLock)     |
+                    |                                                                 |
+  TS app (webview)--|-- Tauri IPC: CryptoBackend/CryptoApi adapter + event channel    |
+  iOS NSE          |-- same cdylib: NotificationClient(MultipleProcesses)             |
+  Android FCM svc  |-- same cdylib: NotificationClient(SingleProcess / own sync)      |
+                    +------------------------------------------------------------------+
+
+Homeserver --> Sygnal (event_id_only) --> APNS/FCM
+   --> iOS NSE: restore session (keychain, app group store) ->
+       NotificationClient.get_notification(room, event) -> UNNotificationContent
+   --> Android: FCM svc -> PushRequest DB -> WorkManager ->
+       NotificationClient.get_notifications -> NotificationManager
+```
+
+## Phases
+
+### Phase 0 — Spike: validate the approach (small, throwaway)
+
+✅ **Host target done (2026-07-31):**
+
+- Deps added: `matrix-sdk`, `matrix-sdk-crypto`, `matrix-sdk-sqlite` 0.18 +
+  `matrix-sdk-ui`, all behind the non-default `matrix-crypto` cargo feature.
+  ~500 extra crates in the dep tree; default builds unaffected.
+- Spike module `src-tauri/src/matrix_crypto_spike.rs`:
+  - `spike_matrix_crypto` command: `OlmMachine` on passphrase-protected
+    `SqliteCryptoStore`, drop + reopen, identity keys persist — **test passes**
+    (`cargo test --features matrix-crypto matrix_crypto_spike`, ~30 s incremental).
+  - `spike_notification_client` command: `Client` on sqlite store +
+    `restore_session(session, RoomLoadSettings::All)` +
+    `NotificationClient::new(client, NotificationProcessSetup::MultipleProcesses)`
+    — compiles; needs a real session to exercise end-to-end.
+- API drift notes vs the research above: `matrix-sdk-crypto` does **not** re-export
+  ruma (use `matrix_sdk::ruma`); `OlmMachine::with_store(user, device, store,
+  Option<Account>)` takes 4 args; `matrix_auth().restore_session(session,
+  RoomLoadSettings)` takes 2 args; `IdentityKeys` =
+  `matrix_sdk_crypto::vodozemac::olm::IdentityKeys`.
+
+**Phase 1 started (uncommitted):** `src-tauri/src/matrix_crypto/mod.rs` holds the engine
+skeleton — `engine_open`/`close`, `engine_receive_sync_changes`,
+`engine_outgoing_requests`/`mark_request_sent`, `engine_decrypt_event`/`encrypt_event`,
+plus a plumbing test. No TS adapter yet. Fixed on the way in (2026-07-31): three more API
+drifts (`KeysQueryRequest` has no `token` field; `AnyMessageLikeEventContent::event_type`
+needs `MessageLikeEventContent` in scope; `OwnedTransactionId` has no `FromStr` — use
+`.as_str().into()`), and the IPC boundary now passes **JSON strings** rather than
+`serde_json::Value`. That last one is load-bearing: `tauri-typegen` has no mapping for
+`serde_json::Value` and emitted it verbatim into TypeScript
+(`Promise<types.serde_json::Value>`, `clear_event: serde_json::Value`), which broke `tsc`
+repo-wide. Strings also match the convention the module already used for inputs
+(`event_json`, `content_json`, `response_body`). Durable follow-up: teach the
+`SableClient/tauri-typegen` fork to map `serde_json::Value` → `unknown` so the trap
+doesn't recur.
+
+Remaining Phase 0 items:
+
+- [ ] Mobile cross-compiles (`aarch64-linux-android`, `aarch64-apple-ios`) —
+      bundled vs system sqlite linking story.
+- [ ] Release binary-size delta per target.
+- [ ] Decide session persistence format on Tauri: JSON session blob + store dir
+      under app-data (iOS: App Group container; Android: internal storage) +
+      passphrase in OS secure storage.
+
+Original spike plan (superseded by findings above):
+
+- ~~Add `matrix-sdk` + `matrix-sdk-sqlite` + `matrix-sdk-ui` to `src-tauri` behind a
+  `matrix-crypto` cargo feature. Measure build time and binary impact per target.~~
+- ~~Spike one Tauri command: `restore_session(sessionJson) → create OlmMachine →
+  get_own_device_keys` round trip, plus a single `decrypt_event(room_id, raw_event)`.~~
+- ~~Spike the IPC-notification primitive: `matrix_sdk_ui::notification_client::NotificationClient`
+  driven from a Tauri command with a `Session` JSON + sqlite path.~~
+- **Verify:** Rust integration test round-trip encrypt→decrypt; docs updated.
+
+### Phase 1 — Rust crypto engine + Tauri IPC adapter
+
+- `src-tauri/src/matrix_crypto/`: owns `OlmMachine`, sqlite `CryptoStore`, outgoing-request
+  pump, `CryptoEvent`-equivalents forwarded over a Tauri event channel.
+- TS side: `RustIpcCrypto implements CryptoBackend` that mirrors `RustCrypto`'s behavior
+  (sync feed methods, request pump, event re-emission); selected in `initMatrix` when
+  `isTauri`, wasm otherwise. No new plumbing in `mx.secretStorage`/4S — stays JS.
+- Reproduce store-mismatch semantics that `initMatrix.ts:isMismatch` relies on, and
+  `clearStores`/logout wipe for the sqlite store.
+- Feature-parity checklist = the surface map above (~60 `CryptoApi` methods +
+  `SyncCryptoCallbacks` + verification state machine + backup). Dehydration & MSC4268 can
+  be scoped out initially if effort is high — decide explicitly.
+- **Verify:** existing app flows pass on a Tauri build with wasm disabled: login, send /
+  receive in encrypted room, key backup restore, SAS verification, cross-signing reset
+  detection; `pnpm test` suites that touch crypto.
+
+### Interim state shipped on `feat/notification-speed` (2026-07-31)
+
+Stopgaps and durable work landed before the migration, so Phase 2/4 know what to keep:
+
+- **Delete at Phase 2** (mobile TS decrypt path): `whenDecrypted` in
+  `UnifiedPushNotifications.ts` retries the encrypted preview until the Megolm key
+  arrives, replacing a 2.5 s deadline that discarded late decryptions outright. Buys
+  correct previews on the warm path until the Rust engine lands; worthless afterwards.
+- **Keep — Phase 4 depends on it** (plugin, `tauri-plugin-notifications` rev
+  `057d3238`): Android `MessagingStyle` with a `Person` per sender, `messages.v2`
+  channel at `IMPORTANCE_HIGH` + separate `invites` channel, `silent` honoured on
+  Android (it was ignored, so the sound setting did nothing), invites routed with a
+  real body. Phase 4's native notifier calls this same builder.
+- **Keep**: replying from a notification now calls `markAsRead` — it never did, so the
+  room stayed unread, its notification never cleared, and pushes stacked onto a
+  growing cache.
+- **Not done, deliberately**: sender avatars in `MessagingStyle`. Needs the
+  authenticated media bytes handed to native as a bitmap; the plugin's `largeIcon`
+  only resolves bundled drawables.
+
+### Phase 2 — Migrate & clean up the app
+
+**Dependency order (learned 2026-07-31).** Most of this phase cannot start before Phase 1
+is finished, and the reason is concrete rather than cautious: `RustIpcCrypto` throws
+`CryptoNotImplementedError` for verification, key backup, cross-signing bootstrap, 4S and
+`encryptToDeviceMessages`. Removing wasm from Tauri bundles while those throw would ship an
+E2EE client that cannot verify a device, cannot bootstrap cross-signing and cannot restore a
+backup. So the switchover is gated on 1b (engine lifecycle) + the rest of 1c.
+
+Done:
+
+- [x] **Local room-key handover** — `handOverRoomKeys` in `src/app/crypto/migration.ts`,
+      batched, 7 tests. Independent of the switchover, and it is what makes the forced
+      re-authentication tolerable: without it, everything not in key backup is lost. See the
+      revised migration note under "Migration constraints".
+
+Blocked on Phase 1:
+
+- [ ] First post-upgrade launch on Tauri: create new device, upload keys, **hand over room
+      keys locally** (backup restore only as a fallback), sign out the old device — note
+      signing the old device out needs interactive auth. Document the (now much smaller) UTD
+      expectation in the changelog.
+- [ ] Remove wasm crypto from Tauri bundles (the vite plugin stays for the web build);
+      `matrix-js-sdk` keeps `@matrix-org/matrix-sdk-crypto-wasm` as its own dep for web.
+- [ ] **Verify:** upgrade test from a previous release build: keys carried over, DMs decrypt,
+      verification state sane.
+
+Blocked on Phase 4, not Phase 2:
+
+- [ ] Delete the mobile TS decrypt paths (`whenDecrypted` in `UnifiedPushNotifications.ts`,
+      SW relay usage on Tauri). Deleting these before a native push handler exists would
+      regress today's working warm-path previews, so they outlive Phase 2.
+
+### Phase 3 — iOS Notification Service Extension
+
+- Add NSE target to `ios-project.yml` (xcodegen), sharing `group.{{app.identifier}}`; move
+  the crypto store dir into the App Group container; store passphrase in Keychain with the
+  shared access group.
+- NSE loads the app group's store through the same Rust library (a thin Rust/Swift shim or
+  a Rust binary baked into the extension), restores `Session` with
+  `RoomLoadSettings::One(room_id)`, uses `NotificationClient(MultipleProcesses)`,
+  `with_low_memory_config`, 15 s timeouts, presence offline; best-attempt delivery on
+  `serviceExtensionTimeWillExpire`.
+- Notification content mapping (port of Element X `NotificationHandler`): msgtypes,
+  images, polls, calls → CallKit, redactions → withdraw matching notification;
+  fallback = original generic payload.
+- Register native APNS pusher via our Sygnal (new app id e.g. `moe.sable.client.ios`;
+  APNS token auth in Sygnal config; update `docs/sygnal-setup.md`).
+- **Verify:** locked device, encrypted DM → banner shows sender+plaintext in ~1 s; no app
+  process spawned; memory under 24 MB jetsam limit (measure with Activity Monitor during
+  debug push).
+
+### Phase 4 — Android FCM service
+
+- `SableFirebaseMessagingService` in `gen/android/app/src/main/kotlin/...` (replace reliance
+  on plugin default; decide UnifiedPush story — currently the plugin's UP receiver is
+  removed from the manifest).
+- Copy EX Android shape: parse `PushData` → persist `PushRequest` (small Room DB or sqlite
+  table) → WorkManager job → restore client →
+  `NotificationClient.getNotifications(batch)` → `NotificationManager` with channels/sounds
+  matching `MainActivity.kt`; notifications keyed by eventId (re-posts replace).
+- Use `NotificationProcessSetup::SingleProcess` semantics: same process as the app; if the
+  app is mid-sync, share/serialize via the app's sync service rather than racing stores.
+- Fallback notification ("You have a new message") on decrypt failure — never silent drop.
+- **Verify:** acceptance test as Phase 3 + foreground dedup (no double notifications),
+  Doze behavior via high-priority FCM.
+
+### Phase 5 — Rollout & observability
+
+- Metrics via existing Sentry: time push→displayed, decrypt-failure rate, NSE kill rate.
+- Update `docs/sygnal-setup.md` (APNS config, app ids), `config.json` push defaults.
+- Provisioning/CI: NSE entitlements + profiles in release/AltStore pipelines.
+- Web unchanged end-to-end (wasm + SW relay) — regression-test it.
+
+## Risks / open questions
+
+- **IPC throughput on sync**: to-device batches and crypto events cross the bridge every
+  sync loop. Batch per response; measure in Phase 1 (worst case: large to-device flushes
+  after offline periods).
+- **Big adapter surface** (~60 methods + verification state machine). Mitigation: implement
+  incrementally behind the interface; stub rarely-used corners with explicit errors during
+  migration, fill in before Phase 5. Consider generating the TS bindings from a typed
+  schema instead of hand-writing.
+- **Cross-process bugs**: Element X needed multiple SDK fixes (#3313/#3110/#6404/#5746).
+  Pin a recent matrix-rust-sdk (all of the above merged) and don't bypass
+  `MultipleProcesses` on iOS.
+- **matrix-rust-sdk version coupling**: crypto crate, sqlite store, and ffi must be the same
+  rev. Pin by git rev where crates.io versions lag.
+- **UnifiedPush on Android**: UP needs its own receiver-side decrypt path (no FCM wake
+  semantics). Decide: keep UP with the same `PushRequest` pipeline, or FCM-only for native.
+  Correction (2026-07-31): the earlier note that "the plugin's UP receiver is removed from
+  the manifest" was wrong. The app manifest removes
+  `app.tauri.notification.TauriUnifiedPushMessagingService` — a **receiver** class that no
+  longer exists in the plugin, so that `tools:node="remove"` is a dead leftover. The live
+  `UnifiedPushReceiver` service (`PUSH_EVENT`) and `TauriFirebaseMessagingService` both
+  merge in and work today, and `UnifiedPushNotifier` already posts cold notifications
+  natively. The native path can reuse it rather than starting from scratch.
+- **Push payload from Sygnal**: keep `event_id_only`; add `pusher_notification_client_identifier`
+  style multi-account routing only if/when sable supports multiple accounts.
+  Note the two transports disagree today: `enableNativePush` hardcodes
+  `format: 'event_id_only'`, but the UnifiedPush pusher honours the
+  `useRichPushPayloads` setting, which **defaults to true** (`state/settings.ts`) and so
+  omits `format`. Rich payloads push ciphertext, room name and sender display name through
+  the gateway; `NotificationClient` makes them pointless. Flip that default as part of
+  Phase 4 (or sooner).
+- **Desktop Tauri**: adopt Rust engine too (one path on all Tauri targets) or keep wasm?
+  Default: adopt — but desktop has no extension processes, so Phase 2 must stay shippable
+  without it.
+
+## References
+
+- Element Android notifications doc (starting point):
+  https://github.com/element-hq/element-android/blob/develop/docs/notifications.md
+- Element X iOS NSE: `element-hq/element-x-ios` → `NSE/Sources/NotificationServiceExtension.swift`,
+  `NSEUserSession.swift`, `NotificationHandler.swift`
+- Element X Android push: `element-hq/element-x-android` →
+  `libraries/pushproviders/firebase/.../VectorFirebaseMessagingService.kt`,
+  `libraries/push/impl/.../DefaultPushHandler.kt`,
+  `libraries/push/impl/.../DefaultNotifiableEventResolver.kt`
+- matrix-rust-sdk: `crates/matrix-sdk-ui/src/notification_client.rs`,
+  `bindings/matrix-sdk-ffi/src/notification.rs`,
+  `NotificationProcessSetup` docs: https://matrix-org.github.io/matrix-rust-sdk/matrix_sdk_ui/notification_client/enum.NotificationProcessSetup.html
+- SqliteCryptoStore: https://docs.rs/matrix-sdk-sqlite (WAL forced; `open_with_config`, `with_low_memory_config`)
+- NSE memory work: matrix-rust-sdk#4801, PRs #4894 #4870 #4766; element-x-ios#3785; TWIM 2025-04-11
+- matrix-js-sdk crypto surface: `node_modules/matrix-js-sdk/lib/common-crypto/CryptoBackend.d.ts`,
+  `lib/crypto-api/index.d.ts`, `lib/rust-crypto/rust-crypto.d.ts`
+- Sable current code: `src/app/features/settings/notifications/`, `src/sw.ts`,
+  `src/client/initMatrix.ts`, `docs/sygnal-setup.md`, `config.json`

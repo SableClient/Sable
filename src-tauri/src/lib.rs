@@ -5,6 +5,10 @@ mod desktop;
 mod diagnostics;
 #[cfg(target_os = "ios")]
 mod ios;
+#[cfg(feature = "matrix-crypto")]
+mod matrix_crypto;
+#[cfg(feature = "matrix-crypto")]
+mod matrix_crypto_spike;
 #[cfg(target_os = "android")]
 mod mobile;
 #[cfg(any(target_os = "android", target_os = "ios"))]
@@ -306,6 +310,9 @@ pub fn run() {
         desktop::windows::window_tracking::TrackingState::new(),
     ));
 
+    #[cfg(feature = "matrix-crypto")]
+    let builder = builder.manage(matrix_crypto::CryptoEngineState::default());
+
     #[cfg(desktop)]
     let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
         let _ = show_or_create_main_window(app);
@@ -410,6 +417,16 @@ pub fn run() {
             network::media_protocol::clear_media_session,
             network::media_protocol::set_media_encryption,
             sentry::set_native_sentry_enabled,
+            #[cfg(feature = "matrix-crypto")]
+            matrix_crypto_spike::spike_matrix_crypto,
+            #[cfg(feature = "matrix-crypto")]
+            matrix_crypto_spike::spike_notification_client,
+            #[cfg(feature = "matrix-crypto")]
+            matrix_crypto::engine_invoke,
+            #[cfg(feature = "matrix-crypto")]
+            matrix_crypto::engine_open,
+            #[cfg(feature = "matrix-crypto")]
+            matrix_crypto::engine_close,
             share_inbox::share_inbox_drain,
             share_inbox::share_inbox_read,
             share_inbox::share_inbox_clear,

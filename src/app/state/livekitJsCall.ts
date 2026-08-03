@@ -2,7 +2,7 @@ import { atom } from 'jotai';
 import type {
   LivekitJsControllerFailure,
   LivekitJsControllerLifecycle,
-} from '$features/call/livekitJsController';
+} from '@sableclient/matrixrtc';
 import type { Room as LivekitRoom } from 'livekit-client';
 
 export type LivekitJsCallMedia = {

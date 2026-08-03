@@ -15,7 +15,7 @@ import {
   LivekitJsCallManagerProvider,
   useLivekitJsCallManager,
 } from './livekitJsCallManager';
-import type { LivekitJsControllerState } from './livekitJsController';
+import type { LivekitJsControllerState } from '@sableclient/matrixrtc';
 
 vi.mock('$hooks/useTheme', () => ({
   ThemeKind: { Light: 'light', Dark: 'dark' },
@@ -30,7 +30,8 @@ const { createControllerMock } = vi.hoisted(() => ({
   createControllerMock: vi.fn<(...args: unknown[]) => unknown>(),
 }));
 
-vi.mock('./livekitJsController', () => ({
+vi.mock('@sableclient/matrixrtc', async (importOriginal) => ({
+  ...(await importOriginal<object>()),
   createLivekitJsController: createControllerMock,
 }));
 

@@ -15,7 +15,7 @@ import type {
   switchNativeCallCamera,
   NativeCallSnapshot,
 } from './livekitMobileBridge';
-import type { CallEncryptionKey, CallTransportState } from './callTransport';
+import type { CallEncryptionKey, CallTransportState } from '@sableclient/matrixrtc';
 
 const bridge = vi.hoisted(() => ({
   connectNativeCall: vi.fn<typeof connectNativeCall>(),

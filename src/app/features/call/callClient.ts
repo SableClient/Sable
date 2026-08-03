@@ -1,7 +1,7 @@
 import type {
   LivekitJsControllerFailure,
   LivekitJsControllerLifecycle,
-} from './livekitJsController';
+} from '@sableclient/matrixrtc';
 import type { NativeCallLifecycle } from '$state/nativeCall';
 
 type CallPhase = 'idle' | 'connecting' | 'connected' | 'reconnecting' | 'stopping' | 'failed';

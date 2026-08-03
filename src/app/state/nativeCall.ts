@@ -1,6 +1,6 @@
 import { atom } from 'jotai';
 import type { NativeCallAudioRoute } from '$features/call/livekitMobileBridge';
-import type { CallParticipant } from '$features/call/callTransport';
+import type { CallParticipant } from '@sableclient/matrixrtc';
 import {
   isLivekitJsCallActive,
   livekitJsCallAtom,

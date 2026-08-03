@@ -3,7 +3,7 @@ import {
   MAX_CALL_NOTIFICATION_LIFETIME_MS,
   normalizeCallIntent,
   toCallNotificationTypeOrDefault,
-} from './callIntent';
+} from '@sableclient/matrixrtc';
 
 type CallCandidate = {
   roomId: string;

@@ -18,7 +18,7 @@ import { callEmbedStartErrorAtom } from '$state/callEmbed';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { acquireCallOwner } from '$state/callOwner';
-import { selectCallStartOwner } from '$features/call/callStartSelection';
+import { selectCallStartOwner } from '@sableclient/matrixrtc';
 import { useLivekitJsCallManager } from '$features/call/livekitJsCallManager';
 import { getNativeCallAvailability } from '$features/call/nativeCallProbe';
 import { getNativeCallManager } from '$features/call/nativeCallManager';

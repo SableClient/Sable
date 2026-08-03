@@ -1,7 +1,10 @@
+import {
+  type ParsedRtcDecline,
+  decryptRtcTimelineEvent,
+  parseRtcDecline,
+} from '@sableclient/matrixrtc';
 import * as Sentry from '@sentry/react';
 import type { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
-import { decryptRtcTimelineEvent } from './callSignalingDecrypt';
-import { parseRtcDecline, type ParsedRtcDecline } from './rtcNotificationParser';
 
 const relationFromContent = (content: unknown) => {
   if (!content || typeof content !== 'object') return undefined;

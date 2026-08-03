@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { IncomingCall } from '$state/callEmbed';
 import { evaluateIncomingCallFallback } from './callSignalingFallback';
-import { INCOMING_MEMBERSHIP_GRACE_MS } from './callSignalingPolicy';
+import { INCOMING_MEMBERSHIP_GRACE_MS } from '@sableclient/matrixrtc';
 
 const NOW = 1_700_000_000_000;
 // eslint-disable-next-line @typescript-eslint/no-explicit-any

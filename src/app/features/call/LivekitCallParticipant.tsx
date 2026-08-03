@@ -8,7 +8,7 @@ import { useRoom } from '$hooks/useRoom';
 import { getMemberAvatarMxc, getMemberDisplayName } from '$utils/room/display';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { createDebugLogger } from '$utils/debugLogger';
-import type { UserIdByRtcIdentity } from './livekitCallIdentity';
+import type { UserIdByRtcIdentity } from '@sableclient/matrixrtc';
 
 const debugLog = createDebugLogger('callParticipant');
 

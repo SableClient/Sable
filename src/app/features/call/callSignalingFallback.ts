@@ -1,8 +1,6 @@
+import { INCOMING_MEMBERSHIP_GRACE_MS, isIncomingCallActive } from '@sableclient/matrixrtc';
 import type { IncomingCall } from '$state/callEmbed';
 import type { Room } from '$types/matrix-sdk';
-
-import { isIncomingCallActive } from './callMembershipState';
-import { INCOMING_MEMBERSHIP_GRACE_MS } from './callSignalingPolicy';
 
 export type IncomingFallbackAction =
   | { kind: 'none' }

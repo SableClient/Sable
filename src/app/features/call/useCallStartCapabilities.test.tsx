@@ -7,7 +7,7 @@ import type { CallEmbed } from '$plugins/call';
 import { MatrixClientProvider } from '$hooks/useMatrixClient';
 import { AutoDiscoveryInfoProvider } from '$hooks/useAutoDiscoveryInfo';
 import { nativeCallAtom, type NativeCallSession } from '$state/nativeCall';
-import type { CallStartCapabilities } from './callStartCapabilities';
+import type { CallStartCapabilities } from '@sableclient/matrixrtc';
 import { useCallStartCapabilities } from './useCallStartCapabilities';
 
 const { webRtcSupportedMock, useCallEmbedMock } = vi.hoisted(() => ({

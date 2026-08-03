@@ -1,8 +1,8 @@
+import { createLivekitJsController, isCallOngoing } from '@sableclient/matrixrtc';
 import type { ReactNode } from 'react';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef } from 'react';
 import { useStore } from 'jotai';
 import type { Room } from '$types/matrix-sdk';
-import { createLivekitJsController } from './livekitJsController';
 import {
   livekitJsCallAtom,
   livekitJsCallInitialMediaAppliedAtom,
@@ -10,9 +10,11 @@ import {
   type LivekitJsCallMedia,
 } from '$state/livekitJsCall';
 import { callInProgressAtom } from '$state/nativeCall';
-import { isCallOngoing } from './callSession';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useAutoDiscoveryInfo } from '$hooks/useAutoDiscoveryInfo';
+import { acquireCallOwner } from '$state/callOwner';
+import { getSlidingSyncManager } from '$client/initMatrix';
+import { fetch as appFetch } from '$utils/fetch';
 
 export type LivekitJsCallStartOptions = {
   room: Room;
@@ -63,8 +65,13 @@ export function LivekitJsCallManagerProvider({ children }: LivekitJsCallManagerP
   // current controller before the provider's own subscription effect runs.
   const controller = useMemo(() => {
     generationRef.current += 1;
-    return createLivekitJsController();
-  }, []);
+    return createLivekitJsController({
+      acquireOwner: (kind, roomId) =>
+        kind === 'livekit-js' ? acquireCallOwner(kind, roomId) : undefined,
+      request: appFetch,
+      subscribeToCallRoom: (roomId) => getSlidingSyncManager(mx)?.subscribeToCallRoom(roomId),
+    });
+  }, [mx]);
   const generation = generationRef.current;
   if (controllerRef.current !== controller) controllerRef.current = controller;
 

@@ -1,3 +1,9 @@
+import {
+  type CallParticipant,
+  type CallTrack,
+  type UserIdByRtcIdentity,
+  buildRtcIdentityMap,
+} from '@sableclient/matrixrtc';
 import { type ReactNode, useEffect, useMemo, useState } from 'react';
 import { Box, config, Menu, MenuItem, Text, toRem } from 'folds';
 import type { NativeCallSession } from '$state/nativeCall';
@@ -20,11 +26,9 @@ import {
   setNativeCallRemoteVideoOverlay,
   type NativeCallAudioRoute,
 } from './livekitMobileBridge';
-import type { CallParticipant, CallTrack } from './callTransport';
 import { useCallMembers, useCallSession } from '$hooks/useCall';
 import { useRoom } from '$hooks/useRoom';
 import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
-import { buildRtcIdentityMap, type UserIdByRtcIdentity } from './livekitCallIdentity';
 import { CallParticipantAvatar, useCallParticipantProfile } from './LivekitCallParticipant';
 import { CallControlBar, CallLayout, CallMediaControls, CallStatusBar } from './callChrome';
 import { controlButton } from './callChrome.css';

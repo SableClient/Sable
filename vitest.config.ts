@@ -43,7 +43,9 @@ export default defineConfig({
     include: ['src/**/*.{test,spec}.{ts,tsx}'],
     server: {
       deps: {
-        inline: [/matrix-js-sdk\/lib\//],
+        // The package is ESM that imports matrix-js-sdk deep paths, so Vite has
+        // to process it for the SDK alias above to apply.
+        inline: [/matrix-js-sdk\/lib\//, /@sableclient\/matrixrtc/],
       },
     },
     coverage: {

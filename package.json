@@ -51,6 +51,7 @@
     "@lottiefiles/dotlottie-react": "^0.12.0",
     "@noble/hashes": "^2.2.0",
     "@phosphor-icons/react": "^2.1.10",
+    "@sableclient/matrixrtc": "github:SableClient/matrix-rtc#f39530bba3c490c689429b6d240f41430ef38b1d",
     "@sableclient/twemoji-font": "^1.0.4",
     "@sentry/react": "^10.63.0",
     "@tanstack/react-query": "^5.101.2",
@@ -170,5 +171,10 @@
       "version": "24.x"
     }
   },
-  "packageManager": "pnpm@10.32.1+sha512.a706938f0e89ac1456b6563eab4edf1d1faf3368d1191fc5c59790e96dc918e4456ab2e67d613de1043d2e8c81f87303e6b40d4ffeca9df15ef1ad567348f2be"
+  "packageManager": "pnpm@10.32.1+sha512.a706938f0e89ac1456b6563eab4edf1d1faf3368d1191fc5c59790e96dc918e4456ab2e67d613de1043d2e8c81f87303e6b40d4ffeca9df15ef1ad567348f2be",
+  "pnpm": {
+    "onlyBuiltDependencies": [
+      "@sableclient/matrixrtc"
+    ]
+  }
 }

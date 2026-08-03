@@ -24,7 +24,7 @@ import type {
   CallTransport,
   CallTransportConnectOptions,
   CallTransportState,
-} from './callTransport';
+} from '@sableclient/matrixrtc';
 import { createDebugLogger } from '$utils/debugLogger';
 
 const debugLog = createDebugLogger('nativeTransport');

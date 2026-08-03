@@ -1,3 +1,15 @@
+import {
+  type CallKeyPipeline,
+  type CallSessionHandles,
+  type CallTransportState,
+  callEncryptsMedia,
+  createCallKeyPipeline,
+  createCallSessionHandles,
+  disconnectLivekitThenLeaveMatrixRTC,
+  getPreferredLivekitTransport,
+  joinCallSession,
+  provisionLivekitToken,
+} from '@sableclient/matrixrtc';
 import type { AutoDiscoveryInfo } from '../../cs-api';
 import type { MatrixClient, MatrixRTCSession, Room } from '$types/matrix-sdk';
 import {
@@ -13,24 +25,16 @@ import {
   type NativeCallAudioRoute,
   type SystemCallAction,
 } from './livekitMobileBridge';
-import { getPreferredLivekitTransport, provisionLivekitToken } from './livekitProvisioning';
-import { createCallKeyPipeline, type CallKeyPipeline } from './callKeyPipeline';
-import { disconnectLivekitThenLeaveMatrixRTC } from './matrixRtcCallLifecycle';
-import {
-  callEncryptsMedia,
-  createCallSessionHandles,
-  joinCallSession,
-  type CallSessionHandles,
-} from './callSession';
 import {
   createNativeTransport,
   type NativeCallTransport,
   type NativeTransportDependencies,
 } from './nativeTransport';
-import type { CallTransportState } from './callTransport';
 import { acquireCallOwner, type CallOwnerLease } from '$state/callOwner';
 import type { NativeCallLifecycle, NativeCallSession } from '$state/nativeCall';
 import { createDebugLogger } from '$utils/debugLogger';
+import { getSlidingSyncManager } from '$client/initMatrix';
+import { fetch as appFetch } from '$utils/fetch';
 
 const debugLog = createDebugLogger('nativeCallController');
 
@@ -310,6 +314,8 @@ export const createNativeCallController = (
           room,
           session,
           discovery,
+          request: appFetch,
+          subscribeToCallRoom: (roomId) => getSlidingSyncManager(mx)?.subscribeToCallRoom(roomId),
           getPreferredTransport: deps.getPreferredTransport,
           provisionToken: deps.provisionToken,
           callIntent: video ? 'video' : 'audio',

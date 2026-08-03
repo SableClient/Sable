@@ -5,7 +5,7 @@ import {
   REFERENCE_REL_TYPE,
   RTC_NOTIFICATION_EVENT_TYPE,
   type RtcNotificationEventLike,
-} from './rtcNotificationParser';
+} from '@sableclient/matrixrtc';
 
 const NOW = 1_700_000_000_000;
 const MY_USER_ID = '@self:example.org';

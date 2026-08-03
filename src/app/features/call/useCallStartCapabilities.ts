@@ -10,10 +10,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useStateEventCallback } from '$hooks/useStateEventCallback';
 import { useForceUpdate } from '$hooks/useForceUpdate';
 import { webRTCSupported } from '$utils/rtc';
-import {
-  evaluateCallStartCapabilities,
-  type CallStartCapabilities,
-} from '$features/call/callStartCapabilities';
+import { evaluateCallStartCapabilities, type CallStartCapabilities } from '@sableclient/matrixrtc';
 
 export const useCallStartCapabilities = (room: Room): CallStartCapabilities => {
   const mx = useMatrixClient();

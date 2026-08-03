@@ -1,3 +1,19 @@
+import {
+  FALLBACK_INTERVAL_MS,
+  MAX_NOTIFICATION_LIFETIME_MS,
+  OUTGOING_DECLINE_EMBED_CLEAR_MS,
+  OUTGOING_RING_TIMEOUT_MS,
+  type OutgoingDeclineEvent,
+  REFERENCE_REL_TYPE,
+  RTC_DECLINE_EVENT_TYPE,
+  RTC_NOTIFICATION_EVENT_TYPE,
+  applyOutgoingDeclineToTracker,
+  decryptRtcTimelineEvent,
+  getRemoteRtcMemberUserIds,
+  isCallActive,
+  isOutgoingCallPending,
+  parseIncomingRtcNotification,
+} from '@sableclient/matrixrtc';
 import { useCallback, useEffect, useRef } from 'react';
 import * as Sentry from '@sentry/react';
 import { useAtomValue, useSetAtom, useStore } from 'jotai';
@@ -19,34 +35,12 @@ import {
 import { livekitJsCallAtom } from '$state/livekitJsCall';
 import { nativeCallAtom, selectActiveCallSessionIncludingNative } from '$state/nativeCall';
 import { settingsAtom } from '$state/settings';
-import {
-  parseIncomingRtcNotification,
-  RTC_DECLINE_EVENT_TYPE,
-  REFERENCE_REL_TYPE,
-  RTC_NOTIFICATION_EVENT_TYPE,
-} from '$features/call/rtcNotificationParser';
-import { decryptRtcTimelineEvent } from '$features/call/callSignalingDecrypt';
-import {
-  FALLBACK_INTERVAL_MS,
-  MAX_NOTIFICATION_LIFETIME_MS,
-  OUTGOING_DECLINE_EMBED_CLEAR_MS,
-} from '$features/call/callSignalingPolicy';
-import {
-  applyOutgoingDeclineToTracker,
-  type OutgoingDeclineEvent,
-} from '$features/call/outgoingDeclineHandler';
 import { parseRtcDeclineFromTimelineEvent } from '$features/call/rtcTimelineDecline';
 import { evaluateIncomingCallFallback } from '$features/call/callSignalingFallback';
 import { canPlayCallAudio } from '$features/call/callRingtone';
 import { dismissSystemCallNotifications } from '$features/call/callNotificationBridge';
 import { isIncomingCallSuppressed } from '$features/call/callIncomingIngress';
-import {
-  getRemoteRtcMemberUserIds,
-  isCallActive,
-  isOutgoingCallPending,
-} from '$features/call/callMembershipState';
 import { ringtoneManager } from '$features/call/CallRingtoneManager';
-import { OUTGOING_RING_TIMEOUT_MS } from '$features/call/callSignalingPolicy';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { createDebugLogger } from '$utils/debugLogger';
 

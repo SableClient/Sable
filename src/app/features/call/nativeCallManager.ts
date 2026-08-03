@@ -4,7 +4,7 @@ type Store = ReturnType<typeof useStore>;
 import type { MatrixClient, Room } from '$types/matrix-sdk';
 import type { AutoDiscoveryInfo } from '../../cs-api';
 import { callInProgressAtom, nativeCallAtom } from '$state/nativeCall';
-import { isCallOngoing } from './callSession';
+import { isCallOngoing } from '@sableclient/matrixrtc';
 import {
   createNativeCallController,
   type NativeCallController,

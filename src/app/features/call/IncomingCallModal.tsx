@@ -22,7 +22,7 @@ import { livekitJsCallAtom } from '$state/livekitJsCall';
 import { nativeCallAtom, selectActiveCallSessionIncludingNative } from '$state/nativeCall';
 import { createDebugLogger } from '$utils/debugLogger';
 import { dismissSystemCallNotifications } from '$features/call/callNotificationBridge';
-import { getIncomingCallBlockers } from '$features/call/getIncomingCallBlockers';
+import { getIncomingCallBlockers } from '@sableclient/matrixrtc';
 import { RoomAvatar } from '$components/room-avatar';
 import { UserAvatar } from '$components/user-avatar';
 import {

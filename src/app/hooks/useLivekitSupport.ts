@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import type { AutoDiscoveryInfo } from '../cs-api';
 import { useAutoDiscoveryInfo } from './useAutoDiscoveryInfo';
 import { useMatrixClient } from './useMatrixClient';
-import { isLivekitTransportConfig } from '$features/call/livekitProvisioning';
+import { isLivekitTransportConfig } from '@sableclient/matrixrtc';
 import type { MatrixClient } from '$types/matrix-sdk';
 import { createDebugLogger } from '$utils/debugLogger';
 

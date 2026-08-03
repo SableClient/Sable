@@ -1,6 +1,6 @@
 import { addPluginListener, invoke, type PluginListener } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
-import type { CallAudioRoute } from './callTransport';
+import type { CallAudioRoute } from '@sableclient/matrixrtc';
 
 export type NativeCallConnectionState =
   | 'idle'

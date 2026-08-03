@@ -12,7 +12,7 @@ import * as css from './styles.css';
 import { CallMemberRenderer } from './CallMemberCard';
 import { PrescreenControls } from './PrescreenControls';
 import { callEmbedAtom, callEmbedStartErrorAtom } from '$state/callEmbed';
-import { canJoinCall } from './callStartCapabilities';
+import { canJoinCall } from '@sableclient/matrixrtc';
 import type { LivekitJsCallSession } from '$state/livekitJsCall';
 import { livekitJsCallAtom } from '$state/livekitJsCall';
 import { nativeCallAtom } from '$state/nativeCall';

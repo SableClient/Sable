@@ -31,7 +31,7 @@ import {
   livekitJsCallSoundAtom,
   type LivekitJsCallMedia,
 } from '$state/livekitJsCall';
-import { buildRtcIdentityMap, type UserIdByRtcIdentity } from './livekitCallIdentity';
+import { buildRtcIdentityMap, type UserIdByRtcIdentity } from '@sableclient/matrixrtc';
 import {
   CallParticipantAvatar,
   CallParticipantName,

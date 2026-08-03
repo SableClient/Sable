@@ -9,11 +9,20 @@ import {isTauri} from "@tauri-apps/api/core";
 import { fetch as taurifetch} from '@tauri-apps/plugin-http';
 import { parseDocument, DomUtils } from 'htmlparser2';
 import { Element } from 'domhandler';
+import {object} from "badwords-list";
+import {uploadContent, uploadContentToServer} from "$utils/matrix.ts";
+import {useObjectURL} from "$hooks/useObjectURL.ts";
+
+export enum EmbedPreviewType {
+    TitleDescription,
+    MediaOnly,
+    TitleDescriptionMedia
+}
 export type EmbedPreview = {
     title: string,
-    type: string,
+    type: EmbedPreviewType,
     description?: string,
-    imageMxc?: string,
+    media?: Blob,
 }
 
 export enum EmbedStatus {
@@ -21,6 +30,12 @@ export enum EmbedStatus {
     Loading = 'loading',
     Success = 'success',
     Error = 'error',
+}
+
+export enum LoadingStatus {
+    Html = 'fetching html',
+    MediaDown = 'downloading media ',
+    MediaUp = 'uploading media'
 }
 
 export type EmbedIdle = {
@@ -31,6 +46,7 @@ export type EmbedIdle = {
 export type EmbedLoading = {
     url: string;
     status: EmbedStatus.Loading;
+    progress: LoadingStatus;
     preview?: EmbedPreview;
     promise: Promise<Response>;
 };
@@ -55,11 +71,12 @@ type EmbedAtomAction =
     promise: Promise<Response>;
 }
     | {
-    progress: EmbedPreview | undefined;
+    progress: LoadingStatus;
+    preview: EmbedPreview | undefined;
 }
     | {
     data: IPreviewUrlResponse;
-    progress: EmbedPreview;
+    preview: EmbedPreview;
 }
     | {
     error: EmbedErrorReason;
@@ -72,7 +89,7 @@ export enum EmbedErrorReason {
 
 export type fetchEmbedOptions = {
     onPromise?: (promise: Promise<any>) => void;
-    onProgress?: (progress: EmbedPreview) => void;
+    onProgress?: (preview: EmbedPreview, progress: LoadingStatus) => void;
     onSuccess: (embed: IPreviewUrlResponse, progress: EmbedPreview) => void;
     onError: (reason: EmbedErrorReason) => void;
 };
@@ -95,7 +112,7 @@ const parseOg = ( html: string ) => {
     let requiredTags = [ "og:title", "og:type","og:url"]
     let optionalStringTags = ["og:image", "og:image:type", "og:description", "og:image:alt"];
     let optionalNumberTags = ["og:image:height", "og:image:width"]
-    let result: IPreviewUrlResponse = <IPreviewUrlResponse>{}
+    let result = new Map<string, string | number | undefined>();
     for (const ogTag of requiredTags) {
         let tag = DomUtils.findOne((e) => hasProperty(e, ogTag), metaTags)
         if (!tag || !tag.attribs?.content) {
@@ -109,25 +126,33 @@ const parseOg = ( html: string ) => {
                 tag = DomUtils.findOne((e) => e.attribs?.[(next[0])] == next[1], metaTags)
             }
         }
-        result[ogTag] = tag.attribs?.content
+        result.set(ogTag, tag.attribs?.content);
     }
     for (const ogTag of optionalStringTags) {
         let tag = DomUtils.findOne((e) => hasProperty(e, ogTag), metaTags)
-        result[ogTag] = tag?.attribs?.content
+        result.set(ogTag, tag?.attribs?.content);
     }
     for (const ogTag of optionalNumberTags) {
         let tag = DomUtils.findOne((e) => hasProperty(e, ogTag), metaTags)
         if (!tag?.attribs?.content)
             continue;
-        result[ogTag] = Number.parseInt(tag?.attribs?.content)
+        result.set(ogTag, Number.parseInt(tag?.attribs?.content));
     }
 
     return result
 }
 
+
+function fetchWrapper(url: string) {
+    return isTauri() ? taurifetch(url) : fetch(url)
+}
+
+
+
 const fetchEmbed = async (
     url: string,
     mx: MatrixClient,
+    successCallback: (result: IPreviewUrlResponse) => void,
     fetchEmbedOptions: fetchEmbedOptions) => {
     if (!fetchEmbedOptions.onProgress)
         fetchEmbedOptions.onProgress = (_) => {};
@@ -136,7 +161,7 @@ const fetchEmbed = async (
     //TODO filter local ips
     let fetchResponse;
     try {
-         let fetchPromise =  isTauri() ? taurifetch(url) : fetch(url)
+         let fetchPromise =  fetchWrapper(url)
          fetchEmbedOptions.onPromise(fetchPromise);
          fetchResponse = await fetchPromise;
 
@@ -153,8 +178,51 @@ const fetchEmbed = async (
                 return
             }
 
-            let preview: EmbedPreview = {description: prelimEmbed?.["og:description"], title: prelimEmbed?.["og:title"], type: prelimEmbed?.["og:type"]}
-            fetchEmbedOptions.onProgress(preview)
+            let supportedMediaTags = ["og:image"];
+            const hasSupportedMedia = prelimEmbed.keys().some(item => supportedMediaTags.includes(item))
+
+
+            let preview: EmbedPreview = {
+                description: <string>prelimEmbed.get("og:description"),
+                title: <string>prelimEmbed.get("og:title"),
+                type: hasSupportedMedia ? EmbedPreviewType.TitleDescriptionMedia : EmbedPreviewType.TitleDescription
+            }
+            fetchEmbedOptions.onProgress(preview, LoadingStatus.MediaDown)
+
+            let embedRecord: IPreviewUrlResponse = <IPreviewUrlResponse>Object.fromEntries(prelimEmbed)
+            if (!hasSupportedMedia) {
+                fetchEmbedOptions.onSuccess(embedRecord, preview)
+                successCallback(embedRecord)
+            } else {
+                let keyArray = prelimEmbed.keys().toArray();
+                if (embedRecord["og:image"] && embedRecord["og:image:type"]) {
+                    const response = await fetchWrapper(embedRecord["og:image"])
+                    const imgData = await response.blob();
+                    fetchEmbedOptions.onProgress(preview, LoadingStatus.MediaUp)
+                    preview.media = imgData;
+                    await uploadContent(mx, new File([imgData], "mediaPreview"), {
+                        onError: _ => {
+                            preview.type = EmbedPreviewType.TitleDescription;
+                            for (const e of keyArray) {
+                                if (e.startsWith("og:image")) {
+                                    embedRecord[e] = undefined;
+                                }
+                            }
+                            fetchEmbedOptions.onSuccess(embedRecord, preview)
+                            successCallback(embedRecord)
+                        },
+                        onSuccess: (mxc) => {
+                            embedRecord["og:image"] = mxc;
+                            embedRecord["matrix:image:size"] = imgData.size
+                            fetchEmbedOptions.onSuccess(embedRecord, preview)
+                            successCallback(embedRecord)
+                        }
+                    })
+
+
+                }
+            }
+
 
         } else {
             fetchEmbedOptions.onError(EmbedErrorReason.NoOgData);
@@ -181,6 +249,7 @@ export const createEmbedAtom = (url: string) => {
                 set(baseEmbedAtom, {
                     status: EmbedStatus.Loading,
                     url,
+                    progress: LoadingStatus.Html,
                     promise: update.promise,
                 });
                 return;
@@ -188,7 +257,8 @@ export const createEmbedAtom = (url: string) => {
             if ('progress' in update && embedState.status === EmbedStatus.Loading) {
                 set(baseEmbedAtom, {
                     ...embedState,
-                    preview: update.progress,
+                    progress: update.progress,
+                    preview: update.preview,
                 });
                 return;
             }
@@ -197,7 +267,7 @@ export const createEmbedAtom = (url: string) => {
                     status: EmbedStatus.Success,
                     url,
                     data: update.data,
-                    preview: update.progress,
+                    preview: update.preview,
                 });
                 return;
             }
@@ -215,7 +285,7 @@ export type TEmbedAtom = ReturnType<typeof createEmbedAtom>;
 
 export const useBindEmbedAtom = (
     mx: MatrixClient,
-    embedAtom: TEmbedAtom
+    embedAtom: TEmbedAtom,
 ) => {
     const [embed, setEmbed] = useAtom(embedAtom);
     const { url } = embed;
@@ -223,11 +293,11 @@ export const useBindEmbedAtom = (
 
 
     const startEmbed = useCallback(
-        () =>
-            fetchEmbed(url, mx, {
-                onSuccess: (data, progress) => setEmbed({ data, progress }),
+        (successCallback: (result: IPreviewUrlResponse) => void,) =>
+            fetchEmbed(url, mx, successCallback, {
+                onSuccess: (data, progress) => setEmbed({ data, preview: progress }),
                 onError: (error) => setEmbed({ error }),
-                onProgress: (progress) => setEmbed({ progress }),
+                onProgress: (preview, progress) => setEmbed({ preview, progress }),
                 onPromise: promise => setEmbed({ promise })
             }),
         [url, mx ]

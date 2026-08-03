@@ -7,6 +7,7 @@ import type { TUploadContent } from '$utils/matrix';
 import {createUploadAtom, createUploadAtomFamily, TUploadAtom} from '$state/upload';
 import { createListAtom } from '$state/list';
 import {createEmbedAtomFamily} from "$state/bundle.ts";
+import {IPreviewUrlResponse} from "matrix-js-sdk";
 
 export type TUploadMetadata = {
   markedAsSpoiler: boolean;

@@ -11,22 +11,61 @@ import {useSetting} from "$state/hooks/settings.ts";
 import {settingsAtom} from "$state/settings.ts";
 import {UploadCard} from "$components/upload-card/UploadCard.tsx";
 import {Box, color, IconButton, Text, toRem} from "folds";
-import {Check, Image, sizedIcon, X,  CircleNotch} from "$components/icons/phosphor.tsx";
-import {EmbedStatus, useBindEmbedAtom} from "$state/bundle.ts";
+import {Check, CircleNotch, File as FileIcon, Image, sizedIcon, X} from "$components/icons/phosphor.tsx";
+import {EmbedErrorReason, EmbedStatus, useBindEmbedAtom} from "$state/bundle.ts";
+import {Image as MediaImage} from "$components/media";
+import {useObjectURL} from "$hooks/useObjectURL.ts";
+import {isImageMimeType} from "$utils/mimeTypes.ts";
+import {IPreviewUrlResponse} from "matrix-js-sdk";
 
 
 type EmbedCardRendererProps = {
-    url: string
+    url: string,
+    successCallback: (result: IPreviewUrlResponse) => void,
 }
 
-export function EmbedCardRenderer({url}: Readonly<EmbedCardRendererProps>) {
+function prettyError(error: EmbedErrorReason) {
+    switch (error) {
+        //TODO localize
+        case EmbedErrorReason.RequestFailed:
+            return "Failed to fetch url"
+        case EmbedErrorReason.NoOgData:
+            return "Url doesnt provide previews"
+
+    }
+}
+
+interface MediaProps {
+    data: Blob
+}
+
+function Media({data}: Readonly<MediaProps>) {
+    const fileUrl = useObjectURL(data);
+    if (isImageMimeType(data.type)) {
+        return (
+            <MediaImage
+                style={{
+                    objectFit: 'contain',
+                    width: '100%',
+                    height: toRem(128),
+                }}
+                src={fileUrl}
+            />
+        );
+    }
+
+    return (<FileIcon size={"fill"}/>);
+
+
+}
+
+export function EmbedCardRenderer({url, successCallback}: Readonly<EmbedCardRendererProps>) {
     const mx = useMatrixClient();
     const mediaConfig = useMediaConfig();
     const allowSize = mediaConfig['m.upload.size'] || Infinity;
 
 
-
-    const linkifyOpts = useMemo<LinkifyOpts>(() => ({ ...LINKIFY_OPTS }), []);
+    const linkifyOpts = useMemo<LinkifyOpts>(() => ({...LINKIFY_OPTS}), []);
 
     const spoilerClickHandler = useSpoilerClickHandler();
     const useAuthentication = useMediaAuthentication();
@@ -37,17 +76,17 @@ export function EmbedCardRenderer({url}: Readonly<EmbedCardRendererProps>) {
     );
     const [incomingInlineImagesMaxHeight] = useSetting(settingsAtom, 'incomingInlineImagesMaxHeight');
     const embedAtom = roomEmbedAtomFamily(url);
-    const { embed, startEmbed, cancelEmbed } = useBindEmbedAtom(mx, embedAtom);
+    const {embed, startEmbed, cancelEmbed} = useBindEmbedAtom(mx, embedAtom);
 
     if (embed.status === EmbedStatus.Idle) {
-        startEmbed();
+        startEmbed(successCallback);
     }
 
     return (
         <UploadCard
             radii="300"
             compact
-            style={{ maxWidth: toRem(400), flexShrink: 0 }}
+            style={{maxWidth: toRem(400), flexShrink: 0}}
             before={
                 <></>
             }
@@ -67,13 +106,15 @@ export function EmbedCardRenderer({url}: Readonly<EmbedCardRendererProps>) {
             bottom={
                 <>
                     {embed.status == EmbedStatus.Idle && <>{"Preview here"}</>}
-                    {embed.status == EmbedStatus.Loading &&
+                    {(embed.status == EmbedStatus.Loading || embed.status == EmbedStatus.Success) &&
                         <>
-                            <Box direction={"Row"}>
-                                <Box style={{width: '30%'}}>
-                                    <Image size={"fill"}/>
+                            <Box direction={"Row"} gap={"200"}>
+                                <Box style={{flex: 2}}>
+                                    {embed.preview?.media && <Media data={embed.preview.media}/>}
+                                    {!(embed.preview?.media) && <CircleNotch size={"fill"} style={{
+                                        animation: "spin 1s infinite linear"}}/>}
                                 </Box>
-                                <Box direction={"Column"} style={{width: '70%'}}>
+                                <Box direction={"Column"} style={{flex: 5}}>
                                     <Text size={"H4"}>
                                         {embed.preview?.title}
                                     </Text>
@@ -86,23 +127,23 @@ export function EmbedCardRenderer({url}: Readonly<EmbedCardRendererProps>) {
                         </>
                     }
                     {embed.status == EmbedStatus.Error &&
-                        <>
-                            Failed to generate
-                        </>
+                        <Text style={{color: color.Critical.Main}}>
+                            {prettyError(embed.reason)}
+                        </Text>
                     }
 
 
                 </>
             }
         >
-            <Text size="H6" truncate style={{ minWidth: 0, flexGrow: 1 }}>
+            <Text size="H6" truncate align={"Left"} style={{minWidth: 0, flexGrow: 1}}>
                 {url}
             </Text>
             {embed.status == EmbedStatus.Success &&
-                sizedIcon(Check, '100', { style: { color: color.Success.Main } })}
+                sizedIcon(Check, '100', {style: {color: color.Success.Main}})}
 
             {embed.status == EmbedStatus.Error &&
-                sizedIcon(X, '100', { style: { color: color.Critical.Main } })}
+                sizedIcon(X, '100', {style: {color: color.Critical.Main}})}
             <style>
                 {`
                       @keyframes spin {
@@ -111,8 +152,16 @@ export function EmbedCardRenderer({url}: Readonly<EmbedCardRendererProps>) {
                       }
                     `}
             </style>
+            {embed.status == EmbedStatus.Loading && <Text align={"Right"} size="H6" truncate style={{minWidth: 0, flexGrow: 1}}>
+                {embed.progress}
+            </Text>}
             {(embed.status == EmbedStatus.Loading || embed.status == EmbedStatus.Idle) &&
-                sizedIcon(CircleNotch, '100', { style: { color: color.Primary.Main, animation: "spin 1s infinite linear" }  })}
+                sizedIcon(CircleNotch, '100', {
+                    style: {
+                        color: color.Primary.Main,
+                        animation: "spin 1s infinite linear"
+                    }
+                })}
         </UploadCard>
     );
 }

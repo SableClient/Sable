@@ -1,31 +1,19 @@
-import type { KeyboardEventHandler, MouseEvent, ReactElement, RefObject } from 'react';
-import {
-  forwardRef,
-  Fragment,
-  lazy,
-  Suspense,
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-  useMemo,
-} from 'react';
-import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import type {KeyboardEventHandler, MouseEvent, ReactElement, RefObject} from 'react';
+import {forwardRef, Fragment, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState,} from 'react';
+import {useAtom, useAtomValue, useSetAtom} from 'jotai';
 
-import { isKeyHotkey } from 'is-hotkey';
+import {isKeyHotkey} from 'is-hotkey';
 import type {
   IContent,
+  IEventRelation,
   MatrixEvent,
   Room,
-  IEventRelation,
   RoomMessageEventContent,
   StickerEventContent,
 } from '$types/matrix-sdk';
-import { MatrixError } from '$types/matrix-sdk';
-import { EventType, MsgType, RelationType } from '$types/matrix-sdk';
-import { ReactEditor } from 'slate-react';
-import { Editor, Point, Range, Transforms } from 'slate';
-import {RectCords, Switch} from 'folds';
+import {EventType, MatrixError, MsgType, RelationType} from '$types/matrix-sdk';
+import {ReactEditor} from 'slate-react';
+import {Editor, Point, Range, Transforms} from 'slate';
 import {
   Box,
   color,
@@ -38,115 +26,110 @@ import {
   OverlayBackdrop,
   OverlayCenter,
   PopOut,
+  RectCords,
   Scroll,
   Spinner,
+  Switch,
   Text,
-  toRem,
+  toRem
 } from 'folds';
 
-import { useMatrixClient } from '$hooks/useMatrixClient';
-import type { AutocompleteQuery } from '$components/editor';
+import {useMatrixClient} from '$hooks/useMatrixClient';
+import type {AutocompleteQuery} from '$components/editor';
 import {
+  ANYWHERE_AUTOCOMPLETE_PREFIXES,
   AutocompletePrefix,
+  BEGINNING_AUTOCOMPLETE_PREFIXES,
+  BlockType,
   createEmoticonElement,
   CustomEditor,
   customHtmlEqualsPlainText,
+  EmoticonAutocomplete,
+  focusEditor,
   getAutocompleteQuery,
+  getBeginCommand,
+  getLinks,
+  getMentions,
   getPrevWorldRange,
+  isEmptyEditor,
+  MarkdownFormattingToolbarBottom,
+  MarkdownFormattingToolbarToggle,
+  moveCursor,
+  replaceWithElement,
   resetEditor,
+  resetEditorHistory,
   RoomMentionAutocomplete,
   toMatrixCustomHTML,
   toPlainText,
+  trimCommand,
   trimCustomHtml,
   UserMentionAutocomplete,
-  EmoticonAutocomplete,
-  moveCursor,
-  resetEditorHistory,
-  isEmptyEditor,
-  getBeginCommand,
-  trimCommand,
-  getMentions,
-  ANYWHERE_AUTOCOMPLETE_PREFIXES,
-  BEGINNING_AUTOCOMPLETE_PREFIXES,
-  getLinks,
-  MarkdownFormattingToolbarBottom,
-  MarkdownFormattingToolbarToggle,
-  focusEditor,
-  replaceWithElement,
-  BlockType,
 } from '$components/editor';
-import { stripMarkdownEscapesForHiddenPreviews } from './message/hiddenLinkPreviews';
-import { plainToEditorInput } from '$components/editor/input';
-import type { GifData } from '$components/emoji-board';
-import { EmojiBoard, EmojiBoardTab } from '$components/emoji-board';
-import { UseStateProvider } from '$components/UseStateProvider';
-import type { TUploadContent } from '$utils/matrix';
+import {stripMarkdownEscapesForHiddenPreviews} from './message/hiddenLinkPreviews';
+import {plainToEditorInput} from '$components/editor/input';
+import type {GifData} from '$components/emoji-board';
+import {EmojiBoard, EmojiBoardTab} from '$components/emoji-board';
+import {UseStateProvider} from '$components/UseStateProvider';
+import type {TUploadContent} from '$utils/matrix';
+import {cancelUploadContent, encryptFile, getImageInfo, mxcUrlToHttp, toggleReaction,} from '$utils/matrix';
+import {useTypingStatusUpdater} from '$hooks/useTypingStatusUpdater';
+import {useFilePicker} from '$hooks/useFilePicker';
+import {useFilePasteHandler} from '$hooks/useFilePasteHandler';
+import {useFileDropZone} from '$hooks/useFileDrop';
 import {
-  cancelUploadContent,
-  encryptFile,
-  getImageInfo,
-  mxcUrlToHttp,
-  toggleReaction,
-} from '$utils/matrix';
-import { useTypingStatusUpdater } from '$hooks/useTypingStatusUpdater';
-import { useFilePicker } from '$hooks/useFilePicker';
-import { useFilePasteHandler } from '$hooks/useFilePasteHandler';
-import { useFileDropZone } from '$hooks/useFileDrop';
-import {TUploadItem, TUploadMetadata, IReplyDraft, TEmbeddItem} from '$state/room/roomInputDrafts';
-import {
+  IReplyDraft,
+  roomEmbedAtomFamily,
+  roomIdToEmbeddItemsAtomFamily,
   roomIdToMsgDraftAtomFamily,
   roomIdToReplyDraftAtomFamily,
   roomIdToUploadItemsAtomFamily,
   roomUploadAtomFamily,
-  roomIdToEmbeddItemsAtomFamily
+  TEmbeddItem,
+  TUploadItem,
+  TUploadMetadata
 } from '$state/room/roomInputDrafts';
-import {UploadCardRenderer, EmbedCardRenderer, UploadCard} from '$components/upload-card';
-import type { UploadBoardImperativeHandlers } from '$components/upload-board';
-import { UploadBoard, UploadBoardContent, UploadBoardHeader } from '$components/upload-board';
-import type { Upload, UploadSuccess } from '$state/upload';
-import { UploadStatus, createUploadFamilyObserverAtom } from '$state/upload';
-import { loadImageElementFromMediaUrl } from '$utils/dom';
-import { isImageMimeType, safeUploadFile } from '$utils/mimeTypes';
-import { fulfilledPromiseSettledResult } from '$utils/common';
-import { useSetting } from '$state/hooks/settings';
-import type { EditorButtonId } from '$state/settings';
-import { settingsAtom } from '$state/settings';
-import { matchesShortcut } from '../../keyboard/shortcuts';
-import { getEditedEvent, getMentionContent, getThreadReplyEvents } from '$utils/room/relations';
-import { buildReplacementContent } from './buildReplacementContent';
-import { htmlToMarkdown } from '$plugins/markdown';
-import { Command, SHRUG, TABLEFLIP, UNFLIP, useCommands } from '$hooks/useCommands';
-import { isMobileOrTablet } from '$utils/platform';
-import { Reply, ThreadIndicator } from '$components/message';
-import { roomToParentsAtom } from '$state/room/roomToParents';
-import { nicknamesAtom } from '$state/nicknames';
-import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { useImagePackRooms } from '$hooks/useImagePackRooms';
-import { useComposingCheck } from '$hooks/useComposingCheck';
-import { createLogger } from '$utils/debug';
-import { createDebugLogger } from '$utils/debugLogger';
+import {EmbedCardRenderer, UploadCard, UploadCardRenderer} from '$components/upload-card';
+import type {UploadBoardImperativeHandlers} from '$components/upload-board';
+import {UploadBoard, UploadBoardContent, UploadBoardHeader} from '$components/upload-board';
+import type {Upload, UploadSuccess} from '$state/upload';
+import {createUploadFamilyObserverAtom, UploadStatus} from '$state/upload';
+import {loadImageElementFromMediaUrl} from '$utils/dom';
+import {isImageMimeType, safeUploadFile} from '$utils/mimeTypes';
+import {fulfilledPromiseSettledResult} from '$utils/common';
+import {useSetting} from '$state/hooks/settings';
+import type {EditorButtonId} from '$state/settings';
+import {settingsAtom} from '$state/settings';
+import {matchesShortcut} from '../../keyboard/shortcuts';
+import {getEditedEvent, getMentionContent, getThreadReplyEvents} from '$utils/room/relations';
+import {buildReplacementContent} from './buildReplacementContent';
+import {htmlToMarkdown} from '$plugins/markdown';
+import {Command, SHRUG, TABLEFLIP, UNFLIP, useCommands} from '$hooks/useCommands';
+import {isMobileOrTablet} from '$utils/platform';
+import {Reply, ThreadIndicator} from '$components/message';
+import {roomToParentsAtom} from '$state/room/roomToParents';
+import {nicknamesAtom} from '$state/nicknames';
+import {useMediaAuthentication} from '$hooks/useMediaAuthentication';
+import {useImagePackRooms} from '$hooks/useImagePackRooms';
+import {useComposingCheck} from '$hooks/useComposingCheck';
+import {createLogger} from '$utils/debug';
+import {createDebugLogger} from '$utils/debugLogger';
 import FocusTrap from 'focus-trap-react';
-import { useQueryClient } from '@tanstack/react-query';
+import {useQueryClient} from '@tanstack/react-query';
 import * as Sentry from '@sentry/react';
 import {
   delayedEventsSupportedAtom,
-  roomIdToScheduledTimeAtomFamily,
   roomIdToEditingScheduledDelayIdAtomFamily,
+  roomIdToScheduledTimeAtomFamily,
   serverMaxDelayMsAtom,
 } from '$state/scheduledMessages';
-import {
-  sendDelayedMessage,
-  sendDelayedMessageE2EE,
-  computeDelayMs,
-  cancelDelayedEvent,
-} from '$utils/delayedEvents';
-import { timeHourMinute, timeDayMonthYear, daysToMs } from '$utils/time';
-import { stopPropagation } from '$utils/keyboard';
+import {cancelDelayedEvent, computeDelayMs, sendDelayedMessage, sendDelayedMessageE2EE,} from '$utils/delayedEvents';
+import {daysToMs, timeDayMonthYear, timeHourMinute} from '$utils/time';
+import {stopPropagation} from '$utils/keyboard';
 
-import { usePowerLevelsContext } from '$hooks/usePowerLevels';
-import { useRoomCreators } from '$hooks/useRoomCreators';
-import { useRoomPermissions } from '$hooks/useRoomPermissions';
-import { AutocompleteNotice } from '$components/editor/autocomplete/AutocompleteNotice';
+import {usePowerLevelsContext} from '$hooks/usePowerLevels';
+import {useRoomCreators} from '$hooks/useRoomCreators';
+import {useRoomPermissions} from '$hooks/useRoomPermissions';
+import {AutocompleteNotice} from '$components/editor/autocomplete/AutocompleteNotice';
 import {
   convertPerMessageProfileToBeeperFormat,
   getCurrentlyUsedPerMessageProfileForAccount,
@@ -164,6 +147,7 @@ import {
   composerIcon,
   dropzoneIcon,
   File as FileIcon,
+  getPhosphorIconSize,
   Gif,
   Image as ImageIcon,
   ListBullets,
@@ -172,53 +156,51 @@ import {
   Microphone,
   PaperPlaneTilt,
   PencilSimple,
-  getPhosphorIconSize,
   PlusCircle,
+  sizedIcon,
   Smiley,
   Sticker,
   Stop,
-  X, sizedIcon, Check,
+  X,
 } from '$components/icons/phosphor';
-import { getSupportedAudioExtension } from '$plugins/voice-recorder-kit/supportedCodec';
-import { ErrorCode } from '../../cs-errorcode';
-import { sanitizeText } from '$utils/sanitize';
-import { PKitCommandMessageHandler } from '$plugins/pluralkit-handler/PKitCommandMessageHandler';
-import { PKitProxyMessageHandler } from '$plugins/pluralkit-handler/PKitProxyMessageHandler';
-import type { IGenericMSC4459, MSC4459ImagePackReference } from '$types/matrix/common';
-import {
-  getImagePackReferencesForMxc,
-  getImagePackReferencesForMxcWrappedInMap,
-} from '$utils/msc4459helper';
-import { ImageUsage } from '$plugins/custom-emoji';
-import { getPackImageInfo } from '$plugins/custom-emoji/utils';
-import { SerializableMap } from '$types/wrapper/SerializableMap';
-import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
+import {getSupportedAudioExtension} from '$plugins/voice-recorder-kit/supportedCodec';
+import {ErrorCode} from '../../cs-errorcode';
+import {sanitizeText} from '$utils/sanitize';
+import {PKitCommandMessageHandler} from '$plugins/pluralkit-handler/PKitCommandMessageHandler';
+import {PKitProxyMessageHandler} from '$plugins/pluralkit-handler/PKitProxyMessageHandler';
+import type {IGenericMSC4459, MSC4459ImagePackReference} from '$types/matrix/common';
+import {getImagePackReferencesForMxc, getImagePackReferencesForMxcWrappedInMap,} from '$utils/msc4459helper';
+import {ImageUsage} from '$plugins/custom-emoji';
+import {getPackImageInfo} from '$plugins/custom-emoji/utils';
+import {SerializableMap} from '$types/wrapper/SerializableMap';
+import {useSettingsLinkBaseUrl} from '$features/settings/useSettingsLinkBaseUrl';
 import * as messageCss from '$features/room/message/styles.css';
-import { AttachmentContent } from '$components/attachment-sheet/AttachmentContent';
-import { MobileSwipeDownModal } from '$components/MobileSwipeDownModal';
-import { SchedulePickerDialog } from './schedule-send';
+import {AttachmentContent} from '$components/attachment-sheet/AttachmentContent';
+import {MobileSwipeDownModal} from '$components/MobileSwipeDownModal';
+import {SchedulePickerDialog} from './schedule-send';
 import * as css from './schedule-send/SchedulePickerDialog.css';
 import {
+  buildGalleryContent,
   getAudioMsgContent,
   getFileMsgContent,
+  getGalleryItemContent,
+  getGifMsgContent,
   getImageMsgContent,
   getVideoMsgContent,
-  getGifMsgContent,
-  buildGalleryContent,
-  getGalleryItemContent,
 } from './msgContent';
-import { outgoingMessageTransforms } from './outgoingMessageTransforms';
-import { getSendableKlipyMxcUrl } from '$utils/klipy';
-import { CommandAutocomplete } from './CommandAutocomplete';
-import type {
-  AudioMessageRecorderHandle,
-  AudioRecordingCompletePayload,
-} from './AudioMessageRecorder';
-import { AudioMessageRecorder } from './AudioMessageRecorder';
+import {outgoingMessageTransforms} from './outgoingMessageTransforms';
+import {getSendableKlipyMxcUrl} from '$utils/klipy';
+import {CommandAutocomplete} from './CommandAutocomplete';
+import type {AudioMessageRecorderHandle, AudioRecordingCompletePayload,} from './AudioMessageRecorder';
+import {AudioMessageRecorder} from './AudioMessageRecorder';
 import * as prefix from '$unstable/prefixes';
-import { PollDialog } from './poll-modals';
-import { useClientConfig } from '$hooks/useClientConfig';
-import { PersistentPersonaPicker, type PersonaPickerTab } from './persona-picker/PersonaPicker.tsx';
+import {PollDialog} from './poll-modals';
+import {useClientConfig} from '$hooks/useClientConfig';
+import {PersistentPersonaPicker, type PersonaPickerTab} from './persona-picker/PersonaPicker.tsx';
+import {EmbedStatus, useBindEmbedAtom} from "$state/bundle.ts";
+import {IPreviewUrlResponse} from "matrix-js-sdk";
+
+const embedmap: Map<string, IPreviewUrlResponse> = new Map();
 
 const LocationDialog = lazy(() =>
   import('./location-modal').then((module) => ({ default: module.LocationDialog }))
@@ -1031,6 +1013,18 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       await handleSendContents(contents);
     };
 
+  /*  const handleSendEmbeds = async (embeds: Embed[]) {
+      if (embedsEnabled) {
+        for (const embedLink of embeds) {
+          const embedAtom = roomEmbedAtomFamily(embedLink.url);
+          const {embed} = useBindEmbedAtom(mx, embedAtom);
+          if (embed.status == EmbedStatus.Success) {
+            em
+          }
+        }
+      }
+    }*/
+
     const handleCloseAutocomplete = useCallback(() => {
       setAutocompleteQuery((prev) => {
         if (prev !== undefined) {
@@ -1140,6 +1134,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         sendTypingStatus(false);
         return;
       }
+
+
 
       const commandName = getBeginCommand(editor);
       /**
@@ -1366,13 +1362,25 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       content[prefix.MATRIX_UNSTABLE_IMAGE_SOURCE_PACK_PROPERTY_NAME] =
         imagePacksUsedRef.current.toJSON();
 
-      const links = getLinks(serializedChildren);
+
       content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME] = [];
-      links?.forEach((link) =>
-        content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME].push({
-          matched_url: link,
-        })
-      );
+      if (embedsEnabled) {
+        for (const embedLink of embedLinks) {
+          const result = embedmap.get(embedLink.url)
+          if (result) {
+            result["matched_url"] = embedLink.url;
+            content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME].push(result);
+          }
+        }
+      } else {
+        const links = getLinks(serializedChildren);
+        links?.forEach((link) => {
+          content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME].push({
+            matched_url: link,
+          })}
+        );
+      }
+
 
       if (replyDraft || !customHtmlEqualsPlainText(formattedBody, body)) {
         content.format = 'org.matrix.custom.html';
@@ -1570,6 +1578,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       getEditingContent,
       onCancelEdit,
       latchedPersona,
+        embedsEnabled,
+        embedLinks,
+        embedmap
     ]);
 
     const handleKeyDown: KeyboardEventHandler = useCallback(
@@ -1916,7 +1927,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           forceMultilineLayout={showAudioRecorder}
           top={
             <>
-              {selectedFiles.length > 0 && (
+              {(selectedFiles.length > 0 || embedLinks.length > 0) && (
                 <UploadBoard
                   header={
                     <UploadBoardHeader
@@ -1937,7 +1948,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                     />
                   }
                 >
-                  {uploadBoard && (
+                  {(uploadBoard) && (
                     <Scroll direction="Horizontal" size="300" hideTrack visibility="Hover">
                       <UploadBoardContent>
                         {Array.from(selectedFiles)
@@ -1957,7 +1968,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                             />
                           ))}
 
-                          {Array.from(embedLinks).length > 0 && (<><Box style={{borderLeft: '1px solid currentColor'}}/><UploadCard
+                          {(embedLinks.length > 0 ) && (<>
+                            {selectedFiles.length > 0 && <Box style={{borderLeft: '1px solid currentColor'}}/>}
+                            <UploadCard
                               key="embed_toggle"
                               radii="300"
                               compact
@@ -1995,7 +2008,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                             .toReversed()
                             .map((link) => (
 
-                                <EmbedCardRenderer url={link.url}/>
+                                <EmbedCardRenderer url={link.url} successCallback={ (result) => {
+                                  embedmap.set(link.url, result);
+                                }}/>
                             ))}
                       </UploadBoardContent>
                     </Scroll>

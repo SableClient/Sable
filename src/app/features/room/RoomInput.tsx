@@ -197,10 +197,8 @@ import * as prefix from '$unstable/prefixes';
 import {PollDialog} from './poll-modals';
 import {useClientConfig} from '$hooks/useClientConfig';
 import {PersistentPersonaPicker, type PersonaPickerTab} from './persona-picker/PersonaPicker.tsx';
-import {EmbedStatus, useBindEmbedAtom} from "$state/bundle.ts";
-import {IPreviewUrlResponse} from "matrix-js-sdk";
-
-const embedmap: Map<string, IPreviewUrlResponse> = new Map();
+import {EmbedStatus, FixedPreviewUrlResponse, useBindEmbedAtom} from "$state/bundle.ts";
+const embedmap: Map<string, FixedPreviewUrlResponse> = new Map();
 
 const LocationDialog = lazy(() =>
   import('./location-modal').then((module) => ({ default: module.LocationDialog }))
@@ -1013,17 +1011,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       await handleSendContents(contents);
     };
 
-  /*  const handleSendEmbeds = async (embeds: Embed[]) {
-      if (embedsEnabled) {
-        for (const embedLink of embeds) {
-          const embedAtom = roomEmbedAtomFamily(embedLink.url);
-          const {embed} = useBindEmbedAtom(mx, embedAtom);
-          if (embed.status == EmbedStatus.Success) {
-            em
-          }
-        }
-      }
-    }*/
 
     const handleCloseAutocomplete = useCallback(() => {
       setAutocompleteQuery((prev) => {
@@ -2008,7 +1995,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                             .toReversed()
                             .map((link) => (
 
-                                <EmbedCardRenderer url={link.url} successCallback={ (result) => {
+                                <EmbedCardRenderer url={link.url} encrypt={room.hasEncryptionStateEvent()} successCallback={ (result) => {
                                   embedmap.set(link.url, result);
                                 }}/>
                             ))}

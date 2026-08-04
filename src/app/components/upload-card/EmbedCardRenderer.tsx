@@ -12,7 +12,7 @@ import {settingsAtom} from "$state/settings.ts";
 import {UploadCard} from "$components/upload-card/UploadCard.tsx";
 import {Box, color, IconButton, Text, toRem} from "folds";
 import {Check, CircleNotch, File as FileIcon, Image, sizedIcon, X} from "$components/icons/phosphor.tsx";
-import {EmbedErrorReason, EmbedStatus, useBindEmbedAtom} from "$state/bundle.ts";
+import {EmbedErrorReason, EmbedStatus, FixedPreviewUrlResponse, useBindEmbedAtom} from "$state/bundle.ts";
 import {Image as MediaImage} from "$components/media";
 import {useObjectURL} from "$hooks/useObjectURL.ts";
 import {isImageMimeType} from "$utils/mimeTypes.ts";
@@ -21,12 +21,17 @@ import {IPreviewUrlResponse} from "matrix-js-sdk";
 
 type EmbedCardRendererProps = {
     url: string,
-    successCallback: (result: IPreviewUrlResponse) => void,
+    successCallback: (result: FixedPreviewUrlResponse) => void,
+    encrypt: boolean,
 }
 
 function prettyError(error: EmbedErrorReason) {
     switch (error) {
         //TODO localize
+        case EmbedErrorReason.UploadFailed:
+            return "Failed to upload";
+        case EmbedErrorReason.EncryptFailed:
+            return "Failed to encrypt";
         case EmbedErrorReason.RequestFailed:
             return "Failed to fetch url"
         case EmbedErrorReason.NoOgData:
@@ -59,7 +64,7 @@ function Media({data}: Readonly<MediaProps>) {
 
 }
 
-export function EmbedCardRenderer({url, successCallback}: Readonly<EmbedCardRendererProps>) {
+export function EmbedCardRenderer({url, successCallback, encrypt}: Readonly<EmbedCardRendererProps>) {
     const mx = useMatrixClient();
     const mediaConfig = useMediaConfig();
     const allowSize = mediaConfig['m.upload.size'] || Infinity;
@@ -76,7 +81,7 @@ export function EmbedCardRenderer({url, successCallback}: Readonly<EmbedCardRend
     );
     const [incomingInlineImagesMaxHeight] = useSetting(settingsAtom, 'incomingInlineImagesMaxHeight');
     const embedAtom = roomEmbedAtomFamily(url);
-    const {embed, startEmbed, cancelEmbed} = useBindEmbedAtom(mx, embedAtom);
+    const {embed, startEmbed, cancelEmbed} = useBindEmbedAtom(mx, embedAtom, encrypt);
 
     if (embed.status === EmbedStatus.Idle) {
         startEmbed(successCallback);

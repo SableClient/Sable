@@ -8,10 +8,13 @@ import {isTauri} from "@tauri-apps/api/core";
 import { fetch as taurifetch} from '@tauri-apps/plugin-http';
 import { parseDocument, DomUtils } from 'htmlparser2';
 import { Element } from 'domhandler';
-import {encryptFile, uploadContent} from "$utils/matrix.ts";
+import {encryptFile, mxcUrlToHttp, uploadContent} from "$utils/matrix.ts";
 import {isImageMimeType} from "$utils/mimeTypes.ts";
 import {MATRIX_BUNDLED_EMBEDS_ENCRYPTED_PROPERTY_NAME} from "$unstable/prefixes/misc.ts";
 import { EncryptedAttachmentInfo } from "browser-encrypt-attachment";
+import {useSetting} from "$state/hooks/settings.ts";
+import {settingsAtom} from "$state/settings.ts";
+import {useMediaAuthentication} from "$hooks/useMediaAuthentication.ts";
 export type FixedPreviewUrlResponse = {
     [p: string]: string | number | undefined | Record<string, any>;
     "og:image"?: string
@@ -161,15 +164,117 @@ const fetchEmbed = async (
     url: string,
     mx: MatrixClient,
     encrypted: boolean,
+    bundleUseHomeserver: boolean,
     successCallback: (result: FixedPreviewUrlResponse) => void,
     fetchEmbedOptions: fetchEmbedOptions) => {
+
+
+    const useAuthentication = useMediaAuthentication();
     if (!fetchEmbedOptions.onProgress)
         fetchEmbedOptions.onProgress = (_) => {
         };
     if (!fetchEmbedOptions.onPromise)
         fetchEmbedOptions.onPromise = (_) => {
         }
+    const pushImage = async (imgData: Blob, preview: EmbedPreview, embedRecord: FixedPreviewUrlResponse) => {
+        preview.media = imgData;
+        let encInfo: EncryptedAttachmentInfo;
+        if (encrypted) {
+            fetchEmbedOptions.onProgress?.(preview, LoadingStatus.Encrypt)
+            try {
+                let encryptResult = await encryptFile(imgData)
+                imgData = encryptResult.file
+                encInfo = encryptResult.encInfo
+            } catch (e) {
+                fetchEmbedOptions.onError(EmbedErrorReason.EncryptFailed);
+                return;
+            }
+
+        }
+        fetchEmbedOptions.onProgress?.(preview, LoadingStatus.MediaUp)
+        await uploadContent(mx, new File([imgData], "mediaPreview"), {
+            onError: _ => {
+                if (preview.type == EmbedPreviewType.MediaOnly) {
+                    fetchEmbedOptions.onError(EmbedErrorReason.UploadFailed)
+                    return;
+                }
+                preview.type = EmbedPreviewType.TitleDescription;
+                for (const e in embedRecord) {
+                    if (e.startsWith("og:image")) {
+                        embedRecord[e] = undefined;
+                    }
+                }
+                fetchEmbedOptions.onSuccess(embedRecord, preview)
+                successCallback(embedRecord)
+            },
+            onSuccess: (mxc) => {
+                if (encrypted) {
+                    embedRecord[MATRIX_BUNDLED_EMBEDS_ENCRYPTED_PROPERTY_NAME] = {
+                        ...encInfo,
+                        url: mxc,
+                    };
+                    embedRecord["matrix:image:size"] = imgData.size
+                    embedRecord["og:image"] = undefined
+                } else {
+                    embedRecord["og:image"] = mxc;
+                    embedRecord["matrix:image:size"] = imgData.size
+                }
+                fetchEmbedOptions.onSuccess(embedRecord, preview)
+                successCallback(embedRecord)
+            }
+        })
+    }
     //TODO filter local ips
+    if (bundleUseHomeserver) {
+        var response: IPreviewUrlResponse
+        try {
+            const promise = mx.getUrlPreview(url, Date.now());
+            fetchEmbedOptions.onPromise(promise);
+            response = await promise;
+        } catch (e) {
+            fetchEmbedOptions.onError(EmbedErrorReason.RequestFailed);
+            return;
+        }
+        const imageUrl = mxcUrlToHttp(
+            mx,
+            response['og:image'] || '',
+            useAuthentication,
+            256,
+            256,
+            'scale',
+            false
+        );
+        let preview: EmbedPreview = {
+            description: response['og:description'],
+            title: response['og:title'],
+            type: EmbedPreviewType.TitleDescription
+        }
+        if (!imageUrl) {
+            fetchEmbedOptions.onSuccess(response, preview);
+            successCallback(response);
+            return;
+        }
+
+        let fetchPromise = fetch(imageUrl)
+        fetchEmbedOptions.onProgress(preview, LoadingStatus.MediaDown);
+        let fetchResponse = await (await fetchPromise).blob().catch(_ => null);
+        if (!fetchResponse) {
+            fetchEmbedOptions.onSuccess(response, preview);
+            successCallback(response);
+            return;
+        }
+        preview.media = fetchResponse;
+        preview.type = EmbedPreviewType.TitleDescriptionMedia;
+        if(encrypted) {
+            pushImage(fetchResponse, preview, response)
+        } else {
+            fetchEmbedOptions.onSuccess(response, preview);
+            successCallback(response);
+
+        }
+        return;
+
+    }
     let fetchResponse;
     try {
         let fetchPromise = fetchWrapper(url)
@@ -182,54 +287,7 @@ const fetchEmbed = async (
         return
     }
     if (fetchResponse.ok) {
-        const pushImage = async (imgData: Blob, preview: EmbedPreview, embedRecord: FixedPreviewUrlResponse) => {
-            preview.media = imgData;
-            let encInfo: EncryptedAttachmentInfo;
-            if (encrypted) {
-                fetchEmbedOptions.onProgress?.(preview, LoadingStatus.Encrypt)
-                try {
-                    let encryptResult = await encryptFile(imgData)
-                    imgData = encryptResult.file
-                    encInfo = encryptResult.encInfo
-                } catch (e) {
-                    fetchEmbedOptions.onError(EmbedErrorReason.EncryptFailed);
-                    return;
-                }
 
-            }
-            fetchEmbedOptions.onProgress?.(preview, LoadingStatus.MediaUp)
-            await uploadContent(mx, new File([imgData], "mediaPreview"), {
-                onError: _ => {
-                    if (preview.type == EmbedPreviewType.MediaOnly) {
-                        fetchEmbedOptions.onError(EmbedErrorReason.UploadFailed)
-                        return;
-                    }
-                    preview.type = EmbedPreviewType.TitleDescription;
-                    for (const e in embedRecord) {
-                        if (e.startsWith("og:image")) {
-                            embedRecord[e] = undefined;
-                        }
-                    }
-                    fetchEmbedOptions.onSuccess(embedRecord, preview)
-                    successCallback(embedRecord)
-                },
-                onSuccess: (mxc) => {
-                    if (encrypted) {
-                        embedRecord[MATRIX_BUNDLED_EMBEDS_ENCRYPTED_PROPERTY_NAME] = {
-                        ...encInfo,
-                            url: mxc,
-                        };
-                        embedRecord["matrix:image:size"] = imgData.size
-                        embedRecord["og:image"] = undefined
-                    } else {
-                        embedRecord["og:image"] = mxc;
-                        embedRecord["matrix:image:size"] = imgData.size
-                    }
-                    fetchEmbedOptions.onSuccess(embedRecord, preview)
-                    successCallback(embedRecord)
-                }
-            })
-        }
 
         if (fetchResponse.headers.get('content-type')?.split(";")[0] == 'text/html') {
             let prelimEmbed = parseOg(await fetchResponse.text())
@@ -329,7 +387,8 @@ export type TEmbedAtom = ReturnType<typeof createEmbedAtom>;
 export const useBindEmbedAtom = (
     mx: MatrixClient,
     embedAtom: TEmbedAtom,
-    encrypt: boolean
+    encrypt: boolean,
+    useHomeserver: boolean,
 ) => {
     const [embed, setEmbed] = useAtom(embedAtom);
     const { url } = embed;
@@ -338,13 +397,13 @@ export const useBindEmbedAtom = (
 
     const startEmbed = useCallback(
         (successCallback: (result: FixedPreviewUrlResponse) => void,) =>
-            fetchEmbed(url, mx, encrypt, successCallback, {
+            fetchEmbed(url, mx, encrypt, useHomeserver, successCallback, {
                 onSuccess: (data, progress) => setEmbed({ data, preview: progress }),
                 onError: (error) => setEmbed({ error }),
                 onProgress: (preview, progress) => setEmbed({ preview, progress }),
                 onPromise: promise => setEmbed({ promise })
             }),
-        [url, mx, encrypt ]
+        [url, mx, encrypt, useHomeserver ]
     );
 
     const cancelEmbed = useCallback(() => {

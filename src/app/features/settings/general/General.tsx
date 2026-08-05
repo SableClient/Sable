@@ -1026,6 +1026,9 @@ function Embeds() {
   const [urlPreview, setUrlPreview] = useSetting(settingsAtom, 'urlPreview');
   const [encUrlPreview, setEncUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
   const [clientUrlPreview, setClientUrlPreview] = useSetting(settingsAtom, 'clientUrlPreview');
+  const [generateBundles, setGenerateBundles] = useSetting(settingsAtom, 'generateBundles');
+  const [bundleUseHomeserver, setBundleUseHomeserver] = useSetting(settingsAtom, 'useHomeserverForBundles');
+  const [encryptBundledMedia, setEncryptBundledMedia] = useSetting(settingsAtom, 'encryptBundledMedia');
   const [showInteractiveMap, setShowInteractiveMap] = useSetting(
     settingsAtom,
     'showInteractiveMap'
@@ -1060,6 +1063,29 @@ function Embeds() {
         value={bundledPreview}
         onChange={setBundledPreview}
       />
+      <SettingToggle
+          title="Generate Bundled Embeds"
+          focusId="generate-bundled-embeds"
+          description="Show prompt to generate bundled embeds while composing a message."
+          value={generateBundles}
+          onChange={setGenerateBundles}
+      />
+      {generateBundles &&
+          <><SettingToggle
+              title="Use Homeserver for Bundled Embeds"
+              focusId="bundle-use-homeserver"
+              description="Use your homeservers server-side embed functionality to generate bundled embeds. More reliable in the webapp due to Browser Limitations (CORS). Will leak the links you generate embeds for to your homeserver. Requires your homeserver to support server-side embeds. "
+              value={bundleUseHomeserver}
+              onChange={setBundleUseHomeserver}
+          />
+        <SettingToggle
+            title="Encrypt Bundled Media"
+            focusId="encrypt-bundled-media"
+            description="Encrypt preview media for bundled embeds in encrypted rooms. Disable to improve compatibility."
+            value={encryptBundledMedia}
+            onChange={setEncryptBundledMedia}
+        /></>
+      }
       <SettingToggle
         title="Server-side Embeds"
         focusId="url-preview"

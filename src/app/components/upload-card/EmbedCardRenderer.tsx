@@ -1,7 +1,7 @@
 import {useMatrixClient} from "$hooks/useMatrixClient.ts";
 import {useMediaConfig} from "$hooks/useMediaConfig.ts";
 import {roomEmbedAtomFamily} from "$state/room/roomInputDrafts.ts";
-import {useMemo} from "react";
+import {type KeyboardEventHandler, useCallback, useMemo} from "react";
 import type {Opts as LinkifyOpts} from "linkifyjs";
 import {LINKIFY_OPTS} from "$plugins/react-custom-html-parser.tsx";
 import {useSpoilerClickHandler} from "$hooks/useSpoilerClickHandler.ts";
@@ -80,8 +80,9 @@ export function EmbedCardRenderer({url, successCallback, encrypt}: Readonly<Embe
         'incomingInlineImagesDefaultHeight'
     );
     const [incomingInlineImagesMaxHeight] = useSetting(settingsAtom, 'incomingInlineImagesMaxHeight');
+    const [bundleUseHomeserver] = useSetting(settingsAtom, 'useHomeserverForBundles');
     const embedAtom = roomEmbedAtomFamily(url);
-    const {embed, startEmbed, cancelEmbed} = useBindEmbedAtom(mx, embedAtom, encrypt);
+    const {embed, startEmbed, cancelEmbed} = useBindEmbedAtom(mx, embedAtom, encrypt, bundleUseHomeserver);
 
     if (embed.status === EmbedStatus.Idle) {
         startEmbed(successCallback);

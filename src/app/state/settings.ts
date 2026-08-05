@@ -158,6 +158,10 @@ export interface Settings {
   showInteractiveMap: boolean;
   showEncInteractiveMap: boolean;
 
+  generateBundles: boolean;
+  useHomeserverForBundles: boolean;
+  encryptBundledMedia: boolean;
+
   usePushNotifications: boolean;
   useUnifiedPush: boolean;
   useInAppNotifications: boolean;
@@ -328,6 +332,9 @@ export const defaultSettings: Settings = {
   enableGifPicker: true,
   showInteractiveMap: true,
   showEncInteractiveMap: false,
+  generateBundles: true,
+  useHomeserverForBundles: false,
+  encryptBundledMedia: true,
   showHiddenEvents: false,
   showTombstoneEvents: true,
   hiddenEventEdits: true,

@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react';
 import type { MatrixEvent, EventTimelineSet, EventTimeline } from '$types/matrix-sdk';
 import { EventType } from '$types/matrix-sdk';
+
 import {
   isMembershipChanged,
   isThreadRelationEvent,
@@ -26,6 +27,7 @@ export interface UseProcessedTimelineOptions {
   mxUserId: string | null;
   readUptoEventId: string | undefined;
   hideMembershipEvents: boolean;
+  hideCallEvents: boolean;
   hideNickAvatarEvents: boolean;
   isReadOnly: boolean;
   hideMemberInReadOnly: boolean;
@@ -422,6 +424,7 @@ const processTimelineItems = (
     mxUserId,
     readUptoEventId,
     hideMembershipEvents,
+    hideCallEvents,
     hideNickAvatarEvents,
     isReadOnly,
     hideMemberInReadOnly,
@@ -473,6 +476,8 @@ const processTimelineItems = (
       if (membershipChanged && hideMembershipEvents) continue;
       if (!membershipChanged && hideNickAvatarEvents) continue;
     }
+
+    if (type === (EventType.GroupCallMemberPrefix as string) && hideCallEvents) continue;
 
     const allowSpecificHiddenEvent =
       (isEdit && hiddenEventEdits) ||
@@ -594,6 +599,7 @@ export function useProcessedTimeline({
   mxUserId,
   readUptoEventId,
   hideMembershipEvents,
+  hideCallEvents,
   hideNickAvatarEvents,
   isReadOnly,
   hideMemberInReadOnly,
@@ -626,6 +632,7 @@ export function useProcessedTimeline({
       mxUserId,
       readUptoEventId,
       hideMembershipEvents,
+      hideCallEvents,
       hideNickAvatarEvents,
       isReadOnly,
       hideMemberInReadOnly,
@@ -644,6 +651,7 @@ export function useProcessedTimeline({
       mxUserId,
       readUptoEventId,
       hideMembershipEvents,
+      hideCallEvents,
       hideNickAvatarEvents,
       isReadOnly,
       hideMemberInReadOnly,
@@ -743,6 +751,7 @@ export function useProcessedTimeline({
     mxUserId,
     readUptoEventId,
     hideMembershipEvents,
+    hideCallEvents,
     hideNickAvatarEvents,
     isReadOnly,
     hideMemberInReadOnly,

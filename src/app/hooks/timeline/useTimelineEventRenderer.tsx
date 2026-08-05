@@ -320,6 +320,7 @@ export interface TimelineEventRendererOptions {
     hideMemberInReadOnly: boolean;
     isReadOnly: boolean;
     hideMembershipEvents: boolean;
+    hideCallEvents: boolean;
     hideNickAvatarEvents: boolean;
     hiddenEvents: ResolvedHiddenEventSettings;
     hideThreadChip?: boolean;
@@ -379,6 +380,7 @@ export function useTimelineEventRenderer({
     hideMemberInReadOnly,
     isReadOnly,
     hideMembershipEvents,
+    hideCallEvents,
     hideNickAvatarEvents,
     hiddenEvents,
     hideThreadChip,
@@ -1456,6 +1458,7 @@ export function useTimelineEventRenderer({
         );
       },
       [EventType.GroupCallMemberPrefix]: (mEventId, mEvent, item, timelineSet, collapse) => {
+        if(hideCallEvents) return null;
         const isRedacted = mEvent.isRedacted();
         const {
           highlighted,

@@ -362,6 +362,7 @@ export function RoomTimeline({
   const messageSpacing = settings.messageSpacing;
   const hideReads = settings.hideReads;
   const hideMembershipEvents = settings.hideMembershipEvents;
+  const hideCallEvents = settings.hideCallEvents;
   const hideNickAvatarEvents = settings.hideNickAvatarEvents;
   const hideMemberInReadOnly = settings.hideMemberInReadOnly;
 
@@ -551,6 +552,9 @@ export function RoomTimeline({
           if (hideMemberInReadOnly && isReadOnly) return false;
           if (membershipChanged && hideMembershipEvents) return false;
           if (!membershipChanged && hideNickAvatarEvents) return false;
+        }
+        if (type === (EventType.GroupCallMemberPrefix as string)) {
+          if (hideCallEvents) return false;
         }
 
         const allowSpecificHiddenEvent =
@@ -1140,6 +1144,7 @@ export function RoomTimeline({
     mxUserId: mx.getUserId(),
     readUptoEventId: readUptoEventIdRef.current,
     hideMembershipEvents,
+    hideCallEvents,
     hideNickAvatarEvents,
     isReadOnly,
     hideMemberInReadOnly,

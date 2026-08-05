@@ -135,6 +135,7 @@ export interface Settings {
   messageLayout: MessageLayout;
   messageSpacing: MessageSpacing;
   hideMembershipEvents: boolean;
+  hideCallEvents: boolean;
   hideNickAvatarEvents: boolean;
   showHiddenEvents: boolean;
   showTombstoneEvents: boolean;
@@ -316,6 +317,7 @@ export const defaultSettings: Settings = {
   messageLayout: 0,
   messageSpacing: '400',
   hideMembershipEvents: false,
+  hideCallEvents: false,
   hideNickAvatarEvents: true,
   mediaAutoLoad: true,
   multiplePreviews: true,

@@ -44,6 +44,7 @@ export interface TimelineRendererSettings {
   hideMemberInReadOnly: boolean;
   isReadOnly: boolean;
   hideMembershipEvents: boolean;
+  hideCallEvents:boolean;
   hideNickAvatarEvents: boolean;
   hiddenEvents: ResolvedHiddenEventSettings;
   // Not included by default — callers that need these add them on top:
@@ -93,6 +94,7 @@ export function useTimelineRendererContext(room: Room): TimelineRendererContextV
   const [incomingInlineImagesMaxHeight] = useSetting(settingsAtom, 'incomingInlineImagesMaxHeight');
   const [hideMemberInReadOnly] = useSetting(settingsAtom, 'hideMembershipInReadOnly');
   const [hideMembershipEvents] = useSetting(settingsAtom, 'hideMembershipEvents');
+  const [hideCallEvents] = useSetting(settingsAtom, 'hideCallEvents');
   const [hideNickAvatarEvents] = useSetting(settingsAtom, 'hideNickAvatarEvents');
   const [showInteractiveMap] = useSetting(settingsAtom, 'showInteractiveMap');
   const [showEncInteractiveMap] = useSetting(settingsAtom, 'showEncInteractiveMap');
@@ -192,6 +194,7 @@ export function useTimelineRendererContext(room: Room): TimelineRendererContextV
       hideMemberInReadOnly,
       isReadOnly,
       hideMembershipEvents,
+      hideCallEvents,
       hideNickAvatarEvents,
       hiddenEvents,
     }),
@@ -211,6 +214,7 @@ export function useTimelineRendererContext(room: Room): TimelineRendererContextV
       hideMemberInReadOnly,
       isReadOnly,
       hideMembershipEvents,
+      hideCallEvents,
       hideNickAvatarEvents,
       hiddenEvents,
     ]

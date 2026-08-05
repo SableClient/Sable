@@ -764,6 +764,7 @@ function Messages() {
     settingsAtom,
     'hideMembershipEvents'
   );
+  const[hideCallEvents, setHideCallEvents] = useSetting(settingsAtom, 'hideCallEvents');
   const [hideNickAvatarEvents, setHideNickAvatarEvents] = useSetting(
     settingsAtom,
     'hideNickAvatarEvents'
@@ -849,6 +850,12 @@ function Messages() {
         focusId="hide-membership-change"
         value={hideMembershipEvents}
         onChange={setHideMembershipEvents}
+      />
+      <SettingToggle
+        title="Hide Call Join/Leave Messages"
+        focusId="hide-call-events"
+        value={hideCallEvents}
+        onChange={setHideCallEvents}
       />
       <SettingToggle
         title="Hide Profile Change"

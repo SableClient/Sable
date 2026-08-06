@@ -312,11 +312,14 @@ const fetchEmbed = async (
                 fetchEmbedOptions.onSuccess(embedRecord, preview)
                 successCallback(embedRecord)
             } else {
-                if (embedRecord["og:image"] && embedRecord["og:image:type"]) {
+                if (embedRecord["og:image"]) {
                     const response = await fetchWrapper(embedRecord["og:image"])
                     const imgData = await response.blob();
                     await pushImage(imgData, preview, embedRecord);
                 }
+                //other media types
+                preview.type = EmbedPreviewType.TitleDescription;
+                fetchEmbedOptions.onSuccess(embedRecord, preview)
             }
 
 

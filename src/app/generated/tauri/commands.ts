@@ -86,6 +86,10 @@ export async function saveMediaToPhotos(params: types.SaveMediaToPhotosParams): 
   return invoke('save_media_to_photos', params);
 }
 
+export async function setGlobalWindowShortcut(params: types.SetGlobalWindowShortcutParams): Promise<void> {
+  return invoke('set_global_window_shortcut', params);
+}
+
 export async function setImmersiveMode(params: types.SetImmersiveModeParams): Promise<void> {
   return invoke('set_immersive_mode', params);
 }

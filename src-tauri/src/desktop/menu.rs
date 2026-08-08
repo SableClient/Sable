@@ -1,11 +1,13 @@
 #[cfg(target_os = "macos")]
 use tauri::Emitter;
+use serde_json::json;
 use tauri::{AppHandle, Manager};
+use tauri_plugin_store::StoreExt;
+
+use crate::desktop::settings::{DESKTOP_SETTINGS_PATH, GLOBAL_WINDOW_SHORTCUT_KEY};
 
 #[cfg(target_os = "macos")]
 pub const SETTINGS_MENU_ID: &str = "settings";
-
-pub const TOGGLE_WINDOW_ACCELERATOR: &str = "CmdOrCtrl+Shift+S";
 
 // Extend the standard menu (Edit submenu for webview copy/paste, Quit, Close)
 // with a Settings item.
@@ -63,10 +65,53 @@ pub fn global_shortcut_plugin() -> tauri::plugin::TauriPlugin<crate::BrowserEngi
         .build()
 }
 
+fn get_global_window_shortcut(app: &AppHandle<crate::BrowserEngine>) -> Option<String> {
+    let store = app.store(DESKTOP_SETTINGS_PATH).ok()?;
+    // Absent, null and empty all mean "unregistered": no shortcut exists until
+    // the user assigns one.
+    store
+        .get(GLOBAL_WINDOW_SHORTCUT_KEY)
+        .and_then(|value| value.as_str().map(str::to_owned))
+        .filter(|binding| !binding.is_empty())
+}
+
 pub fn register_global_shortcuts(app: &AppHandle<crate::BrowserEngine>) {
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
 
-    if let Err(error) = app.global_shortcut().register(TOGGLE_WINDOW_ACCELERATOR) {
-        log::warn!("Failed to register global show/hide shortcut: {error}");
+    match get_global_window_shortcut(app) {
+        Some(binding) => {
+            if let Err(error) = app.global_shortcut().register(binding.as_str()) {
+                log::warn!("Failed to register global show/hide shortcut {binding}: {error}");
+            }
+        }
+        None => log::info!("Global show/hide shortcut is unassigned"),
     }
+}
+
+#[tauri::command]
+pub fn set_global_window_shortcut(
+    app: AppHandle<crate::BrowserEngine>,
+    shortcut: Option<String>,
+) -> Result<(), String> {
+    use tauri_plugin_global_shortcut::GlobalShortcutExt;
+
+    let store = app
+        .store(DESKTOP_SETTINGS_PATH)
+        .map_err(|error| error.to_string())?;
+
+    match &shortcut {
+        Some(binding) => store.set(GLOBAL_WINDOW_SHORTCUT_KEY, json!(binding)),
+        None => store.set(GLOBAL_WINDOW_SHORTCUT_KEY, json!(null)),
+    }
+    store.save().map_err(|error| error.to_string())?;
+
+    app.global_shortcut()
+        .unregister_all()
+        .map_err(|error| error.to_string())?;
+    if let Some(binding) = &shortcut {
+        app.global_shortcut()
+            .register(binding.as_str())
+            .map_err(|error| error.to_string())?;
+    }
+    Ok(())
 }

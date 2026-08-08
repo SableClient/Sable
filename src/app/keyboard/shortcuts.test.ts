@@ -5,6 +5,7 @@ import {
   getShortcutBinding,
   matchesShortcut,
   sanitizeShortcutOverrides,
+  toTauriAccelerator,
 } from './shortcuts';
 
 const keyEvent = (key: string, init: Partial<KeyboardEvent> = {}) =>
@@ -59,5 +60,29 @@ describe('keyboard shortcuts', () => {
         unknown: 'mod+x',
       })
     ).toEqual({ 'composer.bold': 'alt+b', 'composer.italic': null });
+  });
+
+  it('leaves the global window shortcut unassigned by default', () => {
+    expect(getShortcutBinding('app.toggleWindowVisibility', {})).toBe(null);
+  });
+
+  it('converts captured bindings to Tauri accelerator strings', () => {
+    expect(toTauriAccelerator('mod+shift+s')).toBe('CmdOrCtrl+Shift+S');
+    expect(toTauriAccelerator('ctrl+alt+c')).toBe('Ctrl+Alt+C');
+    expect(toTauriAccelerator('alt+space')).toBe('Alt+Space');
+    expect(toTauriAccelerator('shift+arrowup')).toBe('Shift+Up');
+    expect(toTauriAccelerator('mod+f')).toBe('CmdOrCtrl+F');
+    expect(toTauriAccelerator('mod+escape')).toBe('CmdOrCtrl+Esc');
+  });
+
+  it('round-trips captured shortcuts through the Tauri format', () => {
+    for (const [key, init, expected] of [
+      ['S', { ctrlKey: true, shiftKey: true }, 'CmdOrCtrl+Shift+S'],
+      ['C', { ctrlKey: true, altKey: true }, 'CmdOrCtrl+Alt+C'],
+      ['ArrowUp', { shiftKey: true }, 'Shift+Up'],
+    ] as const) {
+      const captured = captureShortcut(keyEvent(key, init))!;
+      expect(toTauriAccelerator(captured)).toBe(expected);
+    }
   });
 });

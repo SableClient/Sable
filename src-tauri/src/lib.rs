@@ -497,6 +497,8 @@ pub fn run() {
             desktop::tray::get_desktop_runtime_state,
             #[cfg(desktop)]
             desktop::tray::sync_desktop_settings,
+            #[cfg(desktop)]
+            desktop::menu::set_global_window_shortcut,
             #[cfg(target_os = "linux")]
             desktop::tray_badge::set_tray_badge,
             #[cfg(windows)]

@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import { isTauri } from '@tauri-apps/api/core';
+import { setGlobalWindowShortcut } from '$generated/tauri/commands';
 import { Box, Button, Scroll, Text, config } from 'folds';
 import { PageContent, SettingsSectionPage } from '$components/page';
 import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
@@ -11,10 +13,13 @@ import {
   findShortcutConflict,
   formatShortcut,
   getShortcutBinding,
+  toTauriAccelerator,
 } from '../../../keyboard/shortcuts';
 import type { ShortcutDefinition, ShortcutId } from '../../../keyboard/shortcuts';
 
 const CATEGORIES = ['General', 'Navigation', 'Messages'] as const;
+
+const GLOBAL_WINDOW_SHORTCUT_ID: ShortcutId = 'app.toggleWindowVisibility';
 
 function ShortcutKeys({ binding }: { binding: string | null }) {
   const label = formatShortcut(binding);
@@ -126,6 +131,25 @@ export function KeyboardShortcuts({ requestBack, requestClose }: KeyboardShortcu
     [setOverrides]
   );
 
+  // Global shortcuts must register with the OS before they are persisted, so a
+  // binding the OS rejects never lands in the settings.
+  const applyBinding = useCallback(
+    async (id: ShortcutId, binding: string | null) => {
+      if (id === GLOBAL_WINDOW_SHORTCUT_ID && isTauri()) {
+        try {
+          await setGlobalWindowShortcut({
+            shortcut: binding === null ? null : toTauriAccelerator(binding),
+          });
+        } catch {
+          setError('That shortcut could not be registered on this device.');
+          return;
+        }
+      }
+      updateOverride(id, binding);
+    },
+    [updateOverride]
+  );
+
   useEffect(() => {
     const id = editingId;
     if (!id) return undefined;
@@ -139,7 +163,7 @@ export function KeyboardShortcuts({ requestBack, requestClose }: KeyboardShortcu
         return;
       }
       if (event.key === 'Backspace' || event.key === 'Delete') {
-        updateOverride(id, null);
+        void applyBinding(id, null);
         return;
       }
       const binding = captureShortcut(event);
@@ -149,12 +173,20 @@ export function KeyboardShortcuts({ requestBack, requestClose }: KeyboardShortcu
         setError(`Already used by “${conflict.label}” in this context.`);
         return;
       }
-      updateOverride(id, binding);
+      void applyBinding(id, binding);
     };
 
     window.addEventListener('keydown', handleCapture, true);
     return () => window.removeEventListener('keydown', handleCapture, true);
-  }, [editingId, overrides, updateOverride]);
+  }, [editingId, overrides, applyBinding]);
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    const binding = getShortcutBinding(GLOBAL_WINDOW_SHORTCUT_ID, overrides);
+    setGlobalWindowShortcut({
+      shortcut: binding === null ? null : toTauriAccelerator(binding),
+    }).catch(() => undefined);
+  }, [overrides]);
 
   return (
     <SettingsSectionPage

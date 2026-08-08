@@ -132,6 +132,11 @@ export interface SaveMediaToPhotosParams {
   [key: string]: unknown;
 }
 
+export interface SetGlobalWindowShortcutParams {
+  shortcut?: string | null;
+  [key: string]: unknown;
+}
+
 export interface SetImmersiveModeParams {
   enabled: boolean;
   [key: string]: unknown;

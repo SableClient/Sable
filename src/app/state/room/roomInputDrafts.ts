@@ -4,10 +4,10 @@ import type { Descendant } from 'slate';
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import type { IEventRelation } from '$types/matrix-sdk';
 import type { TUploadContent } from '$utils/matrix';
-import {createUploadAtom, createUploadAtomFamily, TUploadAtom} from '$state/upload';
+import { createUploadAtom, createUploadAtomFamily, TUploadAtom } from '$state/upload';
 import { createListAtom } from '$state/list';
-import {createEmbedAtomFamily} from "$state/bundle.ts";
-import {IPreviewUrlResponse} from "matrix-js-sdk";
+import { createEmbedAtomFamily } from '$state/bundle.ts';
+import { IPreviewUrlResponse } from 'matrix-js-sdk';
 
 export type TUploadMetadata = {
   markedAsSpoiler: boolean;
@@ -31,7 +31,6 @@ type TUploadListAtom = ReturnType<typeof createListAtom<TUploadItem>>;
 export const roomIdToUploadItemsAtomFamily = atomFamily<string, TUploadListAtom>(createListAtom);
 
 export const roomUploadAtomFamily = createUploadAtomFamily();
-
 
 export type TEmbeddItem = {
   url: string;

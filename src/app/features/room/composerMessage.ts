@@ -20,7 +20,7 @@ import {
   IReplyDraft,
   roomEmbedAtomFamily,
   roomIdToEmbeddItemsAtomFamily,
-  TEmbeddItem
+  TEmbeddItem,
 } from '$state/room/roomInputDrafts';
 import { ProfileCatalog } from '$app/persona/catalog';
 import type { PerMessageProfileMsc4461 } from '$app/persona';
@@ -33,11 +33,11 @@ import { buildReplacementContent } from './buildReplacementContent';
 import { Command, SHRUG, TABLEFLIP, UNFLIP } from '$hooks/useCommands';
 import type { MSC4459ImagePackReference } from '$types/matrix/common';
 import type { SerializableMap } from '$types/wrapper/SerializableMap';
-import {useAtom, useStore} from "jotai";
-import {useState} from "react";
-import {useSetting} from "$state/hooks/settings.ts";
-import {settingsAtom} from "$state/settings.ts";
-import {createEmbedFamilyObserverAtom, EmbedStatus} from "$state/bundle.ts";
+import { useAtom, useStore } from 'jotai';
+import { useState } from 'react';
+import { useSetting } from '$state/hooks/settings.ts';
+import { settingsAtom } from '$state/settings.ts';
+import { createEmbedFamilyObserverAtom, EmbedStatus } from '$state/bundle.ts';
 
 export type MessageContent = IContent & Pick<RoomMessageEventContent, 'msgtype' | 'body'>;
 
@@ -76,13 +76,8 @@ export interface BuildOutgoingMessageDeps {
   embedLinks: TEmbeddItem[];
   embedsEnabled: boolean;
   generateBundles: boolean;
-  store: any
+  store: any;
 }
-
-
-
-
-
 
 const resolveNickname = (
   room: Room,
@@ -276,14 +271,14 @@ export async function buildOutgoingMessage(
     const embeds = deps.store.get(embedObserver);
     for (const embed of embeds) {
       if (embed.status == EmbedStatus.Loading || embed.status == EmbedStatus.Idle)
-        return {kind: "failed", reason: "bundled embeds not ready"};
+        return { kind: 'failed', reason: 'bundled embeds not ready' };
       if (embed.status == EmbedStatus.Success) {
-        embed.data["matched_url"] = embed.url;
+        embed.data['matched_url'] = embed.url;
         content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME].push(embed.data);
       } else {
         content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME].push({
           matched_url: embed.url,
-        })
+        });
       }
     }
   } else {
@@ -291,8 +286,8 @@ export async function buildOutgoingMessage(
     links?.forEach((link) => {
       content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME].push({
         matched_url: link,
-      })}
-    );
+      });
+    });
   }
 
   if (replyDraft || !customHtmlEqualsPlainText(customHtml, plainText)) {

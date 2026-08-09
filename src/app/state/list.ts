@@ -15,21 +15,18 @@ type ListAction<T> =
       item: T | T[];
     }
   | {
-    type: 'CLEAR';
-};
+      type: 'CLEAR';
+    };
 
 export const createListAtom = <T>() => {
   const baseListAtom = atom<T[]>([]);
   return atom<T[], [ListAction<T>], undefined>(
     (get) => get(baseListAtom),
     (get, set, action) => {
-        if (action.type === 'CLEAR') {
-            set(
-                baseListAtom,
-                []
-            );
-            return;
-        }
+      if (action.type === 'CLEAR') {
+        set(baseListAtom, []);
+        return;
+      }
       const items = get(baseListAtom);
       const newItems = Array.isArray(action.item) ? action.item : [action.item];
       if (action.type === 'DELETE') {

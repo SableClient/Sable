@@ -1,8 +1,24 @@
-import type {KeyboardEventHandler, MouseEvent,PointerEvent, ReactElement, RefObject,} from 'react';
-import {forwardRef, Fragment, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState,} from 'react';
-import {useAtom, useAtomValue, useSetAtom, useStore} from 'jotai';
+import type {
+  KeyboardEventHandler,
+  MouseEvent,
+  PointerEvent,
+  ReactElement,
+  RefObject,
+} from 'react';
+import {
+  forwardRef,
+  Fragment,
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
+import { useAtom, useAtomValue, useSetAtom, useStore } from 'jotai';
 
-import {isKeyHotkey} from 'is-hotkey';
+import { isKeyHotkey } from 'is-hotkey';
 import type {
   IContent,
   IEventRelation,
@@ -12,10 +28,10 @@ import type {
   StickerEventContent,
   TimelineEvents,
 } from '$types/matrix-sdk';
-import {EventType, MatrixError, RelationType} from '$types/matrix-sdk';
+import { EventType, MatrixError, RelationType } from '$types/matrix-sdk';
 import { M_POLL_START } from 'matrix-js-sdk';
-import {ReactEditor} from 'slate-react';
-import {Editor, Point, Range, Transforms} from 'slate';
+import { ReactEditor } from 'slate-react';
+import { Editor, Point, Range, Transforms } from 'slate';
 import {
   Box,
   color,
@@ -25,22 +41,29 @@ import {
   Menu,
   MenuItem,
   OverlayBackdrop,
-  OverlayCenter, RectCords,
+  OverlayCenter,
+  RectCords,
   Scroll,
   Spinner,
   Switch,
   Text,
-  toRem
+  toRem,
 } from 'folds';
 import { Overlay, PopOut } from '$components/overlay-stack';
 
-import {useMatrixClient} from '$hooks/useMatrixClient';
+import { useMatrixClient } from '$hooks/useMatrixClient';
 import {
   ANYWHERE_AUTOCOMPLETE_PREFIXES,
   AutocompleteQuery,
-  BEGINNING_AUTOCOMPLETE_PREFIXES, EmoticonAutocomplete, focusEditor,
+  BEGINNING_AUTOCOMPLETE_PREFIXES,
+  EmoticonAutocomplete,
+  focusEditor,
   isEmptyEditor,
-  MarkdownFormattingToolbarBottom, MarkdownFormattingToolbarToggle, moveCursor, replaceWithElement, resetEditorHistory
+  MarkdownFormattingToolbarBottom,
+  MarkdownFormattingToolbarToggle,
+  moveCursor,
+  replaceWithElement,
+  resetEditorHistory,
 } from '$components/editor';
 import {
   AutocompletePrefix,
@@ -61,17 +84,23 @@ import {
   trimCustomHtml,
   UserMentionAutocomplete,
 } from '$components/editor';
-import {stripMarkdownEscapesForHiddenPreviews} from './message/hiddenLinkPreviews';
-import {plainToEditorInput} from '$components/editor/input';
-import type {GifData} from '$components/emoji-board';
-import {EmojiBoard, EmojiBoardTab} from '$components/emoji-board';
-import {UseStateProvider} from '$components/UseStateProvider';
-import type {TUploadContent} from '$utils/matrix';
-import {cancelUploadContent, encryptFile, getImageInfo, mxcUrlToHttp, toggleReaction,} from '$utils/matrix';
-import {useTypingStatusUpdater} from '$hooks/useTypingStatusUpdater';
-import {useFilePicker} from '$hooks/useFilePicker';
-import {useFilePasteHandler} from '$hooks/useFilePasteHandler';
-import {useFileDropZone} from '$hooks/useFileDrop';
+import { stripMarkdownEscapesForHiddenPreviews } from './message/hiddenLinkPreviews';
+import { plainToEditorInput } from '$components/editor/input';
+import type { GifData } from '$components/emoji-board';
+import { EmojiBoard, EmojiBoardTab } from '$components/emoji-board';
+import { UseStateProvider } from '$components/UseStateProvider';
+import type { TUploadContent } from '$utils/matrix';
+import {
+  cancelUploadContent,
+  encryptFile,
+  getImageInfo,
+  mxcUrlToHttp,
+  toggleReaction,
+} from '$utils/matrix';
+import { useTypingStatusUpdater } from '$hooks/useTypingStatusUpdater';
+import { useFilePicker } from '$hooks/useFilePicker';
+import { useFilePasteHandler } from '$hooks/useFilePasteHandler';
+import { useFileDropZone } from '$hooks/useFileDrop';
 import {
   IReplyDraft,
   roomEmbedAtomFamily,
@@ -82,37 +111,38 @@ import {
   roomUploadAtomFamily,
   TEmbeddItem,
   TUploadItem,
-  TUploadMetadata
+  TUploadMetadata,
 } from '$state/room/roomInputDrafts';
-import {EmbedCardRenderer, UploadCard, UploadCardRenderer} from '$components/upload-card';
-import type {UploadBoardImperativeHandlers} from '$components/upload-board';
-import {UploadBoard, UploadBoardContent, UploadBoardHeader} from '$components/upload-board';
-import type {Upload, UploadSuccess} from '$state/upload';
-import {createUploadFamilyObserverAtom, UploadStatus} from '$state/upload';
-import {loadImageElementFromMediaUrl} from '$utils/dom';
-import {isImageMimeType, safeUploadFile} from '$utils/mimeTypes';
-import {useSetting} from '$state/hooks/settings';
-import type {EditorButtonId} from '$state/settings';
-import {settingsAtom} from '$state/settings';
-import {matchesShortcut} from '../../keyboard/shortcuts';
-import {getEditedEvent,  getThreadReplyEvents} from '$utils/room/relations';
-import {htmlToMarkdown} from '$plugins/markdown';
-import {Command,  useCommands} from '$hooks/useCommands';
-import {isMobileOrTablet, isMobileTauri} from '$utils/platform';
-import {Reply, ThreadIndicator} from '$components/message';
-import {roomToParentsAtom} from '$state/room/roomToParents';
-import {nicknamesAtom} from '$state/nicknames';
-import {useMediaAuthentication} from '$hooks/useMediaAuthentication';
-import {useImagePackRooms} from '$hooks/useImagePackRooms';
-import {useComposingCheck} from '$hooks/useComposingCheck';
-import {createLogger} from '$utils/debug';
-import {createDebugLogger} from '$utils/debugLogger';
+import { EmbedCardRenderer, UploadCard, UploadCardRenderer } from '$components/upload-card';
+import type { UploadBoardImperativeHandlers } from '$components/upload-board';
+import { UploadBoard, UploadBoardContent, UploadBoardHeader } from '$components/upload-board';
+import type { Upload, UploadSuccess } from '$state/upload';
+import { createUploadFamilyObserverAtom, UploadStatus } from '$state/upload';
+import { loadImageElementFromMediaUrl } from '$utils/dom';
+import { isImageMimeType, safeUploadFile } from '$utils/mimeTypes';
+import { useSetting } from '$state/hooks/settings';
+import type { EditorButtonId } from '$state/settings';
+import { settingsAtom } from '$state/settings';
+import { matchesShortcut } from '../../keyboard/shortcuts';
+import { getEditedEvent, getThreadReplyEvents } from '$utils/room/relations';
+import { htmlToMarkdown } from '$plugins/markdown';
+import { Command, useCommands } from '$hooks/useCommands';
+import { isMobileOrTablet, isMobileTauri } from '$utils/platform';
+import { Reply, ThreadIndicator } from '$components/message';
+import { roomToParentsAtom } from '$state/room/roomToParents';
+import { nicknamesAtom } from '$state/nicknames';
+import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useImagePackRooms } from '$hooks/useImagePackRooms';
+import { useComposingCheck } from '$hooks/useComposingCheck';
+import { createLogger } from '$utils/debug';
+import { createDebugLogger } from '$utils/debugLogger';
 import FocusTrap from 'focus-trap-react';
-import {useQueryClient} from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import * as Sentry from '@sentry/react';
 import {
   delayedEventsSupportedAtom,
-  getScheduledMessageStateKey, roomIdToEditingScheduledDelayIdAtomFamily,
+  getScheduledMessageStateKey,
+  roomIdToEditingScheduledDelayIdAtomFamily,
   roomIdToScheduledTimeAtomFamily,
   serverMaxDelayMsAtom,
 } from '$state/scheduledMessages';
@@ -126,10 +156,10 @@ import { roomScheduleCoordinator } from '$state/room/roomScheduleCoordinator';
 import { timeHourMinute, timeDayMonthYear, daysToMs } from '$utils/time';
 import { stopPropagation } from '$utils/keyboard';
 
-import {usePowerLevelsContext} from '$hooks/usePowerLevels';
-import {useRoomCreators} from '$hooks/useRoomCreators';
-import {useRoomPermissions} from '$hooks/useRoomPermissions';
-import {AutocompleteNotice} from '$components/editor/autocomplete/AutocompleteNotice';
+import { usePowerLevelsContext } from '$hooks/usePowerLevels';
+import { useRoomCreators } from '$hooks/useRoomCreators';
+import { useRoomPermissions } from '$hooks/useRoomPermissions';
+import { AutocompleteNotice } from '$components/editor/autocomplete/AutocompleteNotice';
 import { setCurrentlyUsedPerMessageProfileIdForRoom } from '$hooks/usePerMessageProfile';
 import type { PerMessageProfileMsc4461 } from '$app/persona';
 import { ProfileCatalog } from '$app/persona/catalog';
@@ -159,20 +189,23 @@ import {
   Stop,
   X,
 } from '$components/icons/phosphor';
-import {getSupportedAudioExtension} from '$plugins/voice-recorder-kit/supportedCodec';
-import {ErrorCode} from '../../cs-errorcode';
-import {PKitCommandMessageHandler} from '$plugins/pluralkit-handler/PKitCommandMessageHandler';
+import { getSupportedAudioExtension } from '$plugins/voice-recorder-kit/supportedCodec';
+import { ErrorCode } from '../../cs-errorcode';
+import { PKitCommandMessageHandler } from '$plugins/pluralkit-handler/PKitCommandMessageHandler';
 
-import type {IGenericMSC4459, MSC4459ImagePackReference} from '$types/matrix/common';
-import {getImagePackReferencesForMxc, getImagePackReferencesForMxcWrappedInMap,} from '$utils/msc4459helper';
-import {ImageUsage} from '$plugins/custom-emoji';
-import {getPackImageInfo} from '$plugins/custom-emoji/utils';
-import {SerializableMap} from '$types/wrapper/SerializableMap';
-import {useSettingsLinkBaseUrl} from '$features/settings/useSettingsLinkBaseUrl';
+import type { IGenericMSC4459, MSC4459ImagePackReference } from '$types/matrix/common';
+import {
+  getImagePackReferencesForMxc,
+  getImagePackReferencesForMxcWrappedInMap,
+} from '$utils/msc4459helper';
+import { ImageUsage } from '$plugins/custom-emoji';
+import { getPackImageInfo } from '$plugins/custom-emoji/utils';
+import { SerializableMap } from '$types/wrapper/SerializableMap';
+import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import * as messageCss from '$features/room/message/styles.css';
-import {AttachmentContent} from '$components/attachment-sheet/AttachmentContent';
-import {MobileSwipeDownModal} from '$components/MobileSwipeDownModal';
-import {SchedulePickerDialog} from './schedule-send';
+import { AttachmentContent } from '$components/attachment-sheet/AttachmentContent';
+import { MobileSwipeDownModal } from '$components/MobileSwipeDownModal';
+import { SchedulePickerDialog } from './schedule-send';
 import * as css from './schedule-send/SchedulePickerDialog.css';
 import {
   buildGalleryContent,
@@ -184,10 +217,13 @@ import {
   getVideoMsgContent,
 } from './msgContent';
 
-import {getSendableKlipyMxcUrl} from '$utils/klipy';
-import {CommandAutocomplete} from './CommandAutocomplete';
-import type {AudioMessageRecorderHandle, AudioRecordingCompletePayload,} from './AudioMessageRecorder';
-import {AudioMessageRecorder} from './AudioMessageRecorder';
+import { getSendableKlipyMxcUrl } from '$utils/klipy';
+import { CommandAutocomplete } from './CommandAutocomplete';
+import type {
+  AudioMessageRecorderHandle,
+  AudioRecordingCompletePayload,
+} from './AudioMessageRecorder';
+import { AudioMessageRecorder } from './AudioMessageRecorder';
 import * as prefix from '$unstable/prefixes';
 import { PollDialog } from './poll-modals';
 import { useClientConfig } from '$hooks/useClientConfig';
@@ -195,7 +231,11 @@ import { PersistentPersonaPicker, type PersonaPickerTab } from './persona-picker
 import { createComposerController, type ComposerController } from './composerController';
 import { buildEditReplacement, buildOutgoingMessage } from './composerMessage';
 import { pickNativeFile } from './nativeFilePicker';
-import {createEmbedFamilyObserverAtom, EmbedStatus, FixedPreviewUrlResponse} from "$state/bundle.ts";
+import {
+  createEmbedFamilyObserverAtom,
+  EmbedStatus,
+  FixedPreviewUrlResponse,
+} from '$state/bundle.ts';
 
 const LocationDialog = lazy(() =>
   import('./location-modal').then((module) => ({ default: module.LocationDialog }))
@@ -293,8 +333,6 @@ interface RoomInputProps {
   onCancelEdit?: () => void;
 }
 
-
-
 export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
   (
     {
@@ -368,7 +406,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [replyDraft, setReplyDraft] = useAtom(roomIdToReplyDraftAtomFamily(draftKey));
     const replyDraftRef = useRef(replyDraft);
     replyDraftRef.current = replyDraft;
-
 
     const [embedLinks, setEmbedLinks] = useAtom(roomIdToEmbeddItemsAtomFamily(roomId));
     const [embedsEnabled, setEmbedsEnabled] = useState(false);
@@ -1392,7 +1429,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       });
     };
 
-
     const handleCloseAutocomplete = useCallback(() => {
       setAutocompleteQuery((prev) => {
         if (prev !== undefined) {
@@ -1475,9 +1511,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           if (selectedFiles.length > 0) {
             const uploads = uploadBoardHandlers.current?.getSendableUploads() ?? [];
 
-
-
-      const sendUpload = handleSendUploadRef.current;
+            const sendUpload = handleSendUploadRef.current;
             setUploadSending(true);
             try {
               if (await sendUpload(uploads, submission, isLive)) return;
@@ -1512,7 +1546,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             embedLinks,
             embedsEnabled,
             generateBundles,
-            store
+            store,
           });
 
           if (outgoing.kind === 'empty') return;
@@ -1728,10 +1762,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       );
     }, [editingEvent, executeSubmit, isMobile, takeSubmission]);
 
-
     const [generateBundles] = useSetting(settingsAtom, 'generateBundles');
     const [encryptBundledMedia] = useSetting(settingsAtom, 'encryptBundledMedia');
-
 
     const handleKeyDown: KeyboardEventHandler = useCallback(
       (evt) => {
@@ -1848,39 +1880,47 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         return;
       }
       //from https://regex101.com/r/3fYy3x/1
-      const URL_REGEX = RegExp(/http[s]?:\/\/.(?:www\.)?[-a-zA-Z0-9@%._\+~#=]{2,256}\.[a-z]{2,10}\b(?:[-a-zA-Z0-9@:%_\+.~#?&\/\/=]*)/gm)
-      const urls = Array.from(text.matchAll(URL_REGEX)
+      const URL_REGEX = RegExp(
+        /http[s]?:\/\/.(?:www\.)?[-a-zA-Z0-9@%._\+~#=]{2,256}\.[a-z]{2,10}\b(?:[-a-zA-Z0-9@:%_\+.~#?&\/\/=]*)/gm
+      );
+      const urls = Array.from(
+        text
+          .matchAll(URL_REGEX)
           //dont include the url if its in angled braces  like <https://example.org> cant do this in regex because braces are context free (yay computer science)
-          .filter((e) => !(e.index > 0 && text[e.index - 1] == '<' && text[e.index + e[0].length] == '>') )
-          .map((e) => e[0]));
+          .filter(
+            (e) => !(e.index > 0 && text[e.index - 1] == '<' && text[e.index + e[0].length] == '>')
+          )
+          .map((e) => e[0])
+      );
       if (urls.length > 0) {
         setUploadBoard(true);
 
-        const embedItems = urls.map((url): TEmbeddItem =>  ({
-          url: url
-        }));
+        const embedItems = urls.map(
+          (url): TEmbeddItem => ({
+            url: url,
+          })
+        );
         setEmbedLinks({
-          type: 'CLEAR'
+          type: 'CLEAR',
         });
         setEmbedLinks({
-          type: "PUT",
-          item: embedItems
-        })
-
+          type: 'PUT',
+          item: embedItems,
+        });
       } else {
         setEmbedLinks({
-          type: 'CLEAR'
+          type: 'CLEAR',
         });
         setEmbedsEnabled(false);
       }
     };
 
     const handleEmbedsToggle = (state: boolean) => {
-      setEmbedsEnabled(state)
-        for (const param of roomEmbedAtomFamily.getParams()) {
-          roomEmbedAtomFamily.remove(param);
-        }
-    }
+      setEmbedsEnabled(state);
+      for (const param of roomEmbedAtomFamily.getParams()) {
+        roomEmbedAtomFamily.remove(param);
+      }
+    };
 
     const handleEmoticonSelect = (key: string, shortcode: string) => {
       const emoticonEl = createEmoticonElement(key, shortcode);
@@ -2097,7 +2137,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                     />
                   }
                 >
-                  {(uploadBoard) && (
+                  {uploadBoard && (
                     <Scroll direction="Horizontal" size="300" hideTrack visibility="Hover">
                       <UploadBoardContent>
                         {Array.from(selectedFiles)
@@ -2117,47 +2157,61 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                             />
                           ))}
 
-                          {(embedLinks.length > 0 ) && generateBundles && (<>
-                            {selectedFiles.length > 0 && <Box style={{borderLeft: '1px solid currentColor'}}/>}
+                        {embedLinks.length > 0 && generateBundles && (
+                          <>
+                            {selectedFiles.length > 0 && (
+                              <Box style={{ borderLeft: '1px solid currentColor' }} />
+                            )}
                             <UploadCard
                               key="embed_toggle"
                               radii="300"
                               compact
-                              style={{maxWidth: toRem(400), flexShrink: 0}}
+                              style={{ maxWidth: toRem(400), flexShrink: 0 }}
                               before={<></>}
                               after={
                                 //fake close button to keep box size
-                                <div style={{visibility: "hidden"}}>
+                                <div style={{ visibility: 'hidden' }}>
                                   <IconButton
-                                      aria-label="Cancel Upload"
-                                      variant="SurfaceVariant"
-                                      radii="Pill"
-                                      size="300"
+                                    aria-label="Cancel Upload"
+                                    variant="SurfaceVariant"
+                                    radii="Pill"
+                                    size="300"
                                   >
                                     {sizedIcon(X, '200')}
                                   </IconButton>
+                                </div>
+                              }
+                              bottom={
+                                <>
+                                  <Box
+                                    wrap="Wrap"
+                                    alignItems={'Center'}
+                                    direction="Column"
+                                    gap={'200'}
+                                  >
+                                    <Text>
+                                      Bundled <br /> Embeds
+                                    </Text>
 
-                                </div>}
-                              bottom={<>
-                                <Box wrap="Wrap" alignItems={"Center"} direction="Column" gap={"200"}>
-                                  <Text>
-                                    Bundled <br/> Embeds
-                                  </Text>
-
-                                  <Switch value={embedsEnabled} onChange={handleEmbedsToggle}/>
-                                </Box>
-
-                              </>}
-                          >
-                            <Text size="H6" truncate style={{minWidth: 0, flexGrow: 1}}>
-                              {"Links found"}
-                            </Text>
-                          </UploadCard></>)}
-                        {embedsEnabled && Array.from(embedLinks)
-                            .map((link) => (
-
-                                <EmbedCardRenderer url={link.url} encrypt={room.hasEncryptionStateEvent() && encryptBundledMedia} successCallback={ (_) => {}}/>
-                            ))}
+                                    <Switch value={embedsEnabled} onChange={handleEmbedsToggle} />
+                                  </Box>
+                                </>
+                              }
+                            >
+                              <Text size="H6" truncate style={{ minWidth: 0, flexGrow: 1 }}>
+                                {'Links found'}
+                              </Text>
+                            </UploadCard>
+                          </>
+                        )}
+                        {embedsEnabled &&
+                          Array.from(embedLinks).map((link) => (
+                            <EmbedCardRenderer
+                              url={link.url}
+                              encrypt={room.hasEncryptionStateEvent() && encryptBundledMedia}
+                              successCallback={(_) => {}}
+                            />
+                          ))}
                       </UploadBoardContent>
                     </Scroll>
                   )}

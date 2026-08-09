@@ -1,13 +1,19 @@
-import {beforeEach, describe, expect, it, vi} from 'vitest';
-import {BlockType, plainToEditorInput} from '$components/editor';
-import {Command, SHRUG} from '$hooks/useCommands';
-import type {MatrixClient, Room} from '$types/matrix-sdk';
-import {SerializableMap} from '$types/wrapper/SerializableMap';
-import type {MSC4459ImagePackReference} from '$types/matrix/common';
-import type {PerMessageProfileMsc4461} from '$app/persona';
-import {createStore, useAtom, useStore} from "jotai";
-import {createEmbedAtom, Embed, EmbedPreviewType, EmbedStatus, FixedPreviewUrlResponse} from "$state/bundle.ts";
-import {roomEmbedAtomFamily, roomIdToEmbeddItemsAtomFamily} from "$state/room/roomInputDrafts.ts";
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { BlockType, plainToEditorInput } from '$components/editor';
+import { Command, SHRUG } from '$hooks/useCommands';
+import type { MatrixClient, Room } from '$types/matrix-sdk';
+import { SerializableMap } from '$types/wrapper/SerializableMap';
+import type { MSC4459ImagePackReference } from '$types/matrix/common';
+import type { PerMessageProfileMsc4461 } from '$app/persona';
+import { createStore, useAtom, useStore } from 'jotai';
+import {
+  createEmbedAtom,
+  Embed,
+  EmbedPreviewType,
+  EmbedStatus,
+  FixedPreviewUrlResponse,
+} from '$state/bundle.ts';
+import { roomEmbedAtomFamily, roomIdToEmbeddItemsAtomFamily } from '$state/room/roomInputDrafts.ts';
 
 const { profiles } = vi.hoisted(() => ({
   profiles: {
@@ -58,8 +64,6 @@ const commandInput = (command: Command, rest = '') => [
     ],
   },
 ];
-
-
 
 const store = createStore();
 
@@ -211,30 +215,33 @@ describe('buildOutgoingMessage', () => {
     expect(previews?.map((preview) => preview.matched_url)).toContain('https://example.com/page');
   });
 
-
   it('generate bundled embeds', async () => {
-    let embedatom = roomEmbedAtomFamily("https://example.com/page");
+    let embedatom = roomEmbedAtomFamily('https://example.com/page');
 
     let embed: Embed = {
-      url: "https://example.com/page",
+      url: 'https://example.com/page',
       status: EmbedStatus.Success,
-      preview: {title: "Example Title", type: EmbedPreviewType.TitleDescription},
-      data: {"og:title": "Example Title", "og:type": "website", "og:url": "https://example.com/page"},
-    }
+      preview: { title: 'Example Title', type: EmbedPreviewType.TitleDescription },
+      data: {
+        'og:title': 'Example Title',
+        'og:type': 'website',
+        'og:url': 'https://example.com/page',
+      },
+    };
 
-    store.set(embedatom, embed)
+    store.set(embedatom, embed);
 
-    const result = await build('see https://example.com/page',
-        {embedLinks: [{url: "https://example.com/page"}],
-          embedsEnabled: true,
-          generateBundles: true
-        });
+    const result = await build('see https://example.com/page', {
+      embedLinks: [{ url: 'https://example.com/page' }],
+      embedsEnabled: true,
+      generateBundles: true,
+    });
     if (result.kind !== 'message') throw new Error('expected a message');
     const previews = result.content['com.beeper.linkpreviews'] as
-        | { matched_url: string, "og:title": string,  }[]
-        | undefined;
+      | { matched_url: string; 'og:title': string }[]
+      | undefined;
     expect(previews?.map((preview) => preview.matched_url)).toContain('https://example.com/page');
-    expect(previews?.map((preview) => preview["og:title"])).toContain('Example Title');
+    expect(previews?.map((preview) => preview['og:title'])).toContain('Example Title');
   });
 
   it('preserves the original per-message profile when editing', () => {

@@ -280,6 +280,10 @@ export async function buildOutgoingMessage(
       if (embed.status == EmbedStatus.Success) {
         embed.data["matched_url"] = embed.url;
         content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME].push(embed.data);
+      } else {
+        content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME].push({
+          matched_url: embed.url,
+        })
       }
     }
   } else {

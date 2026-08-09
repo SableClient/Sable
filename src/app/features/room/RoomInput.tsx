@@ -1,6 +1,6 @@
 import type {KeyboardEventHandler, MouseEvent, ReactElement, RefObject} from 'react';
 import {forwardRef, Fragment, lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState,} from 'react';
-import {useAtom, useAtomValue, useSetAtom} from 'jotai';
+import {useAtom, useAtomValue, useSetAtom, useStore} from 'jotai';
 
 import {isKeyHotkey} from 'is-hotkey';
 import type {
@@ -354,9 +354,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     const [embedLinks, setEmbedLinks] = useAtom(roomIdToEmbeddItemsAtomFamily(draftKey));
     const [embedsEnabled, setEmbedsEnabled] = useState(false);
-    const embedobserver = createEmbedFamilyObserverAtom(roomEmbedAtomFamily, embedLinks.map(e => e.url));
-    const embeds = useAtomValue(embedobserver);
-
+    const store = useStore();
     const [uploadBoard, setUploadBoard] = useState(true);
     const [uploadSending, setUploadSending] = useState(false);
     const [uploadBusy, setUploadBusy] = useState(false);
@@ -1354,6 +1352,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME] = [];
       //check setting again here, just in case it was disabled while the message got composed
       if (embedsEnabled && generateBundles) {
+        const embedUrls = embedLinks.map((e) => e.url);
+        const embedObserver = createEmbedFamilyObserverAtom(roomEmbedAtomFamily, embedUrls);
+        const embeds = store.get(embedObserver);
         for (const embed of embeds) {
           if (embed.status == EmbedStatus.Loading || embed.status == EmbedStatus.Idle)
             return
@@ -1569,8 +1570,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       onCancelEdit,
       latchedPersona,
         embedsEnabled,
-        embedLinks,
-        embeds
+        embedLinks
     ]);
     const [generateBundles] = useSetting(settingsAtom, 'generateBundles');
     const [encryptBundledMedia] = useSetting(settingsAtom, 'encryptBundledMedia');

@@ -103,19 +103,6 @@ export function EmbedCardRenderer({url, successCallback, encrypt}: Readonly<Embe
             before={
                 <></>
             }
-            after={
-                <>
-
-                    <IconButton
-                        aria-label="Cancel Upload"
-                        variant="SurfaceVariant"
-                        radii="Pill"
-                        size="300"
-                    >
-                        {sizedIcon(X, '200')}
-                    </IconButton>
-                </>
-            }
             bottom={
                 <>
                     {embed.status == EmbedStatus.Idle && <>{"Preview here"}</>}

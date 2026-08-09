@@ -18,12 +18,12 @@ import {
   IconButton,
   Input,
   Menu,
-  PopOut,
   Scroll,
   Switch,
   Text,
   toRem,
 } from 'folds';
+import { PopOut } from '$components/overlay-stack';
 import {
   ArrowUp,
   composerIcon,
@@ -55,7 +55,6 @@ import { useSetting } from '$state/hooks/settings';
 import type { EditorButtonId } from '$state/settings';
 import { MessageLayout, RightSwipeAction, settingsAtom } from '$state/settings';
 import { SettingTile, SettingToggle } from '$components/setting-tile';
-import { downloadJsonFile } from '$utils/common';
 import { getDebugLogger } from '$utils/debugLogger';
 import { KeySymbol } from '$utils/key-symbol';
 import { isDesktopTauri, isMacOS, isMobileOrTablet, isMobileTauri } from '$utils/platform';
@@ -66,7 +65,7 @@ import { settingsSyncLastSyncedAtom, settingsSyncStatusAtom } from '$hooks/useSe
 import { sanitizeDiagnosticsLogs } from '$utils/sentryScrubbers';
 import { diagnosticCaptureActiveAtom } from '$state/debugLogger';
 import { exportSettingsAsJson, importSettingsFromJson } from '$utils/settingsSync';
-import { saveFileToDevice } from '$utils/download';
+import { downloadJsonFile, saveFileToDevice } from '$utils/download';
 import { CallSoundSettings } from './CallSoundSettings';
 
 type DateHintProps = {
@@ -94,7 +93,7 @@ function DateHint({ hasChanges, handleReset }: Readonly<DateHintProps>) {
             escapeDeactivates: stopPropagation,
           }}
         >
-          <Menu style={{ maxHeight: '85vh', overflowY: 'auto' }}>
+          <Menu style={{ maxHeight: '85dvh', overflowY: 'auto' }}>
             <Header size="300" style={{ padding: `0 ${config.space.S200}` }}>
               <Text size="L400">Formatting</Text>
             </Header>
@@ -1379,7 +1378,7 @@ function DiagnosticsAndPrivacy() {
           setDiagnosticsState('error');
           return;
         }
-        downloadJsonFile(sanitizedLogs, 'sable-web-diagnostics');
+        await downloadJsonFile(sanitizedLogs, 'sable-web-diagnostics');
       }
       setDiagnosticsState('success');
       setCaptureCompleted(false);

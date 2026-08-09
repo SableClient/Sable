@@ -17,7 +17,7 @@ import { produce } from 'immer';
 import { useSpace } from '$hooks/useSpace';
 import { Page, PageContent, PageContentCenter, PageHeroSection } from '$components/page';
 import type { HierarchyItem, HierarchyItemSpace } from '$hooks/useSpaceHierarchy';
-import { useSpaceHierarchy } from '$hooks/useSpaceHierarchy';
+import { getSpaceHierarchyItemKey, useSpaceHierarchy } from '$hooks/useSpaceHierarchy';
 import { VirtualTile } from '$components/virtualizer';
 import { spaceRoomsAtom } from '$state/spaceRooms';
 import { useSetting } from '$state/hooks/settings';
@@ -301,7 +301,7 @@ export function Lobby() {
     (index: number) => {
       const item = hierarchy[index];
       if (!item) return index;
-      return `${space.roomId}:${item.space.roomId}:${item.space.depth}`;
+      return getSpaceHierarchyItemKey(space.roomId, item.space);
     },
     [hierarchy, space.roomId]
   );

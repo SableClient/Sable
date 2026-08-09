@@ -10,6 +10,7 @@ const SETTINGS_DIR = 'src/app/features/settings';
 // --- directory → section id mapping ---
 const dirToSection: Record<string, SettingsSectionId> = {
   account: 'account',
+  accessibility: 'accessibility',
   Persona: 'persona',
   cosmetics: 'appearance',
   notifications: 'notifications',

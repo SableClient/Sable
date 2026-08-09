@@ -3,19 +3,8 @@ import { useCallback, useMemo, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { CaretDown, chipIcon, composerIcon, X } from '$components/icons/phosphor';
 import type { RectCords } from 'folds';
-import {
-  Dialog,
-  Header,
-  config,
-  Box,
-  Text,
-  IconButton,
-  color,
-  Button,
-  Spinner,
-  Chip,
-  PopOut,
-} from 'folds';
+import { Dialog, Header, config, Box, Text, IconButton, color, Button, Spinner, Chip } from 'folds';
+import { PopOut } from '$components/overlay-stack';
 import type { MatrixError } from '$types/matrix-sdk';
 import { Direction, EventType } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';

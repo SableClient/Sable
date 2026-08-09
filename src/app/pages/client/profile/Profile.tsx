@@ -1,5 +1,5 @@
-import { Box, Text, color, config, IconButton, Menu, Line, MenuItem } from 'folds';
-import { GearSix, menuIcon, sizedIcon } from '$components/icons/phosphor';
+import { Box, Text, color, config, Menu, Line, MenuItem } from 'folds';
+import { GearSix, menuIcon } from '$components/icons/phosphor';
 import { PageNavHeader } from '$components/page';
 import { SidebarPanel } from '$components/page/SidebarPanel';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
@@ -51,27 +51,17 @@ export function ProfileMobile() {
         gap="0"
         alignItems="Center"
         justifyContent="SpaceBetween"
-        style={{ width: '100%', minWidth: '100%', background: color.Background.Container }}
+        style={{
+          width: '100%',
+          minWidth: '100%',
+          background: color.Background.Container,
+        }}
       >
         <PageNavHeader size="600" style={{ width: '100%' }}>
           <Box grow="Yes" alignItems="Center" style={{ position: 'relative' }}>
             <Text size="H4" align="Center" truncate style={{ width: '100%' }}>
               Account
             </Text>
-            <Box
-              shrink="No"
-              style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)' }}
-            >
-              <IconButton
-                size="400"
-                radii="300"
-                variant="Background"
-                aria-label="Settings"
-                onClick={() => openSettings()}
-              >
-                {sizedIcon(GearSix, '500')}
-              </IconButton>
-            </Box>
           </Box>
         </PageNavHeader>
         <Menu
@@ -118,12 +108,23 @@ export function ProfileMobile() {
             <PresenceMenuOption isMobile />
           </Box>
           <AccountMenuOption isMobile />
+          <Line variant="Surface" size="300" />
 
           <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+            <MenuItem
+              size="300"
+              radii="300"
+              before={menuIcon(GearSix)}
+              onClick={() => openSettings()}
+              style={{ background: color.Background.Container }}
+            >
+              <Text style={{ flexGrow: 1 }} size="T300">
+                Open settings
+              </Text>
+            </MenuItem>
             <UseStateProvider initial={false}>
               {(logout, setLogout) => (
                 <>
-                  <Line variant="Surface" size="300" />
                   <MenuItem
                     size="300"
                     variant="Critical"

@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
-import { getAppOrigin, getWindowOrigin } from './platform';
+import { getAppOrigin, getWindowOrigin, isMobileOrTablet, ua } from './platform';
 import { isTauri } from '@tauri-apps/api/core';
+import { type as osType } from '@tauri-apps/plugin-os';
 
 vi.mock('@tauri-apps/api/core', () => ({
   isTauri: vi.fn<() => boolean>(),
@@ -42,6 +43,25 @@ describe('getAppOrigin', () => {
       host: 'app.sable.moe',
     });
     expect(getAppOrigin()).toBe('https://app.sable.moe');
+  });
+});
+
+describe('isMobileOrTablet', () => {
+  const originalDeviceType = ua.device.type;
+  const originalOsName = ua.os.name;
+
+  afterEach(() => {
+    ua.device.type = originalDeviceType;
+    ua.os.name = originalOsName;
+  });
+
+  it('uses the desktop Tauri OS instead of a mobile-looking WebView user agent', () => {
+    vi.mocked(isTauri).mockReturnValue(true);
+    vi.mocked(osType).mockReturnValue('windows');
+    ua.device.type = 'mobile';
+    ua.os.name = 'Android';
+
+    expect(isMobileOrTablet()).toBe(false);
   });
 });
 

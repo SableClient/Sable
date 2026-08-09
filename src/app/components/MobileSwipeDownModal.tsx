@@ -12,6 +12,7 @@ import { Box } from 'folds';
 import FocusTrap from 'focus-trap-react';
 import { useDrag } from '@use-gesture/react';
 import * as css from '$features/room/message/styles.css';
+import { useOverlayLayer } from '$components/overlay-stack';
 import { useDismissOnBack } from '$utils/androidBack';
 import { stopPropagation } from '$utils/keyboard';
 import { getMobileSheetTiming, useMobileSheetAnimation } from './mobileSheetAnimation';
@@ -28,6 +29,7 @@ interface MobileSwipeDownModalProps {
   sheetClassName?: string;
   sheetStyle?: CSSProperties;
   keyboardAware?: boolean;
+  overlayDragHandle?: boolean;
 }
 
 type FocusTrapOptions = ComponentProps<typeof FocusTrap>['focusTrapOptions'];
@@ -51,20 +53,21 @@ function getKeyboardOverlap(): number {
   return Math.max(0, window.innerHeight - viewport.offsetTop - viewport.height);
 }
 
-/** Nearest ancestor between `from` and the sheet that can actually scroll vertically. */
-function findScroller(from: HTMLElement | null, boundary: HTMLElement): HTMLElement | null {
+/** Whether any scrollable ancestor is scrolled away from its top edge. */
+function hasScrolledAncestor(from: HTMLElement | null, boundary: HTMLElement): boolean {
   let element = from;
   while (element && element !== boundary) {
     const { overflowY } = window.getComputedStyle(element);
     if (
       (overflowY === 'auto' || overflowY === 'scroll') &&
-      element.scrollHeight > element.clientHeight
+      element.scrollHeight > element.clientHeight &&
+      element.scrollTop > 0
     ) {
-      return element;
+      return true;
     }
     element = element.parentElement;
   }
-  return null;
+  return false;
 }
 
 export function useMobileSheetClose() {
@@ -102,6 +105,7 @@ export function MobileSwipeDownModal({
   sheetClassName,
   sheetStyle,
   keyboardAware = false,
+  overlayDragHandle = false,
 }: MobileSwipeDownModalProps) {
   const sheetRef = useRef<HTMLDivElement>(null);
   const backdropTouchRef = useRef(false);
@@ -110,6 +114,7 @@ export function MobileSwipeDownModal({
   const [closing, setClosing] = useState(false);
   const closingRef = useRef(false);
   const { shouldReduceMotion } = useMobileSheetAnimation();
+  const zIndex = useOverlayLayer();
 
   // Keyboard and drag offsets share one transform; `bottom` would relayout the subtree.
   const applySheetOffset = useCallback(
@@ -238,12 +243,13 @@ export function MobileSwipeDownModal({
     const from = target instanceof HTMLElement ? target : null;
     // The handle is not over any content, so it always drags.
     if (from?.closest(`[${HANDLE_ATTRIBUTE}]`)) return true;
+    // Mobile menu actions activate on pointer-up in Android WebView, so dismissing
+    // from one could also invoke the action.
     if (from?.closest(`[${NO_DRAG_ATTRIBUTE}]`)) return false;
     if (window.getSelection()?.toString()) return false;
     if (Date.now() - dragBlockedAtRef.current < DRAG_BLOCKED_COOLDOWN_MS) return false;
 
-    const scroller = findScroller(from, sheet);
-    if (scroller && scroller.scrollTop > 0) {
+    if (hasScrolledAncestor(from, sheet)) {
       dragBlockedAtRef.current = Date.now();
       return false;
     }
@@ -306,6 +312,7 @@ export function MobileSwipeDownModal({
       className={css.MessageMobileDragHandle}
       data-gestures="ignore"
       data-testid="mobile-sheet-drag-handle"
+      style={overlayDragHandle ? { position: 'absolute', top: 0, right: 0, left: 0 } : undefined}
       {...{ [HANDLE_ATTRIBUTE]: '' }}
     >
       <div className={css.MessageMobileDragIndicator} />
@@ -359,7 +366,10 @@ export function MobileSwipeDownModal({
         portalRef ? css.MessageMobileOptionsWrappedContained : ''
       }`}
       data-gestures="ignore"
-      style={closing ? { opacity: 0, transition: 'opacity 100ms ease-out' } : undefined}
+      style={{
+        zIndex,
+        ...(closing ? { opacity: 0, transition: 'opacity 100ms ease-out' } : undefined),
+      }}
       onClick={handleBackdropClick}
       // Touch events deliberately propagate: the drag binds them on `document`, and
       // stopping them here would starve it. `data-gestures="ignore"` is what keeps the
@@ -376,7 +386,12 @@ export function MobileSwipeDownModal({
         className={`${css.MessageMobileOptionsContainer} ${sheetClassName ?? ''} ${
           portalRef ? css.MessageMobileOptionsContainerContained : ''
         } ${animationCss.SheetEntrance}`}
-        style={{ ...(shouldReduceMotion ? { animation: 'none' } : undefined), ...sheetStyle }}
+        style={{
+          zIndex,
+          ...(overlayDragHandle ? { overflow: 'hidden' } : undefined),
+          ...(shouldReduceMotion ? { animation: 'none' } : undefined),
+          ...sheetStyle,
+        }}
         onPointerDown={(e: React.PointerEvent) => e.stopPropagation()}
         onPointerMove={(e: React.PointerEvent) => e.stopPropagation()}
         onPointerUp={(e: React.PointerEvent) => e.stopPropagation()}

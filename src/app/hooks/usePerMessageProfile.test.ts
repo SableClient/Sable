@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
 
 import type { MatrixClient } from '$types/matrix-sdk';
-import { MATRIX_UNSTABLE_MSC4461_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME } from '$unstable/prefixes';
+import {
+  MATRIX_SABLE_UNSTABLE_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME,
+  MATRIX_UNSTABLE_MSC4461_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME,
+} from '$unstable/prefixes';
 import {
   addOrUpdatePerMessageProfile,
   deletePerMessageProfile,
@@ -9,13 +12,22 @@ import {
   renamePerMessageProfile,
   type PerMessageProfileMsc4461,
 } from './usePerMessageProfile';
+import type { PersonaCatalogContent } from '$app/persona/catalog';
+import { projectPersona } from '$app/persona/projection';
+import { resolvePersonaProxy } from '$app/persona/proxy';
+import { resolvePersona } from '$app/persona/selection';
 
 function createMatrixClient(profiles: PerMessageProfileMsc4461[] = []) {
   const accountData = new Map<string, unknown>();
   accountData.set(MATRIX_UNSTABLE_MSC4461_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME, {
     profiles,
-  });
+  } satisfies PersonaCatalogContent);
 
+  const setAccountData = vi.fn<(eventType: string, content: unknown) => Promise<void>>(
+    async (eventType, content) => {
+      accountData.set(eventType, content);
+    }
+  );
   const mx = {
     getAccountData: vi.fn<(eventType: string) => { getContent: () => unknown } | undefined>(
       (eventType) => {
@@ -23,17 +35,13 @@ function createMatrixClient(profiles: PerMessageProfileMsc4461[] = []) {
         return content === undefined ? undefined : { getContent: () => content };
       }
     ),
-    setAccountData: vi.fn<(eventType: string, content: unknown) => Promise<void>>(
-      async (eventType, content) => {
-        accountData.set(eventType, content);
-      }
-    ),
+    setAccountData,
     deleteAccountData: vi.fn<(eventType: string) => Promise<void>>(async (eventType) => {
       accountData.delete(eventType);
     }),
   } as unknown as MatrixClient;
 
-  return { accountData, mx };
+  return { accountData, mx, setAccountData };
 }
 
 const profile = (id: string): PerMessageProfileMsc4461 => ({
@@ -43,6 +51,98 @@ const profile = (id: string): PerMessageProfileMsc4461 => ({
 });
 
 describe('profile persistence', () => {
+  it('normalizes the previously nested MSC4461 account-data payload', async () => {
+    const { accountData, mx } = createMatrixClient();
+    accountData.set(MATRIX_UNSTABLE_MSC4461_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME, {
+      type: 'm.per_message_profiles',
+      content: { profiles: [profile('first')] },
+    });
+
+    await expect(getAllPerMessageProfiles(mx)).resolves.toEqual([profile('first')]);
+    expect(
+      accountData.get(MATRIX_UNSTABLE_MSC4461_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME)
+    ).toEqual({
+      profiles: [profile('first')],
+    });
+  });
+
+  it('migrates legacy profile records into the MSC4461 catalog', async () => {
+    const { accountData, mx } = createMatrixClient();
+    accountData.delete(MATRIX_UNSTABLE_MSC4461_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME);
+    accountData.set(`${MATRIX_SABLE_UNSTABLE_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME}.index`, {
+      profileIds: ['legacy'],
+    });
+    accountData.set(`${MATRIX_SABLE_UNSTABLE_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME}.legacy`, {
+      id: 'legacy',
+      name: 'Legacy',
+      avatarUrl: 'mxc://example.org/avatar',
+    });
+
+    await expect(getAllPerMessageProfiles(mx)).resolves.toEqual([
+      {
+        id: 'legacy',
+        displayname: 'Legacy',
+        avatar_url: 'mxc://example.org/avatar',
+        trigger: {
+          prefix: [],
+          'net.f0rest.suffix': [],
+          'net.f0rest.circumfix': [],
+        },
+      },
+    ]);
+    expect(
+      accountData.get(`${MATRIX_SABLE_UNSTABLE_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME}.index`)
+    ).toBeUndefined();
+    expect(
+      accountData.get(`${MATRIX_SABLE_UNSTABLE_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME}.legacy`)
+    ).toBeUndefined();
+  });
+
+  it('cleans up an empty legacy index', async () => {
+    const { accountData, mx } = createMatrixClient();
+    accountData.delete(MATRIX_UNSTABLE_MSC4461_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME);
+    accountData.set(`${MATRIX_SABLE_UNSTABLE_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME}.index`, {
+      profileIds: [],
+    });
+
+    await expect(getAllPerMessageProfiles(mx)).resolves.toEqual([]);
+    expect(
+      accountData.get(`${MATRIX_SABLE_UNSTABLE_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME}.index`)
+    ).toBeUndefined();
+    expect(
+      accountData.get(MATRIX_UNSTABLE_MSC4461_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME)
+    ).toEqual({
+      profiles: [],
+    });
+  });
+
+  it('filters malformed catalog and legacy profile entries', async () => {
+    const { accountData, mx } = createMatrixClient();
+    accountData.set(MATRIX_UNSTABLE_MSC4461_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME, {
+      profiles: [profile('valid'), { id: 'missing-trigger', displayname: 'Invalid' }],
+    });
+    await expect(getAllPerMessageProfiles(mx)).resolves.toEqual([profile('valid')]);
+
+    accountData.delete(MATRIX_UNSTABLE_MSC4461_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME);
+    accountData.set(`${MATRIX_SABLE_UNSTABLE_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME}.index`, {
+      profileIds: ['valid', 'invalid', 1],
+    });
+    accountData.set(`${MATRIX_SABLE_UNSTABLE_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME}.valid`, {
+      id: 'valid',
+      name: 'Valid',
+    });
+    accountData.set(`${MATRIX_SABLE_UNSTABLE_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME}.invalid`, {
+      id: 'invalid',
+    });
+    await expect(getAllPerMessageProfiles(mx)).resolves.toEqual([
+      {
+        id: 'valid',
+        displayname: 'Valid',
+        trigger: { prefix: [], 'net.f0rest.suffix': [], 'net.f0rest.circumfix': [] },
+      },
+    ]);
+  });
+
   it('creates and updates profiles', async () => {
     const original = profile('first');
     const { mx } = createMatrixClient([original]);
@@ -72,47 +172,37 @@ describe('profile persistence', () => {
       saved = true;
     });
 
-    await Promise.resolve();
+    await vi.waitFor(() => expect(completeWrite).toBeTypeOf('function'));
     expect(saved).toBe(false);
 
     completeWrite();
     await saving;
   });
 
-  it('reads nested payloads', async () => {
-    const nestedProfile = profile('nested');
-    const { accountData, mx } = createMatrixClient();
-    accountData.set(MATRIX_UNSTABLE_MSC4461_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME, {
-      type: 'm.per_message_profiles',
-      content: { profiles: [nestedProfile] },
+  it('serializes concurrent catalog updates against the latest snapshot', async () => {
+    const { accountData, mx, setAccountData } = createMatrixClient();
+    let releaseFirstWrite!: () => void;
+    const firstWrite = new Promise<void>((resolve) => {
+      releaseFirstWrite = resolve;
+    });
+    let writes = 0;
+    setAccountData.mockImplementation(async (eventType, content) => {
+      writes += 1;
+      if (writes === 1) await firstWrite;
+      accountData.set(eventType, content);
     });
 
-    await expect(getAllPerMessageProfiles(mx)).resolves.toEqual([nestedProfile]);
-  });
+    const first = addOrUpdatePerMessageProfile(mx, profile('first'));
+    const second = addOrUpdatePerMessageProfile(mx, profile('second'));
 
-  it('migrates legacy profiles', async () => {
-    const { accountData, mx } = createMatrixClient();
-    accountData.delete(MATRIX_UNSTABLE_MSC4461_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME);
-    accountData.set('fyi.cisnt.permessageprofile.index', { profileIds: ['legacy'] });
-    accountData.set('fyi.cisnt.permessageprofile.legacy', {
-      id: 'legacy',
-      name: 'Legacy profile',
-    });
+    await vi.waitFor(() => expect(writes).toBe(1));
+    releaseFirstWrite();
+    await Promise.all([first, second]);
 
-    const migratedProfile = {
-      id: 'legacy',
-      displayname: 'Legacy profile',
-      trigger: { prefix: [], 'net.f0rest.suffix': [], 'net.f0rest.circumfix': [] },
-    };
-
-    await expect(getAllPerMessageProfiles(mx)).resolves.toEqual([migratedProfile]);
-    expect(
-      accountData.get(MATRIX_UNSTABLE_MSC4461_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME)
-    ).toEqual({
-      profiles: [migratedProfile],
-    });
-    expect(accountData.has('fyi.cisnt.permessageprofile.index')).toBe(false);
-    expect(accountData.has('fyi.cisnt.permessageprofile.legacy')).toBe(false);
+    await expect(getAllPerMessageProfiles(mx)).resolves.toEqual([
+      profile('first'),
+      profile('second'),
+    ]);
   });
 
   it('deletes profiles', async () => {
@@ -131,5 +221,60 @@ describe('profile persistence', () => {
     await expect(getAllPerMessageProfiles(mx)).resolves.toEqual([
       { ...profile('old-id'), id: 'new-id' },
     ]);
+  });
+});
+
+describe('persona resolution', () => {
+  const personas = [
+    { ...profile('first'), trigger: { prefix: ['first: '] } },
+    { ...profile('second'), trigger: { prefix: ['second: '] } },
+  ];
+
+  it('applies precedence and ignores expired selections', () => {
+    expect(
+      resolvePersona({
+        proxy: personas[0],
+        latched: personas[1],
+        room: { persona: personas[1]! },
+        account: { persona: personas[1]! },
+        now: 1,
+      })
+    ).toBe(personas[0]);
+    expect(
+      resolvePersona({
+        room: { persona: personas[0]!, validUntil: 1 },
+        account: { persona: personas[1]! },
+        now: 1,
+      })
+    ).toBe(personas[1]);
+  });
+
+  it('uses the first matching case-sensitive prefix and strips it', () => {
+    expect(resolvePersonaProxy(personas, 'second: hello')).toEqual({
+      persona: personas[1],
+      body: 'hello',
+    });
+    expect(resolvePersonaProxy(personas, 'Second: hello')).toBeUndefined();
+  });
+
+  it('strips suffix and circumfix triggers', () => {
+    const suffix = { ...personas[0]!, trigger: { prefix: [], 'net.f0rest.suffix': [' -a'] } };
+    const circumfix = {
+      ...personas[1]!,
+      trigger: { prefix: [], 'net.f0rest.circumfix': [{ prefix: '[', suffix: ']' }] },
+    };
+
+    expect(resolvePersonaProxy([suffix], 'hello -a')).toEqual({ persona: suffix, body: 'hello' });
+    expect(resolvePersonaProxy([circumfix], '[hello]')).toEqual({
+      persona: circumfix,
+      body: 'hello',
+    });
+  });
+
+  it('projects only message-safe persona fields', () => {
+    expect(projectPersona(personas[0]!)).toEqual({
+      id: 'first',
+      displayname: 'Profile first',
+    });
   });
 });

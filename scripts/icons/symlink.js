@@ -8,6 +8,12 @@ import path from 'node:path';
 import process from 'node:process';
 import { createTextHelpers } from '../utils/console-style.js';
 
+const ROOT = process.cwd();
+const appIconsPath = path.join(ROOT, 'src-tauri', 'app-icons.json');
+const appIcons = fs.existsSync(appIconsPath)
+  ? JSON.parse(fs.readFileSync(appIconsPath, 'utf8')).icons
+  : [];
+
 const ANDROID_ICONS = [
   'mipmap-hdpi',
   'mipmap-mdpi',
@@ -22,7 +28,19 @@ const ANDROID_ICONS = [
     `${dir}/ic_notification.png`,
   ])
   .concat(['mipmap-anydpi-v26/ic_launcher.xml', 'values/ic_launcher_background.xml'])
-  .concat(['drawable/ic_notification.xml', 'drawable/notification_icon.xml']);
+  .concat(['drawable/ic_notification.xml', 'drawable/notification_icon.xml'])
+  .concat(
+    appIcons.flatMap(({ id }) => [
+      ...['mipmap-hdpi', 'mipmap-mdpi', 'mipmap-xhdpi', 'mipmap-xxhdpi', 'mipmap-xxxhdpi'].flatMap(
+        (dir) => [
+          `${dir}/ic_launcher_${id}.png`,
+          `${dir}/ic_launcher_${id}_round.png`,
+          `${dir}/ic_launcher_${id}_foreground.png`,
+        ]
+      ),
+      `mipmap-anydpi-v26/ic_launcher_${id}.xml`,
+    ])
+  );
 
 const IOS_ICONS = [
   'AppIcon-20x20@1x.png',
@@ -133,7 +151,6 @@ function processGroup(label, srcDir, destDir, files, write, force, helpers) {
 }
 
 function main() {
-  const ROOT = process.cwd();
   const { write, force } = parseArgs(process.argv.slice(2));
   const helpers = createTextHelpers();
 

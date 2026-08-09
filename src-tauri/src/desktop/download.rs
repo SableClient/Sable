@@ -2,16 +2,22 @@ use tauri::AppHandle;
 use tauri_plugin_dialog::DialogExt;
 
 #[tauri::command]
-pub fn save_download(
+pub async fn save_download(
     app: AppHandle<crate::BrowserEngine>,
     filename: String,
     bytes: Vec<u8>,
 ) -> Result<bool, String> {
-    let Some(path) = app
-        .dialog()
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    app.dialog()
         .file()
         .set_file_name(&filename)
-        .blocking_save_file()
+        .save_file(move |path| {
+            let _ = sender.send(path);
+        });
+
+    let Some(path) = receiver
+        .await
+        .map_err(|error| format!("Save dialog did not return a result: {error}"))?
     else {
         return Ok(false);
     };

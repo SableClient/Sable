@@ -3,13 +3,13 @@ import {
   Button,
   Checkbox,
   Input,
-  Overlay,
   OverlayBackdrop,
   OverlayCenter,
   Spinner,
   Text,
   color,
 } from 'folds';
+import { Overlay } from '$components/overlay-stack';
 import type { ChangeEventHandler } from 'react';
 import { useCallback, useMemo, useState } from 'react';
 import type { AuthDict, IAuthData, MatrixError, RegisterRequest, UIAFlow } from '$types/matrix-sdk';

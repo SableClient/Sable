@@ -1,18 +1,6 @@
 import type { RectCords } from 'folds';
-import {
-  Box,
-  Button,
-  Chip,
-  config,
-  Input,
-  Line,
-  Menu,
-  MenuItem,
-  PopOut,
-  Scroll,
-  Text,
-  toRem,
-} from 'folds';
+import { Box, Button, Chip, config, Input, Line, Menu, MenuItem, Scroll, Text, toRem } from 'folds';
+import { PopOut } from '$components/overlay-stack';
 import { Plus, X, sizedIcon } from '$components/icons/phosphor';
 import { isKeyHotkey } from 'is-hotkey';
 import FocusTrap from 'focus-trap-react';

@@ -108,6 +108,7 @@ export function CustomEmojiItem({
         loading="lazy"
         className={css.CustomEmojiImg}
         alt={image.body || image.shortcode}
+        info={image.info}
         mimeType={image.info?.mimetype}
         src={getPackImageSrc(mx, image, useAuthentication, saveStickerEmojiBandwidth, 32, 32)}
       />
@@ -145,6 +146,7 @@ export function StickerItem({
         loading="lazy"
         className={css.StickerImg}
         alt={image.body || image.shortcode}
+        info={image.info}
         mimeType={image.info?.mimetype}
         src={getPackImageSrc(mx, image, useAuthentication, saveStickerEmojiBandwidth, 125, 125)}
       />

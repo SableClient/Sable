@@ -27,6 +27,7 @@ const DESKTOP_TAURI_OS = ['linux', 'macos', 'windows'] as const;
 export function isMobileOrTablet(): boolean {
   const tauriOS = getTauriOS();
   if (tauriOS && (MOBILE_TAURI_OS as readonly string[]).includes(tauriOS)) return true;
+  if (tauriOS && (DESKTOP_TAURI_OS as readonly string[]).includes(tauriOS)) return false;
 
   const { os, device } = ua;
   if (device.type === 'mobile' || device.type === 'tablet') return true;

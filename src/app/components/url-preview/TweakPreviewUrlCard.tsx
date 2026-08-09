@@ -1,16 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  Box,
-  IconButton,
-  Spinner,
-  Switch,
-  Text,
-  Tooltip,
-  TooltipProvider,
-  config,
-  toRem,
-} from 'folds';
+import { Box, IconButton, Spinner, Switch, Text, Tooltip, config, toRem } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
 import { Check, Link, Star, Warning, sizedIcon } from '$components/icons/phosphor';
 
 import { useClientConfig } from '$hooks/useClientConfig';

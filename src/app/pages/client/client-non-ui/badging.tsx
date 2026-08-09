@@ -51,7 +51,7 @@ export function PageTitleUpdater() {
 
 export function FaviconUpdater() {
   const roomToUnread = useAtomValue(roomToUnreadAtom);
-  const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
+  const [backgroundPushEnabled] = useSetting(settingsAtom, 'backgroundPushEnabled');
   const [faviconForMentionsOnly] = useSetting(settingsAtom, 'faviconForMentionsOnly');
   const registration = useAtomValue(registrationAtom);
 
@@ -83,7 +83,7 @@ export function FaviconUpdater() {
       } else {
         navigator.clearAppBadge();
       }
-      if (usePushNotifications && registration) {
+      if (backgroundPushEnabled && registration) {
         if (total === 0) {
           // All rooms read — clear every notification.
           registration.getNotifications().then((notifs) => notifs.forEach((n) => n.close()));
@@ -104,7 +104,7 @@ export function FaviconUpdater() {
     } catch {
       // Likely Firefox/Gecko-based and doesn't support badging API
     }
-  }, [roomToUnread, usePushNotifications, registration, faviconForMentionsOnly]);
+  }, [roomToUnread, backgroundPushEnabled, registration, faviconForMentionsOnly]);
 
   return null;
 }

@@ -1,0 +1,17 @@
+{
+  "android": {
+    "mainActivity": ".MainActivity",
+    "resourcesDirectory": "icons/android",
+    "manifest": "gen/android/app/src/main/AndroidManifest.xml"
+  },
+  "ios": {
+    "assetsDirectory": "icons/ios/AppIcons.xcassets",
+    "infoPlist": "Info.plist"
+  },
+  "icons": [
+    {
+      "id": "propeler",
+      "source": "icons/app-icons/propeler.png"
+    }
+  ]
+}

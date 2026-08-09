@@ -1,6 +1,6 @@
 import type { ChangeEventHandler, KeyboardEventHandler } from 'react';
 import { type MouseEventHandler, useEffect, useMemo, useState } from 'react';
-import { Box, Chip, config, Input, Switch, Text, toRem } from 'folds';
+import { Box, Chip, Input, Switch, Text, toRem } from 'folds';
 import { CaretDown, menuIcon } from '$components/icons/phosphor';
 import { isKeyHotkey } from 'is-hotkey';
 
@@ -211,12 +211,6 @@ const onNumberInputKeyDown =
   };
 
 function ThemeVisualPreferences() {
-  const [saturation, setSaturation] = useSetting(settingsAtom, 'saturationLevel');
-  const [underlineLinks, setUnderlineLinks] = useSetting(settingsAtom, 'underlineLinks');
-  const [reducedMotion, setReducedMotion] = useSetting(settingsAtom, 'reducedMotion');
-  const [autoplayGifs, setAutoplayGifs] = useSetting(settingsAtom, 'autoplayGifs');
-  const [autoplayStickers, setAutoplayStickers] = useSetting(settingsAtom, 'autoplayStickers');
-  const [autoplayEmojis, setAutoplayEmojis] = useSetting(settingsAtom, 'autoplayEmojis');
   const [oldSidebar, setOldSidebar] = useSetting(settingsAtom, 'oldSidebar');
   const [pixelatedImageRendering, setPixelatedImageRendering] = useSetting(
     settingsAtom,
@@ -275,53 +269,6 @@ function ThemeVisualPreferences() {
     <Box direction="Column" gap="100">
       <Text size="L400">Display</Text>
 
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Saturation"
-          focusId="saturation"
-          description={`${saturation}%`}
-          after={
-            <input
-              type="range"
-              min="0"
-              max="100"
-              step="1"
-              value={saturation}
-              onChange={(e) => setSaturation(Number.parseInt(e.target.value, 10))}
-              style={{
-                width: toRem(160),
-                cursor: 'pointer',
-                appearance: 'none',
-                height: toRem(6),
-                borderRadius: config.radii.Pill,
-                backgroundColor: 'var(--sable-surface-container-line)',
-                accentColor: 'var(--sable-primary-main)',
-              }}
-            />
-          }
-        />
-      </SequenceCard>
-      <SettingToggle
-        title="Underline Links"
-        focusId="underline-links"
-        description="Always show underlines on links in chat, bios and room descriptions."
-        value={underlineLinks}
-        onChange={setUnderlineLinks}
-      />
-      <SettingToggle
-        title="Reduced Motion"
-        focusId="reduced-motion"
-        description="Stops animations and sliding UI elements."
-        value={reducedMotion}
-        onChange={setReducedMotion}
-      />
-      <SettingToggle
-        title="Autoplay GIFs"
-        focusId="autoplay-gifs"
-        description="Automatically play animated image uploads and links."
-        value={autoplayGifs}
-        onChange={setAutoplayGifs}
-      />
       <SettingToggle
         title="Go back to old sidebar"
         focusId="old-sidebar"
@@ -343,21 +290,6 @@ function ThemeVisualPreferences() {
           }
         />
       </SequenceCard>
-      <SettingToggle
-        title="Autoplay Stickers"
-        focusId="autoplay-stickers"
-        description="Automatically play animated stickers."
-        value={autoplayStickers}
-        onChange={setAutoplayStickers}
-      />
-      <SettingToggle
-        title="Autoplay Emojis"
-        focusId="autoplay-emojis"
-        description="Automatically play animated custom emojis."
-        value={autoplayEmojis}
-        onChange={setAutoplayEmojis}
-      />
-
       <SettingToggle
         title="Display Room banners"
         focusId="display-room-banners"

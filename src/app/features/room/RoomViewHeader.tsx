@@ -2,7 +2,8 @@ import type { MouseEventHandler } from 'react';
 import { useEffect, useState } from 'react';
 import { useAtom } from 'jotai';
 import classNames from 'classnames';
-import { Box, Avatar, Text, IconButton, Tooltip, TooltipProvider, toRem, Badge } from 'folds';
+import { Box, Avatar, Text, IconButton, Tooltip, toRem, Badge } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
 import { useNavigate } from 'react-router-dom';
 import type { MatrixEvent } from '$types/matrix-sdk';
 import {

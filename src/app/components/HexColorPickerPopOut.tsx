@@ -1,6 +1,7 @@
 import FocusTrap from 'focus-trap-react';
 import type { RectCords } from 'folds';
-import { Box, Button, config, Menu, PopOut, Text } from 'folds';
+import { Box, Button, config, Menu, Text } from 'folds';
+import { PopOut } from '$components/overlay-stack';
 import type { MouseEventHandler, ReactNode } from 'react';
 import { useState } from 'react';
 import { stopPropagation } from '$utils/keyboard';

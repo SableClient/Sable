@@ -68,6 +68,7 @@ import {
   convertBeeperFormatToOurPerMessageProfile,
   stripPerMessageProfileFormattedBody,
 } from '$hooks/usePerMessageProfile';
+import { useAccessibleNameColor } from '$hooks/useAccessibleNameColor';
 
 const ROOM_REPLY_TIMELINE_EVENT_TYPES = new Set<string>([
   EventType.RoomMessage as string,
@@ -296,10 +297,14 @@ export const Reply = as<'div', ReplyProps>(
 
     const { color: usernameColor, font: usernameFont } = useSableCosmetics(sender ?? '', room);
     const activeTheme = useActiveTheme();
-    const pmpNameColor =
-      activeTheme.kind === ThemeKind.Dark
+
+    const accessibleNameColor = useAccessibleNameColor(activeTheme.kind);
+    const pmpNameColor = useMemo(() => {
+      return activeTheme.kind === ThemeKind.Dark
         ? pmp?.['eu.she-a.color']?.on_dark
         : pmp?.['eu.she-a.color']?.on_light;
+    }, [activeTheme, pmp]);
+
     const nicknames = useAtomValue(nicknamesAtom);
     const cachedProfiles = useAtomValue(profilesCacheAtom);
     useRoomMemberHydration(room, sender ?? '');
@@ -512,7 +517,7 @@ export const Reply = as<'div', ReplyProps>(
         )}
         <ReplyLayout
           as="button"
-          userColor={pmpNameColor ?? usernameColor}
+          userColor={accessibleNameColor(pmpNameColor) ?? usernameColor}
           icon={image}
           replyIcon={replyIcon}
           mentioned={mentioned}

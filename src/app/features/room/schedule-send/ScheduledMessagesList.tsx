@@ -1,6 +1,6 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Box, Text, Chip, IconButton } from 'folds';
+import { Box, Text, Chip, IconButton, Spinner } from 'folds';
 import {
   CaretDown,
   CaretUp,
@@ -21,12 +21,14 @@ import {
 } from '$utils/delayedEvents';
 import {
   delayedEventsSupportedAtom,
+  getScheduledMessageStateKey,
   roomIdToScheduledTimeAtomFamily,
   roomIdToEditingScheduledDelayIdAtomFamily,
 } from '$state/scheduledMessages';
 import { timeHourMinute, timeDayMonthYear } from '$utils/time';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { roomScheduleCoordinator } from '$state/room/roomScheduleCoordinator';
 import { MessagePreview, useRoomMessagePreviewRenderer } from '$components/message-preview';
 import { SchedulePickerDialog } from './SchedulePickerDialog';
 import * as css from './ScheduledMessagesList.css';
@@ -44,6 +46,12 @@ type ScheduledMessageRowProps = {
   hour24Clock: boolean;
   onEdit: (delayId: string, body: string, formattedBody?: string, scheduledTs?: number) => void;
   onCancel: (delayId: string) => void;
+  cancellationState: CancellationState;
+};
+
+type CancellationState = {
+  status: 'idle' | 'pending' | 'error';
+  error?: string;
 };
 
 function ScheduledMessageRow({
@@ -52,6 +60,7 @@ function ScheduledMessageRow({
   hour24Clock,
   onEdit,
   onCancel,
+  cancellationState,
 }: ScheduledMessageRowProps) {
   const mx = useMatrixClient();
   const [dateFormatString] = useSetting(settingsAtom, 'dateFormatString');
@@ -63,6 +72,8 @@ function ScheduledMessageRow({
     !isEncrypted && typeof event.content.formatted_body === 'string'
       ? event.content.formatted_body
       : undefined;
+  const isCancelling = cancellationState.status === 'pending';
+  const cancelIcon = isCancelling ? <Spinner size="100" /> : chipIcon(X);
   const matrixEvent = useMemo(
     () =>
       new MatrixEvent({
@@ -106,9 +117,11 @@ function ScheduledMessageRow({
                 variant="Critical"
                 radii="300"
                 onClick={() => onCancel(event.delay_id)}
+                disabled={isCancelling}
+                aria-busy={isCancelling}
                 aria-label="Cancel scheduled message"
               >
-                {chipIcon(X)}
+                {cancelIcon}
               </IconButton>
             </Box>
           }
@@ -126,12 +139,19 @@ function ScheduledMessageRow({
             variant="Critical"
             radii="300"
             onClick={() => onCancel(event.delay_id)}
+            disabled={isCancelling}
+            aria-busy={isCancelling}
             aria-label="Cancel scheduled message"
           >
-            {chipIcon(X)}
+            {cancelIcon}
           </IconButton>
         )}
       </Box>
+      {cancellationState.status === 'error' && (
+        <Text size="T200" priority="300" role="alert" aria-live="polite">
+          {cancellationState.error}
+        </Text>
+      )}
     </Box>
   );
 }
@@ -140,12 +160,17 @@ export function ScheduledMessagesList({ room, onEditMessage }: ScheduledMessages
   const mx = useMatrixClient();
   const queryClient = useQueryClient();
   const supported = useAtomValue(delayedEventsSupportedAtom);
-  const setScheduledTime = useSetAtom(roomIdToScheduledTimeAtomFamily(room.roomId));
+  const scheduledStateKey = getScheduledMessageStateKey(mx.getSafeUserId(), room.roomId);
+  const setScheduledTime = useSetAtom(roomIdToScheduledTimeAtomFamily(scheduledStateKey));
   const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
   const [expanded, setExpanded] = useState(false);
   const [editingDelayId, setEditingDelayId] = useAtom(
-    roomIdToEditingScheduledDelayIdAtomFamily(room.roomId)
+    roomIdToEditingScheduledDelayIdAtomFamily(scheduledStateKey)
   );
+  const [cancellationStates, setCancellationStates] = useState<Record<string, CancellationState>>(
+    {}
+  );
+  const pendingCancellations = useRef(new Set<string>());
 
   const { data } = useQuery({
     queryKey: ['delayedEvents', room.roomId],
@@ -167,10 +192,35 @@ export function ScheduledMessagesList({ room, onEditMessage }: ScheduledMessages
 
   const handleCancel = useCallback(
     async (delayId: string) => {
-      await cancelDelayedEvent(mx, delayId);
-      invalidateEvents();
+      if (pendingCancellations.current.has(delayId)) return;
+
+      pendingCancellations.current.add(delayId);
+      setCancellationStates((states) => ({
+        ...states,
+        [delayId]: { status: 'pending' },
+      }));
+
+      try {
+        await roomScheduleCoordinator.run(mx, room.roomId, () => cancelDelayedEvent(mx, delayId));
+        invalidateEvents();
+        setCancellationStates((states) => {
+          const next = { ...states };
+          delete next[delayId];
+          return next;
+        });
+      } catch {
+        setCancellationStates((states) => ({
+          ...states,
+          [delayId]: {
+            status: 'error',
+            error: 'Failed to cancel scheduled message. Try again.',
+          },
+        }));
+      } finally {
+        pendingCancellations.current.delete(delayId);
+      }
     },
-    [mx, invalidateEvents]
+    [mx, room.roomId, invalidateEvents]
   );
 
   const handleEdit = useCallback(
@@ -218,6 +268,7 @@ export function ScheduledMessagesList({ room, onEditMessage }: ScheduledMessages
               hour24Clock={hour24Clock}
               onEdit={handleEdit}
               onCancel={handleCancel}
+              cancellationState={cancellationStates[event.delay_id] ?? { status: 'idle' }}
             />
           ))}
         </Box>

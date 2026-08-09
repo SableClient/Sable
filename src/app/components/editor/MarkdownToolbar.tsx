@@ -1,19 +1,8 @@
 import FocusTrap from 'focus-trap-react';
 import type { RectCords } from 'folds';
-import {
-  Badge,
-  Box,
-  config,
-  IconButton,
-  Line,
-  Menu,
-  PopOut,
-  Scroll,
-  Text,
-  Tooltip,
-  TooltipProvider,
-  toRem,
-} from 'folds';
+import { Badge, Box, config, IconButton, Line, Menu, Scroll, Text, Tooltip, toRem } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
+import { PopOut } from '$components/overlay-stack';
 import type { MouseEventHandler, ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { useSetting } from '$state/hooks/settings';

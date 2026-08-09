@@ -1,19 +1,7 @@
 import type { MouseEventHandler, ReactNode } from 'react';
 import { useCallback, useRef } from 'react';
-import {
-  Avatar,
-  Badge,
-  Box,
-  Chip,
-  Line,
-  Spinner,
-  Text,
-  Tooltip,
-  TooltipProvider,
-  as,
-  color,
-  toRem,
-} from 'folds';
+import { Avatar, Badge, Box, Chip, Line, Spinner, Text, Tooltip, as, color, toRem } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
 import type { MatrixError, Room, IHierarchyRoom } from '$types/matrix-sdk';
 import { JoinRule, KnownMembership } from '$types/matrix-sdk';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';

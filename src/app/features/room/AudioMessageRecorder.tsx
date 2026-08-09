@@ -48,8 +48,9 @@ export const AudioMessageRecorder = forwardRef<
   AudioMessageRecorderHandle,
   AudioMessageRecorderProps
 >(({ onRecordingComplete, onRequestClose, onWaveformUpdate, onAudioLengthUpdate }, ref) => {
-  const isDismissedRef = useRef(false);
   const userRequestedStopRef = useRef(false);
+  const actionRef = useRef<'active' | 'stopping' | 'canceling' | 'dismissed'>('active');
+  const cancelTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [isCanceling, setIsCanceling] = useState(false);
   const [announcedTime, setAnnouncedTime] = useState(0);
@@ -67,8 +68,8 @@ export const AudioMessageRecorder = forwardRef<
   const stableOnStop = useCallback((payload: VoiceRecorderStopPayload) => {
     // useVoiceRecorder also stops during cancel/teardown paths, so only surface a completed
     // recording after an explicit user stop.
-    if (!userRequestedStopRef.current) return;
-    if (isDismissedRef.current) return;
+    if (!userRequestedStopRef.current || actionRef.current !== 'stopping') return;
+    actionRef.current = 'dismissed';
     onRecordingCompleteRef.current({
       audioBlob: payload.audioFile,
       waveform: payload.waveform,
@@ -80,7 +81,11 @@ export const AudioMessageRecorder = forwardRef<
   }, []);
 
   const stableOnDelete = useCallback(() => {
-    isDismissedRef.current = true;
+    if (cancelTimerRef.current !== null) {
+      clearTimeout(cancelTimerRef.current);
+      cancelTimerRef.current = null;
+    }
+    actionRef.current = 'dismissed';
     onRequestCloseRef.current();
   }, []);
 
@@ -91,21 +96,34 @@ export const AudioMessageRecorder = forwardRef<
   });
 
   const doStop = useCallback(() => {
-    if (isDismissedRef.current) return;
+    if (actionRef.current !== 'active') return;
+    actionRef.current = 'stopping';
     userRequestedStopRef.current = true;
     handleStop();
   }, [handleStop]);
 
   const doCancel = useCallback(() => {
-    if (isDismissedRef.current) return;
+    if (actionRef.current !== 'active') return;
+    actionRef.current = 'canceling';
     setIsCanceling(true);
-    setTimeout(() => {
-      isDismissedRef.current = true;
+    cancelTimerRef.current = setTimeout(() => {
+      cancelTimerRef.current = null;
+      if (actionRef.current !== 'canceling') return;
+      actionRef.current = 'dismissed';
       handleDelete();
     }, 180);
   }, [handleDelete]);
 
   useImperativeHandle(ref, () => ({ stop: doStop, cancel: doCancel }), [doStop, doCancel]);
+
+  useEffect(
+    () => () => {
+      if (cancelTimerRef.current !== null) clearTimeout(cancelTimerRef.current);
+      cancelTimerRef.current = null;
+      actionRef.current = 'dismissed';
+    },
+    []
+  );
 
   useEffect(() => {
     if (seconds > 0 && seconds % 30 === 0 && seconds !== announcedTime) {

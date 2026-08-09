@@ -36,7 +36,7 @@ import { useCategoryHandler } from '$hooks/useCategoryHandler';
 import { useNavToActivePathMapper } from '$hooks/useNavToActivePathMapper';
 import { useRoomName } from '$hooks/useRoomMeta';
 import type { HierarchyItem } from '$hooks/useSpaceHierarchy';
-import { useSpaceJoinedHierarchy } from '$hooks/useSpaceHierarchy';
+import { getSpaceHierarchyItemKey, useSpaceJoinedHierarchy } from '$hooks/useSpaceHierarchy';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { PageNavContent, PageNavHeader } from '$components/page';
 import { PageNavShell } from '$components/page/PageNavShell';
@@ -779,7 +779,7 @@ export function Space() {
     (index: number) => {
       const item = hierarchy[index];
       if (!item) return index;
-      return `${space.roomId}:${item.roomId}:${item.depth}`;
+      return getSpaceHierarchyItemKey(space.roomId, item);
     },
     [hierarchy, space.roomId]
   );

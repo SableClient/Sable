@@ -21,6 +21,7 @@ import {
   INBOX_PATH,
   REGISTER_PATH,
   RESET_PASSWORD_PATH,
+  SERVER_SEARCH_PARAM,
   SETTINGS_PATH,
   SPACE_LOBBY_PATH,
   SPACE_PATH,
@@ -37,9 +38,11 @@ import {
 export const joinPathComponent = (path: Path): string => path.pathname + path.search + path.hash;
 
 export const withSearchParam = (path: string, searchParam: Record<string, string>): string => {
-  const params = new URLSearchParams(searchParam);
+  const [pathname, existingSearch] = path.split('?');
+  const params = new URLSearchParams(existingSearch);
+  Object.entries(searchParam).forEach(([name, value]) => params.set(name, value));
 
-  return `${path}?${params}`;
+  return `${pathname}?${params}`;
 };
 export const encodeSearchParamValueArray = (ids: string[]): string => ids.join(',');
 export const decodeSearchParamValueArray = (idsParam: string): string[] => idsParam.split(',');
@@ -81,20 +84,17 @@ export const getAppPathFromHref = (baseUrl: string, href: string): string => {
   return pathname + search;
 };
 
-export const getLoginPath = (server?: string): string => {
-  const params = server ? { server: encodeURIComponent(server) } : undefined;
-  return generatePath(LOGIN_PATH, params);
-};
+// The homeserver rides in the query string: as a path segment a server given as a full URL
+// ("http://localhost:8008") needs an escaped slash, which hosting layers normalise away.
+const withServerParam = (path: string, server?: string): string =>
+  server ? withSearchParam(path, { [SERVER_SEARCH_PARAM]: server }) : path;
 
-export const getRegisterPath = (server?: string): string => {
-  const params = server ? { server: encodeURIComponent(server) } : undefined;
-  return generatePath(REGISTER_PATH, params);
-};
+export const getLoginPath = (server?: string): string => withServerParam(LOGIN_PATH, server);
 
-export const getResetPasswordPath = (server?: string): string => {
-  const params = server ? { server: encodeURIComponent(server) } : undefined;
-  return generatePath(RESET_PASSWORD_PATH, params);
-};
+export const getRegisterPath = (server?: string): string => withServerParam(REGISTER_PATH, server);
+
+export const getResetPasswordPath = (server?: string): string =>
+  withServerParam(RESET_PASSWORD_PATH, server);
 
 export const getHomePath = (): string => HOME_PATH;
 export const getHomeJoinPath = (): string => HOME_JOIN_PATH;

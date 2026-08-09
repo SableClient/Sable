@@ -1,6 +1,6 @@
 import { useAtomValue } from 'jotai';
 import { useEffect, useState } from 'react';
-import type { RoomJoinRulesEventContent, Room } from '$types/matrix-sdk';
+import type { MatrixEvent, RoomJoinRulesEventContent, Room } from '$types/matrix-sdk';
 import { RoomEvent, RoomStateEvent, EventType } from '$types/matrix-sdk';
 
 import { mDirectAtom } from '$state/mDirectList';
@@ -9,21 +9,26 @@ import { useMatrixClient } from './useMatrixClient';
 import { useStateEvent } from './useStateEvent';
 import { useNickname } from './useNickname';
 
+// Sliding sync's ensureNameEvent injects the server-computed room name with this
+// fake event id; it counts bridge bots, so DMs rank it below the member name.
+const isServerGeneratedRoomName = (event?: MatrixEvent): boolean =>
+  event?.getId()?.startsWith('$fake-sliding-sync-name-event-') === true;
+
 const getRoomDisplayName = (
   roomName: string,
   stateName: unknown,
+  stateNameIsServerGenerated: boolean,
   isDmTagged: boolean,
   dmNickname?: string,
   dmOtherMemberName?: string
 ): string => {
   if (isDmTagged && dmNickname) return dmNickname;
-  if (typeof stateName === 'string' && stateName) return stateName;
+  if (typeof stateName === 'string' && stateName && !stateNameIsServerGenerated) return stateName;
   if (isDmTagged && dmOtherMemberName) return dmOtherMemberName;
   return roomName;
 };
 
 export const useRoomAvatar = (room: Room, dm?: boolean): string | undefined => {
-  const mx = useMatrixClient();
   const avatarEvent = useStateEvent(room, EventType.RoomAvatar);
   const [, refreshDmAvatar] = useState(0);
 
@@ -39,7 +44,7 @@ export const useRoomAvatar = (room: Room, dm?: boolean): string | undefined => {
   }, [room, dm]);
 
   if (dm) {
-    return getDmOtherMember(mx, room)?.getMxcAvatarUrl();
+    return room.getAvatarFallbackMember()?.getMxcAvatarUrl();
   }
   const content = avatarEvent?.getContent();
   const avatarMxc = content && typeof content.url === 'string' ? content.url : undefined;
@@ -49,28 +54,30 @@ export const useRoomAvatar = (room: Room, dm?: boolean): string | undefined => {
 
 export const useRoomName = (room: Room): string => {
   const mx = useMatrixClient();
-  const dmUserId = room.guessDMUserId();
-  const dmNickname = useNickname(dmUserId || '');
   const mDirects = useAtomValue(mDirectAtom);
   const isDmTagged = mDirects.has(room.roomId);
+  const dmUserId = room.guessDMUserId();
+  const dmNickname = useNickname(dmUserId || '');
   const nameEvent = useStateEvent(room, EventType.RoomName);
   const stateName = nameEvent?.getContent().name;
+  const stateNameIsServerGenerated = isServerGeneratedRoomName(nameEvent);
   const [name, setName] = useState(room.name);
 
   useEffect(() => {
     const updateName = () => {
-      if (room.name === 'Empty room') {
+      if (isDmTagged || room.name === 'Empty room') {
         room.recalculate();
       }
 
       const otherMember = isDmTagged ? getDmOtherMember(mx, room) : undefined;
       const dmOtherMemberName = otherMember
-        ? (getMemberDisplayName(room, otherMember.userId) ?? otherMember.userId)
+        ? (getMemberDisplayName(room, otherMember.userId) ?? otherMember.rawDisplayName)
         : undefined;
 
       const nextName = getRoomDisplayName(
         room.name,
         stateName,
+        stateNameIsServerGenerated,
         isDmTagged,
         dmNickname,
         dmOtherMemberName
@@ -87,7 +94,7 @@ export const useRoomName = (room: Room): string => {
       room.removeListener(RoomEvent.Name, updateName);
       room.removeListener(RoomStateEvent.Members, updateName);
     };
-  }, [room, mx, stateName, dmNickname, isDmTagged]);
+  }, [room, mx, stateName, stateNameIsServerGenerated, dmNickname, isDmTagged]);
 
   return name;
 };

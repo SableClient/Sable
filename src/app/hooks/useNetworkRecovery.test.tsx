@@ -2,7 +2,7 @@ import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 
 const { nudgeReconnect, setOnline, listenOff, listen, mockIsTauri } = vi.hoisted(() => ({
-  nudgeReconnect: vi.fn<(mx: unknown, reason: string) => boolean>(),
+  nudgeReconnect: vi.fn<(mx: unknown, reason: string, opts?: { force?: boolean }) => boolean>(),
   setOnline: vi.fn<() => void>(),
   listenOff: vi.fn<() => void>(),
   listen: vi.fn<(_event: string, _cb: () => void) => Promise<() => void>>(),
@@ -59,7 +59,7 @@ describe('useNetworkRecovery', () => {
 
     dispatchEvent(new Event('online'));
 
-    expect(nudgeReconnect).toHaveBeenCalledWith(expect.anything(), 'online');
+    expect(nudgeReconnect).toHaveBeenCalledWith(expect.anything(), 'online', undefined);
     expect(setOnline).toHaveBeenCalled();
   });
 
@@ -71,7 +71,7 @@ describe('useNetworkRecovery', () => {
     vi.advanceTimersByTime(30_001);
     document.dispatchEvent(new Event('visibilitychange'));
 
-    expect(nudgeReconnect).toHaveBeenCalledWith(expect.anything(), 'visible');
+    expect(nudgeReconnect).toHaveBeenCalledWith(expect.anything(), 'visible', undefined);
     visState.mockRestore();
   });
 
@@ -112,7 +112,7 @@ describe('useNetworkRecovery', () => {
 
     vi.advanceTimersByTime(80_000);
 
-    expect(nudgeReconnect).toHaveBeenCalledWith(expect.anything(), 'stalled');
+    expect(nudgeReconnect).toHaveBeenCalledWith(expect.anything(), 'stalled', undefined);
   });
 
   it('does not trigger stalled nudge when Sync events keep arriving', () => {
@@ -178,7 +178,7 @@ describe('useNetworkRecovery', () => {
 
       dispatchEvent(new Event('online'));
       expect(nudgeReconnect).toHaveBeenCalledTimes(1);
-      expect(nudgeReconnect).toHaveBeenLastCalledWith(expect.anything(), 'online');
+      expect(nudgeReconnect).toHaveBeenLastCalledWith(expect.anything(), 'online', undefined);
 
       vi.advanceTimersByTime(3_000);
 
@@ -213,7 +213,7 @@ describe('useNetworkRecovery', () => {
       mockIsTauri.value = true;
     });
 
-    it('nudges on tauri://resumed event', () => {
+    it('force-nudges on tauri://resumed event', () => {
       listen.mockResolvedValue(listenOff);
 
       renderHook(() => useNetworkRecovery({ clientRunning: true } as never));
@@ -222,7 +222,16 @@ describe('useNetworkRecovery', () => {
       const [, cb] = listen.mock.calls[0] as [string, () => void];
       cb();
 
-      expect(nudgeReconnect).toHaveBeenCalledWith(expect.anything(), 'resumed');
+      expect(nudgeReconnect).toHaveBeenCalledWith(expect.anything(), 'resumed', { force: true });
+    });
+
+    it('does not subscribe to tauri://suspended', () => {
+      listen.mockResolvedValue(listenOff);
+
+      renderHook(() => useNetworkRecovery({ clientRunning: true } as never));
+
+      expect(listen).toHaveBeenCalledOnce();
+      expect(listen).not.toHaveBeenCalledWith('tauri://suspended', expect.any(Function));
     });
 
     it('calls the listen cleanup on unmount', async () => {

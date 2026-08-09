@@ -1,4 +1,5 @@
-import { IconButton, Line, Text, Tooltip, TooltipProvider } from 'folds';
+import { IconButton, Line, Text, Tooltip } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
 import {
   ChatCircle,
   Headphones,

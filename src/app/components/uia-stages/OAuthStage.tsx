@@ -2,48 +2,81 @@ import { Box, Button, color, config, Dialog, Header, IconButton, Text } from 'fo
 import { Warning, composerIcon, sizedIcon, X } from '$components/icons/phosphor';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { isTauri } from '@tauri-apps/api/core';
-import { AuthType } from '$types/matrix-sdk';
 import type { StageComponentProps } from './types';
 
 const POLL_COOLDOWN_MS = 1500;
 
+type SessionState = {
+  approvalSent: boolean;
+  submits: number;
+};
+
+const sessionStates = new Map<string, SessionState>();
+
+const getSessionState = (session: string | undefined): SessionState => {
+  if (!session) return { approvalSent: false, submits: 0 };
+  const state = sessionStates.get(session) ?? { approvalSent: false, submits: 0 };
+  sessionStates.set(session, state);
+  return state;
+};
+
 export function OAuthStage({ stageData, submitAuthDict, onCancel }: StageComponentProps) {
-  const { errorCode, error, session, info } = stageData;
+  const { type, errorCode, error, session, info } = stageData;
   const url = (info as { url?: string } | undefined)?.url;
   const [oauthWindow, setOauthWindow] = useState<Window>();
-  const [polling, setPolling] = useState(false);
+  const stateRef = useRef(getSessionState(session));
+  const [polling, setPolling] = useState(stateRef.current.approvalSent);
   const lastPollRef = useRef(0);
+  const leftAppRef = useRef(stateRef.current.approvalSent);
 
   const handleSubmit = useCallback(() => {
-    submitAuthDict({
-      type: AuthType.OAuth,
-      session,
-    });
-  }, [submitAuthDict, session]);
+    const state = stateRef.current;
+    state.submits += 1;
+    // The spec completes this stage with the session alone; continuwuity reads a
+    // type-less dict as a fallback acknowledgement, so alternate both forms.
+    submitAuthDict(state.submits % 2 === 1 ? { session } : { type, session });
+  }, [submitAuthDict, type, session]);
+
+  const handleCancel = () => {
+    if (session) sessionStates.delete(session);
+    onCancel();
+  };
+
+  const awaitApproval = () => {
+    stateRef.current.approvalSent = true;
+    setPolling(true);
+  };
 
   const handleContinue = () => {
     if (!url) return;
     if (isTauri()) {
       import('@tauri-apps/plugin-opener')
         .then(({ openUrl }) => openUrl(url))
-        .then(() => setPolling(true))
+        .then(awaitApproval)
         .catch(() => {
           const w = window.open(url, '_blank');
           setOauthWindow(w ?? undefined);
+          awaitApproval();
         });
       return;
     }
     const w = window.open(url, '_blank');
     setOauthWindow(w ?? undefined);
+    awaitApproval();
   };
 
   const triggerPoll = useCallback(() => {
-    if (!polling) return;
+    if (!polling || !leftAppRef.current) return;
     const now = Date.now();
     if (now - lastPollRef.current < POLL_COOLDOWN_MS) return;
     lastPollRef.current = now;
     handleSubmit();
   }, [polling, handleSubmit]);
+
+  useEffect(() => {
+    const state = stateRef.current;
+    if (state.approvalSent && state.submits === 1) handleSubmit();
+  }, [handleSubmit]);
 
   useEffect(() => {
     if (!url) return undefined;
@@ -69,13 +102,19 @@ export function OAuthStage({ stageData, submitAuthDict, onCancel }: StageCompone
 
   useEffect(() => {
     if (!polling) return undefined;
+    const onBlur = () => {
+      leftAppRef.current = true;
+    };
     const onFocus = () => triggerPoll();
     const onVisibility = () => {
       if (document.visibilityState === 'visible') triggerPoll();
+      else leftAppRef.current = true;
     };
+    window.addEventListener('blur', onBlur);
     window.addEventListener('focus', onFocus);
     document.addEventListener('visibilitychange', onVisibility);
     return () => {
+      window.removeEventListener('blur', onBlur);
       window.removeEventListener('focus', onFocus);
       document.removeEventListener('visibilitychange', onVisibility);
     };
@@ -95,7 +134,7 @@ export function OAuthStage({ stageData, submitAuthDict, onCancel }: StageCompone
         <Box grow="Yes">
           <Text size="H4">Account Authorization</Text>
         </Box>
-        <IconButton size="300" onClick={onCancel} radii="300">
+        <IconButton size="300" onClick={handleCancel} radii="300">
           {composerIcon(X)}
         </IconButton>
       </Header>

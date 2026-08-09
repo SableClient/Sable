@@ -1,5 +1,6 @@
 import type { ComponentProps } from 'react';
-import { Text, as, Tooltip, TooltipProvider } from 'folds';
+import { Text, as, Tooltip } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
 import {
   timeDayMonYear,
   timeHourMinute,

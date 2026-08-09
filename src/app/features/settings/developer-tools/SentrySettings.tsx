@@ -5,6 +5,7 @@ import { SettingTile } from '$components/setting-tile';
 import { toSettingsFocusIdPart } from '$features/settings/settingsLink';
 import type { LogCategory } from '$utils/debugLogger';
 import { getDebugLogger } from '$utils/debugLogger';
+import { saveFileToDevice } from '$utils/download';
 
 const ALL_CATEGORIES: LogCategory[] = [
   'sync',
@@ -18,10 +19,12 @@ const ALL_CATEGORIES: LogCategory[] = [
   'general',
 ];
 
-import { downloadJsonFile } from '$utils/common';
-
 const handleExportLogs = () => {
-  downloadJsonFile(getDebugLogger().exportLogs(), 'sable-debug-logs');
+  void saveFileToDevice(
+    new Blob([getDebugLogger().exportLogs()], { type: 'application/json' }),
+    `sable-debug-logs-${Date.now()}.json`,
+    'application/json'
+  );
 };
 
 export function SentrySettings() {

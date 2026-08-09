@@ -41,6 +41,7 @@ export interface ProcessedEvent {
   id: string;
   itemIndex: number;
   mEvent: MatrixEvent;
+  isRedacted: boolean;
   timelineSet: EventTimelineSet;
   eventSender: string | null;
   collapsed: boolean;
@@ -110,6 +111,7 @@ type ProcessedEventDraft = Omit<
 type TimelineEventEntry = {
   mEvent: MatrixEvent;
   timelineSet: EventTimelineSet;
+  isRedacted: boolean;
   // Decryption rewrites a MatrixEvent in place, so identity alone does not prove a cached
   // row still matches it. Undefined for unencrypted events.
   clearType: string | undefined;
@@ -125,6 +127,7 @@ const flattenTimelineEvents = (linkedTimelines: EventTimeline[]): TimelineEventE
       entries.push({
         mEvent,
         timelineSet,
+        isRedacted: mEvent.isRedacted(),
         clearType: encrypted ? mEvent.getType() : undefined,
         clearContent: encrypted ? mEvent.getContent() : undefined,
       });
@@ -138,6 +141,7 @@ const isCachedEntryCurrent = (
   current: TimelineEventEntry | undefined
 ): boolean =>
   cached.mEvent === current?.mEvent &&
+  cached.isRedacted === current.isRedacted &&
   cached.clearType === current.clearType &&
   cached.clearContent === current.clearContent;
 
@@ -233,6 +237,7 @@ const mergeDraftsAndExtras = (
         id: mEvent.getId()!,
         itemIndex,
         mEvent,
+        isRedacted: mEvent.isRedacted(),
         timelineSet,
         eventSender: mEvent.getSender() ?? null,
       },
@@ -433,7 +438,7 @@ const processTimelineItems = (
   for (const item of items) {
     const entry = timelineEvents[item];
     if (!entry) continue;
-    const { mEvent, timelineSet } = entry;
+    const { mEvent, timelineSet, isRedacted } = entry;
     const { threadRootId } = mEvent;
     const mEventId = mEvent.getId();
     if (!mEventId) continue;
@@ -461,7 +466,7 @@ const processTimelineItems = (
       }
     }
 
-    if (mEvent.isRedacted()) {
+    if (isRedacted) {
       const showMessageTombstone = showTombstoneEvents && isRedactableMessageType(type);
       const showReactionTombstone = hiddenEventReactionTombstone && isReaction;
       if (!showMessageTombstone && !showReactionTombstone) continue;
@@ -476,8 +481,8 @@ const processTimelineItems = (
 
     const allowSpecificHiddenEvent =
       (isEdit && hiddenEventEdits) ||
-      (isReaction && !mEvent.isRedacted() && hiddenEventReactions) ||
-      (isReaction && mEvent.isRedacted() && hiddenEventReactionTombstone) ||
+      (isReaction && !isRedacted && hiddenEventReactions) ||
+      (isReaction && isRedacted && hiddenEventReactionTombstone) ||
       (isRedactionEvt &&
         shouldShowRedactionTimelineEvent(
           mEvent,
@@ -504,7 +509,7 @@ const processTimelineItems = (
 
     if (isEdit && !hiddenEventEdits) continue;
     if (isReaction) {
-      if (mEvent.isRedacted()) {
+      if (isRedacted) {
         if (!hiddenEventReactionTombstone) continue;
       } else if (!hiddenEventReactions) {
         continue;
@@ -555,6 +560,7 @@ const processTimelineItems = (
       id: mEventId,
       itemIndex: item,
       mEvent,
+      isRedacted,
       timelineSet,
       eventSender,
       collapsed,

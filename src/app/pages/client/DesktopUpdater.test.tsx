@@ -2,8 +2,9 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useAtomValue, useSetAtom, Provider } from 'jotai';
 import { globalBannersAtom } from '$state/globalBanners';
-import { triggerUpdateCheckAtom } from '$state/desktopUpdate';
+import { triggerUpdateCheckAtom, updatePhaseAtom } from '$state/desktopUpdate';
 import { DesktopUpdatePill } from '$components/tauri/DesktopUpdatePill';
+import { getDebugLogger } from '$utils/debugLogger';
 import { DesktopUpdater } from './DesktopUpdater';
 
 const { checkFn } = vi.hoisted(() => ({ checkFn: vi.fn<() => Promise<unknown>>() }));
@@ -32,6 +33,7 @@ function BannersProbe() {
       {banners.map((b) => (
         <section key={b.id} data-testid={`banner-${b.id}`}>
           <span>{b.title}</span>
+          <span>{b.description}</span>
           <button type="button" onClick={b.primaryAction.onClick}>
             {b.primaryAction.label}
           </button>
@@ -53,6 +55,11 @@ function CheckNowButton() {
       check
     </button>
   );
+}
+
+function UpdatePhaseProbe() {
+  const phase = useAtomValue(updatePhaseAtom);
+  return <output data-testid="update-phase">{phase.type}</output>;
 }
 
 function makeUpdate(version: string) {
@@ -156,8 +163,9 @@ describe('DesktopUpdater', () => {
 
   it('retries when downloadAndInstall fails', async () => {
     const update = makeUpdate('4.0.0');
+    const debugLog = vi.spyOn(getDebugLogger(), 'log');
     update.downloadAndInstall
-      .mockRejectedValueOnce(new Error('eacces'))
+      .mockRejectedValueOnce({ message: 'permission denied' })
       .mockResolvedValueOnce(undefined);
     checkFn.mockResolvedValue(update);
 
@@ -166,6 +174,7 @@ describe('DesktopUpdater', () => {
         <DesktopUpdatePill />
         <DesktopUpdater />
         <BannersProbe />
+        <UpdatePhaseProbe />
       </Provider>
     );
 
@@ -176,10 +185,18 @@ describe('DesktopUpdater', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Download & Install' }));
     await waitFor(() => expect(update.downloadAndInstall).toHaveBeenCalledTimes(1));
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: 'Download & Install' })).toBeInTheDocument();
+      expect(screen.getByText('Update Failed')).toBeInTheDocument();
     });
+    expect(debugLog).toHaveBeenCalledWith(
+      'error',
+      'network',
+      'DesktopUpdater',
+      'Failed to install update: permission denied'
+    );
+    expect(screen.getByText('permission denied')).toBeInTheDocument();
+    expect(screen.getByTestId('update-phase')).toHaveTextContent('ready');
 
-    fireEvent.click(screen.getByRole('button', { name: 'Download & Install' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     await waitFor(() => expect(update.downloadAndInstall).toHaveBeenCalledTimes(2));
     await screen.findByTestId('banner-desktop-update-restart');
   });

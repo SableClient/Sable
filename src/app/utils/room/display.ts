@@ -1,8 +1,9 @@
-import { EventType } from '$types/matrix-sdk';
-import type { MatrixClient, Room, RoomMember } from '$types/matrix-sdk';
+import { EventTimeline, EventType, UNSTABLE_ELEMENT_FUNCTIONAL_USERS } from '$types/matrix-sdk';
+import type { MatrixClient, Room, RoomMember, StateEvents } from '$types/matrix-sdk';
 
 import { getMxIdLocalPart } from '$utils/matrix';
 import { mxcUrlToHttp } from '../mediaUrl';
+import { resolveDmOtherMember } from './directMember';
 
 /**
  * The square-cropped avatar conversion every avatar call site repeats. Goes
@@ -26,6 +27,15 @@ export const getRoomAvatarUrl = (
 ): string | undefined => getAvatarUrl(mx, room.getMxcAvatarUrl(), size, useAuthentication);
 
 export const getDmOtherMember = (mx: MatrixClient, room: Room): RoomMember | undefined => {
+  // A non-array service_members would otherwise make .includes a substring match.
+  const serviceMembers = room
+    .getLiveTimeline?.()
+    ?.getState(EventTimeline.FORWARDS)
+    ?.getStateEvents(UNSTABLE_ELEMENT_FUNCTIONAL_USERS.name as keyof StateEvents, '')
+    ?.getContent<{ service_members?: unknown }>().service_members;
+  const functionalMembers = Array.isArray(serviceMembers)
+    ? serviceMembers.filter((userId): userId is string => typeof userId === 'string')
+    : [];
   const currentUserId = mx.getUserId();
   const mDirect = mx.getAccountData(EventType.Direct)?.getContent<Record<string, string[]>>();
   const directUserIds = Object.entries(mDirect ?? {})
@@ -35,12 +45,17 @@ export const getDmOtherMember = (mx: MatrixClient, room: Room): RoomMember | und
     )
     .map(([userId]) => userId);
 
-  if (directUserIds.length === 1) {
-    const member = room.getMember(directUserIds[0]!);
-    if (member?.membership === 'join' || member?.membership === 'invite') return member;
-  }
+  const directMembers = directUserIds
+    .map((userId) => room.getMember(userId))
+    .filter((member): member is RoomMember => member != null);
 
-  return room.getAvatarFallbackMember();
+  return resolveDmOtherMember({
+    currentUserId,
+    directMembers,
+    members: room.getMembers(),
+    functionalMemberIds: functionalMembers,
+    fallbackMember: room.getAvatarFallbackMember(),
+  });
 };
 
 export const getDirectRoomAvatarUrl = (

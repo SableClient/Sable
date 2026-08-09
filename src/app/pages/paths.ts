@@ -1,23 +1,31 @@
 export const ROOT_PATH = '/';
 
+export const SERVER_SEARCH_PARAM = 'server';
+
 export type LoginPathSearchParams = {
   username?: string;
   email?: string;
   loginToken?: string;
 };
-export const LOGIN_PATH = '/login/:server?/';
+export const LOGIN_PATH = '/login';
 
 export type RegisterPathSearchParams = {
   username?: string;
   email?: string;
   token?: string;
 };
-export const REGISTER_PATH = '/register/:server?/';
+export const REGISTER_PATH = '/register';
 
 export type ResetPasswordPathSearchParams = {
   email?: string;
 };
-export const RESET_PASSWORD_PATH = '/reset-password/:server?/';
+export const RESET_PASSWORD_PATH = '/reset-password';
+
+// The homeserver used to be a path segment ("/login/matrix.org"); these catch links, SSO and
+// OIDC callbacks minted by older builds.
+export const LEGACY_LOGIN_PATH = `${LOGIN_PATH}/*`;
+export const LEGACY_REGISTER_PATH = `${REGISTER_PATH}/*`;
+export const LEGACY_RESET_PASSWORD_PATH = `${RESET_PASSWORD_PATH}/*`;
 
 export type SettingsPathSearchParams = {
   focus?: string;

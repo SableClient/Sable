@@ -42,7 +42,8 @@ const scheduleProfileRequest = (
         .finally(() => {
           const active = Math.max(0, (activeProfileRequests.get(mx) ?? 1) - 1);
           activeProfileRequests.set(mx, active);
-          if (active < MAX_CONCURRENT_PROFILE_REQUESTS) profileRequestQueues.get(mx)?.shift()?.();
+          // Newest first: a profile just scrolled to would otherwise wait behind the backlog.
+          if (active < MAX_CONCURRENT_PROFILE_REQUESTS) profileRequestQueues.get(mx)?.pop()?.();
         });
     };
 

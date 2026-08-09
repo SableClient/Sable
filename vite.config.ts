@@ -167,6 +167,7 @@ export default defineConfig(({ command }) => {
         $public: path.resolve(__dirname, 'public'),
         $client: path.resolve(__dirname, 'src/client'),
         $unstable: path.resolve(__dirname, 'src/unstable'),
+        $app: path.resolve(__dirname, 'src/app'),
       },
     },
     server: {

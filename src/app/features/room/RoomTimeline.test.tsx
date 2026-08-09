@@ -20,6 +20,7 @@ const {
   windowFocused,
   rowItemIndex,
   rowRenders,
+  eventRedacted,
 } = vi.hoisted(() => ({
   vListHandle: {
     scrollSize: 1000,
@@ -55,6 +56,7 @@ const {
   windowFocused: { current: false },
   rowItemIndex: { current: 0 },
   rowRenders: { count: 0 },
+  eventRedacted: { current: false },
 }));
 
 let lastOnScroll: ((offset: number) => void) | undefined;
@@ -152,10 +154,11 @@ vi.mock('$hooks/timeline/useProcessedTimeline', async (importOriginal) => {
       getTs: () => Date.now(),
       getSender: () => '@me:example.org',
       getId: () => '$evt1',
-      isRedacted: () => false,
+      isRedacted: () => eventRedacted.current,
     },
     timelineSet: undefined,
     eventSender: '@me:example.org',
+    isRedacted: eventRedacted.current,
     editId: undefined,
     reactionsKey: '',
     content: undefined,
@@ -166,6 +169,7 @@ vi.mock('$hooks/timeline/useProcessedTimeline', async (importOriginal) => {
       processedTimelineOptions.current = options;
       // Same object every call so the row memo can compare eventData by identity.
       fakeEvent.itemIndex = rowItemIndex.current;
+      fakeEvent.isRedacted = eventRedacted.current;
       return (options.items as number[]).length === 0 ? [] : [fakeEvent];
     },
   };
@@ -292,6 +296,7 @@ beforeEach(() => {
   windowFocused.current = false;
   rowItemIndex.current = 0;
   rowRenders.count = 0;
+  eventRedacted.current = false;
   timelineSync.eventsLength = 1;
   timelineSync.focusItem = undefined;
   timelineSync.canPaginateBack = false;
@@ -503,6 +508,16 @@ describe('MemoizedTimelineItem', () => {
     rerender(<RoomTimeline room={room} editor={{} as Editor} />);
 
     expect(rowRenders.count).toBe(before);
+  });
+
+  it('re-renders a row when its event is redacted in place', () => {
+    const { rerender } = renderTimeline();
+    const before = rowRenders.count;
+
+    eventRedacted.current = true;
+    rerender(<RoomTimeline room={room} editor={{} as Editor} />);
+
+    expect(rowRenders.count).toBeGreaterThan(before);
   });
 });
 

@@ -1,6 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { MatrixClient, MSC3575RoomData, SlidingSync } from '$types/matrix-sdk';
-import { EventType, MatrixEvent, SlidingSyncEvent } from '$types/matrix-sdk';
+import {
+  EventType,
+  MatrixEvent,
+  SlidingSyncEvent,
+  UNSTABLE_ELEMENT_FUNCTIONAL_USERS,
+} from '$types/matrix-sdk';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';
 import { SlidingSyncSidebarCache } from './slidingSyncSidebarCache';
 
@@ -46,6 +51,9 @@ describe('SlidingSyncSidebarCache', () => {
         stateEvent(EventType.SpaceChild, '!child:example.com', { via: ['example.com'] }),
         stateEvent(EventType.RoomMember, userId, { membership: 'join' }),
         stateEvent(EventType.RoomMember, '@other:example.com', { membership: 'join' }),
+        stateEvent(UNSTABLE_ELEMENT_FUNCTIONAL_USERS.name, '', {
+          service_members: ['@bridgebot:example.com'],
+        }),
       ],
       timeline: [
         {
@@ -90,7 +98,13 @@ describe('SlidingSyncSidebarCache', () => {
       })
     );
     const hydratedRoom = emitPromised.mock.calls[0]?.[2] as MSC3575RoomData;
-    expect(hydratedRoom.required_state).toHaveLength(3);
+    expect(hydratedRoom.required_state).toHaveLength(4);
+    expect(hydratedRoom.required_state).toContainEqual(
+      expect.objectContaining({
+        type: UNSTABLE_ELEMENT_FUNCTIONAL_USERS.name,
+        state_key: '',
+      })
+    );
     expect(hydratedRoom.required_state).toContainEqual(
       expect.objectContaining({
         type: EventType.SpaceChild,

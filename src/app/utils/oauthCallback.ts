@@ -23,9 +23,11 @@ export const normalizeOAuthCallbackUrl = (hashRouter?: HashRouterConfig): void =
       .map((part) => trimSlash(part ?? ''))
       .filter(Boolean)
       .join('/');
+    const routeParams = new URLSearchParams(url.search);
+    params.forEach((value, key) => routeParams.set(key, value));
     url.pathname = basePath;
     url.search = '';
-    url.hash = `/${route}?${params}`;
+    url.hash = `/${route}?${routeParams}`;
   } else {
     params.forEach((value, key) => url.searchParams.set(key, value));
   }

@@ -4,9 +4,19 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { MatrixClient, MatrixEvent, MSC3575List } from '$types/matrix-sdk';
-import { EventType, KnownMembership, SlidingSyncEvent, SlidingSyncState } from '$types/matrix-sdk';
+import {
+  EventType,
+  KnownMembership,
+  SlidingSyncEvent,
+  SlidingSyncState,
+  UNSTABLE_ELEMENT_FUNCTIONAL_USERS,
+} from '$types/matrix-sdk';
 
-import { scopeEphemeralExtensions, SlidingSyncManager } from './slidingSync';
+import {
+  markExpandedTimelinesLimited,
+  scopeTypingExtension,
+  SlidingSyncManager,
+} from './slidingSync';
 import type { SlidingSyncSidebarCache } from './slidingSyncSidebarCache';
 
 // ── vi.hoisted mocks ─────────────────────────────────────────────────────────
@@ -18,6 +28,7 @@ const mocks = vi.hoisted(() => ({
     off: vi.fn<() => void>(),
     removeListener: vi.fn<() => void>(),
     stop: vi.fn<() => void>(),
+    resend: vi.fn<() => void>(),
     modifyRoomSubscriptions: vi.fn<() => void>(),
     modifyRoomSubscriptionInfo: vi.fn<() => void>(),
     addCustomSubscription: vi.fn<() => void>(),
@@ -162,7 +173,6 @@ describe('SlidingSyncManager initial request', () => {
 
     const lists = mocks.slidingSyncConstructorArgs?.[1] as Map<string, MSC3575List>;
     const joined = lists.get('joined');
-    const updates = lists.get('updates');
     const defaultSubscription = mocks.slidingSyncConstructorArgs?.[2] as {
       timeline_limit: number;
       required_state: string[][];
@@ -170,15 +180,11 @@ describe('SlidingSyncManager initial request', () => {
 
     expect(joined?.ranges).toEqual([[0, 29]]);
     expect(joined?.timeline_limit).toBe(1);
-    expect(joined?.required_state).toHaveLength(10);
+    expect(joined?.required_state).toHaveLength(11);
     expect(joined?.required_state).toContainEqual([EventType.RoomJoinRules, '']);
+    expect(joined?.required_state).toContainEqual([UNSTABLE_ELEMENT_FUNCTIONAL_USERS.name, '']);
     expect(joined?.required_state).not.toContainEqual(['m.space.child', '*']);
-    expect(updates).toMatchObject({
-      ranges: [[0, 29]],
-      timeline_limit: 1,
-      required_state: [[EventType.RoomMember, '$ME']],
-      filters: { is_invite: false },
-    });
+    expect([...lists.keys()]).toEqual(['joined', 'invites']);
     expect(defaultSubscription.timeline_limit).toBe(50);
     expect(defaultSubscription.required_state).toContainEqual([EventType.RoomMember, '$LAZY']);
     expect(defaultSubscription.required_state).not.toContainEqual([EventType.RoomMember, '*']);
@@ -449,43 +455,39 @@ describe('SlidingSyncManager initial request', () => {
     });
   });
 
-  it('keeps full lightweight event coverage after narrowing the detailed joined list', () => {
-    const listRanges = new Map<string, [number, number][]>([
-      ['joined', [[0, 29]]],
-      ['updates', [[0, 29]]],
-    ]);
-    const manager = makeManager(makeMockMx());
-    mocks.slidingSyncInstance.getListData.mockImplementation((key: string) =>
-      key === 'joined' || key === 'updates' ? ({ joinedCount: 45 } as never) : null
-    );
-    mocks.slidingSyncInstance.getListParams.mockImplementation(
-      (key: string) => ({ ranges: listRanges.get(key) ?? [[0, 29]] }) as never
-    );
-    mocks.slidingSyncInstance.setListRanges.mockImplementation((key, ranges) => {
-      if (key === 'joined' || key === 'updates') {
-        listRanges.set(key, ranges as [number, number][]);
-      }
-    });
-    manager.attach();
-
-    fireLifecycle(SlidingSyncState.Complete);
-    expect(listRanges.get('joined')).toEqual([[0, 44]]);
-    expect(listRanges.get('updates')).toEqual([[0, 44]]);
-
-    fireLifecycle(SlidingSyncState.Complete);
-    fireLifecycle(SlidingSyncState.Complete);
-    expect(listRanges.get('joined')).toEqual([[0, 2]]);
-    expect(listRanges.get('updates')).toEqual([[0, 44]]);
-  });
-
-  it('keeps detailed coverage when the homeserver does not provide the updates list', () => {
+  // Narrowing it stops state deltas reaching every room but those in the window.
+  it('keeps the joined list covering every room once hydration completes', () => {
     let joinedRange: [number, number][] = [[0, 29]];
     const manager = makeManager(makeMockMx());
     mocks.slidingSyncInstance.getListData.mockImplementation((key: string) =>
       key === 'joined' ? ({ joinedCount: 45 } as never) : null
     );
     mocks.slidingSyncInstance.getListParams.mockImplementation((key: string) =>
-      key === 'joined' ? ({ ranges: joinedRange } as never) : ({ ranges: [[0, 29]] } as never)
+      key === 'joined' ? ({ ranges: joinedRange } as never) : null
+    );
+    mocks.slidingSyncInstance.setListRanges.mockImplementation((key, ranges) => {
+      if (key === 'joined') joinedRange = ranges as [number, number][];
+    });
+    manager.attach();
+
+    fireLifecycle(SlidingSyncState.Complete);
+    expect(joinedRange).toEqual([[0, 44]]);
+
+    fireLifecycle(SlidingSyncState.Complete);
+    fireLifecycle(SlidingSyncState.Complete);
+    expect(joinedRange).toEqual([[0, 44]]);
+  });
+
+  // A rename does not bump a room, so it never sorts back into a stale window.
+  it('extends the joined list when rooms are joined after hydration', () => {
+    let joinedCount = 45;
+    let joinedRange: [number, number][] = [[0, 29]];
+    const manager = makeManager(makeMockMx());
+    mocks.slidingSyncInstance.getListData.mockImplementation((key: string) =>
+      key === 'joined' ? ({ joinedCount } as never) : null
+    );
+    mocks.slidingSyncInstance.getListParams.mockImplementation((key: string) =>
+      key === 'joined' ? ({ ranges: joinedRange } as never) : null
     );
     mocks.slidingSyncInstance.setListRanges.mockImplementation((key, ranges) => {
       if (key === 'joined') joinedRange = ranges as [number, number][];
@@ -494,8 +496,12 @@ describe('SlidingSyncManager initial request', () => {
 
     fireLifecycle(SlidingSyncState.Complete);
     fireLifecycle(SlidingSyncState.Complete);
-
     expect(joinedRange).toEqual([[0, 44]]);
+
+    joinedCount = 48;
+    fireLifecycle(SlidingSyncState.Complete);
+
+    expect(joinedRange).toEqual([[0, 47]]);
   });
 });
 
@@ -623,6 +629,22 @@ describe('SlidingSyncManager room subscription coordination', () => {
     );
   });
 
+  it('drops the image-pack subscription for a room that was left', async () => {
+    const manager = makeManager(makeMockMx());
+    const roomId = '!pack:example.com';
+    (manager as unknown as { listsFullyLoaded: boolean }).listsFullyLoaded = true;
+
+    manager.setImagePackSubscriptions([roomId]);
+    expect(mocks.slidingSyncInstance.modifyRoomSubscriptions).toHaveBeenLastCalledWith(
+      new Set([roomId])
+    );
+
+    manager.reconcileRoomMembership(roomId, KnownMembership.Leave);
+    await Promise.resolve();
+
+    expect(mocks.slidingSyncInstance.modifyRoomSubscriptions).toHaveBeenLastCalledWith(new Set());
+  });
+
   it('keeps space subscriptions active for future hierarchy changes', async () => {
     const manager = makeManager(makeMockMx());
     const roomId = '!space:example.com';
@@ -706,6 +728,10 @@ describe('SlidingSyncManager room subscription coordination', () => {
     expect(activeRoom).toBeDefined();
     expect(activeRoom![1].timeline_limit).toBe(50);
     expect(activeRoom![1].required_state).toContainEqual([EventType.RoomMember, '$LAZY']);
+    expect(activeRoom![1].required_state).toContainEqual([
+      UNSTABLE_ELEMENT_FUNCTIONAL_USERS.name,
+      '',
+    ]);
 
     expect(sidebarRoom).toBeDefined();
     expect(sidebarRoom![1].timeline_limit).toBe(1);
@@ -806,15 +832,15 @@ describe('SlidingSyncManager room subscription coordination', () => {
   });
 });
 
-describe('scopeEphemeralExtensions', () => {
-  it('limits typing and receipts to active rooms without changing other extensions', () => {
+describe('scopeTypingExtension', () => {
+  it('limits typing to active rooms without changing other extensions', () => {
     const extensions = {
       typing: { enabled: true },
       receipts: { enabled: true },
       account_data: { enabled: true },
     };
 
-    scopeEphemeralExtensions(extensions, ['!space:example.com', '!room:example.com']);
+    scopeTypingExtension(extensions, ['!space:example.com', '!room:example.com']);
 
     expect(extensions).toEqual({
       typing: {
@@ -822,25 +848,63 @@ describe('scopeEphemeralExtensions', () => {
         lists: [],
         rooms: ['!space:example.com', '!room:example.com'],
       },
-      receipts: {
-        enabled: true,
-        lists: [],
-        rooms: ['!space:example.com', '!room:example.com'],
-      },
+      receipts: { enabled: true },
       account_data: { enabled: true },
     });
   });
 
-  it('uses an empty room scope when no timeline is open', () => {
+  it('leaves receipts unscoped so every room keeps receiving read state', () => {
     const extensions = {
       typing: { enabled: true, lists: ['joined'], rooms: ['!old:example.com'] },
-      receipts: { enabled: true, lists: ['joined'], rooms: ['!old:example.com'] },
+      receipts: { enabled: true },
     };
 
-    scopeEphemeralExtensions(extensions, []);
+    scopeTypingExtension(extensions, []);
 
     expect(extensions.typing).toMatchObject({ lists: [], rooms: [] });
-    expect(extensions.receipts).toMatchObject({ lists: [], rooms: [] });
+    expect(extensions.receipts).toEqual({ enabled: true });
+  });
+});
+
+describe('markExpandedTimelinesLimited', () => {
+  it('marks an expanded timeline limited so the SDK reconciles the gap', () => {
+    const resp = {
+      rooms: {
+        '!dm:example.com': { unstable_expanded_timeline: true, prev_batch: 't1-2' },
+      },
+    } as unknown as Parameters<typeof markExpandedTimelinesLimited>[0];
+
+    markExpandedTimelinesLimited(resp);
+
+    expect(resp?.rooms['!dm:example.com']).toMatchObject({ limited: true });
+  });
+
+  it('leaves rooms without an expanded timeline untouched', () => {
+    const resp = {
+      rooms: {
+        '!quiet:example.com': { limited: false, prev_batch: 't1-2' },
+      },
+    } as unknown as Parameters<typeof markExpandedTimelinesLimited>[0];
+
+    markExpandedTimelinesLimited(resp);
+
+    expect(resp?.rooms['!quiet:example.com']).toMatchObject({ limited: false });
+  });
+
+  it('keeps an expanded timeline unlimited when there is no pagination token', () => {
+    const resp = {
+      rooms: {
+        '!dm:example.com': { unstable_expanded_timeline: true },
+      },
+    } as unknown as Parameters<typeof markExpandedTimelinesLimited>[0];
+
+    markExpandedTimelinesLimited(resp);
+
+    expect(resp?.rooms['!dm:example.com']).not.toHaveProperty('limited');
+  });
+
+  it('tolerates a response without rooms', () => {
+    expect(() => markExpandedTimelinesLimited(null)).not.toThrow();
   });
 });
 
@@ -1292,6 +1356,190 @@ describe('SlidingSyncManager.dispose()', () => {
     const manager = makeManager(makeMockMx());
     manager.dispose();
     expect(mocks.slidingSyncInstance.stop).toHaveBeenCalledOnce();
+  });
+});
+
+describe('SlidingSyncManager poll watchdog', () => {
+  // DEFAULT_POLL_TIMEOUT_MS + SDK_CLIENT_TIMEOUT_BUFFER_MS + POLL_DEADLINE_MARGIN_MS
+  const DEFAULT_DEADLINE_MS = 45_000 + 10_000 + 20_000;
+
+  it('cycles the transport when no lifecycle event arrives within the deadline', () => {
+    vi.useFakeTimers();
+    try {
+      const manager = makeManager(makeMockMx());
+      manager.attach();
+
+      expect(mocks.slidingSyncInstance.resend).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(DEFAULT_DEADLINE_MS);
+
+      expect(mocks.slidingSyncInstance.resend).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('stays quiet while lifecycle events keep arriving', () => {
+    vi.useFakeTimers();
+    try {
+      const manager = makeManager(makeMockMx());
+      manager.attach();
+
+      for (let i = 0; i < 5; i += 1) {
+        vi.advanceTimersByTime(DEFAULT_DEADLINE_MS - 1_000);
+        fireLifecycle(SlidingSyncState.Complete, {});
+      }
+
+      expect(mocks.slidingSyncInstance.resend).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps cycling when the replacement poll also wedges', () => {
+    vi.useFakeTimers();
+    try {
+      const manager = makeManager(makeMockMx());
+      manager.attach();
+
+      vi.advanceTimersByTime(DEFAULT_DEADLINE_MS);
+      expect(mocks.slidingSyncInstance.resend).toHaveBeenCalledOnce();
+
+      // No lifecycle event arrives, so the watchdog must re-arm itself.
+      vi.advanceTimersByTime(DEFAULT_DEADLINE_MS);
+      expect(mocks.slidingSyncInstance.resend).toHaveBeenCalledTimes(2);
+
+      vi.advanceTimersByTime(DEFAULT_DEADLINE_MS);
+      expect(mocks.slidingSyncInstance.resend).toHaveBeenCalledTimes(3);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('does not fire after dispose', () => {
+    vi.useFakeTimers();
+    try {
+      const manager = makeManager(makeMockMx());
+      manager.attach();
+      manager.dispose();
+
+      vi.advanceTimersByTime(DEFAULT_DEADLINE_MS * 2);
+
+      expect(mocks.slidingSyncInstance.resend).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('SlidingSyncManager pause/resume', () => {
+  const DEFAULT_DEADLINE_MS = 45_000 + 10_000 + 20_000;
+
+  it('aborts the in-flight poll on pause so the radio goes idle', () => {
+    const manager = makeManager(makeMockMx());
+    manager.attach();
+
+    manager.pause();
+
+    expect(manager.isPaused()).toBe(true);
+    expect(mocks.slidingSyncInstance.resend).toHaveBeenCalledOnce();
+  });
+
+  it('does not tear the transport down', () => {
+    const manager = makeManager(makeMockMx());
+    manager.attach();
+
+    manager.pause();
+
+    expect(mocks.slidingSyncInstance.stop).not.toHaveBeenCalled();
+  });
+
+  it('holds waitForResume() until resume', async () => {
+    const manager = makeManager(makeMockMx());
+    manager.attach();
+    manager.pause();
+
+    let resolved = false;
+    const parked = manager.waitForResume().then(() => {
+      resolved = true;
+    });
+
+    await Promise.resolve();
+    expect(resolved).toBe(false);
+
+    manager.resume();
+    await parked;
+
+    expect(resolved).toBe(true);
+    expect(manager.isPaused()).toBe(false);
+  });
+
+  it('resolves waitForResume() immediately when not paused', async () => {
+    const manager = makeManager(makeMockMx());
+    manager.attach();
+
+    await expect(manager.waitForResume()).resolves.toBeUndefined();
+  });
+
+  it('silences the poll watchdog while paused', () => {
+    vi.useFakeTimers();
+    try {
+      const manager = makeManager(makeMockMx());
+      manager.attach();
+      manager.pause();
+      mocks.slidingSyncInstance.resend.mockClear();
+
+      vi.advanceTimersByTime(DEFAULT_DEADLINE_MS * 3);
+
+      expect(mocks.slidingSyncInstance.resend).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('keeps the watchdog silent when the aborted poll emits a lifecycle event', () => {
+    vi.useFakeTimers();
+    try {
+      const manager = makeManager(makeMockMx());
+      manager.attach();
+      manager.pause();
+      mocks.slidingSyncInstance.resend.mockClear();
+
+      fireLifecycle(SlidingSyncState.RequestFinished, {});
+      vi.advanceTimersByTime(DEFAULT_DEADLINE_MS * 3);
+
+      expect(mocks.slidingSyncInstance.resend).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('re-arms the poll watchdog on resume', () => {
+    vi.useFakeTimers();
+    try {
+      const manager = makeManager(makeMockMx());
+      manager.attach();
+      manager.pause();
+      manager.resume();
+      mocks.slidingSyncInstance.resend.mockClear();
+
+      vi.advanceTimersByTime(DEFAULT_DEADLINE_MS);
+
+      expect(mocks.slidingSyncInstance.resend).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('releases parked requests on dispose so the sync loop can unwind', async () => {
+    const manager = makeManager(makeMockMx());
+    manager.attach();
+    manager.pause();
+
+    const parked = manager.waitForResume();
+    manager.dispose();
+
+    await expect(parked).resolves.toBeUndefined();
   });
 });
 

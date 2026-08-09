@@ -4,6 +4,7 @@ import type { Update } from '@tauri-apps/plugin-updater';
 import { isDesktopTauri } from '$utils/platform';
 import { autoUpdateCheckAtom } from '$state/autoUpdateCheck';
 import { createLogger } from '$utils/debug';
+import { getDebugLogger } from '$utils/debugLogger';
 import { hasCustomDesktopTitlebar } from '$utils/tauriTitlebar';
 import { useDesktopSetting } from '$state/hooks/desktopSettings';
 import { ArrowUp } from '$components/icons/phosphor';
@@ -19,6 +20,23 @@ import {
 const log = createLogger('DesktopUpdater');
 const UPDATE_POLL_INTERVAL_MS = 300_000; // 5 minutes
 
+const getUpdaterErrorMessage = (error: unknown): string =>
+  error instanceof Error
+    ? error.message
+    : typeof error === 'object' && error !== null && 'message' in error
+      ? String(error.message)
+      : String(error);
+
+const logUpdaterError = (message: string, error: unknown): void => {
+  log.error(message, error);
+  getDebugLogger().log(
+    'error',
+    'network',
+    'DesktopUpdater',
+    `${message}: ${getUpdaterErrorMessage(error)}`
+  );
+};
+
 export function DesktopUpdater() {
   const autoUpdateCheck = useAtomValue(autoUpdateCheckAtom);
   const triggerCount = useAtomValue(triggerUpdateCheckAtom);
@@ -29,6 +47,7 @@ export function DesktopUpdater() {
   const [isDownloading, setIsDownloading] = useState(false);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
+  const [installError, setInstallError] = useState<string | null>(null);
   const [dismissed, setDismissed] = useState(false);
   const [useCustomTitleBar] = useDesktopSetting('useCustomTitleBar');
   const hasUpdateRef = useRef(false);
@@ -92,7 +111,7 @@ export function DesktopUpdater() {
         setLastChecked(new Date().toISOString());
         if (!hasCustomDesktopTitlebar(useCustomTitleBar)) setBannerVisible(true);
       } catch (err) {
-        log.error('Desktop update check failed', err);
+        logUpdaterError('Desktop update check failed', err);
         if (mounted) {
           if (!hasUpdateRef.current) {
             setPhase({ type: 'idle' });
@@ -145,6 +164,7 @@ export function DesktopUpdater() {
     if (!updateInfo || installStartedRef.current) return;
     installStartedRef.current = true;
     try {
+      setInstallError(null);
       setIsDownloading(true);
       setPhase({ type: 'downloading', progress: 0 });
 
@@ -179,9 +199,11 @@ export function DesktopUpdater() {
       pendingUpdateRef.current = null;
       closePendingUpdate(updateInfo);
     } catch (err) {
-      log.error('Failed to install update', err);
+      logUpdaterError('Failed to install update', err);
+      setInstallError(getUpdaterErrorMessage(err));
       setIsDownloading(false);
       setIsInstalling(false);
+      setPhase({ type: 'ready', version: updateInfo.version });
       installStartedRef.current = false;
     }
   }, [closePendingUpdate, updateInfo, setPhase]);
@@ -223,6 +245,26 @@ export function DesktopUpdater() {
       };
     }
 
+    if (installError) {
+      return {
+        id: 'desktop-update-ready',
+        priority: 200,
+        icon: ArrowUp,
+        title: 'Update Failed',
+        description: installError,
+        primaryAction: {
+          label: 'Retry',
+          variant: 'Primary',
+          onClick: handleInstall,
+        },
+        secondaryAction: {
+          label: 'Later',
+          variant: 'Secondary',
+          onClick: handleDismiss,
+        },
+      };
+    }
+
     return {
       id: 'desktop-update-ready',
       priority: 200,
@@ -251,6 +293,7 @@ export function DesktopUpdater() {
     isDownloading,
     isInstalled,
     isInstalling,
+    installError,
     handleInstall,
     handleRestart,
     handleDismiss,

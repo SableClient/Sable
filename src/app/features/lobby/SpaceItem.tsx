@@ -1,20 +1,8 @@
 import type { MouseEventHandler, ReactNode } from 'react';
 import { useCallback, useRef, useState } from 'react';
 import type { RectCords } from 'folds';
-import {
-  Box,
-  Avatar,
-  Text,
-  Chip,
-  as,
-  Badge,
-  toRem,
-  Spinner,
-  PopOut,
-  config,
-  Menu,
-  MenuItem,
-} from 'folds';
+import { Box, Avatar, Text, Chip, as, Badge, toRem, Spinner, config, Menu, MenuItem } from 'folds';
+import { PopOut } from '$components/overlay-stack';
 import classNames from 'classnames';
 import type { MatrixError, Room, IHierarchyRoom } from '$types/matrix-sdk';
 import type { HierarchyItem } from '$hooks/useSpaceHierarchy';

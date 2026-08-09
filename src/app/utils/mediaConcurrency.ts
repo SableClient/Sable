@@ -18,7 +18,9 @@ export async function withMediaFetchSlot<T>(task: () => Promise<T>): Promise<T> 
     return await task();
   } finally {
     // Hand the slot straight to the next waiter instead of releasing and re-acquiring it.
-    const next = waiters.shift();
+    // Newest first: a picker opened over a loading member list would otherwise wait
+    // behind every one of its avatars.
+    const next = waiters.pop();
     if (next) next();
     else active -= 1;
   }

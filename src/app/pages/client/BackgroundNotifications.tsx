@@ -100,8 +100,13 @@ const startBackgroundClient = async (session: Session): Promise<MatrixClient> =>
     timelineLimit: 1,
   };
 
-  await startClient(mx, startOpts);
-  return mx;
+  try {
+    await startClient(mx, startOpts);
+    return mx;
+  } catch (error) {
+    stopClient(mx);
+    throw error;
+  }
 };
 
 /**
@@ -136,14 +141,14 @@ export function BackgroundNotifications() {
   const sessions = useAtomValue(sessionsAtom);
   const [activeSessionId, setActiveSessionId] = useAtom(activeSessionIdAtom);
   const [showNotifications] = useSetting(settingsAtom, 'useInAppNotifications');
-  const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
+  const [backgroundPushEnabled] = useSetting(settingsAtom, 'backgroundPushEnabled');
   const [notificationSound] = useSetting(settingsAtom, 'isNotificationSounds');
   const [showMessageContent] = useSetting(settingsAtom, 'showMessageContentInNotifications');
   const [showEncryptedMessageContent] = useSetting(
     settingsAtom,
     'showMessageContentInEncryptedNotifications'
   );
-  const shouldRunBackgroundNotifications = showNotifications || usePushNotifications;
+  const shouldRunBackgroundNotifications = showNotifications || backgroundPushEnabled;
   const nicknames = useAtomValue(nicknamesAtom);
   const nicknamesRef = useRef(nicknames);
   nicknamesRef.current = nicknames;
@@ -207,7 +212,9 @@ export function BackgroundNotifications() {
     }
 
     const { current } = clientsRef;
+    let disposed = false;
     const activeIds = new Set(inactiveSessions.map((s) => s.userId));
+    const retryTimers: ReturnType<typeof setTimeout>[] = [];
 
     async function sendNotification(opts: NotifyOptions): Promise<void> {
       if (isDesktopTauri()) {
@@ -285,14 +292,26 @@ export function BackgroundNotifications() {
     // Using a named function (vs. inline .then) lets the .catch() schedule a
     // fresh retry referencing the latest session from inactiveSessionsRef.
     const startSession = (session: Session, attempt = 0): void => {
+      if (disposed || current.has(session.userId)) return;
+
       let sessionMx: MatrixClient | undefined;
       startBackgroundClient(session)
         .then(async (mx) => {
           sessionMx = mx;
+          if (disposed) {
+            stopClient(mx);
+            return;
+          }
           current.set(session.userId, mx);
           Sentry.metrics.gauge('sable.background.client_count', current.size);
 
           await waitForSync(mx);
+
+          if (disposed) return;
+          if (current.get(session.userId) !== mx) {
+            stopClient(mx);
+            return;
+          }
 
           // Wait for m.direct account data to load. This is critical for DM detection.
           // Without it, rooms in /direct/ won't be recognized as DMs, causing notifications to fail.
@@ -315,6 +334,12 @@ export function BackgroundNotifications() {
                 resolve();
               }, 5000);
             });
+          }
+
+          if (disposed) return;
+          if (current.get(session.userId) !== mx) {
+            stopClient(mx);
+            return;
           }
 
           const pushProcessor = mx.pushProcessor;
@@ -564,6 +589,7 @@ export function BackgroundNotifications() {
           });
         })
         .catch((err) => {
+          if (disposed) return;
           log.error('failed to start background client for', session.userId, err);
           debugLog.error('notification', 'Failed to start background client', {
             userId: session.userId,
@@ -585,14 +611,17 @@ export function BackgroundNotifications() {
           // Retry with exponential backoff, up to 5 attempts (5s, 10s, 20s, 40s, 60s cap).
           if (attempt < 5) {
             const retryDelay = Math.min(5_000 * 2 ** attempt, 60_000);
-            setTimeout(() => {
-              const latestSession = inactiveSessionsRef.current.find(
-                (s) => s.userId === session.userId
-              );
-              if (latestSession && !current.has(session.userId)) {
-                startSession(latestSession, attempt + 1);
-              }
-            }, retryDelay);
+            retryTimers.push(
+              setTimeout(() => {
+                if (disposed) return;
+                const latestSession = inactiveSessionsRef.current.find(
+                  (s) => s.userId === session.userId
+                );
+                if (latestSession && !current.has(session.userId)) {
+                  startSession(latestSession, attempt + 1);
+                }
+              }, retryDelay)
+            );
           }
         });
     };
@@ -610,16 +639,15 @@ export function BackgroundNotifications() {
     });
 
     const cleanupMap = clientCleanupRef.current;
-    const activeUserIds = new Set(inactiveSessions.map((s) => s.userId));
     return () => {
+      disposed = true;
       staggerTimers.forEach(clearTimeout);
+      retryTimers.forEach(clearTimeout);
       current.forEach((mx, userId) => {
-        if (!activeUserIds.has(userId)) {
-          cleanupMap.get(userId)?.();
-          cleanupMap.delete(userId);
-          stopClient(mx);
-          current.delete(userId);
-        }
+        cleanupMap.get(userId)?.();
+        cleanupMap.delete(userId);
+        stopClient(mx);
+        current.delete(userId);
       });
     };
   }, [

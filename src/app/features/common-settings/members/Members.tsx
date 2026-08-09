@@ -1,7 +1,8 @@
 import type { ChangeEventHandler, MouseEventHandler } from 'react';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import type { RectCords } from 'folds';
-import { Box, Chip, config, IconButton, Input, PopOut, Scroll, Spinner, Text, toRem } from 'folds';
+import { Box, Chip, config, IconButton, Input, Scroll, Spinner, Text, toRem } from 'folds';
+import { PopOut } from '$components/overlay-stack';
 import {
   ArrowsDownUp,
   CaretUp,

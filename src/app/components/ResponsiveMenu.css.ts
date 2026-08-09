@@ -3,7 +3,7 @@ import { config, toRem } from 'folds';
 
 export const DialogContent = style({
   width: `min(90vw, ${toRem(400)})`,
-  maxHeight: '85vh',
+  maxHeight: '85dvh',
   display: 'flex',
   flexDirection: 'column',
 });
@@ -32,9 +32,10 @@ export const SheetContent = style({
 // drag handle.
 globalStyle(`${SheetContent} > *:last-child`, {
   // !important beats the inline maxWidth/width the callers set for their desktop popout.
+  // Do not override maxHeight: callers use it to give nested Scroll elements a
+  // definite scrollport.
   width: '100% !important',
   maxWidth: 'none !important',
-  maxHeight: '100%',
   position: 'relative',
   display: 'flex',
   flexDirection: 'column',
@@ -44,4 +45,10 @@ globalStyle(`${SheetContent} > *:last-child`, {
   boxShadow: 'none !important',
   paddingTop: '0 !important',
   paddingBottom: `${config.space.S400} !important`,
+});
+
+// Desktop menus often constrain direct content groups instead of the menu itself.
+// Let those groups stretch with the mobile sheet while preserving their desktop width.
+globalStyle(`${SheetContent} > *:last-child > *`, {
+  maxWidth: 'none !important',
 });

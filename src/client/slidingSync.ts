@@ -22,6 +22,7 @@ import {
   EventTimeline,
   EventEmitterEvents,
   ClientEvent,
+  UNSTABLE_ELEMENT_FUNCTIONAL_USERS,
 } from '$types/matrix-sdk';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
@@ -34,13 +35,12 @@ const debugLog = createDebugLogger('slidingSync');
 
 const LIST_JOINED = 'joined';
 const LIST_INVITES = 'invites';
-const LIST_UPDATES = 'updates';
 const LIST_TIMELINE_LIMIT = 1;
 const LIST_PAGE_SIZE = 30;
-const STEADY_STATE_DETAILED_ROOMS = 3;
 const DEFAULT_POLL_TIMEOUT_MS = 45000;
-
-const LIST_SORT_ORDER = ['by_recency', 'by_name'];
+// Mirrors the js-sdk's own BUFFER_PERIOD_MS so our watchdog sits after its `clientTimeout`.
+const SDK_CLIENT_TIMEOUT_BUFFER_MS = 10_000;
+const POLL_DEADLINE_MARGIN_MS = 20_000;
 
 const ACTIVE_ROOM_SUBSCRIPTION_KEY = 'active_room';
 const SIDEBAR_ROOM_SUBSCRIPTION_KEY = 'sidebar_room';
@@ -59,7 +59,6 @@ type OptimisticJoin = {
 
 export type PartialSlidingSyncRequest = {
   filters?: MSC3575List['filters'];
-  sort?: string[];
   ranges?: [number, number][];
 };
 
@@ -148,7 +147,6 @@ const buildSelfJoinEvent = (
 };
 
 const buildListRequiredState = (): MSC3575RoomSubscription['required_state'] => [
-  // first sync limited solely to what's needed to render rooms
   [EventType.RoomAvatar, ''],
   [EventType.RoomTombstone, ''],
   [EventType.RoomEncryption, ''],
@@ -159,6 +157,8 @@ const buildListRequiredState = (): MSC3575RoomSubscription['required_state'] => 
   [EventType.RoomMember, MSC3575_STATE_KEY_ME],
   [EventType.GroupCallPrefix, ''],
   [EventType.GroupCallMemberPrefix, MSC3575_WILDCARD],
+  // Feeds functional-member filtering for bridged DM names/avatars.
+  [UNSTABLE_ELEMENT_FUNCTIONAL_USERS.name, ''],
 ];
 
 const SPACE_REQUIRED_STATE: MSC3575RoomSubscription['required_state'] = [
@@ -196,6 +196,7 @@ const ACTIVE_ROOM_REQUIRED_STATE: MSC3575RoomSubscription['required_state'] = [
   [EventType.SpaceParent, MSC3575_WILDCARD],
   [EventType.GroupCallPrefix, ''],
   [EventType.GroupCallMemberPrefix, MSC3575_WILDCARD],
+  [UNSTABLE_ELEMENT_FUNCTIONAL_USERS.name, ''],
   ...Object.values(CustomStateEvent).map((type) => [type, MSC3575_WILDCARD] as [string, string]),
 ];
 
@@ -242,7 +243,6 @@ const buildLists = (): Map<string, MSC3575List> => {
 
   lists.set(LIST_JOINED, {
     ranges: [[0, LIST_PAGE_SIZE - 1]],
-    sort: LIST_SORT_ORDER,
     timeline_limit: LIST_TIMELINE_LIMIT,
     required_state: listRequiredState,
     filters: { is_invite: false },
@@ -250,18 +250,9 @@ const buildLists = (): Map<string, MSC3575List> => {
 
   lists.set(LIST_INVITES, {
     ranges: [[0, LIST_PAGE_SIZE - 1]],
-    sort: LIST_SORT_ORDER,
     timeline_limit: LIST_TIMELINE_LIMIT,
     required_state: listRequiredState,
     filters: { is_invite: true },
-  });
-
-  lists.set(LIST_UPDATES, {
-    ranges: [[0, LIST_PAGE_SIZE - 1]],
-    sort: LIST_SORT_ORDER,
-    timeline_limit: LIST_TIMELINE_LIMIT,
-    required_state: [[EventType.RoomMember, MSC3575_STATE_KEY_ME]],
-    filters: { is_invite: false },
   });
 
   return lists;
@@ -278,21 +269,37 @@ type RoomScopedExtension = {
   rooms?: string[];
 };
 
-export const scopeEphemeralExtensions = (
+// Receipts stay unscoped on purpose: they drive unread state for every room in
+// the sidebar, and a room that never receives one reads as permanently unread.
+export const scopeTypingExtension = (
   extensions: object | undefined,
   roomIds: readonly string[]
 ): void => {
   if (!extensions) return;
-  const extensionMap = extensions as Record<string, unknown>;
 
-  ['typing', 'receipts'].forEach((name) => {
-    const extension = extensionMap[name];
-    if (!extension || typeof extension !== 'object') return;
+  const typing = (extensions as Record<string, unknown>).typing;
+  if (!typing || typeof typing !== 'object') return;
 
-    const scopedExtension = extension as RoomScopedExtension;
-    scopedExtension.lists = [];
-    scopedExtension.rooms = [...roomIds];
-  });
+  const scopedTyping = typing as RoomScopedExtension;
+  scopedTyping.lists = [];
+  scopedTyping.rooms = [...roomIds];
+};
+
+type ExpandedTimelineRoomData = MSC3575RoomData & { unstable_expanded_timeline?: boolean };
+
+// Synapse flags history re-sent for a raised timeline_limit only as
+// `unstable_expanded_timeline`, but the SDK reconciles a gap on `limited`/`initial`,
+// so without this it lands after the newest event. Drop once the SDK reads the flag.
+export const markExpandedTimelinesLimited = (resp: MSC3575SlidingSyncResponse | null): void => {
+  if (!resp?.rooms) return;
+
+  for (const roomData of Object.values(resp.rooms)) {
+    const expanded = roomData as ExpandedTimelineRoomData;
+    // Without a token the SDK would clear the back-pagination token.
+    if (expanded.unstable_expanded_timeline === true && typeof expanded.prev_batch === 'string') {
+      expanded.limited = true;
+    }
+  }
 };
 
 export class SlidingSyncManager {
@@ -417,6 +424,14 @@ export class SlidingSyncManager {
   /** Wall-clock time recorded in attach() — used to compute true initial-sync latency. */
   private attachTime: number | null = null;
 
+  private readonly pollDeadlineMs: number;
+
+  private pollWatchdogTimer: ReturnType<typeof globalThis.setTimeout> | undefined;
+
+  private paused = false;
+
+  private readonly resumeWaiters = new Set<() => void>();
+
   /** Span covering the period from attach() to the first successful complete cycle. */
   private initialSyncSpan: ReturnType<typeof Sentry.startInactiveSpan> | null = null;
 
@@ -428,6 +443,7 @@ export class SlidingSyncManager {
     options: SlidingSyncOptions = {}
   ) {
     const pollTimeoutMs = clampPositive(options.pollTimeoutMs, DEFAULT_POLL_TIMEOUT_MS);
+    this.pollDeadlineMs = pollTimeoutMs + SDK_CLIENT_TIMEOUT_BUFFER_MS + POLL_DEADLINE_MARGIN_MS;
 
     const roomTimelineLimit = clampPositive(options.timelineLimit, ACTIVE_ROOM_TIMELINE_LIMIT);
     this.roomTimelineLimit = roomTimelineLimit;
@@ -485,6 +501,8 @@ export class SlidingSyncManager {
         return;
       }
 
+      this.armPollWatchdog();
+
       if (state === SlidingSyncState.RequestFinished) {
         if (!err && resp) {
           this.responseProcessing = true;
@@ -531,7 +549,7 @@ export class SlidingSyncManager {
         const currentCount = listData?.joinedCount ?? 0;
         const previousCount = this.previousListCounts.get(key) ?? 0;
 
-        if (key !== LIST_UPDATES) totalRoomCount += currentCount;
+        totalRoomCount += currentCount;
 
         if (currentCount !== previousCount) {
           changes[key] = {
@@ -583,6 +601,7 @@ export class SlidingSyncManager {
       }
 
       this.expandListsByPage();
+      this.ensureListCoverage();
 
       Sentry.metrics.distribution('sable.sync.processing_ms', syncDuration, {
         attributes: { transport: 'sliding' },
@@ -619,14 +638,7 @@ export class SlidingSyncManager {
       if (member.userId !== this.mx.getUserId()) return;
       if (member.membership !== KnownMembership.Leave && member.membership !== KnownMembership.Ban)
         return;
-      this.sidebarCache.removeRoom(member.roomId);
-      const removedSpaceSubscription = this.spaceSubscriptions.delete(member.roomId);
-      const removedSidebarSubscription = this.sidebarRoomSubscriptions.delete(member.roomId);
-      if (this.activeRoomSubscriptions.has(member.roomId)) {
-        this.unsubscribeFromRoom(member.roomId);
-      } else if (removedSpaceSubscription || removedSidebarSubscription) {
-        this.queueRoomSubscriptionSync();
-      }
+      this.handleRoomLeaveSubscriptions(member.roomId);
     };
 
     this.onCacheRoomData = (roomId, data) => {
@@ -677,7 +689,70 @@ export class SlidingSyncManager {
     this.mx.on(RoomMemberEvent.Membership, this.onMembershipLeave);
     this.mx.on(ClientEvent.AccountData, this.onCacheAccountData);
 
+    this.armPollWatchdog();
+
     debugLog.info('sync', 'Sliding sync listeners attached successfully');
+  }
+
+  /**
+   * Backstop for the SDK's own `clientTimeout`, which is a JS timer and so cannot fire
+   * while a mobile webview is frozen. Re-arms itself because the SDK's abort path
+   * `continue`s without emitting a lifecycle event.
+   */
+  private armPollWatchdog(): void {
+    if (this.disposed || this.paused) return;
+    globalThis.clearTimeout(this.pollWatchdogTimer);
+    this.pollWatchdogTimer = globalThis.setTimeout(() => {
+      this.pollWatchdogTimer = undefined;
+      if (this.disposed) return;
+      debugLog.warn('sync', 'Sliding sync poll exceeded client-side deadline; cycling transport', {
+        pollDeadlineMs: this.pollDeadlineMs,
+        syncNumber: this.syncCount,
+      });
+      this.slidingSync.resend();
+      this.armPollWatchdog();
+    }, this.pollDeadlineMs);
+  }
+
+  /**
+   * Stop issuing requests without tearing the transport down. `SlidingSync.stop()` is
+   * terminal and drops the `pos` token held in `start()`, so stop/start would force a
+   * full initial sync on every resume; the request patch parks on `waitForResume()`
+   * instead.
+   */
+  public pause(): void {
+    if (this.paused || this.disposed) return;
+    this.paused = true;
+    globalThis.clearTimeout(this.pollWatchdogTimer);
+    this.pollWatchdogTimer = undefined;
+    this.slidingSync.resend();
+    debugLog.info('sync', 'Sliding sync paused');
+  }
+
+  public resume(): void {
+    if (!this.paused) return;
+    this.paused = false;
+    this.releaseResumeWaiters();
+    this.armPollWatchdog();
+    debugLog.info('sync', 'Sliding sync resumed');
+  }
+
+  public isPaused(): boolean {
+    return this.paused;
+  }
+
+  /** Resolves on the next resume(), or immediately when not paused. */
+  public waitForResume(): Promise<void> {
+    if (!this.paused) return Promise.resolve();
+    return new Promise((resolve) => {
+      this.resumeWaiters.add(resolve);
+    });
+  }
+
+  private releaseResumeWaiters(): void {
+    const waiters = Array.from(this.resumeWaiters);
+    this.resumeWaiters.clear();
+    waiters.forEach((resolve) => resolve());
   }
 
   public dispose(): void {
@@ -703,6 +778,10 @@ export class SlidingSyncManager {
     this.hydrationStatusListeners.clear();
 
     this.disposed = true;
+    this.paused = false;
+    this.releaseResumeWaiters();
+    globalThis.clearTimeout(this.pollWatchdogTimer);
+    this.pollWatchdogTimer = undefined;
     this.slidingSync.stop();
     this.slidingSync.removeListener(SlidingSyncEvent.Lifecycle, this.onLifecycle);
     this.slidingSync.removeListener(SlidingSyncEvent.RoomData, this.onCacheRoomData);
@@ -937,7 +1016,6 @@ export class SlidingSyncManager {
         this.hydrationStatusListeners.forEach((listener) => listener(false));
         this.reconcileSidebarCacheMembership();
         globalThis.setTimeout(() => this.flushDeferredSubscriptions(), 0);
-        this.applySteadyStateListRanges();
         log.log(`Sliding Sync all lists fully loaded for ${this.mx.getUserId()}`);
         const totalRooms =
           (this.slidingSync.getListData(LIST_JOINED)?.joinedCount ?? 0) +
@@ -979,31 +1057,22 @@ export class SlidingSyncManager {
     }
   }
 
-  private applySteadyStateListRanges(): void {
-    const joinedList = this.slidingSync.getListParams(LIST_JOINED);
-    const currentEnd = getListEndIndex(joinedList);
-    const steadyStateEnd = Math.min(currentEnd, STEADY_STATE_DETAILED_ROOMS - 1);
-    if (steadyStateEnd < 0 || steadyStateEnd === currentEnd) return;
+  // Paging stops once every list is covered, but the counts keep growing, and a state
+  // change does not bump a room back into the window.
+  private ensureListCoverage(): void {
+    if (!this.initialListHydrationCompleted) return;
 
-    const joinedCount = this.slidingSync.getListData(LIST_JOINED)?.joinedCount ?? 0;
-    const updatesCount = this.slidingSync.getListData(LIST_UPDATES)?.joinedCount ?? 0;
-    const updatesConfirmedEnd = this.confirmedListRangeEnds.get(LIST_UPDATES) ?? -1;
-    if (updatesCount !== joinedCount || updatesConfirmedEnd < joinedCount - 1) {
-      debugLog.warn('sync', 'Kept detailed joined list fully covered: updates list unavailable', {
-        joinedCount,
-        updatesCount,
-        updatesConfirmedEnd,
+    this.listKeys.forEach((key) => {
+      const knownCount = this.slidingSync.getListData(key)?.joinedCount ?? 0;
+      const desiredEnd = knownCount - 1;
+      if (desiredEnd <= getListEndIndex(this.slidingSync.getListParams(key))) return;
+
+      this.slidingSync.setListRanges(key, [[0, desiredEnd]]);
+      this.requestedListRangeEnds.set(key, desiredEnd);
+      debugLog.info('sync', `Extended list "${key}" to cover newly joined rooms`, {
+        list: key,
+        newEnd: desiredEnd,
       });
-      return;
-    }
-
-    this.slidingSync.setListRanges(LIST_JOINED, [[0, steadyStateEnd]]);
-    this.requestedListRangeEnds.set(LIST_JOINED, steadyStateEnd);
-    debugLog.info('sync', 'Reduced detailed joined list to steady-state window', {
-      previousEnd: currentEnd,
-      newEnd: steadyStateEnd,
-      retainedDetailedRooms: steadyStateEnd + 1,
-      updatesCoverageEnd: updatesConfirmedEnd,
     });
   }
 
@@ -1012,7 +1081,6 @@ export class SlidingSyncManager {
     if (!list) {
       list = {
         ranges: [[0, LIST_PAGE_SIZE - 1]],
-        sort: LIST_SORT_ORDER,
         timeline_limit: LIST_TIMELINE_LIMIT,
         required_state: buildListRequiredState(),
         ...updateArgs,
@@ -1274,16 +1342,29 @@ export class SlidingSyncManager {
 
     if (membership === KnownMembership.Leave) {
       this.optimisticallyJoinedRoomIds.delete(roomId);
-      this.sidebarCache.removeRoom(roomId);
-      const removedSpaceSubscription = this.spaceSubscriptions.delete(roomId);
-      const removedSidebarSubscription = this.sidebarRoomSubscriptions.delete(roomId);
-      if (this.activeRoomSubscriptions.has(roomId)) {
-        this.unsubscribeFromRoom(roomId);
-      } else if (removedSpaceSubscription || removedSidebarSubscription) {
-        this.queueRoomSubscriptionSync();
-      }
+      this.handleRoomLeaveSubscriptions(roomId);
       this.mx.store.removeRoom(roomId);
     }
+  }
+
+  private handleRoomLeaveSubscriptions(roomId: string): void {
+    this.sidebarCache.removeRoom(roomId);
+    const removedPassiveSubscription = this.removePassiveSubscriptions(roomId);
+    if (this.activeRoomSubscriptions.has(roomId)) {
+      this.unsubscribeFromRoom(roomId);
+    } else if (removedPassiveSubscription) {
+      this.queueRoomSubscriptionSync();
+    }
+  }
+
+  // Includes the deferred sets so a later flush cannot resubscribe a room we left.
+  private removePassiveSubscriptions(roomId: string): boolean {
+    const removedSpace = this.spaceSubscriptions.delete(roomId);
+    const removedSidebar = this.sidebarRoomSubscriptions.delete(roomId);
+    const removedImagePack = this.imagePackRoomSubscriptions.delete(roomId);
+    this.deferredSpaceSubscriptions.delete(roomId);
+    this.deferredImagePackSubscriptions?.delete(roomId);
+    return removedSpace || removedSidebar || removedImagePack;
   }
 
   private flushDeferredSubscriptions(): void {

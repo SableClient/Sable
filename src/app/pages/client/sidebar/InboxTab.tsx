@@ -21,6 +21,7 @@ import {
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
 import { useInviteCount } from '$hooks/useInviteCount';
+import { useInboxNotificationCount } from '$hooks/useInboxNotificationCount';
 import { Text, Box, color } from 'folds';
 import { EnvelopeSimple, getPhosphorIconSize, Tray } from '$components/icons/phosphor';
 import { BookmarkIcon, ChatCircleDotsIcon } from '@phosphor-icons/react';
@@ -32,6 +33,8 @@ export function InboxTab({ isBottom, isMobile }: { isBottom?: boolean; isMobile?
   const navToActivePath = useAtomValue(useNavToActivePathAtom());
   const inboxSelected = useInboxSelected();
   const inviteCount = useInviteCount();
+  const notificationCount = useInboxNotificationCount();
+  const totalBadge = inviteCount + notificationCount;
   const opened = inboxSelected;
   const InboxIconSize = getPhosphorIconSize(isBottom ? 'inline' : 'toolbar');
 
@@ -107,7 +110,7 @@ export function InboxTab({ isBottom, isMobile }: { isBottom?: boolean; isMobile?
           </Box>
         )}
       </SidebarItemTooltip>
-      {inviteCount > 0 && <SidebarUnreadBadge highlight count={inviteCount} />}
+      {totalBadge > 0 && <SidebarUnreadBadge highlight count={totalBadge} />}
     </SidebarItem>
   );
 }

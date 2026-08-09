@@ -28,9 +28,11 @@ export const useRoomMembers = (mx: MatrixClient, roomId: string, enabled = true)
         loadingMembers = false;
         if (disposed) return;
         updateMemberList();
-        void hydrateAllRoomMembers(mx, roomId).then(() => updateMemberList());
       };
-      room.loadMembersIfNeeded().then(stopLoading, stopLoading);
+      room.loadMembersIfNeeded().then(() => {
+        stopLoading();
+        void hydrateAllRoomMembers(mx, roomId).then(() => updateMemberList());
+      }, stopLoading);
     }
 
     const handleStateEvent = (event: MatrixEvent) => {

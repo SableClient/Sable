@@ -9,12 +9,12 @@ import {
   Scroll,
   Text,
   Tooltip,
-  TooltipProvider,
   config,
   Button,
   Line,
   toRem,
 } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
 import {
   ArrowLeft,
   composerIcon,

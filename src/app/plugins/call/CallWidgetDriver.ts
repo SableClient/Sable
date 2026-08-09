@@ -16,8 +16,10 @@ import type { MatrixClient } from '$types/matrix-sdk';
 import {
   EventType,
   type IContent,
+  KnownMembership,
   MatrixError,
   type MatrixEvent,
+  type Room,
   Direction,
   type SendDelayedEventResponse,
   type StateEvents,
@@ -28,6 +30,29 @@ import { downloadMedia, mxcUrlToHttp, uploadContentToServer } from '../../utils/
 import { createDebugLogger } from '../../utils/debugLogger';
 
 const debugLog = createDebugLogger('CallWidgetDriver');
+
+export const hydrateWidgetRoster = async (room: Room): Promise<void> => {
+  try {
+    await room.loadMembersIfNeeded();
+  } catch (error) {
+    // A partial roster still beats failing the read and stalling state sync.
+    debugLog.warn('call', 'Failed to load room members for the call widget', {
+      roomId: room.roomId,
+      error: error instanceof Error ? error.message : String(error),
+    });
+    return;
+  }
+
+  const joinedInState = room.getMembersWithMembership(KnownMembership.Join).length;
+  const joinedCount = room.getJoinedMemberCount();
+  if (joinedInState < joinedCount) {
+    debugLog.warn('call', 'Call widget roster is short of the joined member count', {
+      roomId: room.roomId,
+      joinedInState,
+      joinedCount,
+    });
+  }
+};
 
 export class CallWidgetDriver extends WidgetDriver {
   private allowedCapabilities: Set<Capability>;
@@ -295,6 +320,9 @@ export class CallWidgetDriver extends WidgetDriver {
   ): Promise<IRoomEvent[]> {
     const room = this.mx.getRoom(roomId);
     if (room === null) return [];
+
+    if (eventType === (EventType.RoomMember as string)) await hydrateWidgetRoster(room);
+
     const state = room.getLiveTimeline().getState(Direction.Forward);
     if (state === undefined) return [];
 

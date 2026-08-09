@@ -22,7 +22,7 @@ export const AutocompleteMenuContainer = style([
 export const AutocompleteMenu = style([
   DefaultReset,
   {
-    maxHeight: '30vh',
+    maxHeight: '30dvh',
     height: '100%',
     display: 'flex',
     flexDirection: 'column',

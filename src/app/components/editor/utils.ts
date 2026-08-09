@@ -181,11 +181,11 @@ const getPointUntilChar = (
   let prevPoint: BasePoint | undefined;
   let char: string | undefined;
 
+  const startPoint = Editor.point(editor, cursorPoint, { edge: 'start' });
   const pointItr = Editor.positions(editor, {
-    at: {
-      anchor: Editor.start(editor, []),
-      focus: Editor.point(editor, cursorPoint, { edge: 'start' }),
-    },
+    at: options.reverse
+      ? { anchor: Editor.start(editor, []), focus: startPoint }
+      : { anchor: startPoint, focus: Editor.end(editor, []) },
     unit: 'character',
     reverse: options.reverse,
   });
@@ -202,16 +202,21 @@ const getPointUntilChar = (
   return targetPoint;
 };
 
+// line breaks produce empty chars, not \n
+const isWorldBoundary = (char: string) => /\s|^$/.test(char);
+
 export const getPrevWorldRange = (editor: Editor): BaseRange | undefined => {
   const { selection } = editor;
   if (!selection || !Range.isCollapsed(selection)) return undefined;
   const [cursorPoint] = Range.edges(selection);
   const worldStartPoint = getPointUntilChar(editor, cursorPoint, {
     reverse: true,
-    // line breaks produce empty chars, not \n
-    match: (char) => /\s|^$/.test(char),
+    match: isWorldBoundary,
   });
-  return worldStartPoint && Editor.range(editor, worldStartPoint, cursorPoint);
+  if (!worldStartPoint) return undefined;
+  const worldEndPoint =
+    getPointUntilChar(editor, cursorPoint, { match: isWorldBoundary }) ?? cursorPoint;
+  return Editor.range(editor, worldStartPoint, worldEndPoint);
 };
 
 export const isEmptyEditor = (editor: Editor): boolean => {

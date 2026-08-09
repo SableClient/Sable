@@ -115,6 +115,7 @@ export interface Settings {
   arboriumDarkTheme?: string;
   saturationLevel?: number;
   uniformIcons: boolean;
+  appIconId?: string;
   twitterEmoji: boolean;
   pageZoom: number;
   hideActivity: boolean;
@@ -220,11 +221,6 @@ export interface Settings {
   showEasterEggs: boolean;
   hideReads: boolean;
   emojiSuggestThreshold: number;
-  underlineLinks: boolean;
-  reducedMotion: boolean;
-  autoplayGifs: boolean;
-  autoplayStickers: boolean;
-  autoplayEmojis: boolean;
   oldSidebar: boolean;
   pixelatedImageRendering: PixelatedImageRenderingMode;
   incomingInlineImagesDefaultHeight: number;
@@ -266,6 +262,15 @@ export interface Settings {
   isShowingAllRoomsInHome: boolean;
   sendIndividualAttachmentAsCaption: boolean;
 
+  // accessibility stuff
+  underlineLinks: boolean;
+  reducedMotion: boolean;
+  autoplayGifs: boolean;
+  autoplayStickers: boolean;
+  autoplayEmojis: boolean;
+  nameColorLightnessCorrection: 'off' | 'weak' | 'strong';
+  nameColorLightnessCorrectionMigrated: boolean;
+
   // furry stuff
   renderAnimals: boolean;
   animalKind: string | undefined;
@@ -300,6 +305,7 @@ export const defaultSettings: Settings = {
   arboriumDarkTheme: 'dracula',
   saturationLevel: 100,
   uniformIcons: false,
+  appIconId: undefined,
   twitterEmoji: true,
   pageZoom: 100,
   hideActivity: false,
@@ -450,6 +456,9 @@ export const defaultSettings: Settings = {
   widgetSidebarWidth: 420,
   isShowingAllRoomsInHome: false,
   sendIndividualAttachmentAsCaption: true,
+  nameColorLightnessCorrection: 'strong',
+  nameColorLightnessCorrectionMigrated: true,
+
   // furry stuff
   renderAnimals: true,
   animalKind: undefined,
@@ -492,6 +501,19 @@ const isCallToneId = (value: unknown): value is CallRingtoneId => CALL_TONE_ID_S
 const clampPercent = (value: number): number => Math.max(0, Math.min(100, Math.round(value)));
 
 function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
+  if (typeof parsed.backgroundPushEnabled !== 'boolean') {
+    const legacyProvider = parsed.useUnifiedPush === true ? 'unifiedpush' : null;
+    if (
+      legacyProvider !== null ||
+      typeof parsed.usePushNotifications === 'boolean' ||
+      typeof parsed.useUnifiedPush === 'boolean'
+    ) {
+      parsed.backgroundPushEnabled =
+        legacyProvider !== null || parsed.usePushNotifications === true;
+      parsed.backgroundPushProvider = legacyProvider;
+    }
+  }
+
   const shortcutOverrides = sanitizeShortcutOverrides(parsed.shortcutOverrides);
   if (shortcutOverrides) parsed.shortcutOverrides = shortcutOverrides;
   else delete parsed.shortcutOverrides;
@@ -502,6 +524,17 @@ function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
     parsed.saturationLevel = 100;
   }
   delete parsed.monochromeMode;
+
+  if (parsed.nameColorLightnessCorrectionMigrated !== true) {
+    delete parsed.nameColorLightnessCorrection;
+    parsed.nameColorLightnessCorrectionMigrated = true;
+  } else if (
+    parsed.nameColorLightnessCorrection !== 'off' &&
+    parsed.nameColorLightnessCorrection !== 'weak' &&
+    parsed.nameColorLightnessCorrection !== 'strong'
+  ) {
+    delete parsed.nameColorLightnessCorrection;
+  }
 
   if (typeof parsed.renderUserCards === 'boolean') {
     parsed.renderUserCards = parsed.renderUserCards ? 'both' : 'none';

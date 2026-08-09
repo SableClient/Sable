@@ -19,6 +19,8 @@ import { BreakWord, LineClamp3 } from '$styles/Text.css';
 import type { UserPresence } from '$hooks/useUserPresence';
 import { useRoom } from '$hooks/useRoom';
 import { useSableCosmetics } from '$hooks/useSableCosmetics';
+import { useActiveTheme } from '$hooks/useTheme';
+import { useAccessibleNameColor } from '$hooks/useAccessibleNameColor';
 import { useNickname } from '$hooks/useNickname';
 import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
 import { ImageViewer } from '$components/image-viewer';
@@ -358,6 +360,8 @@ export function GlobalUserHeroName({ displayName, userId, server }: UserHeroName
   const username = getMxIdLocalPart(userId);
   const nick = useNickname(userId);
   const profile = useUserProfile(userId);
+  const activeTheme = useActiveTheme();
+  const accessibleNameColor = useAccessibleNameColor(activeTheme.kind);
 
   const shownName = nick ?? displayName ?? username ?? userId;
 
@@ -367,7 +371,7 @@ export function GlobalUserHeroName({ displayName, userId, server }: UserHeroName
       server={server}
       shownName={shownName}
       font={profile.resolvedFont}
-      color={profile.resolvedColor}
+      color={accessibleNameColor(profile.resolvedColor)}
     />
   );
 }

@@ -280,7 +280,7 @@ fn appindicator_available() -> bool {
     ];
     CANDIDATES
         .iter()
-        .any(|name| unsafe { libloading::Library::new(name) }.is_ok())
+        .any(|name| unsafe { libloading::Library::new(*name) }.is_ok())
 }
 
 pub fn create_system_tray(app: &AppHandle<crate::BrowserEngine>) -> tauri::Result<()> {

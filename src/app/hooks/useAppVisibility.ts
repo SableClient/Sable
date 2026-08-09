@@ -14,7 +14,7 @@ const debugLog = createDebugLogger('AppVisibility');
 
 export function useAppVisibility(mx: MatrixClient | undefined) {
   const clientConfig = useClientConfig();
-  const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
+  const [backgroundPushEnabled] = useSetting(settingsAtom, 'backgroundPushEnabled');
   const pushSubAtom = useAtom(pushSubscriptionAtom);
   const isMobile = isMobileOrTablet();
 
@@ -43,12 +43,12 @@ export function useAppVisibility(mx: MatrixClient | undefined) {
     if (!mx) return undefined;
 
     const handleVisibilityForNotifications = (isVisible: boolean) => {
-      togglePusher(mx, clientConfig, isVisible, usePushNotifications, pushSubAtom, isMobile);
+      togglePusher(mx, clientConfig, isVisible, backgroundPushEnabled, pushSubAtom, isMobile);
     };
 
     appEvents.onVisibilityChange = handleVisibilityForNotifications;
     return () => {
       appEvents.onVisibilityChange = null;
     };
-  }, [mx, clientConfig, usePushNotifications, pushSubAtom, isMobile]);
+  }, [mx, clientConfig, backgroundPushEnabled, pushSubAtom, isMobile]);
 }

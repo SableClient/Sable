@@ -2,7 +2,9 @@ import { render, waitFor } from '@testing-library/react';
 import { Provider, createStore } from 'jotai';
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { NativeNotificationClickRouting } from './notifications';
+import { NativeNotificationActionRouting, NativeNotificationClickRouting } from './notifications';
+import { activeSessionIdAtom, pendingNotificationAtom } from '$state/sessions';
+import { nativeNotificationRepliesAtom } from '$state/nativeNotificationReplies';
 
 // Controllable platform gates + a capturable notifications API. The click-routing
 // effect only calls onNotificationClicked, so the rest of the plugin surface is stubbed
@@ -15,9 +17,28 @@ const platform = vi.hoisted(() => ({
 
 const notificationsApi = vi.hoisted(() => ({
   onNotificationClicked: vi
-    .fn<() => Promise<{ unregister: () => void }>>()
+    .fn<
+      (
+        handler: (event: { data?: Record<string, string> }) => void
+      ) => Promise<{ unregister: () => void }>
+    >()
     .mockResolvedValue({ unregister: () => {} }),
 }));
+
+const matrixClient = vi.hoisted(() => ({
+  getUserId: vi.fn<() => string>(() => '@user:example.com'),
+  getRoom: vi.fn<() => { getMyMembership: () => string }>(() => ({
+    getMyMembership: () => 'join',
+  })),
+  getSyncState: vi.fn<() => string>(() => 'SYNCING'),
+  sendMessage: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+}));
+
+const notificationUtils = vi.hoisted(() => ({
+  markAsRead: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
+}));
+
+const toast = vi.hoisted(() => ({ showToast: vi.fn<(message: string) => void>() }));
 
 const getTauriNotificationsApi = vi.hoisted(() =>
   vi.fn<() => Promise<typeof notificationsApi>>().mockResolvedValue(notificationsApi)
@@ -34,15 +55,22 @@ vi.mock('$features/settings/notifications/TauriNotificationsApiClient', () => ({
   IOS_NOTIFICATION_SOUND: 'notification.caf',
 }));
 
+vi.mock('$hooks/useMatrixClient', () => ({ useMatrixClient: () => matrixClient }));
+vi.mock('$state/hooks/settings', () => ({
+  useSetting: () => [false, vi.fn<(value: unknown) => void>()],
+}));
+vi.mock('$utils/notifications', () => notificationUtils);
+vi.mock('$state/toast', () => toast);
+
 function setPlatform(kind: 'android' | 'ios' | 'desktop' | 'web') {
   platform.isAndroidTauri.mockReturnValue(kind === 'android');
   platform.isIosTauri.mockReturnValue(kind === 'ios');
   platform.isDesktopTauri.mockReturnValue(kind === 'desktop');
 }
 
-function renderRouting() {
+function renderRouting(store = createStore()) {
   return render(
-    <Provider store={createStore()}>
+    <Provider store={store}>
       <MemoryRouter>
         <NativeNotificationClickRouting />
       </MemoryRouter>
@@ -54,6 +82,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   getTauriNotificationsApi.mockResolvedValue(notificationsApi);
   notificationsApi.onNotificationClicked.mockResolvedValue({ unregister: () => {} });
+  matrixClient.sendMessage.mockResolvedValue(undefined);
+  notificationUtils.markAsRead.mockResolvedValue(undefined);
 });
 
 afterEach(() => {
@@ -98,5 +128,61 @@ describe('NativeNotificationClickRouting', () => {
 
     expect(getTauriNotificationsApi).not.toHaveBeenCalled();
     expect(notificationsApi.onNotificationClicked).not.toHaveBeenCalled();
+  });
+
+  it('ignores unscoped clicks and switches account before routing scoped invites', async () => {
+    setPlatform('android');
+    const store = createStore();
+    let clickHandler!: (event: { data?: Record<string, string> }) => void;
+    notificationsApi.onNotificationClicked.mockImplementation(async (handler) => {
+      clickHandler = handler;
+      return { unregister: () => {} };
+    });
+    renderRouting(store);
+    await waitFor(() => expect(clickHandler).toBeTypeOf('function'));
+
+    clickHandler({ data: { type: 'invite', room_id: '!room:example.com' } });
+    expect(store.get(activeSessionIdAtom)).not.toBe('@other:example.com');
+    expect(store.get(pendingNotificationAtom)).toBeNull();
+
+    clickHandler({
+      data: {
+        type: 'invite',
+        user_id: '@other:example.com',
+        room_id: '!room:example.com',
+      },
+    });
+    expect(store.get(activeSessionIdAtom)).toBe('@other:example.com');
+  });
+});
+
+describe('NativeNotificationActionRouting', () => {
+  it('does not report a successful reply as failed when marking it read fails', async () => {
+    setPlatform('web');
+    const store = createStore();
+    store.set(nativeNotificationRepliesAtom, [
+      {
+        key: 'reply',
+        userId: '@user:example.com',
+        roomId: '!room:example.com',
+        eventId: '$event',
+        text: 'hello',
+        createdAt: Date.now(),
+      },
+    ]);
+    notificationUtils.markAsRead.mockRejectedValueOnce(new Error('receipt failed'));
+
+    render(
+      <Provider store={store}>
+        <MemoryRouter>
+          <NativeNotificationActionRouting />
+        </MemoryRouter>
+      </Provider>
+    );
+
+    await waitFor(() => expect(matrixClient.sendMessage).toHaveBeenCalledOnce());
+    await waitFor(() => expect(store.get(nativeNotificationRepliesAtom)).toEqual([]));
+    expect(notificationUtils.markAsRead).toHaveBeenCalledOnce();
+    expect(toast.showToast).not.toHaveBeenCalled();
   });
 });

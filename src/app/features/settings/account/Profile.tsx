@@ -1,5 +1,5 @@
 import type { ChangeEventHandler, FormEventHandler } from 'react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Text, IconButton, Input, Avatar, Button, config, Spinner } from 'folds';
 import { menuIcon, Star, Sun, X } from '$components/icons/phosphor';
 import { useSetAtom } from 'jotai';
@@ -13,7 +13,7 @@ import { useUserProfile } from '$hooks/useUserProfile';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { UserAvatar } from '$components/user-avatar';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { nameInitials } from '$utils/common';
+import { nameInitials, xor } from '$utils/common';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useFilePicker } from '$hooks/useFilePicker';
 import { useObjectURL } from '$hooks/useObjectURL';
@@ -40,6 +40,8 @@ import { AnimalCosmetics } from './AnimalCosmetics';
 import * as prefix from '$unstable/prefixes';
 import { confirm } from '$components/confirm/confirm';
 import { AvatarUploadTile } from '$components/avatar-upload-tile/AvatarUploadTile';
+import { accessibleColor } from '$plugins/color';
+import { ThemeKind } from '$hooks/useTheme';
 
 type PronounSet = {
   summary: string;
@@ -426,24 +428,35 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
     [mx, presence]
   );
 
-  const color_on_dark =
+  const colorOnDark =
     profile.nameColors?.on_dark ??
-    (profile.extended?.[prefix.MATRIX_UNSTABLE_COLORS] as ColorSet | undefined)?.on_dark;
-  const color_on_light =
+    (profile.extended?.[prefix.MATRIX_UNSTABLE_COLORS] as ColorSet | undefined)?.on_dark ??
+    null;
+  const colorOnLight =
     profile.nameColors?.on_light ??
-    (profile.extended?.[prefix.MATRIX_UNSTABLE_COLORS] as ColorSet | undefined)?.on_light;
+    (profile.extended?.[prefix.MATRIX_UNSTABLE_COLORS] as ColorSet | undefined)?.on_light ??
+    null;
+  const [newColorOnDark, setNewColorOnDark] = useState<string | null>(null);
+  const [newColorOnLight, setNewColorOnLight] = useState<string | null>(null);
 
   // Deletes the depricated key, the color specific ones should be depricated too at a later date
-  if (profile.nameColor || (profile.extended?.[prefix.MATRIX_UNSTABLE_COLORS] as string)) {
-    const fallback =
-      profile.nameColor ?? (profile.extended?.[prefix.MATRIX_UNSTABLE_COLORS] as string);
-    if (!color_on_light || !color_on_dark)
-      handleSaveField(prefix.MATRIX_UNSTABLE_COLORS, {
-        on_dark: color_on_dark ?? fallback,
-        on_light: color_on_light ?? fallback,
-      });
-    handleSaveField(prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_PROPERTY_NAME, null);
-  }
+  const legacyColor = profile.nameColor;
+  const migratedLegacyColor = useRef(false);
+  useEffect(() => {
+    if (!legacyColor || migratedLegacyColor.current) return;
+    migratedLegacyColor.current = true;
+
+    const migrate = async () => {
+      if (!colorOnDark || !colorOnLight) {
+        await handleSaveField(prefix.MATRIX_UNSTABLE_COLORS, {
+          on_dark: colorOnDark ?? legacyColor,
+          on_light: colorOnLight ?? legacyColor,
+        });
+      }
+      await handleSaveField(prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_PROPERTY_NAME, null);
+    };
+    migrate();
+  }, [legacyColor, colorOnDark, colorOnLight, handleSaveField]);
 
   return (
     <Box direction="Column" gap="100">
@@ -466,11 +479,13 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
           title="Dark theme Global Name Color"
           description="Your name's color for a dark theme user."
           focusId="name-color-dark-theme"
-          current={color_on_dark}
+          current={colorOnDark ?? undefined}
+          newNameColor={newColorOnDark ?? undefined}
+          onChange={setNewColorOnDark}
           onSave={(color) =>
             handleSaveField(prefix.MATRIX_UNSTABLE_COLORS, {
               on_dark: color,
-              on_light: color_on_light,
+              on_light: newColorOnLight,
             })
           }
         />
@@ -478,14 +493,42 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
           title="Light theme Global Name Color"
           description="Your name's color for a light theme user."
           focusId="name-color-light-theme"
-          current={color_on_light}
+          current={colorOnLight ?? undefined}
+          newNameColor={newColorOnLight ?? undefined}
+          onChange={setNewColorOnLight}
           onSave={(color) =>
             handleSaveField(prefix.MATRIX_UNSTABLE_COLORS, {
-              on_dark: color_on_dark,
+              on_dark: newColorOnDark,
               on_light: color,
             })
           }
         />
+        {xor(newColorOnDark, newColorOnLight) && (
+          <Box direction="Column" alignItems="End">
+            {!newColorOnDark && newColorOnLight && (
+              <Button
+                size="300"
+                fill="Soft"
+                onClick={() => {
+                  setNewColorOnDark(accessibleColor(ThemeKind.Dark, newColorOnLight));
+                }}
+              >
+                <Text size="T200">Create new color from light theme</Text>
+              </Button>
+            )}
+            {newColorOnDark && !newColorOnLight && (
+              <Button
+                size="300"
+                fill="Soft"
+                onClick={() => {
+                  setNewColorOnLight(accessibleColor(ThemeKind.Light, newColorOnDark));
+                }}
+              >
+                <Text size="T200">Create new color from dark theme</Text>
+              </Button>
+            )}
+          </Box>
+        )}
       </SequenceCard>
       <SequenceCard
         className={SequenceCardStyle}

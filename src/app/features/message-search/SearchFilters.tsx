@@ -7,7 +7,6 @@ import {
   Text,
   Line,
   config,
-  PopOut,
   Menu,
   MenuItem,
   Header,
@@ -17,6 +16,7 @@ import {
   Input,
   Badge,
 } from 'folds';
+import { PopOut } from '$components/overlay-stack';
 import FocusTrap from 'focus-trap-react';
 import { ResponsiveMenu } from '$components/ResponsiveMenu';
 import { useMenuAnchor } from '$hooks/useMenuAnchor';

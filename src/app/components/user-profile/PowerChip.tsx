@@ -219,6 +219,10 @@ export function PowerChip({
               style={{
                 padding: config.space.S100,
                 maxWidth: toRem(200),
+                maxHeight: 'calc(80vh - 5rem)',
+                overflowY: 'auto',
+                overscrollBehavior: 'contain',
+                touchAction: 'pan-y',
                 backgroundColor: innerColor,
               }}
             >

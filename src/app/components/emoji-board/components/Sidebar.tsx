@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { Box, Scroll, Line, as, TooltipProvider, Tooltip, Text, IconButton } from 'folds';
+import { Box, Scroll, Line, as, Tooltip, Text, IconButton } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
 import classNames from 'classnames';
 import { Image as MediaImage } from '$components/media';
 import { sizedIcon, Image as ImageIcon, type PhosphorIcon } from '$components/icons/phosphor';

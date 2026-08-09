@@ -46,6 +46,9 @@ importers:
       '@lottiefiles/dotlottie-react':
         specifier: ^0.12.0
         version: 0.12.3(react@18.3.1)
+      '@lottiefiles/dotlottie-web':
+        specifier: 0.40.1
+        version: 0.40.1
       '@noble/hashes':
         specifier: ^2.2.0
         version: 2.2.0
@@ -356,6 +359,9 @@ importers:
       oxlint-tsgolint:
         specifier: ^0.24.0
         version: 0.24.0
+      tauri-plugin-app-icon-api:
+        specifier: github:SableClient/tauri-plugin-app-icon#9248a3370dca5c9b1640b20806002fe59d25fa57
+        version: https://codeload.github.com/SableClient/tauri-plugin-app-icon/tar.gz/9248a3370dca5c9b1640b20806002fe59d25fa57
       testcontainers:
         specifier: ^12.0.4
         version: 12.0.4
@@ -5332,6 +5338,10 @@ packages:
 
   tauri-plugin-android-fs-api@28.4.0:
     resolution: {integrity: sha512-YOo1P+cRjuaoPbTNZprMhr56ruKO4hIDq7kJOum91NqkN+VWY9F+UPAdjZokhzJSsbkeY0nsb1VDLXb2/h3f3w==}
+
+  tauri-plugin-app-icon-api@https://codeload.github.com/SableClient/tauri-plugin-app-icon/tar.gz/9248a3370dca5c9b1640b20806002fe59d25fa57:
+    resolution: {tarball: https://codeload.github.com/SableClient/tauri-plugin-app-icon/tar.gz/9248a3370dca5c9b1640b20806002fe59d25fa57}
+    version: 0.1.0
 
   teex@1.0.1:
     resolution: {integrity: sha512-eYE6iEI62Ni1H8oIa7KlDU6uQBtqr4Eajni3wX7rpfXD8ysFx8z0+dri+KWEPWpBsxXfxu58x/0jvTVT1ekOSg==}
@@ -10753,6 +10763,10 @@ snapshots:
     dependencies:
       '@tauri-apps/api': 2.11.1
       create-web-stream: 1.1.3
+
+  tauri-plugin-app-icon-api@https://codeload.github.com/SableClient/tauri-plugin-app-icon/tar.gz/9248a3370dca5c9b1640b20806002fe59d25fa57:
+    dependencies:
+      '@tauri-apps/api': 2.11.1
 
   teex@1.0.1:
     dependencies:

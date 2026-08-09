@@ -870,13 +870,16 @@ const bodyOf = (processed: ProcessedEvent[], id: string) =>
 describe('useProcessedTimeline decryption', () => {
   // Stable so the append-only fast path is reachable.
   const ignoredUsersSet = new Set<string>();
-  const renderTimeline = (getEvents: () => MatrixEvent[]) =>
+  const renderTimeline = (
+    getEvents: () => MatrixEvent[],
+    timelineHiddenEvents: ResolvedHiddenEventSettings = hiddenEvents
+  ) =>
     renderHook(() =>
       useProcessedTimeline({
         items: getEvents().map((_, i) => i),
         linkedTimelines: [createTimeline(getEvents())],
         ignoredUsersSet,
-        hiddenEvents,
+        hiddenEvents: timelineHiddenEvents,
         mxUserId: MY_USER,
         readUptoEventId: undefined,
         hideMembershipEvents: true,
@@ -911,6 +914,23 @@ describe('useProcessedTimeline decryption', () => {
 
     expect(renderedIds(result.current)).toEqual(['$a', '$enc', '$live']);
     expect(bodyOf(result.current, '$enc')).toBe('the secret');
+  });
+
+  it('refreshes a row whose event was redacted since it was cached', () => {
+    let redacted = false;
+    const event = createEvent({ id: '$redacted' });
+    event.isRedacted = () => redacted;
+    const { result, rerender } = renderTimeline(() => [event], {
+      ...hiddenEvents,
+      showTombstoneEvents: true,
+    });
+
+    expect(result.current[0]?.isRedacted).toBe(false);
+
+    redacted = true;
+    rerender();
+
+    expect(result.current[0]?.isRedacted).toBe(true);
   });
 
   it('keeps the append-only fast path for unencrypted events', () => {

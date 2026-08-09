@@ -1,4 +1,5 @@
-import { Box, Overlay, OverlayBackdrop, OverlayCenter, Spinner, Text } from 'folds';
+import { Box, OverlayBackdrop, OverlayCenter, Spinner, Text } from 'folds';
+import { Overlay } from '$components/overlay-stack';
 import { useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import type { ValidatedAuthMetadata } from '$types/matrix-sdk';

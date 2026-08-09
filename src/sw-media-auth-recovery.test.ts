@@ -13,19 +13,25 @@ describe('service worker media auth recovery', () => {
   let swTestHooks: SwTestHooks;
   let clients: Map<string, Client>;
   let addEventListener: ReturnType<typeof vi.fn>;
+  let persistedSessions: string | undefined;
 
   beforeEach(async () => {
     vi.resetModules();
     clients = new Map();
     addEventListener = vi.fn();
+    persistedSessions = undefined;
     vi.stubGlobal('self', {
       __WB_MANIFEST: [],
       addEventListener,
       caches: {
         open: vi.fn(async () => ({
           delete: vi.fn(async () => true),
-          match: vi.fn(async () => undefined),
-          put: vi.fn(async () => undefined),
+          match: vi.fn(async () =>
+            persistedSessions ? new Response(persistedSessions) : undefined
+          ),
+          put: vi.fn(async (_key: string, response: Response) => {
+            persistedSessions = await response.text();
+          }),
         })),
       },
       clients: {
@@ -53,6 +59,117 @@ describe('service worker media auth recovery', () => {
 
     expect(fetchHandler).toBeTypeOf('function');
     expect(respondWith).not.toHaveBeenCalled();
+  });
+
+  it('does not borrow another account session for an unscoped media request', async () => {
+    const fetchHandler = addEventListener.mock.calls.find(([type]) => type === 'fetch')?.[1] as
+      | ((event: FetchEvent) => void)
+      | undefined;
+    const respondWith = vi.fn<(response: Promise<Response>) => void>();
+    const request = new Request(
+      'https://matrix.example.org/_matrix/client/v1/media/download/example.org/media-id'
+    );
+
+    await swTestHooks.setSession(
+      'alice-window',
+      'alice-token',
+      'https://matrix.example.org',
+      '@alice:example.org'
+    );
+    fetchHandler?.({ request, respondWith, clientId: 'widget-client' } as unknown as FetchEvent);
+
+    await expect(respondWith.mock.calls[0]?.[0]).resolves.toMatchObject({ status: 503 });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
+  it('resolves a push without user_id against the only known account', async () => {
+    await swTestHooks.setSession(
+      'alice-window',
+      'alice-token',
+      'https://matrix.example.org',
+      '@alice:example.org'
+    );
+
+    await expect(swTestHooks.getSessionForPush(undefined)).resolves.toMatchObject({
+      accessToken: 'alice-token',
+    });
+  });
+
+  it('resolves a push without user_id from cache after an sw restart', async () => {
+    persistedSessions = JSON.stringify({
+      '@alice:example.org': {
+        accessToken: 'alice-token',
+        baseUrl: 'https://matrix.example.org',
+        userId: '@alice:example.org',
+      },
+    });
+
+    await expect(swTestHooks.getSessionForPush(undefined)).resolves.toMatchObject({
+      accessToken: 'alice-token',
+    });
+  });
+
+  it('refuses to guess an account for a push without user_id when several are signed in', async () => {
+    await swTestHooks.setSession(
+      'alice-window',
+      'alice-token',
+      'https://matrix.example.org',
+      '@alice:example.org'
+    );
+    await swTestHooks.setSession(
+      'bob-window',
+      'bob-token',
+      'https://matrix.example.org',
+      '@bob:example.org'
+    );
+
+    await expect(swTestHooks.getSessionForPush(undefined)).resolves.toBeUndefined();
+  });
+
+  it('removes a stale persisted account when a client switches users', async () => {
+    await swTestHooks.setSession(
+      'client-a',
+      'alice-token',
+      'https://matrix.example.org',
+      '@alice:example.org'
+    );
+    await swTestHooks.setSession(
+      'client-a',
+      'bob-token',
+      'https://matrix.example.org',
+      '@bob:example.org'
+    );
+
+    expect(Object.keys(JSON.parse(persistedSessions ?? '{}'))).toEqual(['@bob:example.org']);
+  });
+
+  it('keeps a persisted account until its final client logs out', async () => {
+    await swTestHooks.setSession(
+      'alice-a',
+      'alice-token',
+      'https://matrix.example.org',
+      '@alice:example.org'
+    );
+    await swTestHooks.setSession(
+      'alice-b',
+      'alice-token',
+      'https://matrix.example.org',
+      '@alice:example.org'
+    );
+    await swTestHooks.setSession(
+      'alice-a',
+      'bob-token',
+      'https://matrix.example.org',
+      '@bob:example.org'
+    );
+
+    expect(Object.keys(JSON.parse(persistedSessions ?? '{}')).toSorted()).toEqual([
+      '@alice:example.org',
+      '@bob:example.org',
+    ]);
+
+    await swTestHooks.setSession('alice-b', undefined, undefined);
+    expect(Object.keys(JSON.parse(persistedSessions ?? '{}'))).toEqual(['@bob:example.org']);
   });
 
   it('shares recovery and preserves each Range header on retry', async () => {

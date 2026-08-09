@@ -1,5 +1,5 @@
 import type { MutableRefObject, ReactNode } from 'react';
-import { useEffect, useImperativeHandle, useRef } from 'react';
+import { useEffect, useImperativeHandle } from 'react';
 import { Badge, Box, Chip, Header, Spinner, Text, as, percent } from 'folds';
 import { CaretRight, CaretUp, X, sizedIcon } from '$components/icons/phosphor';
 import classNames from 'classnames';
@@ -27,14 +27,15 @@ export const UploadBoard = as<'div', UploadBoardProps>(({ header, children, ...p
   </Box>
 ));
 
-export type UploadBoardImperativeHandlers = { handleSend: () => Promise<void> };
+// Progress ticks re-render this header, so the caller reads uploads on demand here
+// instead of subscribing to them itself.
+export type UploadBoardImperativeHandlers = { getSendableUploads: () => Upload[] };
 
 type UploadBoardHeaderProps = {
   open: boolean;
   onToggle: () => void;
   uploadFamilyObserverAtom: TUploadFamilyObserverAtom;
   onCancel: (uploads: Upload[]) => void;
-  onSend: (uploads: Upload[]) => Promise<void>;
   onBusyChange?: (busy: boolean) => void;
   imperativeHandlerRef: MutableRefObject<UploadBoardImperativeHandlers | undefined>;
 };
@@ -44,11 +45,9 @@ export function UploadBoardHeader({
   onToggle,
   uploadFamilyObserverAtom,
   onCancel,
-  onSend,
   onBusyChange,
   imperativeHandlerRef,
 }: UploadBoardHeaderProps) {
-  const sendingRef = useRef(false);
   const uploads = useAtomValue(uploadFamilyObserverAtom);
 
   const isSuccess = uploads.every((upload) => upload.status === UploadStatus.Success);
@@ -72,23 +71,11 @@ export function UploadBoardHeader({
     { loaded: 0, total: 0 }
   );
 
-  const handleSend = async () => {
-    if (sendingRef.current) return;
-    sendingRef.current = true;
-    try {
-      await onSend(
-        uploads.filter(
-          (upload) =>
-            upload.status === UploadStatus.Success || upload.status === UploadStatus.Loading
-        )
-      );
-    } finally {
-      sendingRef.current = false;
-    }
-  };
-
   useImperativeHandle(imperativeHandlerRef, () => ({
-    handleSend,
+    getSendableUploads: () =>
+      uploads.filter(
+        (upload) => upload.status === UploadStatus.Success || upload.status === UploadStatus.Loading
+      ),
   }));
   const handleCancel = () => onCancel(uploads);
 

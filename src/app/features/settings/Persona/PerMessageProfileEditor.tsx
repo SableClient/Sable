@@ -29,6 +29,8 @@ import {
   MATRIX_UNSTABLE_COLORS,
   MATRIX_UNSTABLE_PROFILE_PRONOUNS_PROPERTY_NAME,
 } from '$unstable/prefixes';
+import { accessibleColor } from '$plugins/color';
+import { ThemeKind } from '$hooks/useTheme';
 
 type Shorthand = { prefix?: string; suffix?: string };
 type ShorthandRow = Shorthand & { id: string };
@@ -372,9 +374,8 @@ export function PerMessageProfileEditor({
       setChangingDisplayName(false);
       setDisableSetDisplayname(false);
       if (hasIdChange) {
-        renamePerMessageProfile(mx, profileId, newId).then(() => {
-          setCurrentId(newId);
-        });
+        await renamePerMessageProfile(mx, profileId, newId);
+        setCurrentId(newId);
       }
     }, [
       mx,
@@ -603,8 +604,22 @@ export function PerMessageProfileEditor({
           description="This persona's name color for a dark theme user."
           focusId={`nameColorDarkTheme-${profileId}`}
           current={currentNameColorDark ?? undefined}
+          newNameColor={newNameColorDark ?? undefined}
           onChange={setNewNameColorDark}
         />
+        {!newNameColorLight && newNameColorDark && (
+          <Box direction="Column" alignItems="End">
+            <Button
+              size="300"
+              fill="Soft"
+              onClick={() => {
+                setNewNameColorLight(accessibleColor(ThemeKind.Light, newNameColorDark));
+              }}
+            >
+              <Text size="T200">Create new color from dark theme</Text>
+            </Button>
+          </Box>
+        )}
       </SequenceCard>
       <SequenceCard
         className={SequenceCardStyle}
@@ -617,8 +632,22 @@ export function PerMessageProfileEditor({
           description="This persona's name color for a light theme user."
           focusId={`nameColorLightTheme-${profileId}`}
           current={currentNameColorLight ?? undefined}
+          newNameColor={newNameColorLight ?? undefined}
           onChange={setNewNameColorLight}
         />
+        {!newNameColorDark && newNameColorLight && (
+          <Box direction="Column" alignItems="End">
+            <Button
+              size="300"
+              fill="Soft"
+              onClick={() => {
+                setNewNameColorDark(accessibleColor(ThemeKind.Dark, newNameColorLight));
+              }}
+            >
+              <Text size="T200">Create new color from light theme</Text>
+            </Button>
+          </Box>
+        )}
       </SequenceCard>
       <Box
         direction="Row"

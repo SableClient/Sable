@@ -3,7 +3,7 @@ import { color, config, toRem } from 'folds';
 
 export const IntegrationManagerOverlay = style({
   width: '80vw',
-  height: '80vh',
+  height: '80dvh',
   maxWidth: toRem(960),
   maxHeight: toRem(720),
   backgroundColor: color.Background.Container,

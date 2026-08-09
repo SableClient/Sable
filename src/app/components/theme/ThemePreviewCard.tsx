@@ -1,5 +1,6 @@
 import { type ReactNode, useCallback, useMemo } from 'react';
-import { Box, Button, IconButton, Text, Tooltip, TooltipProvider, toRem, config } from 'folds';
+import { Box, Button, IconButton, Text, Tooltip, toRem, config } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
 import { Check, Download, Link, Star, Warning, sizedIcon } from '$components/icons/phosphor';
 
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';

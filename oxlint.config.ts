@@ -18,6 +18,19 @@ export default defineConfig({
   },
   rules: {
     'import/no-cycle': ['error', { maxDepth: 3 }],
+    'no-restricted-imports': [
+      'error',
+      {
+        paths: [
+          {
+            name: 'folds',
+            importNames: ['Overlay', 'PopOut', 'TooltipProvider'],
+            message:
+              'Import Overlay/PopOut/TooltipProvider from $components/overlay-stack so they stack by open order.',
+          },
+        ],
+      },
+    ],
     'import/no-unassigned-import': 'off',
     'import/no-named-as-default': 'off',
     'import/no-named-as-default-member': 'off',

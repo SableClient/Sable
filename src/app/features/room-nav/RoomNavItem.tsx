@@ -14,8 +14,8 @@ import {
   Badge,
   Spinner,
   Tooltip,
-  TooltipProvider,
 } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
 import { useFocusWithin, useHover } from 'react-aria';
 import { useAtom, useAtomValue } from 'jotai';
 import { useNavigate } from 'react-router-dom';

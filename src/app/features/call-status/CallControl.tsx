@@ -1,4 +1,5 @@
-import { Box, Chip, IconButton, Spinner, Text, Tooltip, TooltipProvider } from 'folds';
+import { Box, Chip, IconButton, Spinner, Text, Tooltip } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
 import {
   Headphones,
   sizedIcon,

@@ -63,6 +63,7 @@ vi.mock('$hooks/useScreenSize', () => ({
   ScreenSize: { Desktop: 'Desktop', Tablet: 'Tablet', Mobile: 'Mobile' },
   useScreenSizeContext: () => (screenMocks.isMobile ? 'Mobile' : 'Desktop'),
   useScreenSizeOptionally: () => (screenMocks.isMobile ? 'Mobile' : 'Desktop'),
+  useCompactLayout: () => screenMocks.isMobile,
 }));
 
 const renderViewer = (props: { alt?: string; src?: string; info?: IImageInfo } = {}) =>
@@ -101,13 +102,58 @@ describe('ImageViewer', () => {
 
     renderViewer();
 
-    const download = screen.getByText('Download');
+    const download = screen.getByRole('button', { name: 'Download' });
     fireEvent.pointerDown(download, { pointerId: 1, pointerType: 'touch' });
     fireEvent.pointerUp(download, { pointerId: 1, pointerType: 'touch' });
     fireEvent.click(download);
 
     await waitFor(() => expect(downloadMedia).toHaveBeenCalledOnce());
     screenMocks.isMobile = false;
+  });
+
+  it('uses compact controls on mobile', () => {
+    screenMocks.isMobile = true;
+    try {
+      renderViewer();
+
+      expect(screen.getByRole('button', { name: 'Close' })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Download' })).toBeInTheDocument();
+      expect(screen.queryByRole('button', { name: 'Zoom In' })).not.toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole('button', { name: 'More options' }));
+
+      expect(screen.getByText('Turn pixelation on')).toBeInTheDocument();
+      expect(screen.queryByText('Zoom out')).not.toBeInTheDocument();
+      expect(screen.queryByText('Zoom in')).not.toBeInTheDocument();
+      expect(screen.queryByText('Save image')).not.toBeInTheDocument();
+    } finally {
+      screenMocks.isMobile = false;
+    }
+  });
+
+  it('closes the mobile overflow menu once an item is picked', () => {
+    screenMocks.isMobile = true;
+    try {
+      renderViewer();
+
+      fireEvent.click(screen.getByRole('button', { name: 'More options' }));
+      fireEvent.click(screen.getByText('Turn pixelation on'));
+
+      expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+    } finally {
+      screenMocks.isMobile = false;
+    }
+  });
+
+  it('hides the share control when the platform cannot share', () => {
+    screenMocks.isMobile = true;
+    try {
+      renderViewer();
+
+      expect(screen.queryByRole('button', { name: 'Share' })).not.toBeInTheDocument();
+    } finally {
+      screenMocks.isMobile = false;
+    }
   });
 
   it('shows an error toast when downloading media fails', async () => {

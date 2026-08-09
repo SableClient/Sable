@@ -13,7 +13,8 @@ import {
 } from '$utils/room/relations';
 import { MessageReportItem } from './MessageReport';
 import type { RectCords } from 'folds';
-import { as, Box, config, IconButton, Line, Menu, MenuItem, PopOut, Text } from 'folds';
+import { as, Box, config, IconButton, Line, Menu, MenuItem, Text } from 'folds';
+import { PopOut } from '$components/overlay-stack';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import {
   ArrowBendUpLeftIcon,

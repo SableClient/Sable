@@ -1,17 +1,14 @@
-import { Dialog, Header, Box, Text, IconButton, Button, Input, Chip } from 'folds';
+import { Dialog, Header, Box, Text, IconButton, Button, Input, Chip, color } from 'folds';
 import { ClipboardIcon, MapPinAreaIcon, MapPinLineIcon } from '@phosphor-icons/react';
 import { chipIcon, composerIcon, Warning, X } from '$components/icons/phosphor';
 import { readClipboardText } from '$utils/dom';
-import type { IContent, MatrixClient, Room } from 'matrix-js-sdk';
+import type { IContent, Room } from 'matrix-js-sdk';
 import * as css from './LocationDialog.css';
-import type { IReplyDraft } from '$state/room/roomInputDrafts';
 import { MapContainer, Marker, TileLayer, useMapEvents } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useCallback, useEffect, useRef, useState, type ChangeEventHandler } from 'react';
 import type { LatLngLiteral } from 'leaflet';
 import L from 'leaflet';
-import { getReplyContent } from '../RoomInput';
-import type { RoomMessageEventContent } from '$types/matrix-sdk';
 import { MsgType } from '$types/matrix-sdk';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
@@ -85,10 +82,8 @@ export function filterLocationString(result: string) {
 
 type LocationDialogProps = {
   onCancel: () => void;
-  mx: MatrixClient;
+  onSubmit: (content: IContent) => Promise<void>;
   room: Room;
-  replyDraft?: IReplyDraft;
-  clearReplyDraft?: () => void;
 };
 
 export enum LocationErrors {
@@ -106,13 +101,7 @@ export type LocationPoint = {
   lon?: number;
 };
 
-export function LocationDialog({
-  onCancel,
-  mx,
-  room,
-  replyDraft,
-  clearReplyDraft,
-}: LocationDialogProps) {
+export function LocationDialog({ onCancel, onSubmit, room }: LocationDialogProps) {
   const [showInteractiveMap] = useSetting(settingsAtom, 'showInteractiveMap');
   const [showEncInteractiveMap] = useSetting(settingsAtom, 'showEncInteractiveMap');
   const showMaps = room.hasEncryptionStateEvent() ? showEncInteractiveMap : showInteractiveMap;
@@ -125,6 +114,8 @@ export function LocationDialog({
   const [pinPosition, setPinPosition] = useState<L.LatLngLiteral>(initCoords);
   const zoom = useRef<number>(2);
   const [locationError, setLocationError] = useState<LocationErrors>(LocationErrors.none);
+  const [submitError, setSubmitError] = useState<string | undefined>(undefined);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [map, setMap] = useState<L.Map | null>(null);
 
@@ -235,7 +226,8 @@ export function LocationDialog({
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (isSubmitting) return;
     const mlat = pinPosition.lat.toFixed(6);
     const mlon = pinPosition.lng.toFixed(6);
     const content: IContent = {
@@ -243,13 +235,18 @@ export function LocationDialog({
       geo_uri: `geo:${mlat},${mlon};u=0`,
       body: `https://www.openstreetmap.org/?mlat=${mlat}&mlon=${mlon}#map=16/${mlat}/${mlon}"`,
     };
-    if (replyDraft && clearReplyDraft) {
-      content['m.relates_to'] = getReplyContent(replyDraft, room);
-      clearReplyDraft();
-    }
-    mx.sendMessage(room.roomId, content as RoomMessageEventContent).then(() => {
+    setSubmitError(undefined);
+    setIsSubmitting(true);
+    try {
+      await onSubmit(content);
       onCancel();
-    });
+    } catch (err) {
+      setSubmitError(
+        err instanceof Error ? err.message : 'Failed to share location. Please try again.'
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -258,7 +255,7 @@ export function LocationDialog({
         <Header className={css.LocationDialogHeader} variant="Surface" size="500">
           <Box grow="Yes" gap="200">
             <MapPinLineIcon size="20" />
-            <Text size="H4">{`Share Location ${replyDraft ? '(reply / thread)' : ''}`} </Text>
+            <Text size="H4">Share Location</Text>
           </Box>
           <IconButton
             size="300"
@@ -372,9 +369,15 @@ export function LocationDialog({
             title="Share Location"
             aria-label="Share Location"
             onClick={handleSubmit}
+            disabled={isSubmitting}
           >
             <Text size="B400">Share Location</Text>
           </Button>
+          {!!submitError && (
+            <Text align="Center" size="B500" style={{ color: color.Critical.OnContainer }}>
+              {submitError}
+            </Text>
+          )}
         </Box>
       </Dialog>
     </ModalOverlay>

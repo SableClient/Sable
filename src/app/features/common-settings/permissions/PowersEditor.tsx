@@ -9,14 +9,14 @@ import {
   Scroll,
   Button,
   Input,
-  PopOut,
   Menu,
   config,
   Spinner,
   toRem,
-  TooltipProvider,
   Tooltip,
 } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
+import { PopOut } from '$components/overlay-stack';
 import {
   ArrowLeft,
   chipIcon,

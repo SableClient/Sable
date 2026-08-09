@@ -1,6 +1,7 @@
 import { useSetAtom } from 'jotai';
 import { useParams } from 'react-router-dom';
-import { Box, Text, TooltipProvider, Tooltip, IconButton, toRem } from 'folds';
+import { Box, Text, Tooltip, IconButton, toRem } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
 import { composerIcon, X } from '$components/icons/phosphor';
 import { Page, PageHeader } from '../../components/page';
 import { callChatAtom } from '../../state/callEmbed';

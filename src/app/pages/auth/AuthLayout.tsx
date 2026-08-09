@@ -2,15 +2,7 @@ import type { ReactNode } from 'react';
 import { useCallback, useEffect } from 'react';
 import { Box, Chip, Header, IconButton, Scroll, Spinner, Text, color } from 'folds';
 import { ArrowClockwiseIcon } from '@phosphor-icons/react';
-import {
-  Outlet,
-  generatePath,
-  matchPath,
-  useLocation,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from 'react-router-dom';
+import { Outlet, matchPath, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import classNames from 'classnames';
 
 import * as PatternsCss from '$styles/Patterns.css';
@@ -24,7 +16,7 @@ import { AuthFlowsLoader } from '$components/AuthFlowsLoader';
 import { AuthFlowsProvider } from '$hooks/useAuthFlows';
 import type { AuthFlows } from '$hooks/useAuthFlows';
 import { AuthServerProvider } from '$hooks/useAuthServer';
-import { LOGIN_PATH, REGISTER_PATH, RESET_PASSWORD_PATH } from '$pages/paths';
+import { LOGIN_PATH, REGISTER_PATH, RESET_PASSWORD_PATH, SERVER_SEARCH_PARAM } from '$pages/paths';
 import { getHomePath } from '$pages/pathUtils';
 import { fetch } from '$utils/fetch';
 import { sizedIcon } from '$components/icons/phosphor';
@@ -46,6 +38,16 @@ const currentAuthPath = (pathname: string): string => {
     return REGISTER_PATH;
   }
   return LOGIN_PATH;
+};
+
+const authPathWithServer = (
+  pathname: string,
+  searchParams: URLSearchParams,
+  server: string
+): string => {
+  const params = new URLSearchParams(searchParams);
+  params.set(SERVER_SEARCH_PARAM, server);
+  return `${currentAuthPath(pathname)}?${params}`;
 };
 
 function AuthLayoutLoading({ message }: { message: string }) {
@@ -128,8 +130,8 @@ function AuthSpecVersionsContent({
 export function AuthLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { server: urlEncodedServer } = useParams();
   const [searchParams] = useSearchParams();
+  const urlServer = searchParams.get(SERVER_SEARCH_PARAM) ?? undefined;
 
   const isAddingAccount = searchParams.get('addAccount') === '1';
 
@@ -138,8 +140,7 @@ export function AuthLayout() {
   const homeUrl = usePathWithOrigin(getHomePath());
 
   const defaultServer = clientDefaultServer(clientConfig);
-  const decodedServer = urlEncodedServer && decodeURIComponent(urlEncodedServer);
-  let server: string = decodedServer ?? defaultServer;
+  let server: string = urlServer ?? defaultServer;
 
   if (!clientAllowedServer(clientConfig, server)) {
     server = defaultServer;
@@ -160,16 +161,12 @@ export function AuthLayout() {
     if (server) discoverServer(server);
   }, [discoverServer, server]);
 
-  // if server is mismatched with path server, update path — preserve all search params
+  // if server is mismatched with url server, update url — preserve all search params
   useEffect(() => {
-    if (!urlEncodedServer || decodeURIComponent(urlEncodedServer) !== server) {
-      const basePath = generatePath(currentAuthPath(location.pathname), {
-        server: encodeURIComponent(server),
-      });
-      const search = searchParams.toString();
-      navigate(`${basePath}${search ? `?${search}` : ''}`, { replace: true });
+    if (urlServer !== server) {
+      navigate(authPathWithServer(location.pathname, searchParams, server), { replace: true });
     }
-  }, [urlEncodedServer, navigate, location, server, searchParams]);
+  }, [urlServer, navigate, location, server, searchParams]);
 
   const selectServer = useCallback(
     (newServer: string) => {
@@ -178,11 +175,7 @@ export function AuthLayout() {
         discoverServer(server);
         return;
       }
-      const basePath = generatePath(currentAuthPath(location.pathname), {
-        server: encodeURIComponent(newServer),
-      });
-      const search = searchParams.toString();
-      navigate(`${basePath}${search ? `?${search}` : ''}`);
+      navigate(authPathWithServer(location.pathname, searchParams, newServer));
     },
     [navigate, location, discoveryState, server, discoverServer, searchParams]
   );

@@ -231,6 +231,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
       id: ev.getId() ?? `thread-reply-${idx}`,
       itemIndex: idx,
       mEvent: ev,
+      isRedacted: ev.isRedacted(),
       timelineSet,
       eventSender: ev.getSender() ?? null,
       collapsed: false,

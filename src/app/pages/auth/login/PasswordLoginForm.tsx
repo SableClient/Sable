@@ -8,14 +8,13 @@ import {
   IconButton,
   Input,
   Menu,
-  Overlay,
   OverlayBackdrop,
   OverlayCenter,
-  PopOut,
   Spinner,
   Text,
   config,
 } from 'folds';
+import { Overlay, PopOut } from '$components/overlay-stack';
 import { sizedIcon, Info } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 import { Link } from 'react-router-dom';

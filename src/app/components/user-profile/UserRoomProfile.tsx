@@ -570,7 +570,16 @@ export function UserRoomProfile({
       };
 
   return (
-    <Box direction="Column" style={{ color: textColor }}>
+    <Box
+      direction="Column"
+      style={{
+        color: textColor,
+        maxHeight: 'calc(85vh - 2rem)',
+        overflowY: 'auto',
+        overscrollBehavior: 'contain',
+        touchAction: 'pan-y',
+      }}
+    >
       <UserHero
         userId={userId}
         avatarUrl={avatarUrl}

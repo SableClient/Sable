@@ -1,6 +1,7 @@
 import classNames from 'classnames';
 import type { Position } from 'folds';
-import { as, Avatar, Text, Tooltip, TooltipProvider, toRem } from 'folds';
+import { as, Avatar, Text, Tooltip, toRem } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
 import type { ComponentProps, ReactNode, RefCallback } from 'react';
 import { isMobileOrTablet } from '$utils/platform';
 import * as css from './Sidebar.css';

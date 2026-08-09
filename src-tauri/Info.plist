@@ -10,5 +10,20 @@
     <string>Sable needs camera access for video calls.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>Sable needs microphone access for voice and video calls.</string>
+    <!-- APP-ICON ALTERNATES START -->
+    <key>CFBundleIcons</key>
+    <dict>
+      <key>CFBundleAlternateIcons</key>
+      <dict>
+      <key>propeler</key>
+      <dict>
+        <key>CFBundleIconFiles</key>
+        <array>
+          <string>AppIconPropeler</string>
+        </array>
+      </dict>
+      </dict>
+    </dict>
+    <!-- APP-ICON ALTERNATES END -->
 </dict>
 </plist>

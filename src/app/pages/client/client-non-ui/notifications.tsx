@@ -34,12 +34,14 @@ import { settingsAtom } from '$state/settings';
 import { nicknamesAtom } from '$state/nicknames';
 import { mDirectAtom } from '$state/mDirectList';
 import { allInvitesAtom } from '$state/room-list/inviteList';
+import { markAsRead } from '$utils/notifications';
+import { evaluateNotification } from '$utils/localNotifications';
+import { getLocalNotificationCache } from '$client/localNotificationCache';
 import { usePreviousValue } from '$hooks/usePreviousValue';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { getStateEvent } from '$utils/room/hierarchy';
-import { getNotificationType, isDMRoom, isNotificationEvent } from '$utils/room/unread';
+import { getNotificationType } from '$utils/room/unread';
 import { getMemberDisplayName } from '$utils/room/display';
-import { NotificationType } from '$types/matrix/room';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
 import { useInboxNotificationsSelected } from '$hooks/router/useRouteSelected';
@@ -79,7 +81,7 @@ export function InviteNotifications() {
 
   const navigate = useNavigate();
   const [showSystemNotifications] = useSetting(settingsAtom, 'useSystemNotifications');
-  const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
+  const [backgroundPushEnabled] = useSetting(settingsAtom, 'backgroundPushEnabled');
   const [notificationSound] = useSetting(settingsAtom, 'isNotificationSounds');
   const [backgroundNotificationSounds] = useSetting(settingsAtom, 'backgroundNotificationSounds');
 
@@ -127,7 +129,7 @@ export function InviteNotifications() {
     if (invites.length <= perviousInviteLen || mx.getSyncState() !== SyncState.Syncing) return;
 
     // SW push (via Sygnal) handles invite notifications when the app is backgrounded.
-    if (!isPageVisible() && usePushNotifications) return;
+    if (!isPageVisible() && backgroundPushEnabled) return;
 
     const withSound = notificationSound && (isWindowFocused() || backgroundNotificationSounds);
     let soundOnNotification = false;
@@ -153,7 +155,7 @@ export function InviteNotifications() {
     invites,
     perviousInviteLen,
     showSystemNotifications,
-    usePushNotifications,
+    backgroundPushEnabled,
     notificationSound,
     backgroundNotificationSounds,
     notify,
@@ -205,6 +207,7 @@ export function MessageNotifications() {
 
   useEffect(() => {
     const pushProcessor = mx.pushProcessor;
+    const notificationCache = getLocalNotificationCache(mx.getSafeUserId());
     // Track encrypted events that should skip focus check when decrypted (because we
     // already checked focus when the encrypted event arrived, and want to use that
     // original state rather than re-checking after decryption completes).
@@ -226,11 +229,6 @@ export function MessageNotifications() {
       if (eventId && !notifyTimerMap.has(eventId)) {
         notifyTimerMap.set(eventId, performance.now());
       }
-      const shouldSkipFocusCheck = eventId && skipFocusCheckEvents.has(eventId);
-      if (!shouldSkipFocusCheck) {
-        if (isWindowFocused() && (selectedRoomId === room?.roomId || notificationSelected)) return;
-      }
-
       // Older sliding sync proxies (e.g. matrix-sliding-sync) omit num_live,
       // which causes every event to arrive with fromCache=true and therefore
       // liveEvent=false — silently blocking all notifications. Fall back to an
@@ -267,24 +265,32 @@ export function MessageNotifications() {
         return;
       }
 
-      if (!room || isHistoricalEvent || room.isSpaceRoom() || !isNotificationEvent(mEvent)) {
-        return;
-      }
+      if (!room || !eventId || isHistoricalEvent) return;
 
       const notificationType = getNotificationType(mx, room.roomId);
-      if (notificationType === NotificationType.Mute) {
+      const stored = evaluateNotification(mx, room, mEvent, mDirectsRef.current, notificationType, {
+        storeContent: mEvent.isEncrypted() ? showEncryptedMessageContent : showMessageContent,
+      });
+      if (!stored) return;
+      notificationCache.merge(stored);
+
+      const shouldSkipFocusCheck = skipFocusCheckEvents.has(eventId);
+      if (
+        !shouldSkipFocusCheck &&
+        isWindowFocused() &&
+        (selectedRoomId === room.roomId || notificationSelected)
+      ) {
         return;
       }
 
       const sender = mEvent.getSender();
-      if (!sender || !eventId || mEvent.getSender() === mx.getUserId()) return;
+      if (!sender) return;
 
       // Deduplicate: don't show a second banner if this event fires twice
       // (e.g., decrypted events re-emitted by the SDK).
       if (notifiedEventsRef.current.has(eventId)) return;
 
-      // Check if this is a DM using multiple signals for robustness
-      const isDM = isDMRoom(room, mDirectsRef.current);
+      const { isDM } = stored;
 
       // Measure total notification delivery latency (includes decryption wait for E2EE events)
       const arrivalMs = notifyTimerMap.get(eventId);
@@ -303,18 +309,8 @@ export function MessageNotifications() {
       }
       const pushActions = pushProcessor.actionsForEvent(mEvent);
 
-      // For DMs with "All Messages" or "Default" notification settings:
-      // Always notify even if push rules fail to match due to sliding sync limitations.
-      // For "Mention & Keywords": respect the push rule (only notify if it matches).
-      const shouldForceDMNotification =
-        isDM && notificationType !== NotificationType.MentionsAndKeywords;
-      const shouldNotify = pushActions?.notify || shouldForceDMNotification;
-
-      // If we shouldn't notify based on rules/settings, skip everything
-      if (!shouldNotify) return;
-
       const loudByRule = Boolean(pushActions.tweaks?.sound);
-      const isHighlightByRule = Boolean(pushActions.tweaks?.highlight);
+      const isHighlightByRule = stored.highlight;
 
       // With sliding sync we only load m.room.member/$ME in required_state, so
       // PushProcessor cannot evaluate the room_member_count == 2 condition on
@@ -372,7 +368,10 @@ export function MessageNotifications() {
             eventId,
           });
           if (isNativeNotificationTauri()) {
-            const extra: Record<string, string> = { type: mEvent.getType(), room_id: room.roomId };
+            const extra: Record<string, string> = {
+              type: mEvent.getType(),
+              room_id: room.roomId,
+            };
             if (eventId) extra.event_id = eventId;
             const userId = mx.getUserId();
             if (userId) extra.user_id = userId;
@@ -704,6 +703,7 @@ function registerNativeNotificationListener(
 // payload attached in sendNativeTauriNotification.
 export function NativeNotificationClickRouting() {
   const setPending = useSetAtom(pendingNotificationAtom);
+  const setActiveSessionId = useSetAtom(activeSessionIdAtom);
   const navigate = useNavigate();
 
   useEffect(
@@ -716,6 +716,8 @@ export function NativeNotificationClickRouting() {
               .catch(() => {});
           }
           if (!data) return;
+          if (!data.user_id) return;
+          setActiveSessionId(data.user_id);
           if (data.type === 'invite') {
             navigate(getInboxInvitesPath());
             return;
@@ -729,7 +731,7 @@ export function NativeNotificationClickRouting() {
           }
         })
       ),
-    [setPending, navigate]
+    [setPending, setActiveSessionId, navigate]
   );
 
   return null;
@@ -740,6 +742,7 @@ const SABLE_REPLY_ACTION = 'sable-reply';
 
 export function NativeNotificationActionRouting() {
   const mx = useMatrixClient();
+  const [hideReads] = useSetting(settingsAtom, 'hideReads');
   const queue = useAtomValue(nativeNotificationRepliesAtom);
   const sessions = useAtomValue(sessionsAtom);
   const sessionsRef = useRef(sessions);
@@ -810,7 +813,13 @@ export function NativeNotificationActionRouting() {
     if (inFlight.has(item.key)) return clearExpiryTimer;
     setInFlight((previous: Set<string>) => new Set(previous).add(item.key));
     void mx
-      .sendMessage(item.roomId, null, { msgtype: MsgType.Text, body: item.text })
+      .sendMessage(item.roomId, null, {
+        msgtype: MsgType.Text,
+        body: item.text,
+      })
+      // Replying is reading; otherwise the room stays unread and its
+      // notification lingers while later pushes stack onto it.
+      .then(() => markAsRead(mx, item.roomId, hideReads).catch(() => undefined))
       .catch(() => {
         showToast('Reply was not sent. Open the room to retry.');
       })
@@ -823,7 +832,7 @@ export function NativeNotificationActionRouting() {
         remove(item.key);
       });
     return clearExpiryTimer;
-  }, [mx, queue, remove, setActiveSessionId, inFlight, setInFlight, replyWakeup]);
+  }, [mx, queue, remove, setActiveSessionId, inFlight, setInFlight, replyWakeup, hideReads]);
 
   return null;
 }

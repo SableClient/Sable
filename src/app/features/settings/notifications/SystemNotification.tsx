@@ -37,7 +37,6 @@ import {
 } from './PushNotifications';
 import { DeregisterAllPushersSetting } from './DeregisterPushNotifications';
 import {
-  deriveLegacyPushFlags,
   disableNativePush,
   enableNativePush,
   getSupportedNotificationTransportModes,
@@ -74,13 +73,6 @@ function getBackgroundPushPlatform(isTauriRuntime: boolean): BackgroundPushPlatf
   if (platform === 'android') return 'android';
   if (platform === 'ios') return 'ios';
   return 'desktop';
-}
-
-function deriveLegacyPushSync(input: { enabled: boolean; provider: BackgroundPushKind | null }): {
-  usePushNotifications: boolean;
-  useUnifiedPush: boolean;
-} {
-  return deriveLegacyPushFlags(input.enabled, input.provider);
 }
 
 export async function switchBackgroundPushTransport(params: {
@@ -352,11 +344,6 @@ function BackgroundPushNotificationSetting() {
   );
   const [useRichPushPayloads] = useSetting(settingsAtom, 'useRichPushPayloads');
   const [pushNotifyUrlOverride] = useSetting(settingsAtom, 'pushNotifyUrlOverride');
-  const [legacyPushNotifications, setLegacyPushNotifications] = useSetting(
-    settingsAtom,
-    'usePushNotifications'
-  );
-  const [legacyUnifiedPush, setLegacyUnifiedPush] = useSetting(settingsAtom, 'useUnifiedPush');
   const pushSubAtom = useAtom(pushSubscriptionAtom);
   const [upEndpoint, setUpEndpoint] = useAtom(unifiedPushEndpointAtom);
   const unifiedPushStateRef = useRef<UnifiedPushState>(upEndpoint);
@@ -406,28 +393,6 @@ function BackgroundPushNotificationSetting() {
   useEffect(() => {
     unifiedPushStateRef.current = upEndpoint;
   }, [upEndpoint]);
-
-  useEffect(() => {
-    const sync = deriveLegacyPushSync({
-      enabled: backgroundPushEnabled,
-      provider: backgroundPushEnabled ? (backgroundPushProvider ?? preferredKind) : null,
-    });
-
-    if (legacyPushNotifications !== sync.usePushNotifications) {
-      setLegacyPushNotifications(sync.usePushNotifications);
-    }
-    if (legacyUnifiedPush !== sync.useUnifiedPush) {
-      setLegacyUnifiedPush(sync.useUnifiedPush);
-    }
-  }, [
-    backgroundPushEnabled,
-    backgroundPushProvider,
-    preferredKind,
-    legacyPushNotifications,
-    legacyUnifiedPush,
-    setLegacyPushNotifications,
-    setLegacyUnifiedPush,
-  ]);
 
   useEffect(() => {
     if (runtimePlatform !== 'android') {

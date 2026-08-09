@@ -1,7 +1,7 @@
 import type { ChangeEventHandler, FormEventHandler, KeyboardEventHandler } from 'react';
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { Overlay } from '$components/overlay-stack';
 import {
-  Overlay,
   OverlayBackdrop,
   OverlayCenter,
   Box,

@@ -1183,7 +1183,7 @@ export function ThemeCatalogSettings({ mode, onBrowseOpenChange }: ThemeCatalogS
                       <Box
                         className={css.themeCardGrid}
                         style={{
-                          maxHeight: 'min(68vh, 44rem)',
+                          maxHeight: 'min(68dvh, 44rem)',
                           overflowY: 'auto',
                           paddingRight: toRem(4),
                         }}
@@ -1277,7 +1277,7 @@ export function ThemeCatalogSettings({ mode, onBrowseOpenChange }: ThemeCatalogS
                     direction="Column"
                     gap="200"
                     style={{
-                      maxHeight: 'min(68vh, 44rem)',
+                      maxHeight: 'min(68dvh, 44rem)',
                       overflowY: 'auto',
                       paddingRight: toRem(4),
                     }}
@@ -1556,7 +1556,7 @@ export function ThemeCatalogSettings({ mode, onBrowseOpenChange }: ThemeCatalogS
                   hideTrack
                   visibility="Hover"
                   style={{
-                    height: 'min(68vh, 44rem)',
+                    height: 'min(68dvh, 44rem)',
                     minHeight: 0,
                     maxWidth: '100%',
                   }}
@@ -1684,7 +1684,7 @@ export function ThemeCatalogSettings({ mode, onBrowseOpenChange }: ThemeCatalogS
                   hideTrack
                   visibility="Hover"
                   style={{
-                    height: 'min(68vh, 44rem)',
+                    height: 'min(68dvh, 44rem)',
                     minHeight: 0,
                     maxWidth: '100%',
                   }}

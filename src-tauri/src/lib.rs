@@ -43,7 +43,7 @@ pub(crate) fn main_window_title(app: &AppHandle<crate::BrowserEngine>) -> &str {
         target_os = "netbsd"
     )
 ))]
-fn prompt_webview_permission(message: &str) -> bool {
+fn prompt_webview_permission(message: &str, resolve: impl FnOnce(bool) + 'static) {
     use gtk::prelude::*;
     use gtk::{ButtonsType, DialogFlags, MessageDialog, MessageType, ResponseType};
 
@@ -55,9 +55,14 @@ fn prompt_webview_permission(message: &str) -> bool {
         message,
     );
     dialog.set_title("Permission request");
-    let response = dialog.run();
-    dialog.close();
-    matches!(response, ResponseType::Yes)
+    let resolve = std::cell::Cell::new(Some(resolve));
+    dialog.connect_response(move |dialog, response| {
+        if let Some(resolve) = resolve.take() {
+            resolve(matches!(response, ResponseType::Yes));
+        }
+        dialog.close();
+    });
+    dialog.show();
 }
 
 // Return the remembered decision for a webview permission, or prompt the user
@@ -76,7 +81,8 @@ fn resolve_webview_permission(
     app: &AppHandle<crate::BrowserEngine>,
     key: &str,
     message: &str,
-) -> bool {
+    resolve: impl FnOnce(bool) + 'static,
+) {
     use tauri_plugin_store::StoreExt;
 
     let store = app.store("permissions.json").ok();
@@ -85,17 +91,18 @@ fn resolve_webview_permission(
         .and_then(|store| store.get(key))
         .and_then(|value| value.as_bool())
     {
-        return allowed;
+        resolve(allowed);
+        return;
     }
 
-    let allowed = prompt_webview_permission(message);
-
-    if let Some(store) = &store {
-        store.set(key, allowed);
-        let _ = store.save();
-    }
-
-    allowed
+    let key = key.to_owned();
+    prompt_webview_permission(message, move |allowed| {
+        if let Some(store) = &store {
+            store.set(&key, allowed);
+            let _ = store.save();
+        }
+        resolve(allowed);
+    });
 }
 
 /// Routes in-app notification sounds to the native volume stream on mobile.
@@ -233,6 +240,7 @@ pub fn show_or_create_main_window(app: &AppHandle<crate::BrowserEngine>) -> taur
                 gtk_webview.connect_permission_request(move |_wv, request| {
                     // Ask the user (once per permission type, then remember the choice)
                     // for the permissions Sable actually uses; deny anything else.
+                    let request = request.clone();
                     let decision = if request
                         .downcast_ref::<UserMediaPermissionRequest>()
                         .is_some()
@@ -256,12 +264,17 @@ pub fn show_or_create_main_window(app: &AppHandle<crate::BrowserEngine>) -> taur
                     };
 
                     match decision {
-                        Some((key, message))
-                            if resolve_webview_permission(&app_handle, key, message) =>
-                        {
-                            request.allow();
+                        Some((key, message)) => {
+                            let request = request.clone();
+                            resolve_webview_permission(&app_handle, key, message, move |allowed| {
+                                if allowed {
+                                    request.allow();
+                                } else {
+                                    request.deny();
+                                }
+                            });
                         }
-                        _ => request.deny(),
+                        None => request.deny(),
                     }
                     true
                 });
@@ -281,7 +294,26 @@ pub fn run() {
     // this should always be the first
     #[cfg(desktop)]
     let builder = builder.plugin(tauri_plugin_single_instance::init(|app, _argv, _cwd| {
-        let _ = show_or_create_main_window(app);
+        #[cfg(windows)]
+        {
+            let handle = app.clone();
+            std::thread::spawn(move || {
+                let app_handle = handle.clone();
+                let scheduled = handle.run_on_main_thread(move || {
+                    if let Err(error) = show_or_create_main_window(&app_handle) {
+                        log::warn!("Failed to show main window for second instance: {error}");
+                    }
+                });
+                if let Err(error) = scheduled {
+                    log::warn!("Failed to schedule main window show for second instance: {error}");
+                }
+            });
+        }
+
+        #[cfg(not(windows))]
+        if let Err(error) = show_or_create_main_window(app) {
+            log::warn!("Failed to show main window for second instance: {error}");
+        }
     }));
 
     // macOS needs a standard menu (with the Edit submenu) for keyboard
@@ -329,6 +361,7 @@ pub fn run() {
 
     #[cfg(mobile)]
     let builder = builder
+        .plugin(tauri_plugin_app_icon::init())
         .plugin(tauri_plugin_edge_to_edge::init())
         .plugin(tauri_plugin_sharekit::init());
 
@@ -347,6 +380,9 @@ pub fn run() {
             network::media_protocol::respond,
         )
         .setup(|app| {
+            #[cfg(target_os = "android")]
+            mobile::set_app_handle(app.handle().clone());
+
             // CEF is initialized during runtime construction; initialize GTK afterward
             // on the main thread for the Linux tray menu.
             #[cfg(all(feature = "cef", target_os = "linux"))]
@@ -418,6 +454,8 @@ pub fn run() {
             mobile::set_status_bar_color,
             #[cfg(target_os = "android")]
             mobile::set_navigation_bar_color,
+            #[cfg(target_os = "android")]
+            mobile::set_immersive_mode,
             #[cfg(target_os = "android")]
             mobile::start_call_foreground_service,
             #[cfg(target_os = "android")]

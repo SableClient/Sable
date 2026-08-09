@@ -30,6 +30,9 @@ import {
   DIRECT_PATH,
   EXPLORE_PATH,
   HOME_PATH,
+  LEGACY_LOGIN_PATH,
+  LEGACY_REGISTER_PATH,
+  LEGACY_RESET_PASSWORD_PATH,
   LOGIN_PATH,
   INBOX_PATH,
   REGISTER_PATH,
@@ -102,6 +105,7 @@ const PublicRooms = lazy(() =>
   import('./client/explore').then((m) => ({ default: m.PublicRooms }))
 );
 import { setAfterLoginRedirectPath } from './afterLoginRedirectPath';
+import { legacyAuthLoader } from './legacyAuthRedirect';
 import { WelcomePage } from './client/WelcomePage';
 import { SidebarNav } from './client/SidebarNav';
 import { MobileFriendlySidebarNav, MobileFriendlyBottomNav } from './MobileFriendly';
@@ -200,6 +204,10 @@ export const createRouter = (clientConfig: ClientConfig, screenSize: ScreenSize)
         <Route path={REGISTER_PATH} element={<Register />} />
         <Route path={RESET_PASSWORD_PATH} element={<ResetPassword />} />
       </Route>
+
+      <Route path={LEGACY_LOGIN_PATH} loader={legacyAuthLoader(LOGIN_PATH)} />
+      <Route path={LEGACY_REGISTER_PATH} loader={legacyAuthLoader(REGISTER_PATH)} />
+      <Route path={LEGACY_RESET_PASSWORD_PATH} loader={legacyAuthLoader(RESET_PASSWORD_PATH)} />
 
       <Route
         loader={() => {

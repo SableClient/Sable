@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Box, Chip, IconButton, Text, Tooltip, TooltipProvider, color, config, toRem } from 'folds';
+import { Box, Chip, IconButton, Text, Tooltip, color, config, toRem } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
 import {
   Check,
   EyeSlash,

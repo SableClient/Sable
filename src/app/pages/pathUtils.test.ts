@@ -1,5 +1,41 @@
 import { describe, expect, it } from 'vitest';
-import { getAppPathFromHref, getSettingsPath } from './pathUtils';
+import {
+  getAppPathFromHref,
+  getLoginPath,
+  getRegisterPath,
+  getSettingsPath,
+  withSearchParam,
+} from './pathUtils';
+
+describe('getLoginPath', () => {
+  it('omits the homeserver when there is none', () => {
+    expect(getLoginPath()).toBe('/login');
+  });
+
+  it('carries the homeserver in the query string, never in a path segment', () => {
+    expect(getLoginPath('matrix.org')).toBe('/login?server=matrix.org');
+    expect(getLoginPath('http://localhost:18448')).toBe(
+      '/login?server=http%3A%2F%2Flocalhost%3A18448'
+    );
+    expect(getRegisterPath('https://example.com/matrix')).toBe(
+      '/register?server=https%3A%2F%2Fexample.com%2Fmatrix'
+    );
+  });
+});
+
+describe('withSearchParam', () => {
+  it('merges into an existing query string', () => {
+    expect(withSearchParam(getLoginPath('matrix.org'), { addAccount: '1' })).toBe(
+      '/login?server=matrix.org&addAccount=1'
+    );
+  });
+
+  it('overwrites a param that is already set', () => {
+    expect(withSearchParam('/login?server=matrix.org', { server: 'sable.moe' })).toBe(
+      '/login?server=sable.moe'
+    );
+  });
+});
 
 describe('getSettingsPath', () => {
   it('returns the settings root path', () => {

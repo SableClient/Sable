@@ -477,12 +477,21 @@ export function MutualRoomsChip({
             style={{
               display: 'flex',
               maxWidth: toRem(200),
-              maxHeight: '80vh',
+              maxHeight: '80dvh',
               backgroundColor: innerColor,
             }}
           >
-            <Box grow="Yes">
-              <Scroll size="300" hideTrack>
+            <Box grow="Yes" style={{ minHeight: 0 }}>
+              <Scroll
+                size="300"
+                hideTrack
+                style={{
+                  maxHeight: 'calc(80vh - 2rem)',
+                  overflowY: 'auto',
+                  overscrollBehavior: 'contain',
+                  touchAction: 'pan-y',
+                }}
+              >
                 <Box
                   direction="Column"
                   gap="400"

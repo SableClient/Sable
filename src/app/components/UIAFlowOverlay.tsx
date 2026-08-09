@@ -1,15 +1,7 @@
 import type { ReactNode } from 'react';
-import {
-  Overlay,
-  OverlayBackdrop,
-  Box,
-  config,
-  Text,
-  TooltipProvider,
-  Tooltip,
-  Chip,
-  IconButton,
-} from 'folds';
+import { OverlayBackdrop, Box, config, Text, Tooltip, Chip, IconButton } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
+import { Overlay } from '$components/overlay-stack';
 import { sizedIcon, X } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 

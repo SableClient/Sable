@@ -1,5 +1,4 @@
-import { useState } from 'react';
-import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Box, Button, Scroll, Text, config } from 'folds';
 import { PageContent, SettingsSectionPage } from '$components/page';
 import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
@@ -44,7 +43,6 @@ type ShortcutRowProps = {
   error?: string;
   onEdit: () => void;
   onReset: () => void;
-  onKeyDown: (event: ReactKeyboardEvent<HTMLButtonElement>) => void;
 };
 
 function ShortcutRow({
@@ -55,7 +53,6 @@ function ShortcutRow({
   error,
   onEdit,
   onReset,
-  onKeyDown,
 }: ShortcutRowProps) {
   return (
     <SettingTile
@@ -75,7 +72,6 @@ function ShortcutRow({
             size="300"
             radii="300"
             onClick={onEdit}
-            onKeyDown={editing ? onKeyDown : undefined}
             aria-label={
               editing ? `Press a new shortcut for ${shortcut.label}` : `Change ${shortcut.label}`
             }
@@ -116,38 +112,49 @@ export function KeyboardShortcuts({ requestBack, requestClose }: KeyboardShortcu
   const [editingId, setEditingId] = useState<ShortcutId>();
   const [error, setError] = useState<string>();
 
-  const updateOverride = (id: ShortcutId, binding: string | null | undefined) => {
-    setOverrides((current) => {
-      const next = { ...current };
-      if (binding === undefined) delete next[id];
-      else next[id] = binding;
-      return next;
-    });
-    setEditingId(undefined);
-    setError(undefined);
-  };
-
-  const handleCapture = (id: ShortcutId, event: ReactKeyboardEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-    if (event.key === 'Escape') {
+  const updateOverride = useCallback(
+    (id: ShortcutId, binding: string | null | undefined) => {
+      setOverrides((current) => {
+        const next = { ...current };
+        if (binding === undefined) delete next[id];
+        else next[id] = binding;
+        return next;
+      });
       setEditingId(undefined);
       setError(undefined);
-      return;
-    }
-    if (event.key === 'Backspace' || event.key === 'Delete') {
-      updateOverride(id, null);
-      return;
-    }
-    const binding = captureShortcut(event);
-    if (!binding) return;
-    const conflict = findShortcutConflict(id, binding, overrides);
-    if (conflict) {
-      setError(`Already used by “${conflict.label}” in this context.`);
-      return;
-    }
-    updateOverride(id, binding);
-  };
+    },
+    [setOverrides]
+  );
+
+  useEffect(() => {
+    const id = editingId;
+    if (!id) return undefined;
+
+    const handleCapture = (event: KeyboardEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      if (event.key === 'Escape') {
+        setEditingId(undefined);
+        setError(undefined);
+        return;
+      }
+      if (event.key === 'Backspace' || event.key === 'Delete') {
+        updateOverride(id, null);
+        return;
+      }
+      const binding = captureShortcut(event);
+      if (!binding) return;
+      const conflict = findShortcutConflict(id, binding, overrides);
+      if (conflict) {
+        setError(`Already used by “${conflict.label}” in this context.`);
+        return;
+      }
+      updateOverride(id, binding);
+    };
+
+    window.addEventListener('keydown', handleCapture, true);
+    return () => window.removeEventListener('keydown', handleCapture, true);
+  }, [editingId, overrides, updateOverride]);
 
   return (
     <SettingsSectionPage
@@ -190,7 +197,6 @@ export function KeyboardShortcuts({ requestBack, requestClose }: KeyboardShortcu
                               setError(undefined);
                             }}
                             onReset={() => updateOverride(shortcut.id, undefined)}
-                            onKeyDown={(event) => handleCapture(shortcut.id, event)}
                           />
                         </SequenceCard>
                       )

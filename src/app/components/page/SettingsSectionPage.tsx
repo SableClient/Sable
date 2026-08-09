@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Box, IconButton, Text } from 'folds';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { ArrowLeft, composerIcon, X } from '$components/icons/phosphor';
+import { useAndroidBackHandler } from '$utils/androidBack';
 import { Page, PageHeader } from './Page';
 import { SettingsSectionBody, SettingsSectionHeader } from './style.css';
 
@@ -27,6 +28,10 @@ export function SettingsSectionPage({
   const screenSize = useScreenSizeContext();
   const closeLabel = actionLabel ?? 'Close';
   const showBack = screenSize === ScreenSize.Mobile && requestBack;
+  useAndroidBackHandler(() => {
+    requestBack?.();
+    return true;
+  }, !!showBack);
 
   return (
     <Page>

@@ -13,6 +13,7 @@ import {
   SyncState,
 } from '$types/matrix-sdk';
 import { fetch } from '$utils/fetch';
+import { matrixFetch } from './matrixFetch';
 import { clearMediaCache } from '$utils/mediaCache';
 
 import { clearNavToActivePathStore } from '$state/navToActivePath';
@@ -26,21 +27,31 @@ import {
 import { getLocalStorageItem } from '$state/utils/atomWithLocalStorage';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
+import { isMobileTauri } from '$utils/platform';
 import * as Sentry from '@sentry/react';
 import { pushSessionToSW } from '../sw-session';
 import { assertAuthMetadataIssuer, createSessionTokenRefresher } from './oidcTokenRefresher';
 import { revokeOAuthToken } from './oauthTokenRevocation';
 import { clearSecretStorageKeys, cryptoCallbacks } from './secretStorageKeys';
 import type { SlidingSyncDiagnostics } from './slidingSync';
-import { scopeEphemeralExtensions, SlidingSyncManager } from './slidingSync';
+import {
+  markExpandedTimelinesLimited,
+  scopeTypingExtension,
+  SlidingSyncManager,
+} from './slidingSync';
 import { PresenceSyncManager } from './presenceSync';
 import { SlidingSyncSidebarCache } from './slidingSyncSidebarCache';
 import { clearCachedUserProfiles } from './userProfileCache';
+import {
+  clearLocalNotificationCache,
+  destroyLocalNotificationCache,
+} from './localNotificationCache';
 import {
   primeVersionsFromCache,
   revalidateVersionsCache,
   clearCachedVersions,
   cacheVersionsFromClient,
+  wasUnstableFeatureCached,
 } from './versionsCache';
 
 const log = createLogger('initMatrix');
@@ -58,6 +69,12 @@ export const ownsActiveMediaSession = (session?: Session): boolean => {
 };
 const presenceStartCleanupByClient = new WeakMap<MatrixClient, () => void>();
 const SLIDING_SYNC_POLL_TIMEOUT_MS = 45000;
+const SLIDING_SYNC_POLL_TIMEOUT_MOBILE_MS = 30000;
+
+/** Shorter poll on mobile: a wedged long-poll costs more when the OS freezes the webview. */
+export const resolvePollTimeoutMs = (configured?: number): number =>
+  configured ??
+  (isMobileTauri() ? SLIDING_SYNC_POLL_TIMEOUT_MOBILE_MS : SLIDING_SYNC_POLL_TIMEOUT_MS);
 
 const isInitialSyncReady = (state: string | null): boolean =>
   state === SyncState.Prepared || state === SyncState.Syncing || state === SyncState.Catchup;
@@ -139,25 +156,46 @@ type SlidingSyncRequestWithConnId = MSC3575SlidingSyncRequest & {
   conn_id?: string;
 };
 
-const SLIDING_SYNC_CONN_ID = 'sable-main';
+// Synapse keys connection state on (user, device, conn_id) and keeps only the two
+// latest positions, so two clients sharing an id invalidate each other's `pos`.
+export const newSlidingSyncConnId = (): string =>
+  `sable-${globalThis.crypto?.randomUUID?.().slice(0, 8) ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
 
 function installSlidingSyncRequestPatch(mx: MatrixClient, manager: SlidingSyncManager): void {
   slidingSyncRequestCleanupByClient.get(mx)?.();
 
+  const connId = newSlidingSyncConnId();
   const mxWritable = mx as MatrixClientWithWritableSlidingSync;
   const original = mx.slidingSync.bind(mx) as SlidingSyncMethod;
   mxWritable.slidingSync = async (reqBody, baseUrl, abortSignal) => {
+    // AbortError makes the SDK loop `continue` and reissue at the same `pos`, no sleep.
+    if (manager.isPaused()) {
+      await manager.waitForResume();
+      const aborted = new Error('Sliding sync paused while backgrounded');
+      aborted.name = 'AbortError';
+      throw aborted;
+    }
+
     const req = reqBody as SlidingSyncRequestWithConnId;
     if (req.conn_id === undefined) {
-      req.conn_id = SLIDING_SYNC_CONN_ID;
+      req.conn_id = connId;
     }
 
     const roomIds = manager.getActiveRoomSubscriptionIds();
-    scopeEphemeralExtensions(req.extensions, roomIds);
+    scopeTypingExtension(req.extensions, roomIds);
 
-    // Must run before the SDK processes the response.
     const response = await original(reqBody, baseUrl, abortSignal);
-    manager.sanitizeOptimisticJoinResponse(response);
+    // Must run before the SDK processes the response. A throw would reach the SDK's
+    // loop, which drops the response and retries the same `pos` forever.
+    try {
+      markExpandedTimelinesLimited(response);
+      manager.sanitizeOptimisticJoinResponse(response);
+    } catch (error) {
+      Sentry.captureException(error, { tags: { area: 'sliding_sync_response' } });
+      debugLog.error('sync', 'Failed to prepare sliding sync response', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
     return response;
   };
 
@@ -217,7 +255,7 @@ const buildClient = async (session: Session): Promise<BuiltClient> => {
 
   const mx = createClient({
     baseUrl: session.baseUrl,
-    fetchFn: fetch,
+    fetchFn: matrixFetch,
     accessToken: session.accessToken,
     refreshToken: session.refreshToken,
     userId: session.userId,
@@ -365,6 +403,49 @@ export type ClientSyncDiagnostics = {
   sliding?: SlidingSyncDiagnostics;
 };
 
+const SLIDING_SYNC_UNSTABLE_FEATURE = 'org.matrix.simplified_msc3575';
+
+const SLIDING_SYNC_CAPABILITY_TIMEOUT_MS = 5000;
+
+// The SDK retries an unsupported endpoint forever instead of erroring, so anything
+// short of a confirmation falls back to classic sync. /versions has no timeout of
+// its own, hence the race.
+export const supportsSlidingSync = async (
+  mx: MatrixClient,
+  baseUrl: string
+): Promise<{
+  supported: boolean;
+  reason: 'advertised' | 'unadvertised' | 'cached' | 'unknown';
+}> => {
+  let timer: ReturnType<typeof globalThis.setTimeout> | undefined;
+  const timeout = new Promise<boolean | undefined>((resolve) => {
+    timer = globalThis.setTimeout(() => resolve(undefined), SLIDING_SYNC_CAPABILITY_TIMEOUT_MS);
+  });
+
+  let confirmed: boolean | undefined;
+  try {
+    confirmed = await Promise.race([
+      mx.doesServerSupportUnstableFeature(SLIDING_SYNC_UNSTABLE_FEATURE),
+      timeout,
+    ]);
+  } catch {
+    confirmed = undefined;
+  } finally {
+    globalThis.clearTimeout(timer);
+  }
+
+  if (confirmed !== undefined) {
+    return { supported: confirmed, reason: confirmed ? 'advertised' : 'unadvertised' };
+  }
+  // We never reached /versions, so a previous confirmation is all we have to go on.
+  const cached = wasUnstableFeatureCached(
+    baseUrl,
+    mx.getSafeUserId(),
+    SLIDING_SYNC_UNSTABLE_FEATURE
+  );
+  return { supported: cached, reason: cached ? 'cached' : 'unknown' };
+};
+
 const disposeSlidingSync = (mx: MatrixClient): void => {
   membershipActionCleanupByClient.get(mx)?.();
   const manager = slidingSyncByClient.get(mx);
@@ -428,7 +509,22 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
   disposePresenceSync(mx);
 
   const baseUrl = config?.baseUrl ?? mx.baseUrl;
-  const useSliding = config?.sessionSlidingSyncOptIn === true;
+  const optedIntoSliding = config?.sessionSlidingSyncOptIn === true;
+  const slidingSupport = optedIntoSliding
+    ? await supportsSlidingSync(mx, baseUrl)
+    : { supported: false, reason: 'unadvertised' as const };
+  const useSliding = optedIntoSliding && slidingSupport.supported;
+
+  if (optedIntoSliding && !useSliding) {
+    debugLog.warn('sync', 'Falling back to classic sync', {
+      userId: mx.getUserId(),
+      baseUrl,
+      reason: slidingSupport.reason,
+    });
+    Sentry.metrics.count('sable.sync.transport_downgrade', 1, {
+      attributes: { reason: slidingSupport.reason },
+    });
+  }
 
   debugLog.info('sync', 'Starting Matrix client', { userId: mx.getUserId() });
 
@@ -440,7 +536,7 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
     startPresenceAfterInitialSync(mx, presenceManager);
 
     manager = new SlidingSyncManager(mx, baseUrl, {
-      pollTimeoutMs: config?.pollTimeoutMs ?? SLIDING_SYNC_POLL_TIMEOUT_MS,
+      pollTimeoutMs: resolvePollTimeoutMs(config?.pollTimeoutMs),
       timelineLimit: config?.timelineLimit,
       initialRoomIds: config?.initialRoomIds,
     });
@@ -560,6 +656,8 @@ export const logoutClient = async (mx: MatrixClient, session?: Session) => {
     clearCachedVersions(session.baseUrl, session.userId);
     clearCachedUserProfiles(session.userId);
     clearSecretStorageKeys();
+    destroyLocalNotificationCache(session.userId);
+    clearLocalNotificationCache(session.userId);
     const storeName: SessionStoreName = getSessionStoreName(session);
     await mx.clearStores({ cryptoDatabasePrefix: storeName.rustCryptoPrefix });
     await deleteDatabase(storeName.sync);

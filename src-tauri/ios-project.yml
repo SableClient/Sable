@@ -69,6 +69,7 @@ targets:
     sources:
       - path: Sources
       - path: Assets.xcassets
+      - path: ../../icons/ios/AppIcons.xcassets
       - path: Externals
         buildPhase: none
       - path: {{app.name}}_iOS

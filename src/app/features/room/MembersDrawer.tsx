@@ -13,10 +13,10 @@ import {
   Spinner,
   Text,
   Tooltip,
-  TooltipProvider,
   config,
   toRem,
 } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
 import type { MatrixClient, Room, RoomMember } from '$types/matrix-sdk';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import classNames from 'classnames';

@@ -7,12 +7,22 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { UIAFlowOverlay } from './UIAFlowOverlay';
 import { OAuthStage, PasswordStage, SSOStage } from './uia-stages';
 
-const SUPPORTED_IN_APP_UIA_STAGES = [AuthType.Password, AuthType.Sso, AuthType.OAuth];
+// MSC4312 unstable prefix for m.oauth.
+export const OAUTH_UNSTABLE_STAGE = 'org.matrix.cross_signing_reset';
+
+const SUPPORTED_IN_APP_UIA_STAGES = [
+  AuthType.Password,
+  AuthType.Sso,
+  AuthType.OAuth,
+  OAUTH_UNSTABLE_STAGE,
+];
 
 const pickUIAFlow = (uiaFlows: UIAFlow[]): UIAFlow | undefined => {
   const passwordFlow = getUIAFlowForStages(uiaFlows, [AuthType.Password]);
   if (passwordFlow) return passwordFlow;
-  const oauthFlow = getUIAFlowForStages(uiaFlows, [AuthType.OAuth]);
+  const oauthFlow =
+    getUIAFlowForStages(uiaFlows, [AuthType.OAuth]) ??
+    getUIAFlowForStages(uiaFlows, [OAUTH_UNSTABLE_STAGE]);
   if (oauthFlow) return oauthFlow;
   return getUIAFlowForStages(uiaFlows, [AuthType.Sso]);
 };
@@ -53,9 +63,11 @@ export function ActionUIA({ authData, ongoingFlow, action, onCancel }: ActionUIA
           submitAuthDict={action}
         />
       )}
-      {stageToComplete.type === (AuthType.OAuth as string) && stageToComplete.session && (
-        <OAuthStage stageData={stageToComplete} onCancel={onCancel} submitAuthDict={action} />
-      )}
+      {(stageToComplete.type === (AuthType.OAuth as string) ||
+        stageToComplete.type === OAUTH_UNSTABLE_STAGE) &&
+        stageToComplete.session && (
+          <OAuthStage stageData={stageToComplete} onCancel={onCancel} submitAuthDict={action} />
+        )}
     </UIAFlowOverlay>
   );
 }

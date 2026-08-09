@@ -2,18 +2,8 @@ import type { KeyboardEventHandler, MouseEventHandler, ReactNode } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import type { RectCords } from 'folds';
-import {
-  Box,
-  Chip,
-  IconButton,
-  Overlay,
-  OverlayBackdrop,
-  PopOut,
-  Spinner,
-  Text,
-  as,
-  config,
-} from 'folds';
+import { Box, Chip, IconButton, OverlayBackdrop, Spinner, Text, as, config } from 'folds';
+import { Overlay, PopOut } from '$components/overlay-stack';
 import { composerIcon, Smiley } from '$components/icons/phosphor';
 import { Editor, Transforms } from 'slate';
 import { ReactEditor } from 'slate-react';
@@ -337,6 +327,14 @@ export const MessageEditor = as<'div', MessageEditorProps>(
       [enterForNewline, isComposing, editor, handleSave, onCancel]
     );
 
+    const detectAutocomplete = useCallback(() => {
+      const prevWordRange = getPrevWorldRange(editor);
+      const query = prevWordRange
+        ? getAutocompleteQuery(editor, prevWordRange, ANYWHERE_AUTOCOMPLETE_PREFIXES)
+        : undefined;
+      setAutocompleteQuery(query);
+    }, [editor]);
+
     const handleKeyUp: KeyboardEventHandler = useCallback(
       (evt) => {
         if (isKeyHotkey('escape', evt)) {
@@ -344,13 +342,9 @@ export const MessageEditor = as<'div', MessageEditorProps>(
           return;
         }
 
-        const prevWordRange = getPrevWorldRange(editor);
-        const query = prevWordRange
-          ? getAutocompleteQuery(editor, prevWordRange, ANYWHERE_AUTOCOMPLETE_PREFIXES)
-          : undefined;
-        setAutocompleteQuery(query);
+        detectAutocomplete();
       },
-      [editor]
+      [detectAutocomplete]
     );
 
     const handleCloseAutocomplete = useCallback(() => {

@@ -1,17 +1,6 @@
 import { forwardRef, useState } from 'react';
-import {
-  Avatar,
-  Box,
-  IconButton,
-  Line,
-  Menu,
-  MenuItem,
-  Text,
-  Tooltip,
-  TooltipProvider,
-  config,
-  toRem,
-} from 'folds';
+import { Avatar, Box, IconButton, Line, Menu, MenuItem, Text, Tooltip, config, toRem } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
 import { ResponsiveMenu } from '$components/ResponsiveMenu';
 import { useMenuAnchor } from '$hooks/useMenuAnchor';
 import { PageHeader } from '$components/page';

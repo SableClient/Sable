@@ -48,13 +48,6 @@
             android:label="@string/main_activity_title"
             android:name="moe.sable.client.MainActivity"
             android:exported="true">
-            <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
-                <!-- AndroidTV support -->
-                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
-            </intent-filter>
-
             <!-- Inbound share targets — receive text, images, videos, and files from other apps.
                  Mirrors the iOS share extension activation rules. -->
             <intent-filter>
@@ -119,6 +112,45 @@
             </intent-filter>
             <!-- DEEP LINK PLUGIN. AUTO-GENERATED. DO NOT REMOVE. -->
         </activity>
+
+        <!-- APP-ICON ALIASES START -->
+        <activity-alias
+            android:name=".AppIconDefault"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_round"
+            android:enabled="true"
+            android:exported="true">
+            <meta-data
+                android:name="tauri-plugin-app-icon-id"
+                android:value="default" />
+            <meta-data
+                android:name="tauri-plugin-app-icon-default"
+                android:value="true" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".AppIconPropeler"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_propeler"
+            android:roundIcon="@mipmap/ic_launcher_propeler_round"
+            android:enabled="false"
+            android:exported="true">
+            <meta-data
+                android:name="tauri-plugin-app-icon-id"
+                android:value="propeler" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <!-- APP-ICON ALIASES END -->
 
         <service
             android:name="moe.sable.client.CallForegroundService"

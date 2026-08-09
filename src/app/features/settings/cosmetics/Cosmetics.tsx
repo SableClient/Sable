@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
 import type { ChangeEventHandler, KeyboardEventHandler, MouseEventHandler } from 'react';
 import type { RectCords } from 'folds';
-import { Box, Button, config, Input, Menu, MenuItem, PopOut, Scroll, Text, toRem } from 'folds';
+import { Box, Button, config, Input, Menu, MenuItem, Scroll, Text, toRem } from 'folds';
+import { PopOut } from '$components/overlay-stack';
 import { CaretDown, composerIcon } from '$components/icons/phosphor';
 import { isKeyHotkey } from 'is-hotkey';
 import FocusTrap from 'focus-trap-react';
@@ -14,6 +15,7 @@ import { SettingTile, SettingToggle } from '$components/setting-tile';
 import { stopPropagation } from '$utils/keyboard';
 import { Appearance } from './Themes';
 import { LanguageSpecificPronouns } from './LanguageSpecificPronouns';
+import { AppIconSettings } from './AppIconSettings';
 
 function PronounPillMaxCountInput({ disabled }: { disabled: boolean }) {
   const [maxCount, setMaxCount] = useSetting(settingsAtom, 'pronounPillMaxCount');
@@ -407,16 +409,6 @@ function IdentityCosmetics() {
   );
   const [showPronouns, setShowPronouns] = useSetting(settingsAtom, 'showPronouns');
   const [parsePronouns, setParsePronouns] = useSetting(settingsAtom, 'parsePronouns');
-  const [renderGlobalColors, setRenderGlobalColors] = useSetting(
-    settingsAtom,
-    'renderGlobalNameColors'
-  );
-  const [renderRoomColors, setRenderRoomColors] = useSetting(settingsAtom, 'renderRoomColors');
-  const [renderPersonaColors, setRenderPersonaColors] = useSetting(
-    settingsAtom,
-    'renderPersonaColors'
-  );
-  const [renderRoomFonts, setRenderRoomFonts] = useSetting(settingsAtom, 'renderRoomFonts');
   const [uniformIcons, setUniformIcons] = useSetting(settingsAtom, 'uniformIcons');
 
   return (
@@ -478,34 +470,6 @@ function IdentityCosmetics() {
         />
       </SequenceCard>
       <SettingToggle
-        title="Render Global Username Colors"
-        focusId="render-global-username-colors"
-        description="Display the username colors anyone can set in their account settings."
-        value={renderGlobalColors}
-        onChange={setRenderGlobalColors}
-      />
-      <SettingToggle
-        title="Render Space/Room Username Colors"
-        focusId="render-space-room-username-colors"
-        description="Display the username colors that can be set with /color."
-        value={renderRoomColors}
-        onChange={setRenderRoomColors}
-      />
-      <SettingToggle
-        title="Render Persona Username Colors"
-        focusId="render-persona-username-colors"
-        description="Display the username colors that can be set on personas."
-        value={renderPersonaColors}
-        onChange={setRenderPersonaColors}
-      />
-      <SettingToggle
-        title="Render Space/Room Fonts"
-        focusId="render-space-room-fonts"
-        description="Display the username fonts that can be set with /font."
-        value={renderRoomFonts}
-        onChange={setRenderRoomFonts}
-      />
-      <SettingToggle
         title="Consistent Icon Style"
         focusId="consistent-icon-style"
         description="Harmonize icon appearance with background fill"
@@ -556,6 +520,7 @@ export function Cosmetics({ requestBack, requestClose }: CosmeticsProps) {
               {!themeBrowserOpen && (
                 <>
                   <IdentityCosmetics />
+                  <AppIconSettings />
                   <IconSizeSettings />
                   <JumboEmoji />
                   <Privacy />

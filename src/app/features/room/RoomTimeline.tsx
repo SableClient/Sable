@@ -13,7 +13,7 @@ import {
 import type { Editor } from 'slate';
 import { useAtomValue, useSetAtom, useStore } from 'jotai';
 import type { Room, MatrixEvent, EventTimelineSet } from '$types/matrix-sdk';
-import { Direction, EventTimeline, EventType, RoomEvent } from '$types/matrix-sdk';
+import { Direction, EventTimeline, EventType, MsgType, RoomEvent } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import type { VListHandle } from 'virtua';
 import { VList } from 'virtua';
@@ -24,6 +24,7 @@ import { MessageBase, CompactPlaceholder, DefaultPlaceholder } from '$components
 import { RoomIntro } from '$components/room-intro';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMatrixEvent } from '$hooks/useMatrixEvent';
+import { ScreenSize, useScreenSizeOptionally } from '$hooks/useScreenSize';
 import { useAlive } from '$hooks/useAlive';
 import { useMessageEdit } from '$hooks/useMessageEdit';
 import { useDocumentFocusChange } from '$hooks/useDocumentFocusChange';
@@ -41,6 +42,7 @@ import {
   getRedactionTargetEvent,
   shouldShowRedactionTimelineEvent,
 } from '$utils/room/relations';
+import { getMemberDisplayName } from '$utils/room/display';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { useSlidingSyncRoomLoading } from '$hooks/useSlidingSyncActiveRoom';
 import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
@@ -70,6 +72,9 @@ import {
   type ProcessedEvent,
 } from '$hooks/timeline/useProcessedTimeline';
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
+import { RoomMediaViewer } from '$components/image-viewer/RoomMediaViewer';
+import type { RoomMediaItem } from '$components/image-viewer/RoomMediaViewer';
+import type { IImageContent } from '$types/matrix/common';
 import { useTimelineRendererContext } from '$hooks/timeline/useTimelineRendererContext';
 import { TimelineScrollingProvider, useScrollActivity } from '$hooks/useTimelineScrollActivity';
 import * as css from './RoomTimeline.css';
@@ -291,6 +296,7 @@ const MemoizedTimelineItem = memo(
       prev.eventData.id === next.eventData.id &&
       // A filtered mid-timeline insert shifts this without changing `index`.
       prev.eventData.itemIndex === next.eventData.itemIndex &&
+      prev.eventData.isRedacted === next.eventData.isRedacted &&
       prev.eventData.collapsed === next.eventData.collapsed &&
       prev.eventData.willRenderNewDivider === next.eventData.willRenderNewDivider &&
       prev.eventData.willRenderDayDivider === next.eventData.willRenderDayDivider &&
@@ -312,6 +318,35 @@ export type RoomTimelineProps = {
   onEditId?: (editId?: string) => void;
 };
 
+const getRoomMediaItem = (
+  mEvent: MatrixEvent,
+  room: Room,
+  nicknames?: Record<string, string>
+): RoomMediaItem | undefined => {
+  if (mEvent.isRedacted()) return undefined;
+
+  const content = mEvent.getContent() as IImageContent;
+  const isImage = content.msgtype === MsgType.Image || mEvent.getType() === 'm.sticker';
+  const url = content.file?.url ?? content.url;
+  const eventId = mEvent.getId();
+
+  if (!isImage || typeof url !== 'string' || !eventId) return undefined;
+
+  const senderId = mEvent.getSender();
+
+  return {
+    eventId,
+    body: content.body ?? content.filename ?? 'Image',
+    filename: content.filename,
+    url,
+    info: content.info,
+    mimeType: content.info?.mimetype,
+    encInfo: content.file,
+    sender: senderId ? (getMemberDisplayName(room, senderId, nicknames) ?? senderId) : undefined,
+    timestamp: mEvent.getTs(),
+  };
+};
+
 export function RoomTimeline({
   room,
   eventId,
@@ -322,6 +357,7 @@ export function RoomTimeline({
   onEditId: propsOnEditId,
 }: Readonly<RoomTimelineProps>) {
   const mx = useMatrixClient();
+  const isMobile = useScreenSizeOptionally() === ScreenSize.Mobile;
   const alive = useAlive();
   const roomSyncLoading = useSlidingSyncRoomLoading(room.roomId);
 
@@ -653,11 +689,15 @@ export function RoomTimeline({
         initialScrollTimerRef.current = undefined;
         if (processedEventsRef.current.length > 0) {
           scrollToBottom();
-          // Only mark ready once we've successfully scrolled.  If processedEvents
-          // was empty when the timer fired (e.g. the onLifecycle reset cleared the
-          // timeline within the 80 ms window), defer setIsReady until the recovery
-          // effect below fires once events repopulate.
-          setIsReady(true);
+          // Re-scroll after measurement; defer setIsReady to avoid a flash.
+          requestAnimationFrame(() => {
+            if (processedEventsRef.current.length > 0) {
+              scrollToBottom();
+              setIsReady(true);
+            } else {
+              pendingReadyRef.current = true;
+            }
+          });
         } else {
           pendingReadyRef.current = true;
         }
@@ -859,16 +899,18 @@ export function RoomTimeline({
   }, [syncAtBottom, scrollToBottom]);
 
   // Decrypting rows and late-loading images grow without changing eventsLength,
-  // so useTimelineSync's auto-scroll never re-fires for them.
+  // so useTimelineSync's auto-scroll never re-fires for them. Also catches
+  // scrollSize shrinkage from VList's initial over-estimate being corrected
+  // once items are measured.
   const lastScrollSizeRef = useRef(0);
   useLayoutEffect(() => {
     const v = vListRef.current;
     if (!v) return;
 
-    const grew = v.scrollSize > lastScrollSizeRef.current;
+    const changed = v.scrollSize !== lastScrollSizeRef.current;
     lastScrollSizeRef.current = v.scrollSize;
 
-    if (!grew || !atBottomRef.current || !liveTimelineLinkedRef.current) return;
+    if (!changed || !atBottomRef.current || !liveTimelineLinkedRef.current) return;
 
     scrollToBottom();
   });
@@ -936,6 +978,26 @@ export function RoomTimeline({
   // the row memo has to compare them itself to notice a power-level change.
   const rowPermissions = { canRedact, canDeleteOwn, canSendReaction, canPinEvent };
 
+  const [selectedMediaEventId, setSelectedMediaEventId] = useState<string>();
+  const [roomMedia, setRoomMedia] = useState<RoomMediaItem[]>([]);
+  const openRoomMedia = useCallback(
+    (mEvent: MatrixEvent) => {
+      const mediaEventId = mEvent.getId();
+      if (!isMobile || !mediaEventId || !getRoomMediaItem(mEvent, room, nicknames)) return false;
+      setRoomMedia(
+        timelineSyncRef.current.timeline.linkedTimelines.flatMap((timeline) =>
+          timeline.getEvents().flatMap((timelineEvent) => {
+            const item = getRoomMediaItem(timelineEvent, room, nicknames);
+            return item ? [item] : [];
+          })
+        )
+      );
+      setSelectedMediaEventId(mediaEventId);
+      return true;
+    },
+    [isMobile, room, nicknames]
+  );
+
   const renderMatrixEvent = useTimelineEventRenderer({
     room,
     mx,
@@ -956,6 +1018,7 @@ export function RoomTimeline({
       onDeleteFailedSend: actions.handleDeleteFailedSend,
       setOpenThread: actions.setOpenThread,
       handleOpenReply: actions.handleOpenReply,
+      onOpenMedia: openRoomMedia,
     },
     utils: { htmlReactParserOptions, linkifyOpts, getMemberPowerTag, parseMemberEvent },
   });
@@ -1281,7 +1344,11 @@ export function RoomTimeline({
           >
             {(eventData, index) => (
               <MemoizedTimelineItem
-                key={eventData ? eventData.id : `placeholder-${index}`}
+                key={
+                  eventData
+                    ? `${eventData.id}:${eventData.isRedacted ? 'redacted' : 'message'}`
+                    : `placeholder-${index}`
+                }
                 eventData={eventData}
                 index={index}
                 showLoadingPlaceholders={showLoadingPlaceholders}
@@ -1302,6 +1369,14 @@ export function RoomTimeline({
           </VList>
         </TimelineScrollingProvider>
       </div>
+      {selectedMediaEventId && (
+        <RoomMediaViewer
+          items={roomMedia}
+          selectedEventId={selectedMediaEventId}
+          selectEvent={setSelectedMediaEventId}
+          requestClose={() => setSelectedMediaEventId(undefined)}
+        />
+      )}
 
       {showBackPaginationSpinner && (
         <TimelineFloat position="Top" style={timelineTopFloatLift}>

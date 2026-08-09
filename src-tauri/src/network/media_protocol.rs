@@ -3,42 +3,38 @@ use std::{
     fs,
     io::Read,
     path::{Path, PathBuf},
-    sync::{
-        atomic::{AtomicBool, AtomicU64, Ordering},
-        Arc, Mutex, OnceLock, RwLock, Weak,
-    },
+    sync::{Arc, Mutex, OnceLock, Weak},
     time::Duration,
 };
 
-use aes::cipher::{KeyIvInit, StreamCipher};
-use aes::Aes256;
-use base64::Engine;
-use ctr::{Ctr128BE, Ctr64BE};
 use sha2::{Digest, Sha256};
 use tauri::{
-    http::{header, response::Builder as ResponseBuilder, Request, Response, StatusCode, Uri},
+    http::{header, Request, Response, StatusCode, Uri},
     AppHandle, Manager, Runtime, State, UriSchemeContext, UriSchemeResponder,
 };
+
+mod crypto;
+mod lane;
+mod response;
+mod session;
+
+use crypto::EncryptionStore;
+use lane::{LanePermit, LifoLane};
+use response::{
+    apply_cors_headers, error_response, ok_response, read_full, serve_range, serve_range_memory,
+    session_unavailable_response, sniff_image_content_type,
+};
+use session::{MediaSession, SessionStore};
 use tauri_plugin_http::reqwest::{
     header::{AUTHORIZATION, CONTENT_TYPE},
     Client, Url,
 };
-use tokio::{
-    sync::{Mutex as AsyncMutex, Notify, Semaphore},
-    time::{timeout_at, Instant},
-};
+use tokio::{sync::Mutex as AsyncMutex, time::Instant};
 
 pub const MEDIA_URI_SCHEME: &str = "sable-media";
 const MEDIA_SESSION_MARKER: &str = "__sable_media_session";
 
 const MEDIA_PATH_PREFIXES: [&str; 2] = ["/_matrix/media/", "/_matrix/client/v1/media/"];
-// How the webview spells this protocol: `sable-media://` on iOS/macOS, and
-// `http(s)://sable-media.localhost/` on Windows/Android respectively.
-const MEDIA_PROTOCOL_PREFIXES: [&str; 3] = [
-    "sable-media://",
-    "http://sable-media.localhost/",
-    "https://sable-media.localhost/",
-];
 const CACHE_SUBDIR: &str = "sable-media";
 // Inactivity deadline between chunks, so a slow but progressing download is not killed.
 const READ_TIMEOUT: Duration = Duration::from_secs(30);
@@ -60,14 +56,11 @@ const MAX_TEMP_CACHE_BYTES: u64 = 2 * 1024 * 1024 * 1024; // 2 GiB
 type FetchResult = Result<(String, Option<Arc<Vec<u8>>>, PathBuf), StatusCode>;
 
 pub struct MediaSessionState {
-    inner: RwLock<Option<MediaSession>>,
-    session_ready: Notify,
-    session_ever_set: AtomicBool,
-    session_generation: AtomicU64,
-    encryption: RwLock<HashMap<String, EncryptionParams>>,
+    session_store: SessionStore,
+    encryption: EncryptionStore,
     client: OnceLock<Client>,
-    thumbnail_semaphore: Semaphore,
-    download_semaphore: Semaphore,
+    thumbnail_lane: LifoLane,
+    download_lane: LifoLane,
     cache_miss_gates: Mutex<HashMap<String, Weak<AsyncMutex<Option<FetchResult>>>>>,
     negative_cache: Mutex<HashMap<String, (StatusCode, Instant)>>,
 }
@@ -75,14 +68,11 @@ pub struct MediaSessionState {
 impl Default for MediaSessionState {
     fn default() -> Self {
         Self {
-            inner: RwLock::new(None),
-            session_ready: Notify::new(),
-            session_ever_set: AtomicBool::new(false),
-            session_generation: AtomicU64::new(0),
-            encryption: RwLock::new(HashMap::new()),
+            session_store: SessionStore::default(),
+            encryption: EncryptionStore::default(),
             client: OnceLock::new(),
-            thumbnail_semaphore: Semaphore::new(MAX_CONCURRENT_THUMBNAIL_REQUESTS),
-            download_semaphore: Semaphore::new(MAX_CONCURRENT_DOWNLOAD_REQUESTS),
+            thumbnail_lane: LifoLane::new(MAX_CONCURRENT_THUMBNAIL_REQUESTS),
+            download_lane: LifoLane::new(MAX_CONCURRENT_DOWNLOAD_REQUESTS),
             cache_miss_gates: Mutex::new(HashMap::new()),
             negative_cache: Mutex::new(HashMap::new()),
         }
@@ -90,32 +80,15 @@ impl Default for MediaSessionState {
 }
 
 impl MediaSessionState {
+    #[cfg(test)]
     fn session(&self) -> Option<MediaSession> {
-        self.inner.read().ok().and_then(|guard| guard.clone())
+        self.session_store.current()
     }
 
     /// Waits out the startup window where media is requested before the session arrives. Fails
     /// fast once a session has existed, so requests still in flight after a logout do not hang.
     async fn wait_for_session(&self) -> Option<MediaSession> {
-        if let Some(session) = self.session() {
-            return Some(session);
-        }
-        if self.session_ever_set.load(Ordering::Acquire) {
-            return None;
-        }
-
-        let deadline = Instant::now() + SESSION_WAIT;
-        loop {
-            let mut notified = std::pin::pin!(self.session_ready.notified());
-            // Register before re-checking, otherwise a session arriving in between is missed.
-            notified.as_mut().enable();
-            if let Some(session) = self.session() {
-                return Some(session);
-            }
-            if timeout_at(deadline, notified).await.is_err() {
-                return None;
-            }
-        }
+        self.session_store.wait_initial(SESSION_WAIT).await
     }
 
     async fn wait_for_newer_session(&self, previous: &MediaSession) -> Option<MediaSession> {
@@ -128,56 +101,16 @@ impl MediaSessionState {
         previous: &MediaSession,
         wait: Duration,
     ) -> Option<MediaSession> {
-        let deadline = Instant::now() + wait;
-        loop {
-            let mut notified = std::pin::pin!(self.session_ready.notified());
-            // Register before re-checking, otherwise a session arriving in between is missed.
-            notified.as_mut().enable();
-            match self.session() {
-                Some(session) if session.generation > previous.generation => {
-                    if session.origin != previous.origin || session.scope != previous.scope {
-                        return None;
-                    }
-                    if session.token != previous.token {
-                        return Some(session);
-                    }
-                }
-                None if self.session_generation.load(Ordering::Acquire) > previous.generation => {
-                    return None;
-                }
-                _ => {}
-            }
-            if timeout_at(deadline, notified).await.is_err() {
-                return None;
-            }
-        }
+        self.session_store.wait_newer(previous, wait).await
     }
 
-    fn set_session(&self, mut session: MediaSession) -> Result<(), String> {
-        let mut guard = self
-            .inner
-            .write()
-            .map_err(|_| "media session lock poisoned".to_string())?;
-        session.generation = self.session_generation.fetch_add(1, Ordering::AcqRel) + 1;
-        *guard = Some(session);
-        drop(guard);
-        self.forget_client_errors();
-        self.session_ever_set.store(true, Ordering::Release);
-        self.session_ready.notify_waiters();
-        Ok(())
+    fn set_session(&self, session: MediaSession) -> Result<(), String> {
+        self.session_store
+            .set(session, || self.forget_client_errors())
     }
 
     fn clear_session(&self) -> Result<(), String> {
-        let mut guard = self
-            .inner
-            .write()
-            .map_err(|_| "media session lock poisoned".to_string())?;
-        *guard = None;
-        self.session_generation.fetch_add(1, Ordering::AcqRel);
-        drop(guard);
-        self.forget_client_errors();
-        self.session_ready.notify_waiters();
-        Ok(())
+        self.session_store.clear(|| self.forget_client_errors())
     }
 
     // Shared across requests so the connection pool and TLS sessions stay warm.
@@ -253,25 +186,6 @@ impl MediaSessionState {
     }
 }
 
-#[derive(Clone)]
-struct MediaSession {
-    origin: String,
-    token: String,
-    // Cache key input. The Matrix user ID, not `token`, which rotates on every OIDC
-    // refresh and would orphan the whole on-disk cache.
-    scope: String,
-    generation: u64,
-}
-
-#[derive(Clone)]
-struct EncryptionParams {
-    key: [u8; 32],
-    iv: [u8; 16],
-    counter_length: u8,
-    expected_sha256: Vec<u8>,
-    content_type: String,
-}
-
 #[tauri::command]
 pub fn set_media_session(
     state: tauri::State<'_, MediaSessionState>,
@@ -308,9 +222,7 @@ pub fn clear_media_session<R: Runtime>(
     if let Ok(temp_dir) = temp_cache_dir(&app) {
         let _ = fs::remove_dir_all(temp_dir);
     }
-    if let Ok(mut guard) = state.encryption.write() {
-        guard.clear();
-    }
+    state.encryption.clear();
 }
 
 #[tauri::command]
@@ -323,81 +235,9 @@ pub fn set_media_encryption(
     version: String,
     mime_type: String,
 ) -> Result<(), String> {
-    // Decode key from base64url to [u8; 32]
-    let key_bytes = base64::engine::general_purpose::URL_SAFE_NO_PAD
-        .decode(&key)
-        .map_err(|e| format!("invalid key base64url: {e}"))?;
-    if key_bytes.len() != 32 {
-        return Err(format!("key must be 32 bytes, got {}", key_bytes.len()));
-    }
-    let mut key_arr = [0u8; 32];
-    key_arr.copy_from_slice(&key_bytes);
-
-    // Decode IV from unpadded standard base64 to [u8; 16]
-    let iv_bytes = base64::engine::general_purpose::STANDARD_NO_PAD
-        .decode(&iv)
-        .map_err(|e| format!("invalid iv base64: {e}"))?;
-    if iv_bytes.len() != 16 {
-        return Err(format!("iv must be 16 bytes, got {}", iv_bytes.len()));
-    }
-    let mut iv_arr = [0u8; 16];
-    iv_arr.copy_from_slice(&iv_bytes);
-
-    // Decode sha256 from unpadded standard base64
-    let sha256_bytes = base64::engine::general_purpose::STANDARD_NO_PAD
-        .decode(&sha256)
-        .map_err(|e| format!("invalid sha256 base64: {e}"))?;
-
-    let counter_length: u8 = if version == "v1" || version == "v2" {
-        64
-    } else {
-        128
-    };
-
-    let params = EncryptionParams {
-        key: key_arr,
-        iv: iv_arr,
-        counter_length,
-        expected_sha256: sha256_bytes,
-        content_type: mime_type,
-    };
-
-    // Strip sable-media:// prefix to match the lookup key in decrypt_if_encrypted.
-    let normalized_key = normalize_encryption_key(&url);
-
-    let mut guard = state
+    state
         .encryption
-        .write()
-        .map_err(|_| "encryption lock poisoned".to_string())?;
-    guard.insert(normalized_key, params);
-    Ok(())
-}
-
-fn normalize_encryption_key(url: &str) -> String {
-    if MEDIA_PROTOCOL_PREFIXES
-        .iter()
-        .any(|prefix| url.starts_with(prefix))
-    {
-        if let Ok(uri) = Uri::try_from(url) {
-            let path = uri.path().trim_start_matches('/');
-            let decoded = percent_encoding::percent_decode_str(path)
-                .decode_utf8()
-                .unwrap_or(std::borrow::Cow::Borrowed(path));
-            if let Ok(mut parsed) = Url::parse(&decoded) {
-                // A retry fragment is transport metadata, never part of the params key.
-                parsed.set_fragment(None);
-                return parsed.to_string();
-            }
-            return decoded.into_owned();
-        }
-    }
-    // Parse bare URLs too, so both sides of the map agree on one canonical form.
-    Url::parse(url)
-        .map(|mut parsed| {
-            parsed.set_fragment(None);
-            parsed.to_string()
-        })
-        .unwrap_or_else(|_| url.to_string())
+        .register(&url, &key, &iv, &sha256, &version, mime_type)
 }
 
 fn media_session_marker(uri: &Uri) -> Result<Option<String>, StatusCode> {
@@ -438,29 +278,6 @@ fn should_retry_with_session(failed: &MediaSession, updated: &MediaSession) -> b
         && updated.scope == failed.scope
 }
 
-/// The app's own webview origins, which vary by platform and scheme.
-fn is_webview_origin(origin: &str) -> bool {
-    matches!(
-        origin,
-        "tauri://localhost" | "http://tauri.localhost" | "https://tauri.localhost"
-    ) || (cfg!(debug_assertions) && origin.starts_with("http://localhost:"))
-}
-
-/// Grants CORS only to our own webview. A request with no `Origin` (an `<img>`
-/// load) is not a CORS request and needs no grant.
-fn apply_cors_headers(response: &mut Response<Vec<u8>>, request_origin: Option<&str>) {
-    let Some(origin) = request_origin.filter(|origin| is_webview_origin(origin)) else {
-        return;
-    };
-    let Ok(value) = header::HeaderValue::from_str(origin) else {
-        return;
-    };
-    let headers = response.headers_mut();
-    headers.insert(header::ACCESS_CONTROL_ALLOW_ORIGIN, value);
-    // Responses are cached `immutable`, so the cache must key on Origin too.
-    headers.insert(header::VARY, header::HeaderValue::from_static("Origin"));
-}
-
 pub fn respond<R: Runtime>(
     ctx: UriSchemeContext<'_, R>,
     request: Request<Vec<u8>>,
@@ -475,9 +292,10 @@ pub fn respond<R: Runtime>(
             .and_then(|value| value.to_str().ok())
             .map(str::to_owned)
     };
+    let range = header_value(header::RANGE);
     let origin = header_value(header::ORIGIN);
     tauri::async_runtime::spawn(async move {
-        let mut response = handle_request(&app, uri)
+        let mut response = handle_request(&app, uri, range)
             .await
             .unwrap_or_else(error_response);
         apply_cors_headers(&mut response, origin.as_deref());
@@ -488,6 +306,7 @@ pub fn respond<R: Runtime>(
 async fn handle_request<R: Runtime>(
     app: &AppHandle<R>,
     uri: Uri,
+    range: Option<String>,
 ) -> Result<Response<Vec<u8>>, StatusCode> {
     let target = percent_encoding::percent_decode_str(uri.path().trim_start_matches('/'))
         .decode_utf8()
@@ -529,12 +348,16 @@ async fn handle_request<R: Runtime>(
     let (content_type, in_memory_body, disk_path) =
         ensure_cached(&state, &session, &key, media_url, dir, temp_dir).await?;
 
-    match in_memory_body {
-        Some(body) => {
+    match (range, in_memory_body) {
+        (Some(range_header), Some(body)) => {
+            Ok(serve_range_memory(&body, &content_type, &range_header))
+        }
+        (Some(range_header), None) => serve_range(disk_path, content_type, range_header).await,
+        (None, Some(body)) => {
             let vec_body = Arc::try_unwrap(body).unwrap_or_else(|b| (*b).clone());
             Ok(ok_response(vec_body, &content_type))
         }
-        None => Ok(ok_response(read_full(disk_path).await?, &content_type)),
+        (None, None) => Ok(ok_response(read_full(disk_path).await?, &content_type)),
     }
 }
 
@@ -664,31 +487,29 @@ async fn ensure_cached_with_limits(
 }
 
 // Thumbnails queue separately so a few large downloads cannot stall a painting timeline.
-async fn acquire_lane<'a>(
-    state: &'a MediaSessionState,
-    media_url: &Url,
-) -> Result<tokio::sync::SemaphorePermit<'a>, StatusCode> {
-    let semaphore = if is_thumbnail_request(media_url) {
-        &state.thumbnail_semaphore
+async fn acquire_lane<'a>(state: &'a MediaSessionState, media_url: &Url) -> LanePermit<'a> {
+    let lane = if is_thumbnail_request(media_url) {
+        &state.thumbnail_lane
     } else {
-        &state.download_semaphore
+        &state.download_lane
     };
-    semaphore
-        .acquire()
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+    lane.acquire().await
 }
 
 fn is_thumbnail_request(media_url: &Url) -> bool {
-    media_url.path().contains("/thumbnail/")
+    let Some(segments) = media_url.path_segments() else {
+        return false;
+    };
+    let mut after_media = segments.skip_while(|segment| *segment != "media").skip(1);
+    match after_media.next() {
+        // The legacy endpoints carry a version segment before the action.
+        Some(segment) if is_media_api_version(segment) => after_media.next() == Some("thumbnail"),
+        segment => segment == Some("thumbnail"),
+    }
 }
 
-fn has_encryption_params(state: &MediaSessionState, url: &str) -> bool {
-    state
-        .encryption
-        .read()
-        .map(|guard| guard.contains_key(url))
-        .unwrap_or(false)
+fn is_media_api_version(segment: &str) -> bool {
+    matches!(segment, "v1" | "v3" | "r0")
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -705,7 +526,7 @@ async fn fetch_and_cache(
     max_persistent_cache_bytes: u64,
     max_temp_cache_bytes: u64,
 ) -> Result<(String, Option<Arc<Vec<u8>>>, PathBuf), StatusCode> {
-    let permit = acquire_lane(state, &media_url).await?;
+    let permit = acquire_lane(state, &media_url).await;
 
     let mut upstream = state
         .client()
@@ -746,14 +567,16 @@ async fn fetch_and_cache(
         .to_owned();
 
     // Encrypted media stays buffered: its SHA-256 only verifies over the whole ciphertext.
-    if has_encryption_params(state, media_url.as_str()) {
+    if state.encryption.contains(media_url.as_str()) {
         let body = upstream
             .bytes()
             .await
             .map_err(|_| StatusCode::BAD_GATEWAY)?
             .to_vec();
         let (body, content_type) =
-            decrypt_if_encrypted(state, media_url.as_str(), body, &content_type)?;
+            state
+                .encryption
+                .decrypt(media_url.as_str(), body, &content_type)?;
         drop(permit);
 
         return store_buffered_body(
@@ -947,77 +770,6 @@ async fn store_buffered_body(
     }
 }
 
-/// Sniff the image MIME type from magic bytes of decrypted content.
-/// Restricted to an image allowlist and never returns SVG (which can carry scripts).
-/// Used as a fallback when the registered content type is missing or octet-stream.
-fn sniff_image_content_type(bytes: &[u8]) -> Option<&'static str> {
-    const ALLOWED: [&str; 5] = [
-        "image/png",
-        "image/jpeg",
-        "image/gif",
-        "image/webp",
-        "image/avif",
-    ];
-    infer::get(bytes)
-        .filter(|kind| ALLOWED.contains(&kind.mime_type()))
-        .map(|kind| kind.mime_type())
-}
-
-/// Decrypt the body if encryption params exist for this URL.
-fn decrypt_if_encrypted(
-    state: &MediaSessionState,
-    url: &str,
-    ciphertext: Vec<u8>,
-    upstream_content_type: &str,
-) -> Result<(Vec<u8>, String), StatusCode> {
-    let encryption = {
-        let guard = state
-            .encryption
-            .read()
-            .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-        guard.get(url).cloned()
-    };
-
-    let Some(params) = encryption else {
-        // No encryption params: pass through unchanged
-        return Ok((ciphertext, upstream_content_type.to_owned()));
-    };
-
-    // Verify SHA-256 of ciphertext
-    let mut hasher = Sha256::new();
-    hasher.update(&ciphertext);
-    let actual_sha256 = hasher.finalize().to_vec();
-    if actual_sha256 != params.expected_sha256 {
-        return Err(StatusCode::BAD_GATEWAY);
-    }
-
-    // Decrypt in-place using AES-CTR
-    let mut plaintext = ciphertext;
-    match params.counter_length {
-        64 => {
-            let mut cipher = Ctr64BE::<Aes256>::new((&params.key).into(), (&params.iv).into());
-            cipher.apply_keystream(&mut plaintext);
-        }
-        128 => {
-            let mut cipher = Ctr128BE::<Aes256>::new((&params.key).into(), (&params.iv).into());
-            cipher.apply_keystream(&mut plaintext);
-        }
-        _ => return Err(StatusCode::BAD_REQUEST),
-    }
-
-    // Kept for the session: if this file is evicted, the refetch must still decrypt rather
-    // than serve ciphertext. `clear_media_session` drops them.
-    let final_content_type =
-        if params.content_type.is_empty() || params.content_type == "application/octet-stream" {
-            sniff_image_content_type(&plaintext)
-                .map(|s| s.to_owned())
-                .unwrap_or(params.content_type)
-        } else {
-            params.content_type
-        };
-    Ok((plaintext, final_content_type))
-}
-
 async fn write_cache(
     dir: PathBuf,
     body_path: PathBuf,
@@ -1080,13 +832,6 @@ async fn sniff_and_fix_content_type(
     .unwrap_or(stored_ct)
 }
 
-async fn read_full(body_path: PathBuf) -> Result<Vec<u8>, StatusCode> {
-    tokio::task::spawn_blocking(move || fs::read(&body_path))
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
-}
-
 // Trim oldest-first when the cache exceeds its byte budget.
 fn evict_directory_if_needed(dir: &Path, max_bytes: u64) {
     let Ok(entries) = fs::read_dir(dir) else {
@@ -1120,50 +865,6 @@ fn evict_directory_if_needed(dir: &Path, max_bytes: u64) {
             total = total.saturating_sub(len);
         }
     }
-}
-
-// Shared response headers. Media is content-addressed and the URL is session-scoped, so
-// it is safe to let the webview cache it as immutable.
-fn media_response_builder(status: StatusCode, content_type: &str) -> ResponseBuilder {
-    let cache_control = if content_type == "application/octet-stream" {
-        "no-store"
-    } else {
-        "private, max-age=31536000, immutable"
-    };
-    Response::builder()
-        .status(status)
-        .header(header::CONTENT_TYPE, content_type)
-        .header(header::CACHE_CONTROL, cache_control)
-        .header(header::X_CONTENT_TYPE_OPTIONS, "nosniff")
-        .header(
-            header::CONTENT_SECURITY_POLICY,
-            "sandbox; default-src 'none'; script-src 'none'; object-src 'none'",
-        )
-}
-
-fn ok_response(body: Vec<u8>, content_type: &str) -> Response<Vec<u8>> {
-    let content_length = body.len();
-    media_response_builder(StatusCode::OK, content_type)
-        .header(header::CONTENT_LENGTH, content_length)
-        .body(body)
-        .expect("failed to build media response")
-}
-
-fn session_unavailable_response() -> Response<Vec<u8>> {
-    Response::builder()
-        .status(StatusCode::SERVICE_UNAVAILABLE)
-        .header(header::RETRY_AFTER, "1")
-        .header(header::CACHE_CONTROL, "no-store")
-        .body(Vec::new())
-        .expect("failed to build 503 media response")
-}
-
-fn error_response(status: StatusCode) -> Response<Vec<u8>> {
-    Response::builder()
-        .status(status)
-        .header(header::CACHE_CONTROL, "no-store")
-        .body(Vec::new())
-        .expect("failed to build media error response")
 }
 
 fn cache_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
@@ -1200,10 +901,10 @@ mod tests {
         time::Duration,
     };
 
-    use tauri::http::{header, StatusCode, Uri};
+    use tauri::http::{StatusCode, Uri};
 
     use super::{
-        cache_key, ok_response, session_marker_matches, should_retry_with_session, MediaSession,
+        cache_key, session_marker_matches, should_retry_with_session, MediaSession,
         MediaSessionState, Url,
     };
 
@@ -1618,8 +1319,9 @@ mod tests {
         // After logout there is nothing to wait for, so in-flight requests must not hang.
         let state = MediaSessionState::default();
         state
-            .session_ever_set
-            .store(true, std::sync::atomic::Ordering::Release);
+            .set_session(test_session("https://example.org", "token", "scope", 0))
+            .unwrap();
+        state.clear_session().unwrap();
 
         let waited = tokio::time::timeout(
             std::time::Duration::from_millis(200),
@@ -1711,156 +1413,16 @@ mod tests {
                 .unwrap();
         assert!(super::is_thumbnail_request(&thumbnail));
         assert!(!super::is_thumbnail_request(&download));
-    }
 
-    #[test]
-    fn ok_response_has_content_length_and_cache_headers() {
-        let response = ok_response(vec![0_u8; 42], "image/png");
-        assert_eq!(response.status(), StatusCode::OK);
-        assert_eq!(
-            response.headers().get(header::CONTENT_LENGTH).unwrap(),
-            "42"
-        );
-        assert_eq!(
-            response.headers().get(header::CACHE_CONTROL).unwrap(),
-            "private, max-age=31536000, immutable"
-        );
-    }
+        let legacy =
+            super::Url::parse("https://matrix.example.org/_matrix/media/v3/thumbnail/x/y").unwrap();
+        assert!(super::is_thumbnail_request(&legacy));
 
-    #[test]
-    fn normalize_encryption_key_strips_sable_media_prefix() {
-        let input = "sable-media://localhost/https%3A%2F%2Fmatrix.example.org%2F_matrix%2Fclient%2Fv1%2Fmedia%2Fdownload%2Fmatrix.org%2Fabc123";
-        let result = super::normalize_encryption_key(input);
-        assert_eq!(
-            result,
-            "https://matrix.example.org/_matrix/client/v1/media/download/matrix.org/abc123"
-        );
-    }
-
-    #[test]
-    fn normalize_encryption_key_strips_android_prefix() {
-        // Android serves the protocol over https, which used to fall through to the bare-URL
-        // branch: the params were then keyed by the sable-media URL, never matched at fetch
-        // time, and encrypted media was served as ciphertext.
-        let input = "https://sable-media.localhost/https%3A%2F%2Fmatrix.example.org%2F_matrix%2Fclient%2Fv1%2Fmedia%2Fdownload%2Fmatrix.org%2Fabc123%3Fallow_redirect%3Dtrue?__sable_media_cache=3&__sable_media_session=%40a%3Aexample.org";
-        let result = super::normalize_encryption_key(input);
-        assert_eq!(
-            result,
-            "https://matrix.example.org/_matrix/client/v1/media/download/matrix.org/abc123?allow_redirect=true"
-        );
-    }
-
-    #[test]
-    fn normalize_encryption_key_strips_windows_prefix() {
-        let input = "http://sable-media.localhost/https%3A%2F%2Fmatrix.example.org%2F_matrix%2Fclient%2Fv1%2Fmedia%2Fthumbnail%2Fmatrix.org%2Fxyz%3Fwidth%3D96%26height%3D96";
-        let result = super::normalize_encryption_key(input);
-        assert_eq!(
-            result,
-            "https://matrix.example.org/_matrix/client/v1/media/thumbnail/matrix.org/xyz?width=96&height=96"
-        );
-    }
-
-    #[test]
-    fn normalize_encryption_key_passes_through_bare_url() {
-        let input = "https://matrix.example.org/_matrix/client/v1/media/download/matrix.org/abc123";
-        let result = super::normalize_encryption_key(input);
-        assert_eq!(result, input);
-    }
-
-    #[test]
-    fn sniff_detects_png() {
-        let png_header = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A];
-        assert_eq!(
-            super::sniff_image_content_type(&png_header),
-            Some("image/png")
-        );
-    }
-
-    #[test]
-    fn sniff_rejects_unknown() {
-        assert_eq!(super::sniff_image_content_type(&[0x00, 0x01, 0x02]), None);
-    }
-
-    #[test]
-    fn sniff_does_not_detect_svg() {
-        let svg = b"<svg xmlns='http://www.w3.org/2000/svg'>";
-        assert_eq!(super::sniff_image_content_type(svg), None);
-    }
-
-    #[test]
-    fn octet_stream_response_is_not_cached_immutable() {
-        let response = super::media_response_builder(StatusCode::OK, "application/octet-stream")
-            .body(Vec::<u8>::new())
-            .unwrap();
-        assert_eq!(
-            response.headers().get(header::CACHE_CONTROL).unwrap(),
-            "no-store"
-        );
-    }
-
-    #[test]
-    fn cors_is_granted_only_to_the_apps_own_webview_origins() {
-        for origin in [
-            "tauri://localhost",
-            "http://tauri.localhost",
-            "https://tauri.localhost",
-        ] {
-            let mut response = ok_response(vec![0_u8; 4], "image/png");
-            super::apply_cors_headers(&mut response, Some(origin));
-            assert_eq!(
-                response
-                    .headers()
-                    .get(header::ACCESS_CONTROL_ALLOW_ORIGIN)
-                    .unwrap(),
-                origin,
-                "{origin} should be granted CORS"
-            );
-            assert_eq!(response.headers().get(header::VARY).unwrap(), "Origin");
-        }
-    }
-
-    #[test]
-    fn cors_is_denied_to_foreign_origins() {
-        for origin in [
-            "https://evil.example.org",
-            "https://tauri.localhost.evil.example.org",
-            "null",
-        ] {
-            let mut response = ok_response(vec![0_u8; 4], "image/png");
-            super::apply_cors_headers(&mut response, Some(origin));
-            assert!(
-                !response
-                    .headers()
-                    .contains_key(header::ACCESS_CONTROL_ALLOW_ORIGIN),
-                "{origin} must not be granted CORS"
-            );
-        }
-    }
-
-    #[test]
-    fn requests_without_an_origin_get_no_cors_header() {
-        let mut response = ok_response(vec![0_u8; 4], "image/png");
-        super::apply_cors_headers(&mut response, None);
-        assert!(!response
-            .headers()
-            .contains_key(header::ACCESS_CONTROL_ALLOW_ORIGIN));
-    }
-
-    #[test]
-    fn retry_fragment_never_keys_encryption_params() {
-        let bare = "https://matrix.example.org/_matrix/client/v1/media/download/matrix.org/abc123";
-        for input in [
-            format!("{bare}#retry=1"),
-            format!(
-                "https://sable-media.localhost/{}?__sable_media_session=%40a%3Aexample.org",
-                percent_encoding::utf8_percent_encode(
-                    &format!("{bare}#retry=1"),
-                    percent_encoding::NON_ALPHANUMERIC
-                )
-            ),
-        ] {
-            assert_eq!(super::normalize_encryption_key(&input), bare);
-        }
+        // A media id spelled "thumbnail" is still a download.
+        let lookalike =
+            super::Url::parse("https://matrix.example.org/_matrix/media/v3/download/x/thumbnail")
+                .unwrap();
+        assert!(!super::is_thumbnail_request(&lookalike));
     }
 
     #[test]
@@ -1878,31 +1440,6 @@ mod tests {
         assert_eq!(
             cache_key("@a:example.org", &format!("{base}#retry=1")),
             cache_key("@a:example.org", &format!("{base}#retry=1"))
-        );
-    }
-
-    #[test]
-    fn error_responses_are_no_store() {
-        for response in [
-            super::error_response(StatusCode::UNAUTHORIZED),
-            super::error_response(StatusCode::FORBIDDEN),
-            super::session_unavailable_response(),
-        ] {
-            assert_eq!(
-                response.headers().get(header::CACHE_CONTROL).unwrap(),
-                "no-store"
-            );
-        }
-    }
-
-    #[test]
-    fn image_response_is_cached_immutable() {
-        let response = super::media_response_builder(StatusCode::OK, "image/png")
-            .body(Vec::<u8>::new())
-            .unwrap();
-        assert_eq!(
-            response.headers().get(header::CACHE_CONTROL).unwrap(),
-            "private, max-age=31536000, immutable"
         );
     }
 }

@@ -93,7 +93,7 @@ test.describe('device verification setup', () => {
     await expect(page.getByText('Account Authorization')).toBeHidden();
 
     expect(authDicts.length).toBeGreaterThanOrEqual(2);
+    expect(authDicts.find((auth) => auth?.session === SESSION)).toEqual({ session: SESSION });
     expect(authDicts[authDicts.length - 1]).toEqual({ type: 'm.oauth', session: SESSION });
-    expect(authDicts.filter((auth) => auth?.session && !auth.type)).toEqual([]);
   });
 });

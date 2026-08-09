@@ -7,16 +7,22 @@ use tauri_plugin_dialog::DialogExt;
 const DEFAULT_ARCHIVE_NAME: &str = "sable-diagnostics.zip";
 
 #[tauri::command]
-pub fn export_diagnostics(
+pub async fn export_diagnostics(
     app: AppHandle<crate::BrowserEngine>,
     frontend_logs: Option<String>,
 ) -> Result<Option<String>, String> {
-    let Some(path) = app
-        .dialog()
+    let (sender, receiver) = tokio::sync::oneshot::channel();
+    app.dialog()
         .file()
         .set_file_name(DEFAULT_ARCHIVE_NAME)
         .add_filter("ZIP archive", &["zip"])
-        .blocking_save_file()
+        .save_file(move |path| {
+            let _ = sender.send(path);
+        });
+
+    let Some(path) = receiver
+        .await
+        .map_err(|error| format!("Save dialog did not return a result: {error}"))?
     else {
         return Ok(None);
     };

@@ -1,13 +1,13 @@
 import type { MouseEventHandler } from 'react';
 import { useState } from 'react';
 import type { RectCords } from 'folds';
-import { Box, config, Menu, PopOut, Text } from 'folds';
+import { Box, config, Menu, Text } from 'folds';
+import { PopOut } from '$components/overlay-stack';
 import FocusTrap from 'focus-trap-react';
 import { useNavigate } from 'react-router-dom';
 import { SidebarAvatar, SidebarItemLeft, SidebarItemTooltip } from '$components/sidebar';
 import { stopPropagation } from '$utils/keyboard';
 import { SequenceCard } from '$components/sequence-card';
-import { SettingTile } from '$components/setting-tile';
 import { ContainerColor } from '$styles/ContainerColor.css';
 import {
   encodeSearchParamValueArray,
@@ -130,9 +130,10 @@ export function CreateTab() {
                       type="button"
                       onClick={handleCreateSpace}
                     >
-                      <SettingTile before={composerIcon(SquaresFour)}>
+                      <Box alignItems="Center" gap="300">
+                        <Box shrink="No">{composerIcon(SquaresFour)}</Box>
                         <Text size="H6">Create a New Space</Text>
-                      </SettingTile>
+                      </Box>
                     </SequenceCard>
                     <SequenceCard
                       style={{ padding: config.space.S300 }}
@@ -144,9 +145,10 @@ export function CreateTab() {
                       type="button"
                       onClick={handleJoinWithAddress}
                     >
-                      <SettingTile before={composerIcon(Link)}>
+                      <Box alignItems="Center" gap="300">
+                        <Box shrink="No">{composerIcon(Link)}</Box>
                         <Text size="H6">Join Community via Address</Text>
-                      </SettingTile>
+                      </Box>
                     </SequenceCard>
                     <SequenceCard
                       style={{ padding: config.space.S300 }}
@@ -158,9 +160,10 @@ export function CreateTab() {
                       type="button"
                       onClick={handleExploreClick}
                     >
-                      <SettingTile before={composerIcon(UsersThree)}>
+                      <Box alignItems="Center" gap="300">
+                        <Box shrink="No">{composerIcon(UsersThree)}</Box>
                         <Text size="H6">Explore Recommended Spaces</Text>
-                      </SettingTile>
+                      </Box>
                     </SequenceCard>
                   </Box>
                 </Menu>

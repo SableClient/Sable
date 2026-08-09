@@ -81,6 +81,7 @@ type RenderMessageContentProps = {
   mEvent?: MatrixEvent;
   mx?: MatrixClient;
   room?: Room;
+  onOpenMedia?: (mEvent: MatrixEvent) => boolean;
 };
 
 const getMediaType = (url: string) => {
@@ -118,6 +119,7 @@ function RenderMessageContentInternal({
   mEvent,
   mx,
   room,
+  onOpenMedia,
 }: RenderMessageContentProps) {
   const content = useMemo(() => getContent() as Record<string, unknown>, [getContent]);
 
@@ -416,6 +418,7 @@ function RenderMessageContentInternal({
         renderImageContent={(imageProps) => (
           <ImageContent
             {...imageProps}
+            onOpenViewer={mEvent ? () => onOpenMedia?.(mEvent) ?? false : undefined}
             autoPlay={mediaAutoLoad}
             renderImage={(p) => {
               if (isGif && !autoplayGifs && p.src) {

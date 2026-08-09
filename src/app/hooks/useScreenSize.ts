@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useState } from 'react';
+import { createContext, useCallback, useContext, useState, useSyncExternalStore } from 'react';
 import { useElementSizeObserver } from './useElementSizeObserver';
 
 const TABLET_BREAKPOINT = 1124;
@@ -39,4 +39,27 @@ export const useScreenSizeContext = (): ScreenSize => {
     throw new Error('Screen size not provided!');
   }
   return screenSize;
+};
+
+const coarsePointerQuery = () => globalThis.matchMedia?.('(pointer: coarse)');
+
+const subscribeCoarsePointer = (onChange: () => void) => {
+  const query = coarsePointerQuery();
+  query?.addEventListener('change', onChange);
+  return () => query?.removeEventListener('change', onChange);
+};
+
+const getCoarsePointer = () => coarsePointerQuery()?.matches ?? false;
+
+/** Mobile, or tablet width with a touch pointer — not a narrow desktop window. */
+export const useCompactLayout = (): boolean => {
+  const screenSize = useContext(ScreenSizeContext);
+  const coarsePointer = useSyncExternalStore(
+    subscribeCoarsePointer,
+    getCoarsePointer,
+    getCoarsePointer
+  );
+
+  if (screenSize === ScreenSize.Mobile) return true;
+  return screenSize === ScreenSize.Tablet && coarsePointer;
 };

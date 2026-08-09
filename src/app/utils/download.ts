@@ -185,3 +185,13 @@ export async function saveFileToDevice(
   FileSaver.saveAs(input, filename);
   return 'saved';
 }
+
+export const downloadJsonFile = (
+  content: string,
+  fileNamePrefix: string
+): Promise<'saved' | 'cancelled' | 'failed'> =>
+  saveFileToDevice(
+    new Blob([content], { type: 'application/json' }),
+    `${fileNamePrefix}-${Date.now()}.json`,
+    'application/json'
+  );

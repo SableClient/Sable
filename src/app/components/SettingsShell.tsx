@@ -28,6 +28,8 @@ export type SettingsShellProps<Id extends string> = {
   renderHeader?: (closeButton: ReactNode) => ReactNode;
   /** Render custom footer below the menu (inside the PageNav column). */
   footer?: ReactNode;
+  searchBar?: ReactNode;
+  searchResults?: ReactNode;
   /** Optional wrapper rendered around the entire component (e.g. SwipeableOverlayWrapper). */
   wrapper?: (children: ReactNode) => ReactNode;
   /** Wrap the section viewport content (e.g. SettingsLinkProvider). Receives the viewport element. */
@@ -66,6 +68,8 @@ export function SettingsShell<Id extends string>({
   requestClose,
   renderHeader,
   footer,
+  searchBar,
+  searchResults,
   wrapper,
   renderSection,
   showCloseInHeader,
@@ -104,35 +108,41 @@ export function SettingsShell<Id extends string>({
           )}
         </PageNavHeader>
         <Box grow="Yes" direction="Column">
+          {searchBar && (
+            <Box style={{ padding: config.space.S200 }} shrink="No">
+              {searchBar}
+            </Box>
+          )}
           <PageNavContent>
             <div style={{ flexGrow: 1 }}>
-              {visibleIds.map((id) => {
-                const section = sections[id];
-                const isActive = active === id;
-                const IconComponent =
-                  isActive && section.activeIcon ? section.activeIcon : section.icon;
+              {searchResults ??
+                visibleIds.map((id) => {
+                  const section = sections[id];
+                  const isActive = active === id;
+                  const IconComponent =
+                    isActive && section.activeIcon ? section.activeIcon : section.icon;
 
-                return (
-                  <MenuItem
-                    key={id}
-                    variant="Background"
-                    radii="400"
-                    aria-pressed={isActive}
-                    before={settingsNavIcon(IconComponent, isActive)}
-                    onClick={() => onSelect(id)}
-                  >
-                    <Text
-                      style={{
-                        fontWeight: isActive ? config.fontWeight.W600 : undefined,
-                      }}
-                      size={menuItemTextSize}
-                      truncate
+                  return (
+                    <MenuItem
+                      key={id}
+                      variant="Background"
+                      radii="400"
+                      aria-pressed={isActive}
+                      before={settingsNavIcon(IconComponent, isActive)}
+                      onClick={() => onSelect(id)}
                     >
-                      {section.label}
-                    </Text>
-                  </MenuItem>
-                );
-              })}
+                      <Text
+                        style={{
+                          fontWeight: isActive ? config.fontWeight.W600 : undefined,
+                        }}
+                        size={menuItemTextSize}
+                        truncate
+                      >
+                        {section.label}
+                      </Text>
+                    </MenuItem>
+                  );
+                })}
             </div>
           </PageNavContent>
           {footer}

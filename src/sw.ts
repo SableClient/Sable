@@ -6,6 +6,7 @@ import { EventType } from 'matrix-js-sdk/lib/@types/event';
 
 import { createPushNotifications } from './sw/pushNotification';
 import { withMediaFetchSlot } from './app/utils/mediaConcurrency';
+import { readPersistedSession } from './sw-session-persistence';
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -26,7 +27,7 @@ const { handlePushNotificationPushData } = createPushNotifications(self, () => (
 const SW_SETTINGS_CACHE = 'sable-sw-settings-v1';
 const SW_SETTINGS_URL = '/sw-settings-meta';
 
-/** Cache key used to persist the active session so push-event fetches work after SW restart. */
+/** Cache key used to persist sessions so push-event fetches work after SW restart. */
 const SW_SESSION_CACHE = 'sable-sw-session-v1';
 const SW_SESSION_URL = '/sw-session-meta';
 
@@ -77,43 +78,54 @@ async function loadPersistedSettings() {
   }
 }
 
-async function persistSession(session: SessionInfo): Promise<void> {
-  try {
-    const cache = await self.caches.open(SW_SESSION_CACHE);
-    await cache.put(
-      SW_SESSION_URL,
-      new Response(JSON.stringify(session), {
-        headers: { 'Content-Type': 'application/json' },
-      })
-    );
-  } catch {
-    // Ignore — caches may be unavailable in some environments.
-  }
-}
-
-async function clearPersistedSession(): Promise<void> {
-  try {
-    const cache = await self.caches.open(SW_SESSION_CACHE);
-    await cache.delete(SW_SESSION_URL);
-  } catch {
-    // Ignore.
-  }
-}
-
-async function loadPersistedSession(): Promise<SessionInfo | undefined> {
+async function loadPersistedSessions(): Promise<Record<string, SessionInfo>> {
   try {
     const cache = await self.caches.open(SW_SESSION_CACHE);
     const response = await cache.match(SW_SESSION_URL);
-    if (!response) return undefined;
-    const s = await response.json();
-    if (typeof s.accessToken === 'string' && typeof s.baseUrl === 'string') {
-      return {
-        accessToken: s.accessToken,
-        baseUrl: s.baseUrl,
-        userId: typeof s.userId === 'string' ? s.userId : undefined,
-      };
+    if (!response) return {};
+    const value = await response.json();
+    const sessions: Record<string, SessionInfo> = {};
+
+    if (typeof value !== 'object' || value === null) return sessions;
+    const legacySession = readPersistedSession(value);
+    if (legacySession?.userId) return { [legacySession.userId]: legacySession };
+    for (const [userId, candidate] of Object.entries(value)) {
+      const session = readPersistedSession(candidate);
+      if (session?.userId === userId) sessions[userId] = session;
     }
-    return undefined;
+    return sessions;
+  } catch {
+    return {};
+  }
+}
+
+let persistedSessionWrites = Promise.resolve();
+
+function updatePersistedSession(userId: string, session?: SessionInfo): Promise<void> {
+  const update = async () => {
+    try {
+      const cache = await self.caches.open(SW_SESSION_CACHE);
+      const sessions = await loadPersistedSessions();
+      if (session) sessions[userId] = session;
+      else delete sessions[userId];
+      await cache.put(
+        SW_SESSION_URL,
+        new Response(JSON.stringify(sessions), {
+          headers: { 'Content-Type': 'application/json' },
+        })
+      );
+    } catch {
+      // Ignore, caches may be unavailable in some environments.
+    }
+  };
+
+  persistedSessionWrites = persistedSessionWrites.then(update, update);
+  return persistedSessionWrites;
+}
+
+async function loadPersistedSession(userId: string): Promise<SessionInfo | undefined> {
+  try {
+    return (await loadPersistedSessions())[userId];
   } catch {
     return undefined;
   }
@@ -130,14 +142,6 @@ type SessionInfo = {
  * Store session per client (tab)
  */
 const sessions = new Map<string, SessionInfo>();
-
-/**
- * Session pre-loaded from cache on SW activation. Acts as an immediate
- * fallback so media fetches don't 401 during the window between SW restart
- * and the first live setSession message from the page.
- * Cleared as soon as any real setSession call comes in.
- */
-let preloadedSession: SessionInfo | undefined;
 
 type PendingSessionRequest = {
   promise: Promise<SessionInfo | undefined>;
@@ -157,7 +161,14 @@ async function cleanupDeadClients() {
   });
 }
 
-function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, userId?: unknown) {
+function setSession(
+  clientId: string,
+  accessToken: unknown,
+  baseUrl: unknown,
+  userId?: unknown
+): Promise<void> {
+  const previous = sessions.get(clientId);
+  const persistence: Promise<void>[] = [];
   if (typeof accessToken === 'string' && typeof baseUrl === 'string') {
     const info: SessionInfo = {
       accessToken,
@@ -165,17 +176,20 @@ function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, us
       userId: typeof userId === 'string' ? userId : undefined,
     };
     sessions.set(clientId, info);
-    // A real session has arrived — discard the preloaded fallback.
-    preloadedSession = undefined;
     console.debug('[SW] setSession: stored', clientId, baseUrl);
-    // Persist so push-event fetches work after iOS restarts the SW.
-    persistSession(info).catch(() => undefined);
+    if (info.userId) persistence.push(updatePersistedSession(info.userId, info));
   } else {
     // Logout or invalid session
     sessions.delete(clientId);
-    preloadedSession = undefined;
     console.debug('[SW] setSession: removed', clientId);
-    clearPersistedSession().catch(() => undefined);
+  }
+
+  if (
+    previous?.userId &&
+    previous.userId !== sessions.get(clientId)?.userId &&
+    ![...sessions.values()].some((session) => session.userId === previous.userId)
+  ) {
+    persistence.push(updatePersistedSession(previous.userId));
   }
 
   const pending = pendingSessionRequests.get(clientId);
@@ -183,6 +197,8 @@ function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, us
     pending.resolve(sessions.get(clientId));
     pendingSessionRequests.delete(clientId);
   }
+
+  return Promise.all(persistence).then(() => undefined);
 }
 
 function requestSession(client: Client): Promise<SessionInfo | undefined> {
@@ -366,12 +382,17 @@ function mxcToNotificationUrl(mxcUrl: string, baseUrl: string): string | undefin
   return `${baseUrl}/_matrix/media/v3/thumbnail/${encodeURIComponent(server)}/${encodeURIComponent(mediaId)}?width=96&height=96&method=crop`;
 }
 
-/**
- * Return the first any-session we have stored (used for push fetches where we
- * don't have a client ID, e.g. when the app is backgrounded but still loaded).
- */
-function getAnyStoredSession(): SessionInfo | undefined {
-  return sessions.values().next().value;
+async function getSessionForPush(userId?: string): Promise<SessionInfo | undefined> {
+  if (userId) {
+    const liveSession = [...sessions.values()].find((session) => session.userId === userId);
+    return liveSession ?? loadPersistedSession(userId);
+  }
+
+  const liveAccounts = new Set([...sessions.values()].map((session) => session.userId));
+  if (liveAccounts.size === 1) return sessions.values().next().value;
+
+  const persisted = Object.values(await loadPersistedSessions());
+  return persisted.length === 1 ? persisted[0] : undefined;
 }
 
 /**
@@ -434,12 +455,10 @@ async function requestDecryptionFromClient(
 async function handleMinimalPushPayload(
   roomId: string,
   eventId: string,
+  userId: string | undefined,
   windowClients: readonly Client[]
 ): Promise<void> {
-  // On iOS the SW is killed and restarted for every push, clearing the in-memory sessions
-  // Map.  Fall back to the Cache Storage copy that was written when the user last opened
-  // the app (same pattern as settings persistence).
-  const session = getAnyStoredSession() ?? (await loadPersistedSession());
+  const session = await getSessionForPush(userId);
 
   if (!session) {
     // No session anywhere — app was never opened since install, or the user logged out.
@@ -555,10 +574,6 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
     (async () => {
       await self.clients.claim();
       await cleanupDeadClients();
-      // Pre-load the persisted session into memory so that media fetches arriving
-      // before the first setSession message from the page are immediately
-      // authenticated rather than falling through to a 3-second timeout.
-      preloadedSession = await loadPersistedSession();
       // Proactively request sessions from all window clients so the sessions Map
       // is pre-populated after a SW restart, rather than waiting for the first
       // media fetch to trigger requestSessionWithTimeout.
@@ -580,8 +595,11 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
   const { type, accessToken, baseUrl, userId } = data as Record<string, unknown>;
 
   if (type === 'setSession') {
-    setSession(client.id, accessToken, baseUrl, userId);
-    event.waitUntil(cleanupDeadClients());
+    event.waitUntil(
+      Promise.all([setSession(client.id, accessToken, baseUrl, userId), cleanupDeadClients()]).then(
+        () => undefined
+      )
+    );
   }
   if (type === 'swMediaAuthProbe') {
     // Capability handshake: prove this SW intercepts authenticated media so the
@@ -849,6 +867,7 @@ function unavailableAuthenticatedMediaResponse(): Response {
 }
 
 export const swTestHooks = {
+  getSessionForPush,
   requestSessionWithTimeout,
   respondWithMediaAuthRecovery,
   setSession,
@@ -911,34 +930,9 @@ self.addEventListener('fetch', (event: FetchEvent) => {
     return;
   }
 
-  // Since widgets like element call have their own client ids,
-  // we need this logic. We just go through the sessions list and get a session
-  // with the right base url. Media requests to a homeserver simply are fine with any account
-  // on the homeserver authenticating it, so this is fine. But it can be technically wrong.
-  // If you have two tabs for different users on the same homeserver, it might authenticate
-  // as the wrong one.
-  // Thus any logic in the future which cares about which user is authenticating the request
-  // might break this. Also, again, it is technically wrong.
-  // Also checks preloadedSession — populated from cache at SW activate — for the window
-  // between SW restart and the first live setSession arriving from the page.
-  const byBaseUrl =
-    [...sessions.values()].find((s) => validMediaRequest(url, s.baseUrl)) ??
-    (preloadedSession && validMediaRequest(url, preloadedSession.baseUrl)
-      ? preloadedSession
-      : undefined);
-  if (byBaseUrl) {
-    event.respondWith(respondWithMediaAuthRecovery(event.request, byBaseUrl, redirect, clientId));
-    return;
-  }
-
-  // No clientId: the fetch came from a context not associated with a specific
-  // window (e.g. a prerender). Fall back to the persisted session directly.
   if (!clientId) {
     event.respondWith(
-      loadPersistedSession().then((persisted) => {
-        if (persisted && validMediaRequest(url, persisted.baseUrl)) {
-          return respondWithMediaAuthRecovery(event.request, persisted, redirect);
-        }
+      Promise.resolve().then(() => {
         if (authenticatedMediaPath(url)) return unavailableAuthenticatedMediaResponse();
         return fetch(event.request);
       })
@@ -952,12 +946,6 @@ self.addEventListener('fetch', (event: FetchEvent) => {
       if (s && validMediaRequest(url, s.baseUrl)) {
         return respondWithMediaAuthRecovery(event.request, s, redirect, clientId);
       }
-      // Fallback: try the persisted session (helps when SW restarts on iOS and
-      // the client window hasn't responded to requestSession yet).
-      const persisted = await loadPersistedSession();
-      if (persisted && validMediaRequest(url, persisted.baseUrl)) {
-        return respondWithMediaAuthRecovery(event.request, persisted, redirect, clientId);
-      }
       if (authenticatedMediaPath(url)) return unavailableAuthenticatedMediaResponse();
       return fetch(event.request);
     })
@@ -966,7 +954,9 @@ self.addEventListener('fetch', (event: FetchEvent) => {
 
 // Detect a minimal (event_id_only) payload: has room_id + event_id but no
 // event type field — meaning the homeserver stripped the event content.
-function isMinimalPushPayload(data: unknown): data is { room_id: string; event_id: string } {
+function isMinimalPushPayload(
+  data: unknown
+): data is { room_id: string; event_id: string; user_id?: string } {
   if (!data || typeof data !== 'object') return false;
   const d = data as Record<string, unknown>;
   return typeof d.room_id === 'string' && typeof d.event_id === 'string' && !d.type;
@@ -978,9 +968,8 @@ const onPushNotification = async (event: PushEvent) => {
   // The SW may have been restarted by the OS (iOS is aggressive about this),
   // so in-memory settings would be at their defaults.  Reload from cache and
   // match active clients in parallel — they are independent operations.
-  const [, , clients] = await Promise.all([
+  const [, clients] = await Promise.all([
     loadPersistedSettings(),
-    loadPersistedSession(),
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }),
   ]);
 
@@ -1037,7 +1026,7 @@ const onPushNotification = async (event: PushEvent) => {
   // to relay decryption to an open app tab.
   if (isMinimalPushPayload(pushData)) {
     console.debug('[SW push] minimal payload detected — fetching event', pushData.event_id);
-    await handleMinimalPushPayload(pushData.room_id, pushData.event_id, clients);
+    await handleMinimalPushPayload(pushData.room_id, pushData.event_id, pushData.user_id, clients);
     return;
   }
 

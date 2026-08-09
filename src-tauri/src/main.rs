@@ -81,6 +81,19 @@ fn main() {
                 if std::env::var_os("SABLE_DISABLE_GPU").is_some() {
                     args.push(("--disable-gpu".into(), None));
                 }
+
+                // Extra Chromium switches, comma-separated `key=value` or bare `key`:
+                //   SABLE_CEF_ARGS="disable-gpu-compositing,use-angle=vulkan"
+                if let Ok(extra) = std::env::var("SABLE_CEF_ARGS") {
+                    for arg in extra.split(',').map(str::trim).filter(|a| !a.is_empty()) {
+                        match arg.split_once('=') {
+                            Some((key, value)) => {
+                                args.push((key.to_owned(), Some(value.to_owned())))
+                            }
+                            None => args.push((arg.to_owned(), None)),
+                        }
+                    }
+                }
                 args
             },
             ..Default::default()

@@ -1,7 +1,8 @@
 import { sanitizeThemeRemoteTweakFavorites, type Settings } from '$state/settings';
 import { isLocalImportTweakUrl } from '../theme/localImportUrls';
 import { sanitizeShortcutOverrides } from '../keyboard/shortcuts';
-import { downloadJsonFile } from './common';
+import { saveFileToDevice } from './download';
+import { readFileToString } from './file';
 
 /**
  * Keys excluded from cross-device sync.
@@ -152,11 +153,14 @@ export const deserializeFromSync = (data: unknown, currentSettings: Settings): S
   return merged;
 };
 
-/** Trigger a browser download of the current settings as a JSON file. */
+/** Save the current settings as a JSON file. */
 export const exportSettingsAsJson = (settings: Settings): void => {
-  downloadJsonFile(
-    JSON.stringify({ v: SETTINGS_SYNC_VERSION, settings }, null, 2),
-    'sable-settings'
+  void saveFileToDevice(
+    new Blob([JSON.stringify({ v: SETTINGS_SYNC_VERSION, settings }, null, 2)], {
+      type: 'application/json',
+    }),
+    `sable-settings-${Date.now()}.json`,
+    'application/json'
   );
 };
 
@@ -175,17 +179,12 @@ export const importSettingsFromJson = (currentSettings: Settings): Promise<Setti
         resolve(null);
         return;
       }
-      const reader = new FileReader();
-      reader.addEventListener('load', (e) => {
-        try {
-          const data = JSON.parse(e.target?.result as string);
-          resolve(deserializeFromSync(data, currentSettings));
-        } catch {
-          resolve(null);
-        }
-      });
-      reader.addEventListener('error', () => resolve(null));
-      reader.readAsText(file);
+
+      readFileToString(file)
+        .then((result) => {
+          resolve(deserializeFromSync(JSON.parse(result), currentSettings));
+        })
+        .catch(() => resolve(null));
     });
     // oncancel is not widely supported; clicking away without selecting resolves naturally via onchange with empty files
     input.click();

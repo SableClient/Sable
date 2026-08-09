@@ -39,65 +39,71 @@ export function SidebarNav() {
   return (
     <>
       <Sidebar onContextMenu={handleSidebarContextMenu}>
-        <ResponsiveMenu
-          anchor={sidebarMenu.anchor}
-          position="Right"
-          align="Start"
-          requestClose={sidebarMenu.close}
-          menu={
-            <Menu style={{ maxWidth: toRem(208), width: '100vw' }}>
-              <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-                <MenuItem
-                  size="300"
-                  radii="300"
-                  aria-pressed={showUnreadCounts}
-                  onClick={() => setShowUnreadCounts(!showUnreadCounts)}
-                  after={<Checkbox size="100" checked={showUnreadCounts} readOnly tabIndex={-1} />}
-                >
-                  <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-                    Show Room Counts
-                  </Text>
-                </MenuItem>
-                <MenuItem
-                  size="300"
-                  radii="300"
-                  aria-pressed={badgeCountDMsOnly}
-                  onClick={() => setBadgeCountDMsOnly(!badgeCountDMsOnly)}
-                  after={<Checkbox size="100" checked={badgeCountDMsOnly} readOnly tabIndex={-1} />}
-                >
-                  <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-                    Show DM Counts
-                  </Text>
-                </MenuItem>
-                <MenuItem
-                  size="300"
-                  radii="300"
-                  aria-pressed={showPingCounts}
-                  onClick={() => setShowPingCounts(!showPingCounts)}
-                  after={<Checkbox size="100" checked={showPingCounts} readOnly tabIndex={-1} />}
-                >
-                  <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-                    Show Mention Counts
-                  </Text>
-                </MenuItem>
-              </Box>
-              <Line variant="Surface" size="300" />
-              <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-                <MenuItem
-                  size="300"
-                  radii="300"
-                  aria-pressed={uniformIcons}
-                  onClick={() => setUniformIcons(!uniformIcons)}
-                  after={<Checkbox size="100" checked={uniformIcons} readOnly tabIndex={-1} />}
-                >
-                  <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-                    Consistent Icon Style
-                  </Text>
-                </MenuItem>
-              </Box>
-            </Menu>
-          }
-        />
+        {!compact && (
+          <ResponsiveMenu
+            anchor={sidebarMenu.anchor}
+            position="Right"
+            align="Start"
+            requestClose={sidebarMenu.close}
+            menu={
+              <Menu style={{ maxWidth: toRem(208), width: '100vw' }}>
+                <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+                  <MenuItem
+                    size="300"
+                    radii="300"
+                    aria-pressed={showUnreadCounts}
+                    onClick={() => setShowUnreadCounts(!showUnreadCounts)}
+                    after={
+                      <Checkbox size="100" checked={showUnreadCounts} readOnly tabIndex={-1} />
+                    }
+                  >
+                    <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+                      Show Room Counts
+                    </Text>
+                  </MenuItem>
+                  <MenuItem
+                    size="300"
+                    radii="300"
+                    aria-pressed={badgeCountDMsOnly}
+                    onClick={() => setBadgeCountDMsOnly(!badgeCountDMsOnly)}
+                    after={
+                      <Checkbox size="100" checked={badgeCountDMsOnly} readOnly tabIndex={-1} />
+                    }
+                  >
+                    <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+                      Show DM Counts
+                    </Text>
+                  </MenuItem>
+                  <MenuItem
+                    size="300"
+                    radii="300"
+                    aria-pressed={showPingCounts}
+                    onClick={() => setShowPingCounts(!showPingCounts)}
+                    after={<Checkbox size="100" checked={showPingCounts} readOnly tabIndex={-1} />}
+                  >
+                    <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+                      Show Mention Counts
+                    </Text>
+                  </MenuItem>
+                </Box>
+                <Line variant="Surface" size="300" />
+                <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+                  <MenuItem
+                    size="300"
+                    radii="300"
+                    aria-pressed={uniformIcons}
+                    onClick={() => setUniformIcons(!uniformIcons)}
+                    after={<Checkbox size="100" checked={uniformIcons} readOnly tabIndex={-1} />}
+                  >
+                    <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+                      Consistent Icon Style
+                    </Text>
+                  </MenuItem>
+                </Box>
+              </Menu>
+            }
+          />
+        )}
         <SidebarContent
           scrollable={
             <Scroll ref={scrollRef} variant="Background" size="0">

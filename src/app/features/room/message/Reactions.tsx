@@ -3,17 +3,16 @@ import { useCallback, useState } from 'react';
 import {
   Box,
   Modal,
-  Overlay,
   OverlayBackdrop,
   OverlayCenter,
-  PopOut,
   Text,
   Tooltip,
-  TooltipProvider,
   as,
   toRem,
   type RectCords,
 } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
+import { Overlay, PopOut } from '$components/overlay-stack';
 import classNames from 'classnames';
 import type { Room } from '$types/matrix-sdk';
 import { type Relations } from '$types/matrix-sdk';

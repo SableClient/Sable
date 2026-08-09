@@ -11,20 +11,20 @@ pub fn init() -> Option<sentry::ClientInitGuard> {
     let environment = option_env!("SENTRY_ENVIRONMENT");
     let release = option_env!("SENTRY_APP_VERSION").map(|v| format!("sable@{v}"));
 
-    let guard = sentry::init(sentry::ClientOptions {
-        dsn: dsn.parse().ok(),
-        release: release.map(Into::into),
-        environment: environment.map(Into::into),
-        send_default_pii: false,
-        before_send: Some(std::sync::Arc::new(|event: Event<'static>| {
-            if CONSENT.load(Ordering::Relaxed) {
-                Some(event)
-            } else {
-                None
-            }
-        })),
-        ..Default::default()
-    });
+    // ClientOptions is #[non_exhaustive]; mutate a default instance instead.
+    let mut options = sentry::ClientOptions::default();
+    options.dsn = dsn.parse().ok();
+    options.release = release.map(Into::into);
+    options.environment = environment.map(Into::into);
+    options.send_default_pii = false;
+    options.before_send = Some(std::sync::Arc::new(|event: Event<'static>| {
+        if CONSENT.load(Ordering::Relaxed) {
+            Some(event)
+        } else {
+            None
+        }
+    }));
+    let guard = sentry::init(options);
 
     Some(guard)
 }

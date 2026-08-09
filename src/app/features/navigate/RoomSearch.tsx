@@ -9,12 +9,12 @@ import {
   Line,
   MenuItem,
   Modal,
-  Overlay,
   OverlayCenter,
   Scroll,
   Text,
   toRem,
 } from 'folds';
+import { Overlay } from '$components/overlay-stack';
 import { MagnifyingGlass, X, composerIcon, menuIcon } from '$components/icons/phosphor';
 import type { ChangeEventHandler, KeyboardEventHandler, MouseEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';

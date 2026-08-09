@@ -1,8 +1,10 @@
 import type { ComponentProps, CSSProperties, ReactNode } from 'react';
+import { useEffect, useState } from 'react';
 import type { RectCords } from 'folds';
-import { Box, Overlay, OverlayBackdrop, OverlayCenter, PopOut } from 'folds';
+import { Box, OverlayBackdrop, OverlayCenter } from 'folds';
+import { Overlay, PopOut, useOverlayLayer } from '$components/overlay-stack';
 import FocusTrap from 'focus-trap-react';
-import { ScreenSize, useScreenSizeOptionally } from '$hooks/useScreenSize';
+import { useCompactLayout } from '$hooks/useScreenSize';
 import { stopPropagation } from '$utils/keyboard';
 import { useDismissOnBack } from '$utils/androidBack';
 import { MobileSheetFocusTrap, MobileSwipeDownModal } from './MobileSwipeDownModal';
@@ -28,8 +30,9 @@ type ResponsiveMenuProps = {
   arrowNavigation?: 'vertical' | 'both';
   /** How the menu shows on mobile: a bottom sheet, or a centred dialog for
    *  option pickers, which a sheet makes look like an action menu. */
-  mobile?: 'sheet' | 'dialog';
+  mobile?: 'sheet' | 'dialog' | 'inline-dialog';
   surfaceColor?: string;
+  overlayDragHandle?: boolean;
 };
 
 function MenuDialog({
@@ -57,6 +60,65 @@ function MenuDialog({
   );
 }
 
+function InlineMenuDialog({
+  anchor,
+  requestClose,
+  focusTrapOptions,
+  children,
+}: {
+  anchor: RectCords;
+  requestClose: () => void;
+  focusTrapOptions: FocusTrapOptions;
+  children: ReactNode;
+}) {
+  useDismissOnBack(requestClose);
+  const zIndex = useOverlayLayer();
+
+  const [viewport, setViewport] = useState(() => ({
+    width: window.innerWidth,
+    height: window.innerHeight,
+  }));
+  useEffect(() => {
+    const handleResize = () =>
+      setViewport({ width: window.innerWidth, height: window.innerHeight });
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const maxHeight = Math.round(viewport.height * 0.75);
+
+  return (
+    <FocusTrap focusTrapOptions={focusTrapOptions}>
+      <Box
+        style={{ position: 'fixed', inset: 0, zIndex, background: 'transparent' }}
+        onClick={requestClose}
+      >
+        <Box
+          direction="Column"
+          role="dialog"
+          aria-modal="true"
+          style={{
+            width: 'fit-content',
+            maxWidth: `${viewport.width - 16}px`,
+            maxHeight: `${maxHeight}px`,
+            overflow: 'auto',
+            borderRadius: '20px',
+            position: 'absolute',
+            top: Math.min(
+              Math.max(8, anchor.y + anchor.height + 8),
+              Math.max(8, viewport.height - maxHeight - 8)
+            ),
+            right: Math.max(8, viewport.width - anchor.x - anchor.width),
+          }}
+          onClick={(event) => event.stopPropagation()}
+        >
+          {children}
+        </Box>
+      </Box>
+    </FocusTrap>
+  );
+}
+
 /**
  * A menu that hangs off its trigger on desktop and rises as a bottom sheet on
  * mobile, where a popout anchored to a tiny target is hard to hit and easy to
@@ -75,9 +137,9 @@ export function ResponsiveMenu({
   arrowNavigation = 'vertical',
   mobile = 'sheet',
   surfaceColor,
+  overlayDragHandle = false,
 }: ResponsiveMenuProps) {
-  // Null outside a provider, where desktop is the safe assumption.
-  const isMobile = useScreenSizeOptionally() === ScreenSize.Mobile;
+  const isMobile = useCompactLayout();
 
   const isKeyForward = (evt: KeyboardEvent) =>
     evt.key === 'ArrowDown' || (arrowNavigation === 'both' && evt.key === 'ArrowRight');
@@ -97,6 +159,23 @@ export function ResponsiveMenu({
   };
 
   if (isMobile) {
+    if (mobile === 'inline-dialog') {
+      return (
+        <>
+          {children}
+          {anchor && (
+            <InlineMenuDialog
+              anchor={anchor}
+              requestClose={requestClose}
+              focusTrapOptions={focusTrapOptions}
+            >
+              {menu}
+            </InlineMenuDialog>
+          )}
+        </>
+      );
+    }
+
     const sheetStyle: CSSProperties | undefined = surfaceColor
       ? { backgroundColor: surfaceColor }
       : undefined;
@@ -110,7 +189,11 @@ export function ResponsiveMenu({
           </MenuDialog>
         )}
         {anchor && mobile === 'sheet' && (
-          <MobileSwipeDownModal requestClose={requestClose} sheetStyle={sheetStyle}>
+          <MobileSwipeDownModal
+            requestClose={requestClose}
+            sheetStyle={sheetStyle}
+            overlayDragHandle={overlayDragHandle}
+          >
             {() => (
               <MobileSheetFocusTrap
                 focusTrapOptions={{

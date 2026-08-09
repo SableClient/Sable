@@ -162,6 +162,22 @@ describe('MobileSwipeDownModal', () => {
     expect(panel).toHaveStyle({ backgroundColor: '#663399' });
   });
 
+  it('can overlay the drag handle without reserving a header row', () => {
+    render(
+      <MobileSwipeDownModal requestClose={vi.fn<() => void>()} overlayDragHandle>
+        {() => <div data-testid="under-handle-content" />}
+      </MobileSwipeDownModal>
+    );
+
+    expect(screen.getByTestId('mobile-sheet-drag-handle')).toHaveStyle({
+      position: 'absolute',
+      top: '0px',
+    });
+    expect(screen.getByTestId('under-handle-content').parentElement?.parentElement).toHaveStyle({
+      overflow: 'hidden',
+    });
+  });
+
   it('lifts the sheet clear of the keyboard with a transition, without resizing it', () => {
     const viewport = mockVisualViewport(800);
     let contentRenderCount = 0;
@@ -468,7 +484,7 @@ describe('MobileSwipeDownModal', () => {
       }
     });
 
-    it('leaves a marked scroll container to native scrolling at its top', async () => {
+    it('leaves the gesture to an outer list scrolled away from the top', async () => {
       const requestClose = vi.fn<() => void>();
       const restore = stubElementAnimations();
 
@@ -476,15 +492,19 @@ describe('MobileSwipeDownModal', () => {
         render(
           <MobileSwipeDownModal requestClose={requestClose}>
             {() => (
-              <div data-mobile-sheet-no-drag="" data-testid="marked-scroller">
-                <div data-testid="marked-scroll-row" />
+              <div data-testid="outer-scroller" style={{ overflowY: 'auto' }}>
+                <div data-testid="inner-scroller" style={{ overflowY: 'auto' }}>
+                  <div data-testid="scroll-row" />
+                </div>
               </div>
             )}
           </MobileSwipeDownModal>
         );
         await act(async () => {});
+        makeScrollable(screen.getByTestId('outer-scroller'), 120);
+        makeScrollable(screen.getByTestId('inner-scroller'), 0);
 
-        dragDown(screen.getByTestId('marked-scroll-row'), 100, 240);
+        dragDown(screen.getByTestId('scroll-row'), 100, 240);
 
         expect(requestClose).not.toHaveBeenCalled();
       } finally {

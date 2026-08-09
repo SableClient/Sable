@@ -10,10 +10,10 @@ import {
   Spinner,
   Text,
   Tooltip,
-  TooltipProvider,
   as,
   config,
 } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
 import { Eye, EyeSlash, menuIcon, sizedIcon, Play, Warning } from '$components/icons/phosphor';
 import classNames from 'classnames';
 import { isTauri } from '@tauri-apps/api/core';

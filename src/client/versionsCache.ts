@@ -113,6 +113,13 @@ export const revalidateVersionsCache = async (
   }
 };
 
+/** True only when a cached /versions payload advertised the feature. */
+export const wasUnstableFeatureCached = (
+  baseUrl: string,
+  userId: string,
+  feature: string
+): boolean => readCache(baseUrl, userId)?.unstable_features?.[feature] === true;
+
 /** Clear the cached versions for a session (used on logout). */
 export const clearCachedVersions = (baseUrl: string, userId: string): void => {
   try {

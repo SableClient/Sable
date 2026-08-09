@@ -6,7 +6,8 @@ import type {
 } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import type { RectCords } from 'folds';
-import { Header, IconButton, Input, Menu, MenuItem, PopOut, Text, config } from 'folds';
+import { Header, IconButton, Input, Menu, MenuItem, Text, config } from 'folds';
+import { PopOut } from '$components/overlay-stack';
 import { composerIcon, CaretDown } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 

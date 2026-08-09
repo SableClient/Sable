@@ -19,6 +19,7 @@ import {
 import { pruneThemeFavorites, pruneThemeTweakFavorites } from '../../../theme/themeLibrary';
 
 import { usePatchSettings } from './themeSettingsPatch';
+import { readFileToString } from '$app/utils/file';
 
 type ThemeImportModalProps = {
   open: boolean;
@@ -128,11 +129,9 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
     if (!file) return;
     setImportFileName(file.name);
     setImportPaste('');
-    const reader = new FileReader();
-    reader.addEventListener('load', () => {
-      setUploadedFileCss(typeof reader.result === 'string' ? reader.result : '');
-    });
-    reader.readAsText(file);
+    readFileToString(file)
+      .then(setUploadedFileCss)
+      .catch((err: Error) => setImportError(err.message));
   };
 
   const handleImportTheme = useCallback(async () => {

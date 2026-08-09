@@ -1,5 +1,5 @@
 import type {
-  ChangeEventHandler,
+  ChangeEvent,
   FocusEventHandler,
   MouseEventHandler,
   ReactNode,
@@ -443,7 +443,7 @@ const SEARCH_OPTIONS: UseAsyncSearchOptions = {
   },
 };
 
-const VIRTUAL_OVER_SCAN = 2;
+const VIRTUAL_OVER_SCAN = 10;
 
 type EmojiBoardProps = {
   tab?: EmojiBoardTab;
@@ -527,7 +527,8 @@ export function EmojiBoard({
     loading: gifsLoading,
     error: gifsError,
     searchGifs,
-  } = useGifSearch(favoriteGifs, showGifPicker, gifSearch);
+    cancelSearch: cancelGifSearch,
+  } = useGifSearch(favoriteGifs, showGifPicker && gifTab, gifSearch);
   const [emojiGroupItems, stickerGroupItems, gifGroupItems] = useGroups(tab, imagePacks, gifs);
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(true);
   const groupsByTab = {
@@ -555,9 +556,9 @@ export function EmojiBoard({
   const groups = groupsByTab[tab];
   const renderItem = useItemRenderer(tab, saveStickerEmojiBandwidth);
 
-  const handleOnChange: ChangeEventHandler<HTMLInputElement> = useDebounce(
+  const handleOnChange = useDebounce(
     useCallback(
-      (evt) => {
+      (evt: ChangeEvent<HTMLInputElement>) => {
         const term = evt.target.value;
         if (tab === EmojiBoardTab.Gif) {
           if (term) {
@@ -565,6 +566,7 @@ export function EmojiBoard({
             searchGifs(term);
           } else {
             setShowFavoritesOnly(true);
+            cancelGifSearch();
             resetGifSearch();
           }
         } else if (term) {
@@ -573,7 +575,7 @@ export function EmojiBoard({
           resetEmojiSearch();
         }
       },
-      [emojiSearch, resetEmojiSearch, searchGifs, resetGifSearch, tab]
+      [cancelGifSearch, emojiSearch, resetEmojiSearch, searchGifs, resetGifSearch, tab]
     ),
     { wait: 200 }
   );
@@ -584,6 +586,13 @@ export function EmojiBoard({
     if (initialGifSearch) searchGifs(initialGifSearch);
     else resetGifSearch();
   }, [gifTab, initialGifSearch, searchGifs, resetGifSearch]);
+
+  useEffect(() => {
+    if (!showGifPicker || !gifTab) {
+      handleOnChange.cancel();
+      cancelGifSearch();
+    }
+  }, [cancelGifSearch, gifTab, handleOnChange, showGifPicker]);
 
   const contentScrollRef = useRef<HTMLDivElement>(null);
   const virtualBaseRef = useRef<HTMLDivElement>(null);

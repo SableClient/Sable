@@ -2,6 +2,7 @@ import { fireEvent, render, screen } from '@testing-library/react';
 import { SequenceCardStyle } from '$components/sequence-card';
 import type { ReactNode } from 'react';
 import { describe, expect, it, vi } from 'vitest';
+// oxlint-disable-next-line no-restricted-imports
 import type * as Folds from 'folds';
 import { ScreenSize, ScreenSizeProvider } from '$hooks/useScreenSize';
 import { Desktop } from './Desktop';

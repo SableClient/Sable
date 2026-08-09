@@ -353,7 +353,12 @@ export function MobileNavDrawer({ nav, rail, bottomNav, children }: MobileNavDra
         const ignoredElement = target.closest<HTMLElement>('[data-gestures="ignore"]');
         const message = messageElement ? messageTargetsRef.current.get(messageElement) : undefined;
         const chat = chatElement ? chatTargetsRef.current.get(chatElement) : undefined;
-        const blocked = ignoredElement !== null && ignoredElement !== messageElement;
+        // Nested ignore markers (e.g. inline media) don't block swipe if they're part of
+        // this message/chat's own surface, only if they sit outside it.
+        const blocked =
+          ignoredElement !== null &&
+          !(messageElement && messageElement.contains(ignoredElement)) &&
+          !(chatElement && chatElement.contains(ignoredElement));
 
         gestureRef.current = {
           startX: touch.clientX,

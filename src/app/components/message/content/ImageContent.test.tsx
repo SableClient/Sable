@@ -7,6 +7,7 @@ const screenMocks = vi.hoisted(() => ({ isMobile: true, tauri: false }));
 vi.mock('$hooks/useScreenSize', () => ({
   ScreenSize: { Desktop: 'Desktop', Tablet: 'Tablet', Mobile: 'Mobile' },
   useScreenSizeOptionally: () => (screenMocks.isMobile ? 'Mobile' : 'Desktop'),
+  useCompactLayout: () => screenMocks.isMobile,
 }));
 
 vi.mock('@tauri-apps/api/core', () => ({
@@ -45,7 +46,7 @@ const imageContent = (
   <ImageContent
     url="https://example.com/image.png"
     renderImage={() => <img alt="preview" />}
-    renderViewer={() => <div>viewer</div>}
+    renderViewer={() => <button type="button">viewer</button>}
   />
 );
 
@@ -90,6 +91,40 @@ describe('ImageContent', () => {
 
     await waitFor(() => expect(screen.getByText('viewer')).toBeInTheDocument());
     expect(screen.getByAltText('preview').closest('[data-gestures="ignore"]')).not.toBeNull();
+  });
+
+  it('falls back to its own viewer when the room gallery declines to open', async () => {
+    const onOpenViewer = vi.fn<() => boolean>(() => false);
+    render(
+      <ImageContent
+        url="https://example.com/image.png"
+        renderImage={() => <img alt="preview" />}
+        renderViewer={() => <button type="button">viewer</button>}
+        onOpenViewer={onOpenViewer}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'View' }));
+
+    await waitFor(() => expect(screen.getByText('viewer')).toBeInTheDocument());
+    expect(onOpenViewer).toHaveBeenCalled();
+  });
+
+  it('leaves the local viewer closed when the room gallery takes over', async () => {
+    const onOpenViewer = vi.fn<() => boolean>(() => true);
+    render(
+      <ImageContent
+        url="https://example.com/image.png"
+        renderImage={() => <img alt="preview" />}
+        renderViewer={() => <button type="button">viewer</button>}
+        onOpenViewer={onOpenViewer}
+      />
+    );
+
+    fireEvent.click(screen.getByRole('button', { name: 'View' }));
+
+    await waitFor(() => expect(onOpenViewer).toHaveBeenCalled());
+    expect(screen.queryByText('viewer')).not.toBeInTheDocument();
   });
 
   it('does not mount hover controls for touch pointer entry', () => {
@@ -144,8 +179,11 @@ describe('ImageContent', () => {
       const initialSrc = srcs[srcs.length - 1];
       expect(initialSrc).toBe(SABLE_MEDIA_URL);
 
+      fireEvent.keyDown(document.body, { key: 'Escape' });
       fireEvent.error(img);
-      fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));
+      const retry = await screen.findByRole('button', { name: 'Retry' });
+      fireEvent.pointerDown(retry, { pointerId: 2, pointerType: 'mouse', isPrimary: true });
+      fireEvent.click(retry);
 
       await waitFor(() => {
         const retriedSrc = srcs[srcs.length - 1] ?? '';

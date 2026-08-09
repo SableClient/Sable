@@ -10,13 +10,13 @@ import {
   Line,
   Menu,
   MenuItem,
-  PopOut,
   Scroll,
   Spinner,
   Text,
   config,
   toRem,
 } from 'folds';
+import { PopOut } from '$components/overlay-stack';
 import {
   ArrowLeft,
   CaretDown,

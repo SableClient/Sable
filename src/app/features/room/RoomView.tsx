@@ -101,6 +101,8 @@ export function RoomView({ eventId }: { eventId?: string }) {
     alive,
     focusOnCancel: !isMobileOrTablet(),
   });
+  const onCancelEdit = useCallback(() => handleEdit(undefined), [handleEdit]);
+  const onEditLastMessage = useCallback(() => editLastMessageRef.current?.(), []);
 
   useDelayedEventsSupport();
   const delayedEventsSupported = useAtomValue(delayedEventsSupportedAtom);
@@ -194,9 +196,9 @@ export function RoomView({ eventId }: { eventId?: string }) {
                     roomId={roomId}
                     fileDropContainerRef={roomViewRef}
                     ref={roomInputRef}
-                    onEditLastMessage={() => editLastMessageRef.current?.()}
+                    onEditLastMessage={onEditLastMessage}
                     editId={editId}
-                    onCancelEdit={() => handleEdit(undefined)}
+                    onCancelEdit={onCancelEdit}
                   />
                 )}
                 {!canMessage && (

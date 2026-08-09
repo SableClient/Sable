@@ -93,8 +93,6 @@ export const PreventSelect = style({
   userSelect: 'none',
   MozUserSelect: 'none',
 });
-//I have zero clue where these numbers and vars are from but they should be changed
-//I just copied the hardcoded value in a more correct place
 
 export const MessageMobileOptionsWrapped = style({
   position: 'fixed',
@@ -102,7 +100,6 @@ export const MessageMobileOptionsWrapped = style({
   left: 0,
   right: 0,
   bottom: 0,
-  zIndex: 1004,
   width: '100vw',
   height: '100%',
   backgroundColor: color.Other.Overlay,
@@ -118,9 +115,8 @@ export const MessageMobileOptionsContainer = style({
   bottom: 0,
   left: 0,
   right: 0,
-  zIndex: 1005,
   width: '100%',
-  maxHeight: '85vh',
+  maxHeight: '85dvh',
   display: 'flex',
   flexDirection: 'column',
   justifyContent: 'flex-end',
@@ -145,9 +141,9 @@ export const MessageMobileSheetFill = style({
 
 // Ratio is against the keyboard-free height so the picker keeps one size while
 // typing. The ceiling only binds where a keyboard would otherwise cover the sheet.
-const pickerHeight = `min(max(calc(var(--mobile-sheet-viewport, 100vh) * 0.5), ${toRem(
+const pickerHeight = `min(max(calc(var(--mobile-sheet-viewport, 100dvh) * 0.5), ${toRem(
   280
-)}), var(--mobile-sheet-visible, 100vh))`;
+)}), var(--mobile-sheet-visible, 100dvh))`;
 
 export const MessageMobileOptionsContainerPicker = style({
   height: pickerHeight,

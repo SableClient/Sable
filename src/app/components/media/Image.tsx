@@ -27,9 +27,13 @@ type DotLottieInstance = Parameters<
 >[0];
 
 const DotLottieReact = lazy(() =>
-  import('@lottiefiles/dotlottie-react').then((module) => ({
-    default: module.DotLottieReact,
-  }))
+  Promise.all([
+    import('@lottiefiles/dotlottie-react'),
+    import('@lottiefiles/dotlottie-web/dist/dotlottie-player.wasm?url'),
+  ]).then(([module, wasm]) => {
+    module.setWasmUrl(wasm.default);
+    return { default: module.DotLottieReact };
+  })
 ) as typeof DotLottieReactComponent;
 
 const GZIPPED_LOTTIE_MIME = /^application\/(?:(?:x-)?gzip|x-tgsticker)(?:;|$)/i;
@@ -391,6 +395,7 @@ export const Image = forwardRef<HTMLImageElement | HTMLCanvasElement, ImageProps
       disableDefaultSizing,
       disablePixelation,
       loading = 'lazy',
+      decoding = 'async',
       onLoad,
       onPointerDown,
       src,
@@ -452,6 +457,10 @@ export const Image = forwardRef<HTMLImageElement | HTMLCanvasElement, ImageProps
       setFallbackSource(undefined);
     }, [src]);
 
+    // A lottie candidate is not an image request until it resolves to non-animation data.
+    const renderedSrc = resolvedLottieJson === null ? src : undefined;
+    const pending = src !== undefined && renderedSrc === undefined;
+
     const shouldRenderLottie = typeof resolvedLottieJson === 'string';
 
     if (shouldRenderLottie) {
@@ -481,9 +490,10 @@ export const Image = forwardRef<HTMLImageElement | HTMLCanvasElement, ImageProps
         className={imageClass}
         alt={alt}
         loading={loading}
-        src={resolvedLottieJson === undefined ? undefined : src}
-        aria-busy={resolvedLottieJson === undefined ? true : undefined}
-        style={style}
+        decoding={decoding}
+        src={renderedSrc}
+        aria-busy={pending ? true : undefined}
+        style={pending ? { ...style, visibility: 'hidden' } : style}
         onLoad={onLoad}
         onPointerDown={onPointerDown}
         onError={(event) => {

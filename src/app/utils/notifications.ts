@@ -1,5 +1,5 @@
 import type { MatrixClient, MatrixEvent } from '$types/matrix-sdk';
-import { ReceiptType } from '$types/matrix-sdk';
+import { NotificationCountType } from '$types/matrix-sdk';
 import { isTauri } from '@tauri-apps/api/core';
 
 export async function markAsRead(mx: MatrixClient, roomId: string, privateReceipt: boolean) {
@@ -25,19 +25,13 @@ export async function markAsRead(mx: MatrixClient, roomId: string, privateReceip
   const latestEventId = latestEvent.getId();
   if (!latestEventId) return;
 
-  // Update both read receipt and fully-read marker so unread state clears reliably
-  // across clients and bridge-heavy rooms where hidden events may exist.
   if (privateReceipt) {
     await mx.setRoomReadMarkers(roomId, latestEventId, undefined, latestEvent);
   } else {
     await mx.setRoomReadMarkers(roomId, latestEventId, latestEvent);
   }
-
-  // Keep legacy receipt path as a safety fallback for homeservers with partial support.
-  await mx.sendReadReceipt(
-    latestEvent,
-    privateReceipt ? ReceiptType.ReadPrivate : ReceiptType.Read
-  );
+  room.setUnreadNotificationCount(NotificationCountType.Total, 0);
+  room.setUnreadNotificationCount(NotificationCountType.Highlight, 0);
 
   // On Android (Tauri), dismiss the room's OS notification immediately so
   // it stays in sync with the read state instead of lingering until the

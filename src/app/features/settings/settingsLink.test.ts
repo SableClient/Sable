@@ -166,6 +166,34 @@ describe('settingsLink', () => {
     ).toBeUndefined();
   });
 
+  it('redirects settings links whose focus id moved to a different section', () => {
+    for (const focus of [
+      'autoplay-gifs',
+      'autoplay-stickers',
+      'autoplay-emojis',
+      'saturation',
+      'reduced-motion',
+      'underline-links',
+      'render-global-username-colors',
+      'render-space-room-username-colors',
+      'render-persona-username-colors',
+      'render-space-room-fonts',
+    ]) {
+      expect(
+        parseSettingsLink(
+          'https://app.example',
+          `https://app.example/settings/appearance?focus=${focus}`
+        )
+      ).toEqual({ section: 'accessibility', focus });
+      expect(
+        parseSettingsLink(
+          'https://app.example',
+          `https://app.example/settings/accessibility?focus=${focus}`
+        )
+      ).toEqual({ section: 'accessibility', focus });
+    }
+  });
+
   it('rejects settings links with malformed query params', () => {
     expect(
       parseSettingsLink(

@@ -112,6 +112,23 @@ export async function sendText(
   return ((await res.json()) as { event_id: string }).event_id;
 }
 
+export async function setRoomName(
+  baseUrl: string,
+  token: string,
+  roomId: string,
+  name: string
+): Promise<void> {
+  const url = `${baseUrl}/_matrix/client/v3/rooms/${encodeURIComponent(roomId)}/state/m.room.name/`;
+  const res = await fetch(url, {
+    method: 'PUT',
+    headers: { authorization: `Bearer ${token}` },
+    body: JSON.stringify({ name }),
+  });
+  if (!res.ok) {
+    throw new Error(`setRoomName failed: ${res.status} ${await res.text()}`);
+  }
+}
+
 export async function sendMessage(
   baseUrl: string,
   token: string,

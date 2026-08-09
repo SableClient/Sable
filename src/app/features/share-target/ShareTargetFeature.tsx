@@ -93,6 +93,14 @@ export function ShareTargetFeature() {
     const onVisibilityChange = () => {
       if (document.visibilityState === 'visible') drain();
     };
+    let unlistenShareReceived: (() => void) | undefined;
+    void import('@tauri-apps/api/event')
+      .then(({ listen }) => listen('share-received', () => drain()))
+      .then((removeShareListener) => {
+        if (mounted) unlistenShareReceived = removeShareListener;
+        else removeShareListener();
+      })
+      .catch((err) => log.warn('Failed to listen for share events:', err));
     // Android only: covers a cold-start SEND intent beating the deep-link
     // plugin. On iOS edge-swipe gestures fire visibilitychange.
     if (osType() === 'android') {
@@ -102,6 +110,7 @@ export function ShareTargetFeature() {
     return () => {
       mounted = false;
       unlisten?.();
+      unlistenShareReceived?.();
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
   }, [setPending]);

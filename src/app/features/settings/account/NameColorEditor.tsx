@@ -11,6 +11,7 @@ type NameColorEditorProps = {
   description?: string;
   focusId?: string;
   current?: string;
+  newNameColor?: string;
   onChange?: (color: string | null) => void;
   onSave?: (color: string | null) => void;
   disabled?: boolean;
@@ -27,18 +28,27 @@ export function NameColorEditor({
   description,
   focusId,
   current,
+  newNameColor,
   onChange,
   onSave,
   disabled,
 }: Readonly<NameColorEditorProps>) {
-  const [tempColor, setTempColor] = useState(stripQuotes(current) || undefined);
+  const [tempColor, setTempColor] = useState(
+    stripQuotes(newNameColor) || stripQuotes(current) || undefined
+  );
   const [hasChanged, setHasChanged] = useState(false);
 
   useEffect(() => {
-    const sanitized = stripQuotes(current);
+    // this condition stops infinite loops on input clear when onChange is changing newColor in outer scope
+    if (!newNameColor && onChange) return;
+    const sanitized = stripQuotes(newNameColor || current);
     if (sanitized) setTempColor(sanitized);
     else setTempColor(undefined);
-  }, [current]);
+  }, [current, newNameColor, onChange]);
+
+  useEffect(() => {
+    setHasChanged(newNameColor !== current);
+  }, [newNameColor, current]);
 
   // Valid in the sense that it should look like an error during input.
   // It's disruptive to the user to immediately present their input as an error.

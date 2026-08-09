@@ -3,6 +3,37 @@ import { useCallback, useRef } from 'react';
 
 const TAP_MOVEMENT_THRESHOLD = 10;
 const MAX_TAP_DURATION = 500;
+const SYNTHETIC_CLICK_TIMEOUT = 350;
+
+let clearPendingSyntheticClick: (() => void) | undefined;
+
+function blockSyntheticClick(clientX: number, clientY: number) {
+  clearPendingSyntheticClick?.();
+
+  let timeout: number | undefined;
+  const clear = () => {
+    document.removeEventListener('click', handleClick, true);
+    document.removeEventListener('pointerdown', clear, true);
+    window.clearTimeout(timeout);
+    if (clearPendingSyntheticClick === clear) clearPendingSyntheticClick = undefined;
+  };
+  const handleClick = (event: MouseEvent) => {
+    if (
+      Math.abs(event.clientX - clientX) > TAP_MOVEMENT_THRESHOLD ||
+      Math.abs(event.clientY - clientY) > TAP_MOVEMENT_THRESHOLD
+    ) {
+      return;
+    }
+    clear();
+    event.preventDefault();
+    event.stopImmediatePropagation();
+  };
+
+  clearPendingSyntheticClick = clear;
+  document.addEventListener('click', handleClick, true);
+  document.addEventListener('pointerdown', clear, true);
+  timeout = window.setTimeout(clear, SYNTHETIC_CLICK_TIMEOUT);
+}
 
 // Android WebView suppresses click synthesis after a drag gesture, so the first
 // tap on a nav control after swiping the drawer produces no click event. Activate
@@ -87,6 +118,7 @@ export function useMobileTapActivation<T extends HTMLElement>(
 
     evt.preventDefault();
     activatedRef.current = true;
+    blockSyntheticClick(evt.clientX, evt.clientY);
     onActivateRef.current(evt);
   };
   const onPointerCancel: PointerEventHandler<T> = (evt) => {

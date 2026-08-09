@@ -7,6 +7,10 @@ import { isMobileOrTablet } from '$utils/platform';
 import { RightSwipeAction, settingsAtom } from '$state/settings';
 import { useMobileNavDrawer } from '$components/page/MobileNavDrawerContext';
 import {
+  classifyMobileGesture,
+  type MobileGestureMode,
+} from '$components/page/mobileSwipeCoordinator';
+import {
   getTranslateX,
   NATIVE_EASE_OUT,
   setTranslateX,
@@ -147,6 +151,68 @@ function ActiveSwipeWrapper({
       end: () => finish(true),
       cancel: () => finish(false),
     });
+  }, [drawer, finish, move]);
+
+  // Above the mobile breakpoint there is no nav drawer to coordinate the touch,
+  // so track it on the message itself. Tablets and touch desktops reach this;
+  // iPadOS in fullscreen is the case that has no drawer but is still a touch device.
+  useLayoutEffect(() => {
+    const element = containerRef.current;
+    if (drawer || !element) return undefined;
+
+    let gesture: { startX: number; startY: number; mode: MobileGestureMode } | undefined;
+    const release = (commit: boolean) => {
+      const active = gesture?.mode === 'message';
+      gesture = undefined;
+      if (active) finish(commit);
+    };
+
+    const onTouchStart = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      if (!touch || event.touches.length !== 1) {
+        release(false);
+        return;
+      }
+      gesture = { startX: touch.clientX, startY: touch.clientY, mode: 'pending' };
+    };
+
+    const onTouchMove = (event: TouchEvent) => {
+      const touch = event.touches[0];
+      if (!gesture || !touch) return;
+      if (gesture.mode === 'blocked' || gesture.mode === 'vertical') return;
+
+      const distanceX = touch.clientX - gesture.startX;
+      if (gesture.mode === 'pending') {
+        // width 0 and canOpenRoom false leave `drawer` unreachable, so this only
+        // ever resolves to vertical, message, or blocked.
+        gesture.mode = classifyMobileGesture({
+          distanceX,
+          distanceY: touch.clientY - gesture.startY,
+          startPosition: 0,
+          width: 0,
+          canOpenRoom: false,
+          hasMessage: true,
+          hasChat: false,
+        });
+      }
+      if (gesture.mode === 'message') move(distanceX);
+    };
+
+    const onTouchEnd = () => release(true);
+    const onTouchCancel = () => release(false);
+
+    element.addEventListener('touchstart', onTouchStart, { passive: true });
+    element.addEventListener('touchmove', onTouchMove, { passive: true });
+    element.addEventListener('touchend', onTouchEnd, { passive: true });
+    element.addEventListener('touchcancel', onTouchCancel, { passive: true });
+
+    return () => {
+      element.removeEventListener('touchstart', onTouchStart);
+      element.removeEventListener('touchmove', onTouchMove);
+      element.removeEventListener('touchend', onTouchEnd);
+      element.removeEventListener('touchcancel', onTouchCancel);
+      release(false);
+    };
   }, [drawer, finish, move]);
 
   const IconComponent = actionMode === 'edit' ? PencilSimple : ArrowBendUpLeftIcon;

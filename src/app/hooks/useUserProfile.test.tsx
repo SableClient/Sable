@@ -80,4 +80,41 @@ describe('useUserProfile', () => {
     expect(mx.getProfileInfo).toHaveBeenCalledOnce();
     expect(mx.getProfileInfo).toHaveBeenCalledWith('@alice:example.org');
   });
+
+  it('serves the newest queued profile first so a backlog cannot bury it', async () => {
+    vi.useFakeTimers();
+    const userIds = Array.from({ length: 6 }, (_unused, index) => `@user${index}:example.org`);
+    const requested: string[] = [];
+    const release: (() => void)[] = [];
+    const mx = {
+      getProfileInfo: vi.fn<(userId: string) => Promise<{ displayname: string }>>(
+        (userId: string) => {
+          requested.push(userId);
+          return new Promise((resolve) => {
+            release.push(() => resolve({ displayname: userId }));
+          });
+        }
+      ),
+      getUser: vi.fn<() => void>(),
+      getUserId: vi.fn<() => string>().mockReturnValue('@me:example.org'),
+    } as unknown as MatrixClient;
+
+    renderHook(() => userIds.map((userId) => useUserProfile(userId)), {
+      wrapper: makeWrapper(mx, false),
+    });
+
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(150);
+    });
+
+    // The cap is four, so the last two queue.
+    expect(requested).toEqual(userIds.slice(0, 4));
+
+    await act(async () => {
+      release.shift()?.();
+      await vi.advanceTimersByTimeAsync(0);
+    });
+
+    expect(requested[4]).toBe(userIds[5]);
+  });
 });

@@ -11,13 +11,13 @@ import {
   Line,
   Menu,
   MenuItem,
-  PopOut,
   Spinner,
   Text,
   color,
   config,
   toRem,
 } from 'folds';
+import { PopOut } from '$components/overlay-stack';
 import { FocusTrap } from 'focus-trap-react';
 import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 import { SidebarAvatar, SidebarItem, SidebarItemBadge } from '../../../components/sidebar';

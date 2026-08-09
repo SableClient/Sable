@@ -35,6 +35,9 @@ export type HierarchyItemRoom = {
 
 export type HierarchyItem = HierarchyItemSpace | HierarchyItemRoom;
 
+export const getSpaceHierarchyItemKey = (spaceId: string, item: HierarchyItem): string =>
+  `${spaceId}:${item.parentId ?? ''}:${item.roomId}:${item.depth}`;
+
 type GetRoomCallback = (roomId: string) => Room | undefined;
 
 const hierarchyItemSort: SortFunc<HierarchyItem> = (a, b) => {

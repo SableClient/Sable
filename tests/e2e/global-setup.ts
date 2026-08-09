@@ -2,6 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname } from 'node:path';
 import type { FullConfig } from '@playwright/test';
 import { createRoom, sendText, startContinuwuity } from './fixtures/continuwuity';
+import { LOGIN_PASSWORD, LOGIN_USERNAME } from './fixtures/loginAccount';
 
 type InjectedSession = {
   baseUrl: string;
@@ -16,6 +17,10 @@ export default async function globalSetup(config: FullConfig): Promise<() => Pro
 
   const hs = await startContinuwuity();
   const user = await hs.register('alice', 'test-passw0rd');
+
+  // login.spec.ts signs in for real, so it needs its own account and the homeserver url.
+  await hs.register(LOGIN_USERNAME, LOGIN_PASSWORD);
+  process.env.TEST_HOMESERVER_URL = hs.baseUrl;
 
   const general = await createRoom(hs.baseUrl, user.accessToken, {
     name: 'General',

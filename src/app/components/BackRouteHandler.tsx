@@ -6,16 +6,18 @@ import { resolveSection } from '$pages/pathUtils';
 import { HOME_ROOM_PATH, DIRECT_ROOM_PATH, SPACE_ROOM_PATH } from '$pages/paths';
 import { lastVisitedRoomAtom } from '$state/room/lastRoom';
 import { isRoomAlias, isRoomId } from '$utils/matrix';
+import { useAndroidBackHandler } from '$utils/androidBack';
 
 type BackRouteHandlerProps = {
   children: (onBack: () => void) => ReactNode;
 };
-export function BackRouteHandler({ children }: BackRouteHandlerProps) {
+
+export function useBackRoute(): () => void {
   const navigate = useNavigate();
   const location = useLocation();
   const setLastRoom = useSetAtom(lastVisitedRoomAtom);
 
-  const goBack = useCallback(() => {
+  return useCallback(() => {
     const section = resolveSection(location.pathname);
     if (!section) return;
 
@@ -32,6 +34,14 @@ export function BackRouteHandler({ children }: BackRouteHandlerProps) {
 
     navigate(section.listPath);
   }, [navigate, location, setLastRoom]);
+}
+
+export function BackRouteHandler({ children }: BackRouteHandlerProps) {
+  const goBack = useBackRoute();
+  useAndroidBackHandler(() => {
+    goBack();
+    return true;
+  });
 
   return children(goBack);
 }

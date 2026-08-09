@@ -26,10 +26,10 @@ export const useNetworkRecovery = (mx: MatrixClient | undefined): void => {
   }, []);
 
   const nudge = useCallback(
-    (reason: NudgeReason): boolean => {
+    (reason: NudgeReason, opts?: { force?: boolean }): boolean => {
       if (!mx) return false;
       onlineManager.setOnline(true);
-      return nudgeReconnect(mx, reason);
+      return nudgeReconnect(mx, reason, opts);
     },
     [mx]
   );
@@ -45,11 +45,11 @@ export const useNetworkRecovery = (mx: MatrixClient | undefined): void => {
   // Foreground nudges (resume / visible-stale / online) get one sync verification:
   // if no Sync arrives within VERIFY_AFTER_NUDGE_MS, retry once past the throttle.
   const nudgeForeground = useCallback(
-    (reason: NudgeReason): void => {
+    (reason: NudgeReason, opts?: { force?: boolean }): void => {
       cancelVerify();
       if (!mx) return;
       const syncAtNudge = lastSyncAtRef.current;
-      if (!nudge(reason)) return;
+      if (!nudge(reason, opts)) return;
       verifyTimerRef.current = window.setTimeout(() => {
         verifyTimerRef.current = undefined;
         if (lastSyncAtRef.current === syncAtNudge) {
@@ -83,7 +83,7 @@ export const useNetworkRecovery = (mx: MatrixClient | undefined): void => {
     }, STALL_CHECK_INTERVAL_MS);
 
     const unlisten = isTauri()
-      ? listen(TauriEvent.WINDOW_RESUMED, () => nudgeForeground('resumed'))
+      ? listen(TauriEvent.WINDOW_RESUMED, () => nudgeForeground('resumed', { force: true }))
       : undefined;
 
     return () => {

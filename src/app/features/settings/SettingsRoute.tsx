@@ -133,11 +133,19 @@ export function SettingsRoute({ routeSection }: SettingsRouteProps) {
     });
   };
 
+  const handleSelectSetting = (nextSection: SettingsSectionId, focus: string) => {
+    navigate(getSettingsPath(nextSection, focus), {
+      replace: shallowBackgroundState,
+      state: location.state,
+    });
+  };
+
   return (
     <Settings
       activeSection={activeSection}
       onBack={requestBack}
       onSelectSection={handleSelectSection}
+      onSelectSetting={handleSelectSetting}
       requestClose={requestClose}
     />
   );

@@ -1,10 +1,12 @@
 import type { MouseEventHandler, ReactNode } from 'react';
 import { useCallback, useState } from 'react';
 import type { RectCords } from 'folds';
-import { Box, Text, Chip, PopOut, Menu, config, MenuItem, color } from 'folds';
+import { Box, Text, Chip, Menu, config, MenuItem, color } from 'folds';
+import { PopOut } from '$components/overlay-stack';
 import { CaretDown, sizedIcon } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 import type { SecretStorageKeyContent } from '$types/matrix/accountData';
+import type { CryptoBackend } from '$types/matrix-sdk';
 import { storePrivateKey } from '$client/secretStorageKeys';
 import { stopPropagation } from '$utils/keyboard';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -117,13 +119,14 @@ export function ManualVerificationTile({
 
   const verifyAndRestoreBackup = useCallback(
     async (recoveryKey: Uint8Array) => {
-      const crypto = mx.getCrypto();
+      const crypto = mx.getCrypto() as CryptoBackend | undefined;
       if (!crypto) {
         throw new Error('Unexpected Error! Crypto object not found.');
       }
 
       storePrivateKey(secretStorageKeyId, recoveryKey);
 
+      await crypto.processDeviceLists({ changed: [mx.getSafeUserId()] });
       await crypto.bootstrapCrossSigning({});
       await crypto.bootstrapSecretStorage({});
 

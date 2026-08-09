@@ -13,11 +13,11 @@ import {
   IconButton,
   Menu,
   percent,
-  PopOut,
   ProgressBar,
   Spinner,
   Text,
 } from 'folds';
+import { PopOut } from '$components/overlay-stack';
 import FocusTrap from 'focus-trap-react';
 import type { SecretStorageKeyContent } from '$types/matrix/accountData';
 import { storePrivateKey } from '$client/secretStorageKeys';

@@ -12,7 +12,6 @@ import {
   config,
   Spinner,
   Menu,
-  PopOut,
   Checkbox,
   toRem,
   Scroll,
@@ -20,6 +19,7 @@ import {
   Line,
   Chip,
 } from 'folds';
+import { PopOut } from '$components/overlay-stack';
 import { composerIcon, menuIcon, Plus, Sticker, X } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 import { useAtomValue } from 'jotai';

@@ -3,6 +3,7 @@ export type SettingsSectionId =
   | 'account'
   | 'persona'
   | 'appearance'
+  | 'accessibility'
   | 'notifications'
   | 'devices'
   | 'desktop'
@@ -22,6 +23,7 @@ export const settingsSections = [
   { id: 'account', label: 'Account' },
   { id: 'persona', label: 'Persona' },
   { id: 'appearance', label: 'Appearance' },
+  { id: 'accessibility', label: 'Accessibility' },
   { id: 'notifications', label: 'Notifications' },
   { id: 'devices', label: 'Devices' },
   { id: 'desktop', label: 'Desktop' },

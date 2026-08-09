@@ -3,7 +3,7 @@ import FileSaver from 'file-saver';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { type as osType } from '@tauri-apps/plugin-os';
 import { showToast } from '$state/toast';
-import { saveFileToDevice, saveMediaToGallery } from './download';
+import { downloadJsonFile, saveFileToDevice, saveMediaToGallery } from './download';
 
 const mocks = vi.hoisted(() => ({
   androidFs: {
@@ -120,6 +120,33 @@ describe('saveFileToDevice', () => {
 
     expect(result).toBe('saved');
     expect(FileSaver.saveAs).toHaveBeenCalledWith(expect.any(Blob), 'file.txt');
+  });
+});
+
+describe('downloadJsonFile', () => {
+  it('saves through the native desktop command instead of an anchor click', async () => {
+    vi.mocked(osType).mockReturnValue('linux');
+
+    const result = await downloadJsonFile('{"a":1}', 'persona');
+
+    expect(result).toBe('saved');
+    expect(invoke).toHaveBeenCalledWith('save_download', {
+      filename: expect.stringMatching(/^persona-\d+\.json$/),
+      bytes: expect.any(Array),
+    });
+    expect(FileSaver.saveAs).not.toHaveBeenCalled();
+  });
+
+  it('routes Android exports to the public Downloads directory', async () => {
+    const result = await downloadJsonFile('{"a":1}', 'persona');
+
+    expect(result).toBe('saved');
+    expect(androidFs.createNewPublicFile).toHaveBeenCalledWith(
+      'Download',
+      expect.stringMatching(/^persona-\d+\.json$/),
+      'application/json',
+      { isPending: true, requestPermission: true }
+    );
   });
 });
 

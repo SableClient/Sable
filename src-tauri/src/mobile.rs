@@ -7,18 +7,37 @@
 use std::sync::OnceLock;
 
 use jni::objects::{JObject, JValue};
-use jni::{JNIEnv, JavaVM};
+use jni::strings::JNIString;
+use jni::{jni_sig, jni_str, EnvUnowned, JavaVM};
+use tauri::{AppHandle, Emitter};
 
 static JAVA_VM: OnceLock<JavaVM> = OnceLock::new();
+static APP_HANDLE: OnceLock<AppHandle> = OnceLock::new();
+
+pub fn set_app_handle(app: AppHandle) {
+    let _ = APP_HANDLE.set(app);
+}
 
 // Called by MainActivity.onCreate to cache the JavaVM for later callbacks.
 #[no_mangle]
 pub extern "system" fn Java_moe_sable_client_MainActivity_nativeInitStatusBar(
-    env: JNIEnv,
+    mut env: EnvUnowned,
     _this: JObject,
 ) {
-    if let Ok(vm) = env.get_java_vm() {
+    let _ = env.with_env(|env| {
+        let vm = env.get_java_vm()?;
         let _ = JAVA_VM.set(vm);
+        Ok::<_, jni::errors::Error>(())
+    });
+}
+
+#[no_mangle]
+pub extern "system" fn Java_moe_sable_client_MainActivity_nativeShareReceived(
+    _env: EnvUnowned,
+    _this: JObject,
+) {
+    if let Some(app) = APP_HANDLE.get() {
+        let _ = app.emit("share-received", ());
     }
 }
 
@@ -32,6 +51,24 @@ pub fn set_status_bar_color(color: u32) -> Result<(), String> {
 #[tauri::command]
 pub fn set_navigation_bar_color(color: u32) -> Result<(), String> {
     call_bar_color("setNavigationBarColorNative", color)
+}
+
+#[tauri::command]
+pub fn set_immersive_mode(enabled: bool) -> Result<(), String> {
+    let vm = JAVA_VM.get().ok_or("java vm not initialized")?;
+    vm.attach_current_thread(|env| {
+        let result = env.call_static_method(
+            jni_str!("moe/sable/client/MainActivity"),
+            jni_str!("setImmersiveModeNative"),
+            jni_sig!("(Z)V"),
+            &[JValue::Bool(enabled)],
+        );
+        if result.is_err() {
+            let _ = env.exception_clear();
+        }
+        result.map(|_| ())
+    })
+    .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -52,49 +89,51 @@ pub(crate) fn play_notification_sound(kind: String) -> Result<(), String> {
         _ => 0,
     };
     let vm = JAVA_VM.get().ok_or("java vm not initialized")?;
-    let mut env = vm.attach_current_thread().map_err(|e| e.to_string())?;
-
-    let result = env.call_static_method(
-        "moe/sable/client/MainActivity",
-        "playNotificationSoundNative",
-        "(I)V",
-        &[JValue::Int(code)],
-    );
-    if result.is_err() {
-        let _ = env.exception_clear();
-    }
-    result.map_err(|e| e.to_string())?;
-
-    Ok(())
+    vm.attach_current_thread(|env| {
+        let result = env.call_static_method(
+            jni_str!("moe/sable/client/MainActivity"),
+            jni_str!("playNotificationSoundNative"),
+            jni_sig!("(I)V"),
+            &[JValue::Int(code)],
+        );
+        if result.is_err() {
+            let _ = env.exception_clear();
+        }
+        result.map(|_| ())
+    })
+    .map_err(|e| e.to_string())
 }
 
 fn call_bar_color(method: &str, color: u32) -> Result<(), String> {
     let vm = JAVA_VM.get().ok_or("java vm not initialized")?;
-    let mut env = vm.attach_current_thread().map_err(|e| e.to_string())?;
-
-    let result = env.call_static_method(
-        "moe/sable/client/MainActivity",
-        method,
-        "(I)V",
-        &[JValue::Int(color as i32)],
-    );
-    if result.is_err() {
-        let _ = env.exception_clear();
-    }
-    result.map_err(|e| e.to_string())?;
-
-    Ok(())
+    vm.attach_current_thread(|env| {
+        let result = env.call_static_method(
+            jni_str!("moe/sable/client/MainActivity"),
+            JNIString::new(method),
+            jni_sig!("(I)V"),
+            &[JValue::Int(color as i32)],
+        );
+        if result.is_err() {
+            let _ = env.exception_clear();
+        }
+        result.map(|_| ())
+    })
+    .map_err(|e| e.to_string())
 }
 
 fn call_static_method(method: &str) -> Result<(), String> {
     let vm = JAVA_VM.get().ok_or("java vm not initialized")?;
-    let mut env = vm.attach_current_thread().map_err(|e| e.to_string())?;
-
-    let result = env.call_static_method("moe/sable/client/MainActivity", method, "()V", &[]);
-    if result.is_err() {
-        let _ = env.exception_clear();
-    }
-    result.map_err(|e| e.to_string())?;
-
-    Ok(())
+    vm.attach_current_thread(|env| {
+        let result = env.call_static_method(
+            jni_str!("moe/sable/client/MainActivity"),
+            JNIString::new(method),
+            jni_sig!("()V"),
+            &[],
+        );
+        if result.is_err() {
+            let _ = env.exception_clear();
+        }
+        result.map(|_| ())
+    })
+    .map_err(|e| e.to_string())
 }

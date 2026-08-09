@@ -1,4 +1,18 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+const { saveFileToDevice } = vi.hoisted(() => ({
+  saveFileToDevice:
+    vi.fn<
+      (
+        input: Blob | string,
+        filename: string,
+        mimeType?: string
+      ) => Promise<'saved' | 'cancelled' | 'failed'>
+    >(),
+}));
+
+vi.mock('$utils/download', () => ({ saveFileToDevice }));
+
 import { getSettings, resetRuntimeSettingsDefaults } from '$state/settings';
 import {
   NON_SYNCABLE_KEYS,
@@ -384,62 +398,34 @@ describe('deserializeFromSync', () => {
 // exportSettingsAsJson
 
 describe('exportSettingsAsJson', () => {
-  let fakeUrl: string;
-  let anchorClick: ReturnType<typeof vi.fn>;
-
   beforeEach(() => {
-    fakeUrl = 'blob:fake-url';
-    anchorClick = vi.fn<() => void>();
-    vi.stubGlobal('URL', {
-      createObjectURL: vi.fn<() => string>().mockReturnValue(fakeUrl),
-      revokeObjectURL: vi.fn<() => void>(),
-    });
-
-    // Intercept anchor element creation to capture click calls.
-    const realCreate = document.createElement.bind(document);
-    vi.spyOn(document, 'createElement').mockImplementation((tag: string, ...args) => {
-      const el = realCreate(tag, ...args);
-      if (tag === 'a') {
-        vi.spyOn(el, 'click').mockImplementation(anchorClick as () => void);
-      }
-      return el;
-    });
+    saveFileToDevice.mockResolvedValue('saved');
   });
 
   afterEach(() => {
-    vi.unstubAllGlobals();
-    vi.restoreAllMocks();
+    vi.clearAllMocks();
   });
 
-  it('calls URL.createObjectURL with a JSON Blob', () => {
+  it('saves a JSON file through the cross-platform downloader', () => {
     exportSettingsAsJson(base);
-    expect(URL.createObjectURL).toHaveBeenCalledOnce();
-    const blob: Blob | undefined = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock
-      .calls[0]?.[0];
+    expect(saveFileToDevice).toHaveBeenCalledWith(
+      expect.any(Blob),
+      expect.stringMatching(/^sable-settings-\d+\.json$/),
+      'application/json'
+    );
+  });
+
+  it('saves valid JSON with the correct schema version and all settings', async () => {
+    exportSettingsAsJson(base);
+    const blob = saveFileToDevice.mock.calls[0]?.[0] as Blob;
     expect(blob).toBeInstanceOf(Blob);
     expect(blob!.type).toBe('application/json');
-  });
-
-  it('Blob content is valid JSON with the correct schema version and all settings', async () => {
-    exportSettingsAsJson(base);
-    const blob: Blob | undefined = (URL.createObjectURL as ReturnType<typeof vi.fn>).mock
-      .calls[0]?.[0];
     const text = await blob!.text();
     const parsed = JSON.parse(text);
     expect(parsed.v).toBe(SETTINGS_SYNC_VERSION);
     expect(typeof parsed.settings).toBe('object');
     // non-syncable keys ARE present in the export (full snapshot, not filtered)
     expect(parsed.settings.pageZoom).toBeDefined();
-  });
-
-  it('creates an anchor with a .json download attribute and clicks it', () => {
-    exportSettingsAsJson(base);
-    expect(anchorClick).toHaveBeenCalledOnce();
-  });
-
-  it('revokes the object URL after triggering the download', () => {
-    exportSettingsAsJson(base);
-    expect(URL.revokeObjectURL).toHaveBeenCalledWith(fakeUrl);
   });
 });
 

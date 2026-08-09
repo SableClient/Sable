@@ -4,6 +4,7 @@ import { createLogger } from '$utils/debug';
 import {
   atomWithLocalStorage,
   getLocalStorageItem,
+  setEssentialLocalStorageItem,
   setLocalStorageItem,
 } from './utils/atomWithLocalStorage';
 
@@ -192,7 +193,7 @@ export const updateSessionTokens = (
     refreshToken: tokens.refreshToken ?? sessions[index]!.refreshToken,
     expiresInMs: tokens.expiresInMs ?? sessions[index]!.expiresInMs,
   };
-  setLocalStorageItem(MATRIX_SESSIONS_KEY, sessions);
+  setEssentialLocalStorageItem(MATRIX_SESSIONS_KEY, sessions);
   window.dispatchEvent(new StorageEvent('storage', { key: MATRIX_SESSIONS_KEY }));
   notifySessionChanged();
 };

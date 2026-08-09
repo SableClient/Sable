@@ -1,17 +1,8 @@
 // oxlint-disable no-console
 import type { RectCords } from 'folds';
-import {
-  Avatar,
-  Box,
-  Chip,
-  PopOut,
-  Text,
-  Tooltip,
-  TooltipProvider,
-  as,
-  config,
-  toRem,
-} from 'folds';
+import { Avatar, Box, Chip, Text, Tooltip, as, config, toRem } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
+import { PopOut } from '$components/overlay-stack';
 import type { KeyboardEventHandler, MouseEventHandler, MouseEvent, ReactNode } from 'react';
 import {
   memo,
@@ -133,6 +124,7 @@ export type MessageProps = {
 
 import { useMenuAnchor } from '$hooks/useMenuAnchor';
 import { ThemeKind, useActiveTheme } from '$hooks/useTheme';
+import { useAccessibleNameColor } from '$hooks/useAccessibleNameColor';
 import { shouldIgnoreMessageLongPress } from './messageTouch';
 
 const clamp = (str: string, len: number) => (str.length > len ? `${str.slice(0, len)}...` : str);
@@ -477,6 +469,9 @@ function MessageInternal(
     false,
     isVisible
   );
+
+  const accessibleNameColor = useAccessibleNameColor(activeTheme.kind);
+
   const senderFallbackName = getMxIdLocalPart(senderId) ?? senderId;
   const resolvedSenderDisplayName =
     senderDisplayName === senderFallbackName || senderDisplayName === senderId
@@ -588,7 +583,7 @@ function MessageInternal(
             <Username
               as="button"
               style={{
-                color: pmpNameColor ?? usernameColor,
+                color: accessibleNameColor(pmpNameColor) ?? usernameColor,
                 fontFamily: usernameFont,
               }}
               data-user-id={senderId}
@@ -606,7 +601,7 @@ function MessageInternal(
             {showPronouns && (
               <Pronouns
                 pronouns={mergedPronouns}
-                tagColor={pmpNameColor ?? usernameColor ?? 'currentColor'}
+                tagColor={accessibleNameColor(pmpNameColor) ?? usernameColor ?? 'currentColor'}
               />
             )}
             {showPmPInfo && (

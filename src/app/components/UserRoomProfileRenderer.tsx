@@ -28,6 +28,7 @@ function UserRoomProfileContextMenu({ state }: { state: UserRoomProfileState }) 
       align={cords.y > window.innerHeight / 2 ? 'End' : 'Start'}
       returnFocusOnDeactivate
       surfaceColor={surfaceColor}
+      overlayDragHandle
       menu={
         <Menu style={{ width: toRem(340) }}>
           <SpaceProvider value={space ?? null}>

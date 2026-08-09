@@ -11,12 +11,12 @@ import {
   Spinner,
   Text,
   Tooltip,
-  TooltipProvider,
   as,
   color,
   config,
   toRem,
 } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
 import {
   Eye,
   EyeSlash,
@@ -108,6 +108,9 @@ export type ImageContentProps = {
   spoilerReason?: string;
   renderViewer: (props: RenderViewerProps) => ReactNode;
   renderImage: (props: RenderImageProps) => ReactNode;
+  /** Opens the room-scoped mobile viewer when this attachment belongs to a timeline.
+   *  Returns false when it declines, and the local viewer opens instead. */
+  onOpenViewer?: () => boolean;
   matrixThumbnailMaxEdge?: number;
   mediaLayout?: 'default' | 'contained';
   containedStripMinPx?: number;
@@ -129,6 +132,7 @@ export const ImageContent = as<'div', ImageContentProps>(
       spoilerReason,
       renderViewer,
       renderImage,
+      onOpenViewer,
       matrixThumbnailMaxEdge,
       mediaLayout = 'default',
       containedStripMinPx,
@@ -233,7 +237,7 @@ export const ImageContent = as<'div', ImageContentProps>(
       if (srcState.status !== AsyncStatus.Idle) return;
       try {
         const src = await loadSrc();
-        if (src !== undefined) setViewer(true);
+        if (src !== undefined && !onOpenViewer?.()) setViewer(true);
       } catch {
         // The existing error state is handled by the async callback.
       }
@@ -272,6 +276,16 @@ export const ImageContent = as<'div', ImageContentProps>(
     const fillPreviewSlotStyle = fillsSlot
       ? ({ width: '100%', height: '100%' } as const)
       : undefined;
+    const viewerContent =
+      srcState.status === AsyncStatus.Success
+        ? renderViewer({
+            src: viewerFullSrc ?? srcState.data,
+            alt: body ?? '',
+            filename,
+            requestClose: () => setViewer(false),
+            info,
+          })
+        : null;
 
     return (
       <Box
@@ -292,20 +306,23 @@ export const ImageContent = as<'div', ImageContentProps>(
         }}
       >
         {srcState.status === AsyncStatus.Success && (
-          <ModalOverlay open={viewer} requestClose={() => setViewer(false)}>
-            <Modal
-              className={ModalWide}
-              size="500"
-              onContextMenu={(evt: React.MouseEvent) => evt.stopPropagation()}
-            >
-              {renderViewer({
-                src: viewerFullSrc ?? srcState.data,
-                alt: body ?? '',
-                filename,
-                requestClose: () => setViewer(false),
-                info: info,
-              })}
-            </Modal>
+          <ModalOverlay
+            open={viewer}
+            requestClose={() => setViewer(false)}
+            mobile="fullscreen"
+            background="#000"
+          >
+            {isMobile ? (
+              viewerContent
+            ) : (
+              <Modal
+                className={ModalWide}
+                size="500"
+                onContextMenu={(evt: React.MouseEvent) => evt.stopPropagation()}
+              >
+                {viewerContent}
+              </Modal>
+            )}
           </ModalOverlay>
         )}
         {typeof blurHash === 'string' && !load && (
@@ -355,7 +372,7 @@ export const ImageContent = as<'div', ImageContentProps>(
               onLottieError: handleError,
               onClick: () => {
                 setIsHovered(false);
-                setViewer(true);
+                if (!onOpenViewer?.()) setViewer(true);
               },
               tabIndex: 0,
             })}

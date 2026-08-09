@@ -31,6 +31,7 @@ export type EmbedPreview = {
     type: EmbedPreviewType,
     description?: string,
     media?: Blob,
+    mediaType?: string
 }
 
 export enum EmbedStatus {
@@ -257,16 +258,22 @@ const fetchEmbed = async (
 
         let fetchPromise = fetch(imageUrl)
         fetchEmbedOptions.onProgress(preview, LoadingStatus.MediaDown);
-        let fetchResponse = await (await fetchPromise).blob().catch(_ => null);
-        if (!fetchResponse) {
+        let fetchResponse = (await fetchPromise)
+        let fetchBlob = await fetchResponse.blob().catch(_ => null);
+        if (!fetchBlob) {
             fetchEmbedOptions.onSuccess(response, preview);
             successCallback(response);
             return;
         }
-        preview.media = fetchResponse;
+        preview.media = fetchBlob;
+        if (fetchBlob.type.length > 0) {
+            preview.mediaType == fetchBlob.type
+        } else if (fetchResponse.headers.get('content-type')?.split(";")[0]) {
+            preview.mediaType = fetchResponse.headers.get('content-type')?.split(";")[0];
+        }
         preview.type = EmbedPreviewType.TitleDescriptionMedia;
         if(encrypted) {
-            pushImage(fetchResponse, preview, response)
+            await pushImage(fetchBlob, preview, response)
         } else {
             fetchEmbedOptions.onSuccess(response, preview);
             successCallback(response);
@@ -312,15 +319,23 @@ const fetchEmbed = async (
                 fetchEmbedOptions.onSuccess(embedRecord, preview)
                 successCallback(embedRecord)
             } else {
+                new Response
                 if (embedRecord["og:image"]) {
                     const response = await fetchWrapper(embedRecord["og:image"])
                     const imgData = await response.blob();
+                    preview.media = imgData;
+                    if (imgData.type.length > 0) {
+                        preview.mediaType == imgData.type
+                    } else if (response.headers.get('content-type')?.split(";")[0]) {
+                        preview.mediaType = response.headers.get('content-type')?.split(";")[0];
+                    }
                     await pushImage(imgData, preview, embedRecord);
+                } else {
+                    //other media types
+                    preview.type = EmbedPreviewType.TitleDescription;
+                    fetchEmbedOptions.onSuccess(embedRecord, preview)
+                    successCallback(embedRecord)
                 }
-                //other media types
-                preview.type = EmbedPreviewType.TitleDescription;
-                fetchEmbedOptions.onSuccess(embedRecord, preview)
-                successCallback(embedRecord)
             }
 
 

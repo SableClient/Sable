@@ -47,12 +47,13 @@ function prettyError(error: EmbedErrorReason) {
 }
 
 interface MediaProps {
-    data: Blob
+    data: Blob,
+    type: string
 }
 
-function Media({data}: Readonly<MediaProps>) {
+function Media({data, type}: Readonly<MediaProps>) {
     const fileUrl = useObjectURL(data);
-    if (isImageMimeType(data.type)) {
+    if (isImageMimeType(type)) {
         return (
             <MediaImage
                 style={{
@@ -123,7 +124,7 @@ export function EmbedCardRenderer({url, successCallback, encrypt}: Readonly<Embe
                             <Box direction={"Row"} gap={"200"}>
                                 {embed.preview?.type == EmbedPreviewType.TitleDescriptionMedia &&
                                 <Box style={{flex: 2}}>
-                                    {embed.preview?.media && <Media data={embed.preview.media}/>}
+                                    {embed.preview?.media && <Media data={embed.preview.media} type={embed.preview.mediaType ?? ""}/>}
                                     {!(embed.preview?.media) && <CircleNotch size={"fill"} style={{
                                         animation: "spin 1s infinite linear"}}/>}
                                 </Box>}

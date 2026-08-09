@@ -325,7 +325,7 @@ const fetchEmbed = async (
                     const imgData = await response.blob();
                     preview.media = imgData;
                     if (imgData.type.length > 0) {
-                        preview.mediaType == imgData.type
+                        preview.mediaType = imgData.type
                     } else if (response.headers.get('content-type')?.split(";")[0]) {
                         preview.mediaType = response.headers.get('content-type')?.split(";")[0];
                     }

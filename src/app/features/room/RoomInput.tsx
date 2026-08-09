@@ -197,7 +197,9 @@ import * as prefix from '$unstable/prefixes';
 import {PollDialog} from './poll-modals';
 import {useClientConfig} from '$hooks/useClientConfig';
 import {PersistentPersonaPicker, type PersonaPickerTab} from './persona-picker/PersonaPicker.tsx';
-import {createEmbedFamilyObserverAtom, EmbedStatus, FixedPreviewUrlResponse} from "$state/bundle.ts";
+import {createEmbedFamilyObserverAtom, EmbedStatus, FixedPreviewUrlResponse, useBindEmbedAtom} from "$state/bundle.ts";
+import {MatrixClient} from "matrix-js-sdk";
+const embedmap: Map<string, FixedPreviewUrlResponse | null> = new Map();
 
 const LocationDialog = lazy(() =>
   import('./location-modal').then((module) => ({ default: module.LocationDialog }))
@@ -354,8 +356,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     const [embedLinks, setEmbedLinks] = useAtom(roomIdToEmbeddItemsAtomFamily(draftKey));
     const [embedsEnabled, setEmbedsEnabled] = useState(false);
-    const embedobserver = createEmbedFamilyObserverAtom(roomEmbedAtomFamily, embedLinks.map(e => e.url));
-    const embeds = useAtomValue(embedobserver);
 
     const [uploadBoard, setUploadBoard] = useState(true);
     const [uploadSending, setUploadSending] = useState(false);
@@ -1351,15 +1351,15 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       content['m.mentions'] = getMentionContent(Array.from(mentionData.users), mentionData.room);
       content[prefix.MATRIX_UNSTABLE_IMAGE_SOURCE_PACK_PROPERTY_NAME] =
         imagePacksUsedRef.current.toJSON();
+
       content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME] = [];
       //check setting again here, just in case it was disabled while the message got composed
       if (embedsEnabled && generateBundles) {
-        for (const embed of embeds) {
-          if (embed.status == EmbedStatus.Loading || embed.status == EmbedStatus.Idle)
-            return
-          if (embed.status == EmbedStatus.Success) {
-            embed.data["matched_url"] = embed.url;
-            content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME].push(embed.data);
+        for (const embedLink of embedLinks) {
+          const result = embedmap.get(embedLink.url)
+          if (result) {
+            result["matched_url"] = embedLink.url;
+            content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME].push(result);
           }
         }
       } else {
@@ -1570,7 +1570,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       latchedPersona,
         embedsEnabled,
         embedLinks,
-        embeds
+        embedmap
     ]);
     const [generateBundles] = useSetting(settingsAtom, 'generateBundles');
     const [encryptBundledMedia] = useSetting(settingsAtom, 'encryptBundledMedia');
@@ -1726,7 +1726,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           .map((e) => e[0]));
       if (urls.length > 0) {
         setUploadBoard(true);
-
+        urls.forEach((u) => {
+          if (!embedmap.has(u))
+            embedmap.set(u, null)
+        })
         const embedItems = urls.map((url): TEmbeddItem =>  ({
           url: url
         }));
@@ -2008,9 +2011,12 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                             </Text>
                           </UploadCard></>)}
                         {embedsEnabled && Array.from(embedLinks)
+                            .toReversed()
                             .map((link) => (
 
-                                <EmbedCardRenderer url={link.url} encrypt={room.hasEncryptionStateEvent() && encryptBundledMedia} successCallback={ (_) => {}}/>
+                                <EmbedCardRenderer url={link.url} encrypt={room.hasEncryptionStateEvent() && encryptBundledMedia} successCallback={ (result) => {
+                                  embedmap.set(link.url, result);
+                                }}/>
                             ))}
                       </UploadBoardContent>
                     </Scroll>

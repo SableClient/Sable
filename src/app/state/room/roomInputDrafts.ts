@@ -4,7 +4,7 @@ import type { Descendant } from 'slate';
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import type { IEventRelation } from '$types/matrix-sdk';
 import type { TUploadContent } from '$utils/matrix';
-import { createUploadAtomFamily,  } from '$state/upload';
+import { createUploadAtomFamily } from '$state/upload';
 import { createListAtom } from '$state/list';
 import { createEmbedAtomFamily } from '$state/bundle.ts';
 

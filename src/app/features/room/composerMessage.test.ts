@@ -5,13 +5,10 @@ import type { MatrixClient, Room } from '$types/matrix-sdk';
 import { SerializableMap } from '$types/wrapper/SerializableMap';
 import type { MSC4459ImagePackReference } from '$types/matrix/common';
 import type { PerMessageProfileMsc4461 } from '$app/persona';
-import { createStore} from 'jotai';
-import {
-  type Embed,
-  EmbedPreviewType,
-  EmbedStatus,
-} from '$state/bundle.ts';
+import { createStore } from 'jotai';
+import { type Embed, EmbedPreviewType, EmbedStatus } from '$state/bundle.ts';
 import { roomEmbedAtomFamily } from '$state/room/roomInputDrafts.ts';
+import type { Store } from 'jotai/vanilla/store';
 
 const { profiles } = vi.hoisted(() => ({
   profiles: {
@@ -63,7 +60,7 @@ const commandInput = (command: Command, rest = '') => [
   },
 ];
 
-const store = createStore();
+const store: Store = createStore();
 
 const build = (
   input: string | ReturnType<typeof commandInput>,

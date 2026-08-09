@@ -2,21 +2,28 @@ import { atom, useAtom } from 'jotai';
 import { atomFamily } from 'jotai/utils';
 import type { MatrixClient } from '$types/matrix-sdk';
 import { useCallback } from 'react';
-import { IPreviewUrlResponse } from 'matrix-js-sdk';
+import type { IPreviewUrlResponse } from 'matrix-js-sdk';
 import { isTauri } from '@tauri-apps/api/core';
 import { fetch as taurifetch } from '@tauri-apps/plugin-http';
 import { parseDocument, DomUtils } from 'htmlparser2';
-import { Element } from 'domhandler';
+import type { Element } from 'domhandler';
 import { encryptFile, mxcUrlToHttp, uploadContent } from '$utils/matrix.ts';
 import { isImageMimeType } from '$utils/mimeTypes.ts';
 import { MATRIX_BUNDLED_EMBEDS_ENCRYPTED_PROPERTY_NAME } from '$unstable/prefixes/misc.ts';
-import { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
+import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication.ts';
 export type FixedPreviewUrlResponse = {
-  [p: string]: string | number | undefined | Record<string, any>;
+  [p: string]:
+    | string
+    | number
+    | undefined
+    | Record<string, string | Record<string, string | string[] | boolean>>;
   'og:image'?: string;
-  MATRIX_BUNDLED_EMBEDS_ENCRYPTED_PROPERTY_NAME?: Record<string, any>;
-} & Omit<IPreviewUrlResponse, keyof Record<string, any>>;
+  MATRIX_BUNDLED_EMBEDS_ENCRYPTED_PROPERTY_NAME?: Record<
+    string,
+    string | Record<string, string | string[] | boolean>
+  >;
+} & Omit<IPreviewUrlResponse, keyof Record<string, undefined>>;
 
 export enum EmbedPreviewType {
   TitleDescription,
@@ -55,7 +62,7 @@ export type EmbedLoading = {
   status: EmbedStatus.Loading;
   progress: LoadingStatus;
   preview?: EmbedPreview;
-  promise: Promise<Response>;
+  promise: Promise<Response | IPreviewUrlResponse>;
 };
 
 export type EmbedSuccess = {
@@ -75,7 +82,7 @@ export type Embed = EmbedIdle | EmbedLoading | EmbedSuccess | EmbedError;
 
 type EmbedAtomAction =
   | {
-      promise: Promise<Response>;
+      promise: Promise<Response | IPreviewUrlResponse>;
     }
   | {
       progress: LoadingStatus;
@@ -97,7 +104,7 @@ export enum EmbedErrorReason {
 }
 
 export type fetchEmbedOptions = {
-  onPromise?: (promise: Promise<any>) => void;
+  onPromise?: (promise: Promise<Response | IPreviewUrlResponse>) => void;
   onProgress?: (preview: EmbedPreview, progress: LoadingStatus) => void;
   onSuccess: (embed: FixedPreviewUrlResponse, progress: EmbedPreview) => void;
   onError: (reason: EmbedErrorReason) => void;
@@ -151,17 +158,17 @@ function fetchWrapper(url: string) {
   return isTauri() ? taurifetch(url) : fetch(url);
 }
 
-const fetchEmbed = async (
+const FetchEmbed = async (
   url: string,
   mx: MatrixClient,
   encrypted: boolean,
   bundleUseHomeserver: boolean,
   successCallback: (result: FixedPreviewUrlResponse) => void,
+  useAuthentication: boolean,
   fetchEmbedOptions: fetchEmbedOptions
 ) => {
-  const useAuthentication = useMediaAuthentication();
-  if (!fetchEmbedOptions.onProgress) fetchEmbedOptions.onProgress = (_) => {};
-  if (!fetchEmbedOptions.onPromise) fetchEmbedOptions.onPromise = (_) => {};
+  if (!fetchEmbedOptions.onProgress) fetchEmbedOptions.onProgress = () => {};
+  if (!fetchEmbedOptions.onPromise) fetchEmbedOptions.onPromise = () => {};
   const pushImage = async (
     imgData: Blob,
     preview: EmbedPreview,
@@ -175,14 +182,14 @@ const fetchEmbed = async (
         let encryptResult = await encryptFile(imgData);
         imgData = encryptResult.file;
         encInfo = encryptResult.encInfo;
-      } catch (e) {
+      } catch {
         fetchEmbedOptions.onError(EmbedErrorReason.EncryptFailed);
         return;
       }
     }
     fetchEmbedOptions.onProgress?.(preview, LoadingStatus.MediaUp);
     await uploadContent(mx, new File([imgData], 'mediaPreview'), {
-      onError: (_) => {
+      onError: () => {
         if (preview.type == EmbedPreviewType.MediaOnly) {
           fetchEmbedOptions.onError(EmbedErrorReason.UploadFailed);
           return;
@@ -220,7 +227,7 @@ const fetchEmbed = async (
       const promise = mx.getUrlPreview(url, Date.now());
       fetchEmbedOptions.onPromise(promise);
       response = await promise;
-    } catch (e) {
+    } catch {
       fetchEmbedOptions.onError(EmbedErrorReason.RequestFailed);
       return;
     }
@@ -247,7 +254,7 @@ const fetchEmbed = async (
     let fetchPromise = fetch(imageUrl);
     fetchEmbedOptions.onProgress(preview, LoadingStatus.MediaDown);
     let fetchResponse = await fetchPromise;
-    let fetchBlob = await fetchResponse.blob().catch((_) => null);
+    let fetchBlob = await fetchResponse.blob().catch(() => null);
     if (!fetchBlob) {
       fetchEmbedOptions.onSuccess(response, preview);
       successCallback(response);
@@ -286,10 +293,8 @@ const fetchEmbed = async (
         return;
       }
 
-      let supportedMediaTags = ['og:image'];
-      const hasSupportedMedia = prelimEmbed
-        .keys()
-        .some((item) => supportedMediaTags.includes(item));
+      let supportedMediaTags = new Set(['og:image']);
+      const hasSupportedMedia = prelimEmbed.keys().some((item) => supportedMediaTags.has(item));
 
       let preview: EmbedPreview = {
         description: <string>prelimEmbed.get('og:description'),
@@ -307,15 +312,14 @@ const fetchEmbed = async (
         fetchEmbedOptions.onSuccess(embedRecord, preview);
         successCallback(embedRecord);
       } else {
-        new Response();
         if (embedRecord['og:image']) {
-          const response = await fetchWrapper(embedRecord['og:image']);
-          const imgData = await response.blob();
+          const imgResponse = await fetchWrapper(embedRecord['og:image']);
+          const imgData = await imgResponse.blob();
           preview.media = imgData;
           if (imgData.type.length > 0) {
             preview.mediaType = imgData.type;
-          } else if (response.headers.get('content-type')?.split(';')[0]) {
-            preview.mediaType = response.headers.get('content-type')?.split(';')[0];
+          } else if (imgResponse.headers.get('content-type')?.split(';')[0]) {
+            preview.mediaType = imgResponse.headers.get('content-type')?.split(';')[0];
           }
           await pushImage(imgData, preview, embedRecord);
         } else {
@@ -391,22 +395,22 @@ export const useBindEmbedAtom = (
 ) => {
   const [embed, setEmbed] = useAtom(embedAtom);
   const { url } = embed;
+  const useAuth = useMediaAuthentication();
 
   const startEmbed = useCallback(
     (successCallback: (result: FixedPreviewUrlResponse) => void) =>
-      fetchEmbed(url, mx, encrypt, useHomeserver, successCallback, {
+      FetchEmbed(url, mx, encrypt, useHomeserver, successCallback, useAuth, {
         onSuccess: (data, progress) => setEmbed({ data, preview: progress }),
         onError: (error) => setEmbed({ error }),
         onProgress: (preview, progress) => setEmbed({ preview, progress }),
         onPromise: (promise) => setEmbed({ promise }),
       }),
-    [url, mx, encrypt, useHomeserver]
+    [url, mx, encrypt, useHomeserver, setEmbed, useAuth]
   );
 
   return {
     embed,
     startEmbed,
-    cancelEmbed,
   };
 };
 

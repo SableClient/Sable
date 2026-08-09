@@ -679,6 +679,53 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       setAutocompleteQuery(query);
     }, [editor]);
 
+    const [generateBundles] = useSetting(settingsAtom, 'generateBundles');
+    const [encryptBundledMedia] = useSetting(settingsAtom, 'encryptBundledMedia');
+
+    const checkForEmbedables = useCallback(
+      (text: string) => {
+        if (!generateBundles) {
+          return;
+        }
+        //from https://regex101.com/r/3fYy3x/1
+        const URL_REGEX = RegExp(
+          /http[s]?:\/\/.(?:www\.)?[-a-zA-Z0-9@%._+~#=]{2,256}\.[a-z]{2,10}\b(?:[-a-zA-Z0-9@:%_+.~#?&/=]*)/gm
+        );
+        const urls = Array.from(
+          text
+            .matchAll(URL_REGEX)
+            //dont include the url if its in angled braces  like <https://example.org> cant do this in regex because braces are context free (yay computer science)
+            .filter(
+              (e) =>
+                !(e.index > 0 && text[e.index - 1] == '<' && text[e.index + e[0].length] == '>')
+            )
+            .map((e) => e[0])
+        );
+        if (urls.length > 0) {
+          setUploadBoard(true);
+
+          const embedItems = urls.map(
+            (url): TEmbeddItem => ({
+              url: url,
+            })
+          );
+          setEmbedLinks({
+            type: 'CLEAR',
+          });
+          setEmbedLinks({
+            type: 'PUT',
+            item: embedItems,
+          });
+        } else {
+          setEmbedLinks({
+            type: 'CLEAR',
+          });
+          setEmbedsEnabled(false);
+        }
+      },
+      [setEmbedLinks, generateBundles]
+    );
+
     const handleEditorChange = useCallback(() => {
       setHasText(!isEmptyEditor(editor));
       checkForEmbedables(Editor.string(editor, []));
@@ -690,7 +737,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
       lastEncryptionPreparationAt.current = now;
       mx.getCrypto()?.prepareToEncrypt(room);
-    }, [editor, detectAutocomplete, mx, room]);
+    }, [editor, detectAutocomplete, mx, room, checkForEmbedables]);
     const hasContent = hasText || selectedFiles.length > 0;
 
     const isComposing = useComposingCheck();
@@ -1737,6 +1784,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         pmpNoFallback,
         latchedPersona,
         embedsEnabled,
+        store,
+        generateBundles,
+        embedLinks,
       ]
     );
 
@@ -1752,9 +1802,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         Promise.resolve(undefined)
       );
     }, [editingEvent, executeSubmit, isMobile, takeSubmission]);
-
-    const [generateBundles] = useSetting(settingsAtom, 'generateBundles');
-    const [encryptBundledMedia] = useSetting(settingsAtom, 'encryptBundledMedia');
 
     const handleKeyDown: KeyboardEventHandler = useCallback(
       (evt) => {
@@ -1865,46 +1912,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       },
       [editor, sendTypingStatus, hideActivity, detectAutocomplete]
     );
-
-    const checkForEmbedables = (text: string) => {
-      if (!generateBundles) {
-        return;
-      }
-      //from https://regex101.com/r/3fYy3x/1
-      const URL_REGEX = RegExp(
-        /http[s]?:\/\/.(?:www\.)?[-a-zA-Z0-9@%._+~#=]{2,256}\.[a-z]{2,10}\b(?:[-a-zA-Z0-9@:%_+.~#?&/=]*)/gm
-      );
-      const urls = Array.from(
-        text
-          .matchAll(URL_REGEX)
-          //dont include the url if its in angled braces  like <https://example.org> cant do this in regex because braces are context free (yay computer science)
-          .filter(
-            (e) => !(e.index > 0 && text[e.index - 1] == '<' && text[e.index + e[0].length] == '>')
-          )
-          .map((e) => e[0])
-      );
-      if (urls.length > 0) {
-        setUploadBoard(true);
-
-        const embedItems = urls.map(
-          (url): TEmbeddItem => ({
-            url: url,
-          })
-        );
-        setEmbedLinks({
-          type: 'CLEAR',
-        });
-        setEmbedLinks({
-          type: 'PUT',
-          item: embedItems,
-        });
-      } else {
-        setEmbedLinks({
-          type: 'CLEAR',
-        });
-        setEmbedsEnabled(false);
-      }
-    };
 
     const handleEmbedsToggle = (state: boolean) => {
       setEmbedsEnabled(state);

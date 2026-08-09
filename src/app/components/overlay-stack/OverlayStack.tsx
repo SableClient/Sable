@@ -31,7 +31,7 @@ export function OverlayStackProvider({ children }: { children: ReactNode }) {
         setClaims((prev) =>
           prev.some((claim) => claim.id === id)
             ? prev
-            : [...prev, { id, seq }].sort((a, b) => a.seq - b.seq)
+            : [...prev, { id, seq }].toSorted((a, b) => a.seq - b.seq)
         ),
       release: (id) => setClaims((prev) => prev.filter((claim) => claim.id !== id)),
     }),

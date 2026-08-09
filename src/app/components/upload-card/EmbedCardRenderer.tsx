@@ -1,17 +1,10 @@
 import { useMatrixClient } from '$hooks/useMatrixClient.ts';
-import { useMediaConfig } from '$hooks/useMediaConfig.ts';
 import { roomEmbedAtomFamily } from '$state/room/roomInputDrafts.ts';
 import { useSetting } from '$state/hooks/settings.ts';
 import { settingsAtom } from '$state/settings.ts';
 import { UploadCard } from '$components/upload-card/UploadCard.tsx';
 import { Box, color, Text, toRem } from 'folds';
-import {
-  Check,
-  CircleNotch,
-  File as FileIcon,
-  sizedIcon,
-  X,
-} from '$components/icons/phosphor.tsx';
+import { Check, CircleNotch, File as FileIcon, sizedIcon, X } from '$components/icons/phosphor.tsx';
 import {
   EmbedErrorReason,
   EmbedPreviewType,
@@ -74,15 +67,10 @@ export function EmbedCardRenderer({
   const mx = useMatrixClient();
   const [bundleUseHomeserver] = useSetting(settingsAtom, 'useHomeserverForBundles');
   const embedAtom = roomEmbedAtomFamily(url);
-  const { embed, startEmbed,  } = useBindEmbedAtom(
-    mx,
-    embedAtom,
-    encrypt,
-    bundleUseHomeserver
-  );
+  const { embed, startEmbed } = useBindEmbedAtom(mx, embedAtom, encrypt, bundleUseHomeserver);
 
   if (embed.status === EmbedStatus.Idle) {
-    startEmbed(successCallback);
+    startEmbed(successCallback).then(() => {});
   }
 
   return (

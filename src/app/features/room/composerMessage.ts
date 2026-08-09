@@ -33,6 +33,7 @@ import { Command, SHRUG, TABLEFLIP, UNFLIP } from '$hooks/useCommands';
 import type { MSC4459ImagePackReference } from '$types/matrix/common';
 import type { SerializableMap } from '$types/wrapper/SerializableMap';
 import { createEmbedFamilyObserverAtom, EmbedStatus } from '$state/bundle.ts';
+import type { Store } from 'jotai/vanilla/store';
 
 export type MessageContent = IContent & Pick<RoomMessageEventContent, 'msgtype' | 'body'>;
 

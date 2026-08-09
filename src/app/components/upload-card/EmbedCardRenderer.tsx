@@ -1,21 +1,14 @@
 import { useMatrixClient } from '$hooks/useMatrixClient.ts';
 import { useMediaConfig } from '$hooks/useMediaConfig.ts';
 import { roomEmbedAtomFamily } from '$state/room/roomInputDrafts.ts';
-import { type KeyboardEventHandler, useCallback, useMemo } from 'react';
-import type { Opts as LinkifyOpts } from 'linkifyjs';
-import { LINKIFY_OPTS } from '$plugins/react-custom-html-parser.tsx';
-import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler.ts';
-import { useMediaAuthentication } from '$hooks/useMediaAuthentication.ts';
-import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl.ts';
 import { useSetting } from '$state/hooks/settings.ts';
 import { settingsAtom } from '$state/settings.ts';
 import { UploadCard } from '$components/upload-card/UploadCard.tsx';
-import { Box, color, IconButton, Text, toRem } from 'folds';
+import { Box, color, Text, toRem } from 'folds';
 import {
   Check,
   CircleNotch,
   File as FileIcon,
-  Image,
   sizedIcon,
   X,
 } from '$components/icons/phosphor.tsx';
@@ -23,13 +16,12 @@ import {
   EmbedErrorReason,
   EmbedPreviewType,
   EmbedStatus,
-  FixedPreviewUrlResponse,
+  type FixedPreviewUrlResponse,
   useBindEmbedAtom,
 } from '$state/bundle.ts';
 import { Image as MediaImage } from '$components/media';
 import { useObjectURL } from '$hooks/useObjectURL.ts';
 import { isImageMimeType } from '$utils/mimeTypes.ts';
-import { IPreviewUrlResponse } from 'matrix-js-sdk';
 
 type EmbedCardRendererProps = {
   url: string;
@@ -80,22 +72,9 @@ export function EmbedCardRenderer({
   encrypt,
 }: Readonly<EmbedCardRendererProps>) {
   const mx = useMatrixClient();
-  const mediaConfig = useMediaConfig();
-  const allowSize = mediaConfig['m.upload.size'] || Infinity;
-
-  const linkifyOpts = useMemo<LinkifyOpts>(() => ({ ...LINKIFY_OPTS }), []);
-
-  const spoilerClickHandler = useSpoilerClickHandler();
-  const useAuthentication = useMediaAuthentication();
-  const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
-  const [incomingInlineImagesDefaultHeight] = useSetting(
-    settingsAtom,
-    'incomingInlineImagesDefaultHeight'
-  );
-  const [incomingInlineImagesMaxHeight] = useSetting(settingsAtom, 'incomingInlineImagesMaxHeight');
   const [bundleUseHomeserver] = useSetting(settingsAtom, 'useHomeserverForBundles');
   const embedAtom = roomEmbedAtomFamily(url);
-  const { embed, startEmbed, cancelEmbed } = useBindEmbedAtom(
+  const { embed, startEmbed,  } = useBindEmbedAtom(
     mx,
     embedAtom,
     encrypt,

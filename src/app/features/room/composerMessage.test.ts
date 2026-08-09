@@ -5,15 +5,13 @@ import type { MatrixClient, Room } from '$types/matrix-sdk';
 import { SerializableMap } from '$types/wrapper/SerializableMap';
 import type { MSC4459ImagePackReference } from '$types/matrix/common';
 import type { PerMessageProfileMsc4461 } from '$app/persona';
-import { createStore, useAtom, useStore } from 'jotai';
+import { createStore} from 'jotai';
 import {
-  createEmbedAtom,
-  Embed,
+  type Embed,
   EmbedPreviewType,
   EmbedStatus,
-  FixedPreviewUrlResponse,
 } from '$state/bundle.ts';
-import { roomEmbedAtomFamily, roomIdToEmbeddItemsAtomFamily } from '$state/room/roomInputDrafts.ts';
+import { roomEmbedAtomFamily } from '$state/room/roomInputDrafts.ts';
 
 const { profiles } = vi.hoisted(() => ({
   profiles: {

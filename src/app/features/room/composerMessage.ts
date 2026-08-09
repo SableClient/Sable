@@ -17,10 +17,9 @@ import {
 import { sanitizeText } from '$utils/sanitize';
 import { getMentionContent } from '$utils/room/relations';
 import {
-  IReplyDraft,
+  type IReplyDraft,
   roomEmbedAtomFamily,
-  roomIdToEmbeddItemsAtomFamily,
-  TEmbeddItem,
+  type TEmbeddItem,
 } from '$state/room/roomInputDrafts';
 import { ProfileCatalog } from '$app/persona/catalog';
 import type { PerMessageProfileMsc4461 } from '$app/persona';
@@ -33,10 +32,6 @@ import { buildReplacementContent } from './buildReplacementContent';
 import { Command, SHRUG, TABLEFLIP, UNFLIP } from '$hooks/useCommands';
 import type { MSC4459ImagePackReference } from '$types/matrix/common';
 import type { SerializableMap } from '$types/wrapper/SerializableMap';
-import { useAtom, useStore } from 'jotai';
-import { useState } from 'react';
-import { useSetting } from '$state/hooks/settings.ts';
-import { settingsAtom } from '$state/settings.ts';
 import { createEmbedFamilyObserverAtom, EmbedStatus } from '$state/bundle.ts';
 
 export type MessageContent = IContent & Pick<RoomMessageEventContent, 'msgtype' | 'body'>;
@@ -76,7 +71,7 @@ export interface BuildOutgoingMessageDeps {
   embedLinks: TEmbeddItem[];
   embedsEnabled: boolean;
   generateBundles: boolean;
-  store: any;
+  store: Store;
 }
 
 const resolveNickname = (

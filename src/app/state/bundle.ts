@@ -1,8 +1,7 @@
 import { atom, useAtom } from 'jotai';
 import { atomFamily } from 'jotai/utils';
-import type { MatrixClient, MatrixError } from '$types/matrix-sdk';
+import type { MatrixClient } from '$types/matrix-sdk';
 import { useCallback } from 'react';
-import { useThrottle } from '$hooks/useThrottle';
 import { IPreviewUrlResponse } from 'matrix-js-sdk';
 import { isTauri } from '@tauri-apps/api/core';
 import { fetch as taurifetch } from '@tauri-apps/plugin-http';
@@ -12,8 +11,6 @@ import { encryptFile, mxcUrlToHttp, uploadContent } from '$utils/matrix.ts';
 import { isImageMimeType } from '$utils/mimeTypes.ts';
 import { MATRIX_BUNDLED_EMBEDS_ENCRYPTED_PROPERTY_NAME } from '$unstable/prefixes/misc.ts';
 import { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
-import { useSetting } from '$state/hooks/settings.ts';
-import { settingsAtom } from '$state/settings.ts';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication.ts';
 export type FixedPreviewUrlResponse = {
   [p: string]: string | number | undefined | Record<string, any>;
@@ -258,7 +255,7 @@ const fetchEmbed = async (
     }
     preview.media = fetchBlob;
     if (fetchBlob.type.length > 0) {
-      preview.mediaType == fetchBlob.type;
+      preview.mediaType = fetchBlob.type;
     } else if (fetchResponse.headers.get('content-type')?.split(';')[0]) {
       preview.mediaType = fetchResponse.headers.get('content-type')?.split(';')[0];
     }
@@ -405,12 +402,6 @@ export const useBindEmbedAtom = (
       }),
     [url, mx, encrypt, useHomeserver]
   );
-
-  const cancelEmbed = useCallback(() => {
-    if (embed.status === EmbedStatus.Loading) {
-      //TODO
-    }
-  }, [mx, embed]);
 
   return {
     embed,

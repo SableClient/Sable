@@ -42,7 +42,7 @@ import {
   MenuItem,
   OverlayBackdrop,
   OverlayCenter,
-  RectCords,
+  type RectCords,
   Scroll,
   Spinner,
   Switch,
@@ -54,7 +54,7 @@ import { Overlay, PopOut } from '$components/overlay-stack';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import {
   ANYWHERE_AUTOCOMPLETE_PREFIXES,
-  AutocompleteQuery,
+  type AutocompleteQuery,
   BEGINNING_AUTOCOMPLETE_PREFIXES,
   EmoticonAutocomplete,
   focusEditor,
@@ -67,20 +67,15 @@ import {
 } from '$components/editor';
 import {
   AutocompletePrefix,
-  BlockType,
   createEmoticonElement,
   CustomEditor,
   customHtmlEqualsPlainText,
   getAutocompleteQuery,
-  getBeginCommand,
-  getLinks,
-  getMentions,
   getPrevWorldRange,
   resetEditor,
   RoomMentionAutocomplete,
   toMatrixCustomHTML,
   toPlainText,
-  trimCommand,
   trimCustomHtml,
   UserMentionAutocomplete,
 } from '$components/editor';
@@ -102,13 +97,15 @@ import { useFilePicker } from '$hooks/useFilePicker';
 import { useFilePasteHandler } from '$hooks/useFilePasteHandler';
 import { useFileDropZone } from '$hooks/useFileDrop';
 import {
-  IReplyDraft,
   roomEmbedAtomFamily,
   roomIdToEmbeddItemsAtomFamily,
   roomIdToMsgDraftAtomFamily,
   roomIdToReplyDraftAtomFamily,
   roomIdToUploadItemsAtomFamily,
   roomUploadAtomFamily,
+} from '$state/room/roomInputDrafts';
+import type {
+  IReplyDraft,
   TEmbeddItem,
   TUploadItem,
   TUploadMetadata,
@@ -231,12 +228,6 @@ import { PersistentPersonaPicker, type PersonaPickerTab } from './persona-picker
 import { createComposerController, type ComposerController } from './composerController';
 import { buildEditReplacement, buildOutgoingMessage } from './composerMessage';
 import { pickNativeFile } from './nativeFilePicker';
-import {
-  createEmbedFamilyObserverAtom,
-  EmbedStatus,
-  FixedPreviewUrlResponse,
-} from '$state/bundle.ts';
-
 const LocationDialog = lazy(() =>
   import('./location-modal').then((module) => ({ default: module.LocationDialog }))
 );
@@ -1881,7 +1872,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       }
       //from https://regex101.com/r/3fYy3x/1
       const URL_REGEX = RegExp(
-        /http[s]?:\/\/.(?:www\.)?[-a-zA-Z0-9@%._\+~#=]{2,256}\.[a-z]{2,10}\b(?:[-a-zA-Z0-9@:%_\+.~#?&\/\/=]*)/gm
+        /http[s]?:\/\/.(?:www\.)?[-a-zA-Z0-9@%._+~#=]{2,256}\.[a-z]{2,10}\b(?:[-a-zA-Z0-9@:%_+.~#?&/=]*)/gm
       );
       const urls = Array.from(
         text
@@ -2207,9 +2198,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                         {embedsEnabled &&
                           Array.from(embedLinks).map((link) => (
                             <EmbedCardRenderer
+                              key={link.url}
                               url={link.url}
                               encrypt={room.hasEncryptionStateEvent() && encryptBundledMedia}
-                              successCallback={(_) => {}}
+                              successCallback={() => {}}
                             />
                           ))}
                       </UploadBoardContent>

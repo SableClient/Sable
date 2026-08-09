@@ -320,6 +320,7 @@ const fetchEmbed = async (
                 //other media types
                 preview.type = EmbedPreviewType.TitleDescription;
                 fetchEmbedOptions.onSuccess(embedRecord, preview)
+                successCallback(embedRecord)
             }
 
 

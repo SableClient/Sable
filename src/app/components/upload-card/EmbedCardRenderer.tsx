@@ -12,7 +12,13 @@ import {settingsAtom} from "$state/settings.ts";
 import {UploadCard} from "$components/upload-card/UploadCard.tsx";
 import {Box, color, IconButton, Text, toRem} from "folds";
 import {Check, CircleNotch, File as FileIcon, Image, sizedIcon, X} from "$components/icons/phosphor.tsx";
-import {EmbedErrorReason, EmbedStatus, FixedPreviewUrlResponse, useBindEmbedAtom} from "$state/bundle.ts";
+import {
+    EmbedErrorReason,
+    EmbedPreviewType,
+    EmbedStatus,
+    FixedPreviewUrlResponse,
+    useBindEmbedAtom
+} from "$state/bundle.ts";
 import {Image as MediaImage} from "$components/media";
 import {useObjectURL} from "$hooks/useObjectURL.ts";
 import {isImageMimeType} from "$utils/mimeTypes.ts";
@@ -115,11 +121,12 @@ export function EmbedCardRenderer({url, successCallback, encrypt}: Readonly<Embe
                     {(embed.status == EmbedStatus.Loading || embed.status == EmbedStatus.Success) &&
                         <>
                             <Box direction={"Row"} gap={"200"}>
+                                {embed.preview?.type == EmbedPreviewType.TitleDescriptionMedia &&
                                 <Box style={{flex: 2}}>
                                     {embed.preview?.media && <Media data={embed.preview.media}/>}
                                     {!(embed.preview?.media) && <CircleNotch size={"fill"} style={{
                                         animation: "spin 1s infinite linear"}}/>}
-                                </Box>
+                                </Box>}
                                 <Box direction={"Column"} style={{flex: 5}}>
                                     <Text size={"H4"}>
                                         {embed.preview?.title}

@@ -16,7 +16,12 @@ import {
 } from '$components/editor';
 import { sanitizeText } from '$utils/sanitize';
 import { getMentionContent } from '$utils/room/relations';
-import type { IReplyDraft } from '$state/room/roomInputDrafts';
+import {
+  IReplyDraft,
+  roomEmbedAtomFamily,
+  roomIdToEmbeddItemsAtomFamily,
+  TEmbeddItem
+} from '$state/room/roomInputDrafts';
 import { ProfileCatalog } from '$app/persona/catalog';
 import type { PerMessageProfileMsc4461 } from '$app/persona';
 import { convertPerMessageProfileToBeeperFormat } from '$app/persona/projection';
@@ -28,6 +33,11 @@ import { buildReplacementContent } from './buildReplacementContent';
 import { Command, SHRUG, TABLEFLIP, UNFLIP } from '$hooks/useCommands';
 import type { MSC4459ImagePackReference } from '$types/matrix/common';
 import type { SerializableMap } from '$types/wrapper/SerializableMap';
+import {useAtom, useStore} from "jotai";
+import {useState} from "react";
+import {useSetting} from "$state/hooks/settings.ts";
+import {settingsAtom} from "$state/settings.ts";
+import {createEmbedFamilyObserverAtom, EmbedStatus} from "$state/bundle.ts";
 
 export type MessageContent = IContent & Pick<RoomMessageEventContent, 'msgtype' | 'body'>;
 
@@ -41,7 +51,8 @@ export type OutgoingMessage =
   | { kind: 'pkCommand'; plainText: string }
   | { kind: 'command'; command: Command; plainText: string; customHtml: string }
   | { kind: 'gifSearch'; query: string }
-  | { kind: 'empty' };
+  | { kind: 'empty' }
+  | { kind: 'failed'; reason: string };
 
 export interface BuildOutgoingMessageDeps {
   mx: MatrixClient;
@@ -62,7 +73,16 @@ export interface BuildOutgoingMessageDeps {
   latchedPersona: PerMessageProfileMsc4461 | undefined;
   isPKCommand: (plainText: string) => boolean;
   imagePacksUsed: SerializableMap<string, MSC4459ImagePackReference>;
+  embedLinks: TEmbeddItem[];
+  embedsEnabled: boolean;
+  generateBundles: boolean;
+  store: any
 }
+
+
+
+
+
 
 const resolveNickname = (
   room: Room,
@@ -248,9 +268,28 @@ export async function buildOutgoingMessage(
   const content: MessageContent = { msgtype: msgType, body: plainText };
   content['m.mentions'] = getMentionContent(Array.from(mentionData.users), mentionData.room);
   content[prefix.MATRIX_UNSTABLE_IMAGE_SOURCE_PACK_PROPERTY_NAME] = imagePacksUsed.toJSON();
-  content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME] = (
-    getLinks(serializedChildren) ?? []
-  ).map((matched_url) => ({ matched_url }));
+  content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME] = [];
+  //check setting again here, just in case it was disabled while the message got composed
+  if (deps.embedsEnabled && deps.generateBundles) {
+    const embedUrls = deps.embedLinks.map((e) => e.url);
+    const embedObserver = createEmbedFamilyObserverAtom(roomEmbedAtomFamily, embedUrls);
+    const embeds = deps.store.get(embedObserver);
+    for (const embed of embeds) {
+      if (embed.status == EmbedStatus.Loading || embed.status == EmbedStatus.Idle)
+        return {kind: "failed", reason: "bundled embeds not ready"};
+      if (embed.status == EmbedStatus.Success) {
+        embed.data["matched_url"] = embed.url;
+        content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME].push(embed.data);
+      }
+    }
+  } else {
+    const links = getLinks(serializedChildren);
+    links?.forEach((link) => {
+      content[prefix.MATRIX_UNSTABLE_EMBEDDED_LINK_PREVIEW_PROPERTY_NAME].push({
+        matched_url: link,
+      })}
+    );
+  }
 
   if (replyDraft || !customHtmlEqualsPlainText(customHtml, plainText)) {
     content.format = 'org.matrix.custom.html';

@@ -25,7 +25,7 @@ import {
   Menu,
   MenuItem,
   OverlayBackdrop,
-  OverlayCenter,
+  OverlayCenter, RectCords,
   Scroll,
   Spinner,
   Switch,
@@ -35,45 +35,31 @@ import {
 import { Overlay, PopOut } from '$components/overlay-stack';
 
 import {useMatrixClient} from '$hooks/useMatrixClient';
-import type {AutocompleteQuery} from '$components/editor';
 import {
   ANYWHERE_AUTOCOMPLETE_PREFIXES,
+  AutocompleteQuery,
+  BEGINNING_AUTOCOMPLETE_PREFIXES, EmoticonAutocomplete, focusEditor,
+  isEmptyEditor,
+  MarkdownFormattingToolbarBottom, MarkdownFormattingToolbarToggle, moveCursor, replaceWithElement, resetEditorHistory
+} from '$components/editor';
+import {
   AutocompletePrefix,
-  BEGINNING_AUTOCOMPLETE_PREFIXES,
   BlockType,
   createEmoticonElement,
   CustomEditor,
   customHtmlEqualsPlainText,
-  EmoticonAutocomplete,
-  focusEditor,
   getAutocompleteQuery,
   getBeginCommand,
   getLinks,
   getMentions,
   getPrevWorldRange,
-  isEmptyEditor,
-  MarkdownFormattingToolbarBottom,
-  MarkdownFormattingToolbarToggle,
-  moveCursor,
-  replaceWithElement,
   resetEditor,
-  resetEditorHistory,
   RoomMentionAutocomplete,
   toMatrixCustomHTML,
   toPlainText,
   trimCommand,
   trimCustomHtml,
   UserMentionAutocomplete,
-  EmoticonAutocomplete,
-  moveCursor,
-  resetEditorHistory,
-  isEmptyEditor,
-  ANYWHERE_AUTOCOMPLETE_PREFIXES,
-  BEGINNING_AUTOCOMPLETE_PREFIXES,
-  MarkdownFormattingToolbarBottom,
-  MarkdownFormattingToolbarToggle,
-  focusEditor,
-  replaceWithElement,
 } from '$components/editor';
 import {stripMarkdownEscapesForHiddenPreviews} from './message/hiddenLinkPreviews';
 import {plainToEditorInput} from '$components/editor/input';
@@ -126,7 +112,7 @@ import {useQueryClient} from '@tanstack/react-query';
 import * as Sentry from '@sentry/react';
 import {
   delayedEventsSupportedAtom,
-  getScheduledMessageStateKey,
+  getScheduledMessageStateKey, roomIdToEditingScheduledDelayIdAtomFamily,
   roomIdToScheduledTimeAtomFamily,
   serverMaxDelayMsAtom,
 } from '$state/scheduledMessages';
@@ -384,7 +370,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     replyDraftRef.current = replyDraft;
 
 
-    const [embedLinks, setEmbedLinks] = useAtom(roomIdToEmbeddItemsAtomFamily(draftKey));
+    const [embedLinks, setEmbedLinks] = useAtom(roomIdToEmbeddItemsAtomFamily(roomId));
     const [embedsEnabled, setEmbedsEnabled] = useState(false);
     const store = useStore();
     const [uploadBoard, setUploadBoard] = useState(true);
@@ -1506,7 +1492,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               if (isLive()) setUploadSending(false);
             }
           }
-
           const outgoing = await buildOutgoingMessage(submission.children, {
             mx,
             room,
@@ -1524,9 +1509,20 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             latchedPersona,
             isPKCommand: (text) => PKitCommandMessageHandler.isPKCommand(text),
             imagePacksUsed: imagePacksUsedRef.current,
+            embedLinks,
+            embedsEnabled,
+            generateBundles,
+            store
           });
 
           if (outgoing.kind === 'empty') return;
+          if (outgoing.kind === 'failed') {
+            if (isLive()) {
+              setSendError(outgoing.reason);
+            }
+            restoreSubmission(submission);
+            return;
+          }
           if (outgoing.kind === 'quickReact') {
             handleQuickReact(outgoing.key);
             return;
@@ -1715,6 +1711,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         pmpLatchingEnable,
         pmpNoFallback,
         latchedPersona,
+        embedsEnabled,
       ]
     );
 
@@ -1730,6 +1727,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         Promise.resolve(undefined)
       );
     }, [editingEvent, executeSubmit, isMobile, takeSubmission]);
+
+
+    const [generateBundles] = useSetting(settingsAtom, 'generateBundles');
+    const [encryptBundledMedia] = useSetting(settingsAtom, 'encryptBundledMedia');
+
 
     const handleKeyDown: KeyboardEventHandler = useCallback(
       (evt) => {

@@ -220,7 +220,7 @@ const FetchEmbed = async (
       },
     });
   };
-  //TODO filter local ips
+  //TODO filter local ips. How to even do this on web?
   if (bundleUseHomeserver) {
     var response: IPreviewUrlResponse;
     try {
@@ -330,7 +330,7 @@ const FetchEmbed = async (
         }
       }
     } else if (isImageMimeType(fetchResponse.headers.get('content-type')?.split(';')[0] || '')) {
-      //TODO: decide if generating bundled previews for images (and other media potentially) is something we even want
+      //TODO: decide if generating bundled previews for image links (and other media potentially) is something we even want
       fetchEmbedOptions.onError(EmbedErrorReason.NoOgData);
     } else {
       fetchEmbedOptions.onError(EmbedErrorReason.NoOgData);

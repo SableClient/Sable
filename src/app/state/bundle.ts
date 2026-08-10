@@ -330,7 +330,7 @@ const FetchEmbed = async (
         }
       }
     } else if (isImageMimeType(fetchResponse.headers.get('content-type')?.split(';')[0] || '')) {
-      //todo
+      //TODO: decide if generating bundled previews for images (and other media potentially) is something we even want
       fetchEmbedOptions.onError(EmbedErrorReason.NoOgData);
     } else {
       fetchEmbedOptions.onError(EmbedErrorReason.NoOgData);

@@ -88,6 +88,7 @@ vi.mock('$state/room/roomInputDrafts', async () => {
   const { atom } = await import('jotai');
   const msgDraftAtom = atom([]);
   const replyDraftAtom = atom(undefined);
+  const embedItemsAtom = atom([]);
   const uploadItemsAtom = atom<unknown[], [unknown], void>([], (get, set, action) => {
     const update = action as any;
     if (Array.isArray(update)) {
@@ -115,6 +116,7 @@ vi.mock('$state/room/roomInputDrafts', async () => {
     roomIdToMsgDraftAtomFamily: () => msgDraftAtom,
     roomIdToReplyDraftAtomFamily: () => replyDraftAtom,
     roomIdToUploadItemsAtomFamily: () => uploadItemsAtom,
+    roomIdToEmbeddItemsAtomFamily: () => embedItemsAtom,
     roomUploadAtomFamily: Object.assign(() => atom(undefined), { remove: vi.fn() }),
     roomIdToScheduledTimeAtomFamily: () => scheduledTimeAtom,
     roomIdToEditingScheduledDelayIdAtomFamily: () => editingScheduledDelayIdAtom,

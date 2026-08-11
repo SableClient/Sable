@@ -302,57 +302,58 @@ export const UrlPreviewCard = as<
             />
           </Box>
         )}
-        {!showOgVideo && (prev['og:image:type'] || prev['og:image'] || prev["matrix:image:size"] ) && (
-          <Box
-            shrink="No"
-            className={urlPreviewChrome.UrlPreviewMediaWell}
-            style={{
-              width: '100%',
-              maxHeight: toRem(linkPreviewImageMaxHeight),
-              aspectRatio: aspectRatio ?? '16 / 9',
-              flexShrink: 1,
-              minHeight: 0,
-              overflow: 'hidden',
-              position: 'relative',
-            }}
-          >
-            <ImageContent
-              style={{
-                position: 'absolute',
-                inset: 0,
-                width: '100%',
-                height: '100%',
-              }}
-              mediaLayout="contained"
-              fillsPreviewSlot
-              autoPlay={mediaAutoLoad}
-              onAuxClick={handleAuxClick}
-              body={prev['og:title']}
-              encInfo={renderProps.encdata}
-              url={renderProps.encdata ? renderProps.encdata.url : (prev['og:image'] ?? '')}
-              info={ogImageInfo}
-              matrixThumbnailMaxEdge={previewThumbMaxEdge}
-              renderViewer={(p) => <ImageViewer {...p} />}
-              renderImage={(p) => (
-                <Image
-                  info={ogImageInfo}
-                  {...p}
-                  style={{
-                    display: 'block',
-                    maxWidth: '100%',
-                    maxHeight: '100%',
-                    width: 'auto',
-                    height: 'auto',
-                    objectFit: 'contain',
-                    objectPosition: 'center',
-                  }}
-                />
-              )}
-            />
-          </Box>
-        )}
         {!showOgVideo &&
-          !(prev['og:image:type'] || prev['og:image'] || prev["matrix:image:size"]) &&
+          (prev['og:image:type'] || prev['og:image'] || prev['matrix:image:size']) && (
+            <Box
+              shrink="No"
+              className={urlPreviewChrome.UrlPreviewMediaWell}
+              style={{
+                width: '100%',
+                maxHeight: toRem(linkPreviewImageMaxHeight),
+                aspectRatio: aspectRatio ?? '16 / 9',
+                flexShrink: 1,
+                minHeight: 0,
+                overflow: 'hidden',
+                position: 'relative',
+              }}
+            >
+              <ImageContent
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                }}
+                mediaLayout="contained"
+                fillsPreviewSlot
+                autoPlay={mediaAutoLoad}
+                onAuxClick={handleAuxClick}
+                body={prev['og:title']}
+                encInfo={renderProps.encdata}
+                url={renderProps.encdata ? renderProps.encdata.url : (prev['og:image'] ?? '')}
+                info={ogImageInfo}
+                matrixThumbnailMaxEdge={previewThumbMaxEdge}
+                renderViewer={(p) => <ImageViewer {...p} />}
+                renderImage={(p) => (
+                  <Image
+                    info={ogImageInfo}
+                    {...p}
+                    style={{
+                      display: 'block',
+                      maxWidth: '100%',
+                      maxHeight: '100%',
+                      width: 'auto',
+                      height: 'auto',
+                      objectFit: 'contain',
+                      objectPosition: 'center',
+                    }}
+                  />
+                )}
+              />
+            </Box>
+          )}
+        {!showOgVideo &&
+          !(prev['og:image:type'] || prev['og:image'] || prev['matrix:image:size']) &&
           (prev['og:audio:type'] || prev['og:audio']) && (
             <Box className={css.UrlPreviewAudio} style={{ flexShrink: 0 }}>
               <AudioContent

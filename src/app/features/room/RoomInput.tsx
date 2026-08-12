@@ -648,7 +648,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     const handleEditorChange = useCallback(() => {
       setHasText(!editor.isEmpty());
-      setMarkdownPreview(showMarkdownPreview ? editor.getText() : '');
+      setMarkdownPreview(showMarkdownPreview ? editor.getMarkdownPreviewText() : '');
       detectAutocomplete();
       if (!room.hasEncryptionStateEvent()) return;
 
@@ -658,6 +658,11 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       lastEncryptionPreparationAt.current = now;
       mx.getCrypto()?.prepareToEncrypt(room);
     }, [editor, showMarkdownPreview, detectAutocomplete, mx, room]);
+    // handleEditorChange only runs on edits, so toggling the preview on with
+    // an existing draft needs a separate sync.
+    useEffect(() => {
+      setMarkdownPreview(showMarkdownPreview ? editor.getMarkdownPreviewText() : '');
+    }, [editor, showMarkdownPreview]);
     const hasContent = hasText || selectedFiles.length > 0;
 
     const isComposing = useComposingCheck();

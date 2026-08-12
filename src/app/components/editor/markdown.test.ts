@@ -126,6 +126,46 @@ describe('tokenizeMarkdown', () => {
     expect(quote?.end).toBe(8);
   });
 
+  it('stacks nested formatting so inner spans keep the outer marks', () => {
+    const tokens = tokenizeMarkdown('**||test||**');
+    const stacked = findToken(tokens, (t) => t.markdownBold && t.markdownSpoiler);
+    expect(stacked?.start).toBe(4);
+    expect(stacked?.end).toBe(8);
+    expect(tokenizeMarkdown('**||test||**').filter((t) => t.markdownToken)).toHaveLength(4);
+  });
+
+  it('stacks underline, bold, and italic from nested delimiters', () => {
+    const tokens = tokenizeMarkdown('__**_test_**__');
+    const stacked = findToken(
+      tokens,
+      (t) => t.markdownUnderline && t.markdownBold && t.markdownItalic
+    );
+    expect(stacked?.start).toBe(5);
+    expect(stacked?.end).toBe(9);
+  });
+
+  it('supports single-underscore italics like the sent renderer', () => {
+    const tokens = tokenizeMarkdown('_italic_');
+    const italic = findToken(tokens, (t) => t.markdownItalic);
+    expect(italic?.start).toBe(1);
+    expect(italic?.end).toBe(7);
+  });
+
+  it('treats code spans as literal so markers inside do not style', () => {
+    const tokens = tokenizeMarkdown('`**x**`');
+    const code = findToken(tokens, (t) => t.markdownCode);
+    expect(code?.start).toBe(1);
+    expect(code?.end).toBe(6);
+    expect(tokens.some((t) => t.markdownBold)).toBe(false);
+  });
+
+  it('stacks link styling with the enclosing formatting', () => {
+    const tokens = tokenizeMarkdown('**[x](https://example.com)**');
+    const stacked = findToken(tokens, (t) => t.markdownLink && t.markdownBold);
+    expect(stacked?.start).toBe(3);
+    expect(stacked?.end).toBe(4);
+  });
+
   it('returns no tokens for plain text', () => {
     expect(tokenizeMarkdown('just plain text')).toHaveLength(0);
   });
@@ -155,7 +195,7 @@ const renderEditor = (text: string) => {
 };
 
 const decorationSpan = (container: HTMLElement, cls: string) =>
-  Array.from(container.querySelectorAll('span')).find((span) => span.className === cls);
+  Array.from(container.querySelectorAll('span')).find((span) => span.className.includes(cls));
 
 describe('markdownPreviewPlugin decorations', () => {
   it('maps bold tokens onto doc positions', () => {
@@ -187,6 +227,14 @@ describe('markdownPreviewPlugin decorations', () => {
     const { container, view } = renderEditor('a `code` and ||spoiler||');
     expect(decorationSpan(container, editorCss.EditorMarkdownCode)?.textContent).toBe('code');
     expect(decorationSpan(container, editorCss.EditorMarkdownSpoiler)?.textContent).toBe('spoiler');
+    view.destroy();
+  });
+
+  it('renders stacked formatting on one span', () => {
+    const { container, view } = renderEditor('**||secret||**');
+    const span = decorationSpan(container, editorCss.EditorMarkdownBold);
+    expect(span?.textContent).toBe('secret');
+    expect(span?.className.includes(editorCss.EditorMarkdownSpoiler)).toBe(true);
     view.destroy();
   });
 

@@ -53,7 +53,7 @@ const collectBlockPrefixTokens = (text: string, tokens: MarkdownToken[]): void =
 };
 
 // Inline delimiters. Order matters: longer delimiters before shorter ones so
-// `**` is matched as bold before `*` could match as italic.
+// `**` is matched as bold before `*` could match as italic, and `__` before `_`.
 const INLINE_SPANS: ReadonlyArray<{
   open: string;
   close: string;
@@ -65,9 +65,18 @@ const INLINE_SPANS: ReadonlyArray<{
   { open: '__', close: '__', inner: { markdownUnderline: true } },
   { open: '`', close: '`', inner: { markdownCode: true } },
   { open: '*', close: '*', inner: { markdownItalic: true } },
+  { open: '_', close: '_', inner: { markdownItalic: true } },
 ];
 
-const matchLinkSpan = (text: string): MarkdownToken[] | null => {
+type InlineMatch = {
+  contentStart: number;
+  contentEnd: number;
+  inner: MarkdownLeafMarks;
+  recurse: boolean;
+  totalLength: number;
+};
+
+const matchLinkSpan = (text: string): InlineMatch | null => {
   if (!text.startsWith('[')) return null;
   const closeBracket = text.indexOf(']');
   if (closeBracket <= 1) return null;
@@ -77,32 +86,79 @@ const matchLinkSpan = (text: string): MarkdownToken[] | null => {
   const label = text.slice(1, closeBracket);
   const url = text.slice(closeBracket + 2, closeParen);
   if (!label.trim() || !url.trim()) return null;
-  return [
-    token(0, 1, { markdownToken: true }),
-    token(1, closeBracket, { markdownLink: true }),
-    token(closeBracket, closeParen + 1, { markdownToken: true }),
-  ];
+  return {
+    contentStart: 1,
+    contentEnd: closeBracket,
+    inner: { markdownLink: true },
+    recurse: true,
+    totalLength: closeParen + 1,
+  };
 };
 
-const matchInlineSpan = (text: string): MarkdownToken[] | null => {
-  const linkTokens = matchLinkSpan(text);
-  if (linkTokens) return linkTokens;
-
+const matchInlineSpan = (text: string): InlineMatch | null => {
   for (const span of INLINE_SPANS) {
     if (!text.startsWith(span.open)) continue;
     const closeIdx = text.indexOf(span.close, span.open.length);
     if (closeIdx <= span.open.length) continue;
     const content = text.slice(span.open.length, closeIdx);
     if (!content.trim()) continue;
-    const contentStart = span.open.length;
-    const contentEnd = closeIdx;
-    return [
-      token(0, contentStart, { markdownToken: true }),
-      token(contentStart, contentEnd, span.inner),
-      token(contentEnd, contentEnd + span.close.length, { markdownToken: true }),
-    ];
+    return {
+      contentStart: span.open.length,
+      contentEnd: closeIdx,
+      inner: span.inner,
+      // Code spans are literal: markers inside them are not formatting.
+      recurse: !span.inner.markdownCode,
+      totalLength: closeIdx + span.close.length,
+    };
   }
   return null;
+};
+
+const INLINE_OPENERS = ['**', '~~', '||', '__', '`', '*', '_', '['] as const;
+
+const hasMarks = (marks: MarkdownLeafMarks): boolean =>
+  Object.values(marks).some((value) => value === true);
+
+// Scans a range and, for each matched span, dims the delimiters and recurses
+// into the content with the enclosing marks inherited, so `**||x||**` styles
+// the text as both bold and spoiler instead of stopping at the outer span.
+// Unstyled runs inside a styled span keep the enclosing marks; at the top
+// level (no marks) they stay plain and produce no decoration.
+const scanInlineRange = (
+  text: string,
+  from: number,
+  to: number,
+  marks: MarkdownLeafMarks,
+  tokens: MarkdownToken[]
+): void => {
+  let i = from;
+  while (i < to) {
+    const rest = text.slice(i, to);
+    const match = matchLinkSpan(rest) ?? matchInlineSpan(rest);
+    if (!match) {
+      let next = -1;
+      for (const opener of INLINE_OPENERS) {
+        const idx = text.indexOf(opener, i + 1);
+        if (idx >= 0 && idx < to && (next === -1 || idx < next)) next = idx;
+      }
+      const runEnd = next < 0 ? to : next;
+      if (hasMarks(marks)) tokens.push(token(i, runEnd, marks));
+      i = runEnd;
+      continue;
+    }
+    const contentStart = i + match.contentStart;
+    const contentEnd = i + match.contentEnd;
+    const closeEnd = i + match.totalLength;
+    tokens.push(token(i, contentStart, { markdownToken: true }));
+    const inner: MarkdownLeafMarks = { ...marks, ...match.inner };
+    if (match.recurse) {
+      scanInlineRange(text, contentStart, contentEnd, inner, tokens);
+    } else {
+      tokens.push(token(contentStart, contentEnd, inner));
+    }
+    tokens.push(token(contentEnd, closeEnd, { markdownToken: true }));
+    i = closeEnd;
+  }
 };
 
 /**
@@ -113,19 +169,7 @@ export const tokenizeMarkdown = (text: string): MarkdownToken[] => {
   if (!text) return [];
   const tokens: MarkdownToken[] = [];
   collectBlockPrefixTokens(text, tokens);
-
-  let i = 0;
-  while (i < text.length) {
-    const rest = text.slice(i);
-    const spanTokens = matchInlineSpan(rest);
-    if (spanTokens) {
-      const consumed = spanTokens[spanTokens.length - 1]!.end;
-      spanTokens.forEach((t) => tokens.push({ ...t, start: t.start + i, end: t.end + i }));
-      i += consumed;
-    } else {
-      i += 1;
-    }
-  }
+  scanInlineRange(text, 0, text.length, {}, tokens);
   return tokens;
 };
 
@@ -145,12 +189,13 @@ const tokenToDecoration = (nodeStart: number, t: MarkdownToken): Decoration | nu
       class: css.EditorMarkdownToken,
     });
   }
-  for (const [mark, className] of STYLED_TOKEN_CLASSES) {
-    if (t[mark]) {
-      return Decoration.inline(nodeStart + t.start, nodeStart + t.end, { class: className });
-    }
-  }
-  return null;
+  const classes = STYLED_TOKEN_CLASSES.filter(([mark]) => t[mark]).map(
+    ([, className]) => className
+  );
+  if (!classes.length) return null;
+  return Decoration.inline(nodeStart + t.start, nodeStart + t.end, {
+    class: classes.join(' '),
+  });
 };
 
 export const markdownDecorations = (state: EditorState): DecorationSet => {

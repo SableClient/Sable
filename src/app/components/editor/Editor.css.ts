@@ -160,7 +160,12 @@ export const EditorMarkdownCode = style([
 ]);
 
 export const EditorMarkdownSpoiler = style({
-  backgroundColor: color.SurfaceVariant.ContainerLine,
+  backgroundColor: `color-mix(in srgb, ${color.SurfaceVariant.ContainerLine} 30%, transparent)`,
   borderRadius: config.radii.R300,
-  color: 'transparent',
+});
+
+export const EditorMarkdownPreviewContent = style({
+  maxHeight: toRem(220),
+  overflowY: 'auto',
+  overscrollBehavior: 'contain',
 });

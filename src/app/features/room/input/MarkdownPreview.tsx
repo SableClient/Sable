@@ -4,6 +4,7 @@ import type { Room } from '$types/matrix-sdk';
 import { EventType, MatrixEvent } from '$types/matrix-sdk';
 import { useRoomMessagePreviewRenderer } from '$components/message-preview';
 import { markdownToHtml } from '$plugins/markdown';
+import * as editorCss from '$components/editor/Editor.css';
 
 type MarkdownPreviewProps = {
   room: Room;
@@ -33,7 +34,11 @@ export function MarkdownPreview({ room, markdown }: MarkdownPreviewProps) {
       <Text size="L400" priority="300">
         Preview
       </Text>
-      <Box direction="Column" style={{ minWidth: 0 }}>
+      <Box
+        direction="Column"
+        className={editorCss.EditorMarkdownPreviewContent}
+        style={{ minWidth: 0 }}
+      >
         {renderContent(EventType.RoomMessage, false, event, '', () => event.getContent())}
       </Box>
     </Box>

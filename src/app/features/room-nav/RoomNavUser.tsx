@@ -12,29 +12,28 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { useSpaceOptionally } from '$hooks/useSpace';
 import { nicknamesAtom } from '$state/nicknames';
-import { useCallEmbed } from '$hooks/useCallEmbed';
+import classNames from 'classnames';
+import * as css from './styles.css';
 
 type RoomNavUserProps = {
   room: Room;
   callMembership: CallMembership;
   hideText?: boolean;
+  activeSpeakers?: Set<string>;
 };
 
-export function RoomNavUser({ room, callMembership, hideText }: RoomNavUserProps) {
+export function RoomNavUser({ room, callMembership, hideText, activeSpeakers }: RoomNavUserProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const openProfile = useOpenUserRoomProfile();
   const space = useSpaceOptionally();
-
-  const callEmbed = useCallEmbed();
-  const isActiveCall = callEmbed?.roomId === room.roomId;
 
   const userId = callMembership.sender ?? '';
   const avatarMxcUrl = getMemberAvatarMxc(room, userId);
   const avatarUrl = getAvatarUrl(mx, avatarMxcUrl, 32, useAuthentication);
   const nicknames = useAtomValue(nicknamesAtom);
   const name = getMemberDisplayName(room, userId, nicknames) ?? getMxIdLocalPart(userId);
-  const isCallParticipant = isActiveCall && userId !== mx.getUserId();
+  const isSpeaking = !!activeSpeakers?.has(userId);
 
   const handleNavUserClick: MouseEventHandler<HTMLButtonElement> = (evt) => {
     openProfile(
@@ -46,7 +45,7 @@ export function RoomNavUser({ room, callMembership, hideText }: RoomNavUserProps
     );
   };
 
-  const ariaLabel = isCallParticipant ? `Call Participant: ${name}` : name;
+  const ariaLabel = isSpeaking ? `Speaking: ${name}` : name;
 
   return (
     <NavItem variant="Background" radii="400">
@@ -54,7 +53,7 @@ export function RoomNavUser({ room, callMembership, hideText }: RoomNavUserProps
         <NavItemContent as="div" style={hideText ? { padding: '0' } : {}}>
           <Box direction="Column" grow="Yes" gap="200" justifyContent="Stretch">
             <Box alignItems="Center" gap="200" justifyContent={hideText ? 'Center' : 'Start'}>
-              <Avatar size="200">
+              <Avatar size="200" className={classNames(isSpeaking && css.SpeakerAvatarRing)}>
                 <UserAvatar
                   userId={userId}
                   src={avatarUrl ?? undefined}

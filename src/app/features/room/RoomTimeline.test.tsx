@@ -330,11 +330,11 @@ function ResizeObserverStub(this: unknown, callback: ResizeObserverCallback) {
 
 const nativeResizeObserver = globalThis.ResizeObserver;
 
-const fireResize = (element: Element) => {
+const fireResize = (element: Element, height = 1) => {
   observers.forEach(({ callback, elements }) => {
     if (!elements.has(element)) return;
     callback(
-      [{ target: element, contentRect: { height: 1 } } as unknown as ResizeObserverEntry],
+      [{ target: element, contentRect: { height } } as unknown as ResizeObserverEntry],
       {} as ResizeObserver
     );
   });
@@ -366,6 +366,12 @@ const getScrollEl = (container: HTMLElement) => {
   const scrollEl = container.querySelector('[data-testid="vlist-scroll"]');
   expect(scrollEl).toBeTruthy();
   return scrollEl as Element;
+};
+
+const getViewportEl = (container: HTMLElement) => {
+  const scrollEl = container.querySelector('[data-testid="vlist-scroll"]');
+  expect(scrollEl).toBeTruthy();
+  return scrollEl!.parentElement as Element;
 };
 
 const renderTimeline = () => render(<RoomTimeline room={room} editor={{} as Editor} />);
@@ -799,6 +805,49 @@ describe('RoomTimeline content ResizeObserver', () => {
     act(() => lastOnScroll?.(900));
 
     expect(timelineSync.handleTimelinePagination).not.toHaveBeenCalled();
+  });
+
+  it('re-pins on a viewport shrink while pinned to the bottom', async () => {
+    const { container } = renderTimeline();
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    });
+    vListHandle.scrollToIndex.mockClear();
+
+    // Pinned: the view ends exactly at the content bottom (1000 - 400 - 600 = 0).
+    vListHandle.scrollOffset = 400;
+    act(() => lastOnScroll?.(400));
+
+    // A growing composer shrinks the timeline viewport (600 -> 578).
+    const viewportEl = getViewportEl(container);
+    act(() => fireResize(viewportEl, 600));
+    act(() => fireResize(viewportEl, 578));
+
+    expect(vListHandle.scrollToIndex).toHaveBeenCalledWith(
+      0,
+      expect.objectContaining({ align: 'end' })
+    );
+  });
+
+  it('does not re-pin on a viewport shrink while scrolled up but still flagged', async () => {
+    const { container } = renderTimeline();
+
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    });
+    vListHandle.scrollToIndex.mockClear();
+
+    // Scrolled up 60px off the bottom (1000 - 340 - 600 = 60): inside the 100px
+    // atBottom tolerance, but the user has clearly moved off the pre-resize bottom.
+    vListHandle.scrollOffset = 340;
+    act(() => lastOnScroll?.(340));
+
+    const viewportEl = getViewportEl(container);
+    act(() => fireResize(viewportEl, 600));
+    act(() => fireResize(viewportEl, 578));
+
+    expect(vListHandle.scrollToIndex).not.toHaveBeenCalled();
   });
 });
 

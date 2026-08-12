@@ -120,3 +120,47 @@ export const EditorToolbarBase = style({
 export const EditorToolbar = style({
   padding: config.space.S100,
 });
+
+export const EditorMarkdownToken = style({
+  opacity: 0.4,
+});
+
+export const EditorMarkdownBold = style({
+  fontWeight: 700,
+});
+
+export const EditorMarkdownItalic = style({
+  fontStyle: 'italic',
+});
+
+export const EditorMarkdownUnderline = style({
+  textDecoration: 'underline',
+});
+
+export const EditorMarkdownStrikeThrough = style({
+  textDecoration: 'line-through',
+});
+
+export const EditorMarkdownLink = style({
+  color: color.Primary.OnContainer,
+  textDecoration: 'underline',
+  textUnderlineOffset: toRem(2),
+});
+
+export const EditorMarkdownCode = style([
+  DefaultReset,
+  {
+    fontFamily: 'var(--font-monospace)',
+    color: color.SurfaceVariant.OnContainer,
+    background: color.SurfaceVariant.Container,
+    border: `${config.borderWidth.B300} solid ${color.SurfaceVariant.ContainerLine}`,
+    borderRadius: config.radii.R300,
+    padding: `0 ${config.space.S100}`,
+  },
+]);
+
+export const EditorMarkdownSpoiler = style({
+  backgroundColor: color.SurfaceVariant.ContainerLine,
+  borderRadius: config.radii.R300,
+  color: 'transparent',
+});

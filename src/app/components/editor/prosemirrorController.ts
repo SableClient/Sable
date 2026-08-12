@@ -18,6 +18,7 @@ import {
   toProseMirrorDocument,
   toProseMirrorInline,
 } from './prosemirrorSchema';
+import { markdownPreviewPlugin } from './markdown';
 
 const isProseMirrorDocumentEmpty = (doc: ProseMirrorNode): boolean =>
   doc.childCount === 1 && doc.firstChild?.content.size === 0;
@@ -130,6 +131,7 @@ export class ProseMirrorEditorController {
       doc: toProseMirrorDocument(this.document),
       plugins: [
         beginCommandPlugin,
+        markdownPreviewPlugin,
         history(),
         keymap({ 'Mod-z': undo, 'Mod-Shift-z': redo, 'Mod-y': redo }),
         // Enter is withheld on purpose: the host decides send vs newline.

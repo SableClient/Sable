@@ -23,6 +23,24 @@ import { markdownPreviewPlugin } from './markdown';
 const isProseMirrorDocumentEmpty = (doc: ProseMirrorNode): boolean =>
   doc.childCount === 1 && doc.firstChild?.content.size === 0;
 
+const paragraphToPreviewText = (paragraph: ProseMirrorNode): string => {
+  let text = '';
+  paragraph.content.forEach((child) => {
+    if (child.isText) {
+      text += child.text ?? '';
+    } else if (child.type.name === 'mention') {
+      text += `@${(child.attrs.name as string | undefined) ?? ''}`;
+    } else if (child.type.name === 'emoticon') {
+      text += (child.attrs.shortcode as string | undefined) ?? '';
+    } else if (child.type.name === 'command') {
+      text += (child.attrs.name as string | undefined) ?? '';
+    } else {
+      text += child.textContent ?? '';
+    }
+  });
+  return text;
+};
+
 export type EditorAutocompleteQuery<TPrefix extends string> = {
   from: number;
   prefix: TPrefix;
@@ -101,31 +119,15 @@ export class ProseMirrorEditorController {
       .join('\n');
   }
 
-  // Like getText, but atom nodes (mentions, emoticons, commands) contribute
-  // their display text instead of the \0 placeholder textBetween emits, so
-  // the markdown preview shows them.
+  /** Like getText, but atoms (mentions, emoticons, commands) contribute their
+   * display text instead of the \0 placeholder. */
   getMarkdownPreviewText(): string {
     const view = this.view;
     if (!view) return this.getText();
-    const paragraphText = (paragraph: ProseMirrorNode): string => {
-      let text = '';
-      paragraph.content.forEach((child) => {
-        if (child.isText) {
-          text += child.text ?? '';
-        } else if (child.type.name === 'mention') {
-          text += `@${(child.attrs.name as string | undefined) ?? ''}`;
-        } else if (child.type.name === 'emoticon') {
-          text += (child.attrs.shortcode as string | undefined) ?? '';
-        } else if (child.type.name === 'command') {
-          text += (child.attrs.name as string | undefined) ?? '';
-        } else {
-          text += child.textContent ?? '';
-        }
-      });
-      return text;
-    };
     const paragraphs: string[] = [];
-    view.state.doc.content.forEach((paragraph) => paragraphs.push(paragraphText(paragraph)));
+    view.state.doc.content.forEach((paragraph) =>
+      paragraphs.push(paragraphToPreviewText(paragraph))
+    );
     return paragraphs.join('\n');
   }
 

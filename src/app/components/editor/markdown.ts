@@ -116,14 +116,11 @@ const matchInlineSpan = (text: string): InlineMatch | null => {
 
 const INLINE_OPENERS = ['**', '~~', '||', '__', '`', '*', '_', '['] as const;
 
-const hasMarks = (marks: MarkdownLeafMarks): boolean =>
-  Object.values(marks).some((value) => value === true);
+const hasMarks = (marks: MarkdownLeafMarks): boolean => Object.values(marks).some(Boolean);
 
-// Scans a range and, for each matched span, dims the delimiters and recurses
-// into the content with the enclosing marks inherited, so `**||x||**` styles
-// the text as both bold and spoiler instead of stopping at the outer span.
-// Unstyled runs inside a styled span keep the enclosing marks; at the top
-// level (no marks) they stay plain and produce no decoration.
+// Dims the delimiters of each matched span and recurses into the content with
+// the enclosing marks inherited, so `**||x||**` styles both bold and spoiler.
+// Unstyled runs keep the enclosing marks; at the top level they stay plain.
 const scanInlineRange = (
   text: string,
   from: number,
@@ -211,8 +208,10 @@ export const markdownDecorations = (state: EditorState): DecorationSet => {
   return DecorationSet.create(state.doc, decorations);
 };
 
-// Render-time markdown preview: dims syntax characters and styles content via
-// decorations, so the document and serialized output stay untouched.
+/**
+ * Render-time markdown preview: dims syntax characters and styles content via
+ * decorations, so the document and serialized output stay untouched.
+ */
 export const markdownPreviewPlugin = new Plugin({
   props: {
     decorations: (state) => markdownDecorations(state),

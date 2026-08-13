@@ -18,7 +18,7 @@ import {
   toProseMirrorDocument,
   toProseMirrorInline,
 } from './prosemirrorSchema';
-import { markdownPreviewPlugin } from './markdown';
+import { markdownPreviewPlugin, setMarkdownPreviewDispatch } from './markdown';
 
 const isProseMirrorDocumentEmpty = (doc: ProseMirrorNode): boolean =>
   doc.childCount === 1 && doc.firstChild?.content.size === 0;
@@ -204,7 +204,12 @@ export class ProseMirrorEditorController {
         },
       }
     );
+    setMarkdownPreviewDispatch(() => {
+      const view = this.view;
+      if (view) view.dispatch(view.state.tr);
+    });
     return () => {
+      setMarkdownPreviewDispatch(null);
       this.view?.destroy();
       this.view = undefined;
     };

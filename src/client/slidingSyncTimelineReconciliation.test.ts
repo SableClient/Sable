@@ -358,6 +358,43 @@ describe('timeline reconciliation in matrix-js-sdk', () => {
     expect(localEcho.status).toBeNull();
   });
 
+  it('places a remote echo before an overlapping newer event', async () => {
+    const { mx, deliver } = makeSdk();
+    await deliver(roomId, initialRoomData(message('$e6', 600)));
+    const room = mx.getRoom(roomId)!;
+    const localEcho = new MatrixEvent({
+      ...message('~local', 500),
+      room_id: roomId,
+      sender: userId,
+    });
+    localEcho.setStatus(EventStatus.SENDING);
+    room.addPendingEvent(localEcho, 'txn');
+
+    const resp = {
+      required_state: [],
+      timeline: [
+        {
+          ...message('$mine', 500),
+          sender: userId,
+          unsigned: { transaction_id: 'txn' },
+        },
+        message('$e6', 600),
+      ],
+      limited: true,
+      prev_batch: 'gap-token',
+    } as unknown as MSC3575RoomData;
+    const completeTimelineReset = prepareSlidingSyncTimelines(
+      {
+        rooms: { [roomId]: resp },
+      } as unknown as MSC3575SlidingSyncResponse,
+      mx
+    );
+    await deliver(roomId, resp);
+    completeTimelineReset?.();
+
+    expect(timelineIds(mx)).toEqual(['$mine', '$e6']);
+  });
+
   it('starts a new live timeline when an expanded catch-up has no overlap', async () => {
     const { mx, deliver } = makeSdk();
     await deliver(roomId, initialRoomData(newest));

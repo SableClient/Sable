@@ -400,7 +400,10 @@ export const prepareSlidingSyncTimelines = (
 
     if (shouldMarkLimited) timelineData.limited = true;
 
-    const isGapped = firstKnownResponseIndex < 0 || hasSparseOverlap;
+    // The SDK only appends a non-duplicate event from an overlapping response.
+    // Reset when the server window starts before its first known event so those
+    // earlier events are not incorrectly placed at the live tail.
+    const isGapped = firstKnownResponseIndex !== 0;
     if (
       knownEventIds.size > 0 &&
       room &&

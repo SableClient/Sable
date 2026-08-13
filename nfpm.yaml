@@ -20,10 +20,18 @@ contents:
     dst: /usr
     type: tree
     expand: true
+  - src: src-tauri/packaging/deb/apparmor/sable
+    dst: /etc/apparmor.d/sable
+    type: config
+    packager: deb
 
 overrides:
   deb:
+    scripts:
+      postinstall: src-tauri/packaging/deb/postinst
+      preremove: src-tauri/packaging/deb/prerm
     depends:
+      - apparmor
       - libgtk-3-0
       - libnss3
       - libnspr4

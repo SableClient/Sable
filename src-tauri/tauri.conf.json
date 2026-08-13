@@ -34,11 +34,6 @@
     },
     "linux": {
       "deb": {
-        "files": {
-          "/etc/apparmor.d/sable": "packaging/deb/apparmor/sable"
-        },
-        "postInstallScript": "packaging/deb/postinst",
-        "postRemoveScript": "packaging/deb/postrm",
         "depends": [
           "xwayland",
           "gstreamer1.0-plugins-good",

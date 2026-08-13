@@ -715,6 +715,11 @@ jobs:
           mise run cef:package "$VERSION" \
             src-tauri/target/release/sable "$DISPLAY_NAME"
 
+          DEB="src-tauri/target/release/bundle/deb/Sable-${VERSION}-linux-x86_64.deb"
+          dpkg-deb --contents "$DEB" | grep -q 'etc/apparmor.d/sable$'
+          dpkg-deb --ctrl-tarfile "$DEB" | tar -t | grep -qx './postinst'
+          dpkg-deb --ctrl-tarfile "$DEB" | tar -t | grep -qx './prerm'
+
           RELEASE_DIR="src-tauri/target/release/cef-pkg/release"
           mkdir -p "$RELEASE_DIR"
           cp src-tauri/target/release/sable "$RELEASE_DIR/sable"

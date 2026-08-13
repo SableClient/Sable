@@ -62,8 +62,8 @@ importers:
         specifier: github:SableClient/matrix-rtc#519fe6b863cfac78700f4e2b1748649103bb8a8d
         version: https://codeload.github.com/SableClient/matrix-rtc/tar.gz/519fe6b863cfac78700f4e2b1748649103bb8a8d(livekit-client@2.21.0(@types/dom-mediacapture-record@1.0.22))(matrix-js-sdk@42.0.0)
       '@sableclient/tauri-plugin-livekit-mobile':
-        specifier: github:SableClient/tauri-plugin-livekit-mobile#a1da671f7ef45c3cf1302225fed21ed16613ecc4
-        version: https://codeload.github.com/SableClient/tauri-plugin-livekit-mobile/tar.gz/a1da671f7ef45c3cf1302225fed21ed16613ecc4
+        specifier: github:SableClient/tauri-plugin-livekit-mobile#c6f0d02ab3da1174535bc1dc8e598a2e6873f977
+        version: https://codeload.github.com/SableClient/tauri-plugin-livekit-mobile/tar.gz/c6f0d02ab3da1174535bc1dc8e598a2e6873f977
       '@sableclient/twemoji-font':
         specifier: ^1.0.4
         version: 1.0.4
@@ -2689,8 +2689,8 @@ packages:
   '@sableclient/sable-call-embedded@1.1.8':
     resolution: {integrity: sha512-+95vxaqTxh5gIrIwMX+FWH4n+K82rv/hlVIO/KIhIl2udJ2+r/GESiAElnTXa1bom1+FWrdekNvkCEEuh7m2Jw==}
 
-  '@sableclient/tauri-plugin-livekit-mobile@https://codeload.github.com/SableClient/tauri-plugin-livekit-mobile/tar.gz/a1da671f7ef45c3cf1302225fed21ed16613ecc4':
-    resolution: {tarball: https://codeload.github.com/SableClient/tauri-plugin-livekit-mobile/tar.gz/a1da671f7ef45c3cf1302225fed21ed16613ecc4}
+  '@sableclient/tauri-plugin-livekit-mobile@https://codeload.github.com/SableClient/tauri-plugin-livekit-mobile/tar.gz/c6f0d02ab3da1174535bc1dc8e598a2e6873f977':
+    resolution: {tarball: https://codeload.github.com/SableClient/tauri-plugin-livekit-mobile/tar.gz/c6f0d02ab3da1174535bc1dc8e598a2e6873f977}
     version: 0.2.0
 
   '@sableclient/twemoji-font@1.0.4':
@@ -7855,7 +7855,7 @@ snapshots:
 
   '@sableclient/sable-call-embedded@1.1.8': {}
 
-  '@sableclient/tauri-plugin-livekit-mobile@https://codeload.github.com/SableClient/tauri-plugin-livekit-mobile/tar.gz/a1da671f7ef45c3cf1302225fed21ed16613ecc4':
+  '@sableclient/tauri-plugin-livekit-mobile@https://codeload.github.com/SableClient/tauri-plugin-livekit-mobile/tar.gz/c6f0d02ab3da1174535bc1dc8e598a2e6873f977':
     dependencies:
       '@tauri-apps/api': 2.11.1
 

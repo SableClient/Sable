@@ -55,7 +55,7 @@
     "@noble/hashes": "^2.2.0",
     "@phosphor-icons/react": "^2.1.10",
     "@sableclient/matrixrtc": "github:SableClient/matrix-rtc#519fe6b863cfac78700f4e2b1748649103bb8a8d",
-    "@sableclient/tauri-plugin-livekit-mobile": "github:SableClient/tauri-plugin-livekit-mobile#da2097e5ab6ef9d7519959d21f574db15663f75e",
+    "@sableclient/tauri-plugin-livekit-mobile": "github:SableClient/tauri-plugin-livekit-mobile#4c69de260edf67488920fe3ef23af21abfd6498d",
     "@sableclient/twemoji-font": "^1.0.4",
     "@sentry/react": "^10.63.0",
     "@tanstack/react-query": "^5.101.2",

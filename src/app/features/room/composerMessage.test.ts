@@ -5,6 +5,10 @@ import type { MatrixClient, Room } from '$types/matrix-sdk';
 import { SerializableMap } from '$types/wrapper/SerializableMap';
 import type { MSC4459ImagePackReference } from '$types/matrix/common';
 import type { PerMessageProfileMsc4461 } from '$app/persona';
+import { createStore } from 'jotai';
+import { type Embed, EmbedPreviewType, EmbedStatus } from '$state/bundle.ts';
+import { roomEmbedAtomFamily } from '$state/room/roomInputDrafts.ts';
+import type { Store } from 'jotai/vanilla/store';
 
 const { profiles } = vi.hoisted(() => ({
   profiles: {
@@ -56,6 +60,8 @@ const commandInput = (command: Command, rest = '') => [
   },
 ];
 
+const store: Store = createStore();
+
 const build = (
   input: string | ReturnType<typeof commandInput>,
   overrides: Partial<Parameters<typeof buildOutgoingMessage>[1]> = {}
@@ -77,6 +83,10 @@ const build = (
     latchedPersona: undefined,
     isPKCommand: () => false,
     imagePacksUsed: new SerializableMap<string, MSC4459ImagePackReference>(),
+    embedLinks: [],
+    embedsEnabled: false,
+    generateBundles: false,
+    store: store,
     ...overrides,
   });
 
@@ -198,6 +208,35 @@ describe('buildOutgoingMessage', () => {
       | { matched_url: string }[]
       | undefined;
     expect(previews?.map((preview) => preview.matched_url)).toContain('https://example.com/page');
+  });
+
+  it('generate bundled embeds', async () => {
+    let embedatom = roomEmbedAtomFamily('https://example.com/page');
+
+    let embed: Embed = {
+      url: 'https://example.com/page',
+      status: EmbedStatus.Success,
+      preview: { title: 'Example Title', type: EmbedPreviewType.TitleDescription },
+      data: {
+        'og:title': 'Example Title',
+        'og:type': 'website',
+        'og:url': 'https://example.com/page',
+      },
+    };
+
+    store.set(embedatom, embed);
+
+    const result = await build('see https://example.com/page', {
+      embedLinks: [{ url: 'https://example.com/page' }],
+      embedsEnabled: true,
+      generateBundles: true,
+    });
+    if (result.kind !== 'message') throw new Error('expected a message');
+    const previews = result.content['com.beeper.linkpreviews'] as
+      | { matched_url: string; 'og:title': string }[]
+      | undefined;
+    expect(previews?.map((preview) => preview.matched_url)).toContain('https://example.com/page');
+    expect(previews?.map((preview) => preview['og:title'])).toContain('Example Title');
   });
 
   it('preserves the original per-message profile when editing', () => {

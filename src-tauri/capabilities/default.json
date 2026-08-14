@@ -30,7 +30,7 @@
     "clipboard-manager:allow-write-image",
     {
       "identifier": "http:default",
-      "allow": [{ "url": "https://*" }]
+      "allow": [{ "url": "http://*:*" }, { "url": "https://*" }]
     },
     {
       "identifier": "opener:allow-open-url",

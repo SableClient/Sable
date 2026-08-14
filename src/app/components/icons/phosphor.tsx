@@ -126,6 +126,7 @@ import {
   VideoCameraSlashIcon,
   WarningIcon,
   XIcon,
+  CircleNotchIcon,
 } from '@phosphor-icons/react';
 import type { ComponentType, ReactNode } from 'react';
 import { useLayoutEffect } from 'react';
@@ -436,4 +437,5 @@ export {
   VideoCameraSlashIcon as VideoCameraSlash,
   WarningIcon as Warning,
   XIcon as X,
+  CircleNotchIcon as CircleNotch,
 };

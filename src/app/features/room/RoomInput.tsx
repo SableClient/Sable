@@ -12,28 +12,26 @@ import {
   Suspense,
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
-  useMemo,
 } from 'react';
-import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { useAtom, useAtomValue, useSetAtom, useStore } from 'jotai';
 
 import { isKeyHotkey } from 'is-hotkey';
 import type {
   IContent,
+  IEventRelation,
   MatrixEvent,
   Room,
-  IEventRelation,
   RoomMessageEventContent,
   StickerEventContent,
   TimelineEvents,
 } from '$types/matrix-sdk';
-import { MatrixError } from '$types/matrix-sdk';
-import { EventType, RelationType } from '$types/matrix-sdk';
+import { EventType, MatrixError, RelationType } from '$types/matrix-sdk';
 import { M_POLL_START } from 'matrix-js-sdk';
 import { ReactEditor } from 'slate-react';
 import { Editor, Point, Range, Transforms } from 'slate';
-import type { RectCords } from 'folds';
 import {
   Box,
   color,
@@ -44,15 +42,29 @@ import {
   MenuItem,
   OverlayBackdrop,
   OverlayCenter,
+  type RectCords,
   Scroll,
   Spinner,
+  Switch,
   Text,
   toRem,
 } from 'folds';
 import { Overlay, PopOut } from '$components/overlay-stack';
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import type { AutocompleteQuery } from '$components/editor';
+import {
+  ANYWHERE_AUTOCOMPLETE_PREFIXES,
+  type AutocompleteQuery,
+  BEGINNING_AUTOCOMPLETE_PREFIXES,
+  EmoticonAutocomplete,
+  focusEditor,
+  isEmptyEditor,
+  MarkdownFormattingToolbarBottom,
+  MarkdownFormattingToolbarToggle,
+  moveCursor,
+  replaceWithElement,
+  resetEditorHistory,
+} from '$components/editor';
 import {
   AutocompletePrefix,
   createEmoticonElement,
@@ -66,16 +78,6 @@ import {
   toPlainText,
   trimCustomHtml,
   UserMentionAutocomplete,
-  EmoticonAutocomplete,
-  moveCursor,
-  resetEditorHistory,
-  isEmptyEditor,
-  ANYWHERE_AUTOCOMPLETE_PREFIXES,
-  BEGINNING_AUTOCOMPLETE_PREFIXES,
-  MarkdownFormattingToolbarBottom,
-  MarkdownFormattingToolbarToggle,
-  focusEditor,
-  replaceWithElement,
 } from '$components/editor';
 import { stripMarkdownEscapesForHiddenPreviews } from './message/hiddenLinkPreviews';
 import { plainToEditorInput } from '$components/editor/input';
@@ -94,18 +96,25 @@ import { useTypingStatusUpdater } from '$hooks/useTypingStatusUpdater';
 import { useFilePicker } from '$hooks/useFilePicker';
 import { useFilePasteHandler } from '$hooks/useFilePasteHandler';
 import { useFileDropZone } from '$hooks/useFileDrop';
-import type { TUploadItem, TUploadMetadata, IReplyDraft } from '$state/room/roomInputDrafts';
 import {
+  roomEmbedAtomFamily,
+  roomIdToEmbeddItemsAtomFamily,
   roomIdToMsgDraftAtomFamily,
   roomIdToReplyDraftAtomFamily,
   roomIdToUploadItemsAtomFamily,
   roomUploadAtomFamily,
 } from '$state/room/roomInputDrafts';
-import { UploadCardRenderer } from '$components/upload-card';
+import type {
+  IReplyDraft,
+  TEmbeddItem,
+  TUploadItem,
+  TUploadMetadata,
+} from '$state/room/roomInputDrafts';
+import { EmbedCardRenderer, UploadCard, UploadCardRenderer } from '$components/upload-card';
 import type { UploadBoardImperativeHandlers } from '$components/upload-board';
 import { UploadBoard, UploadBoardContent, UploadBoardHeader } from '$components/upload-board';
 import type { Upload, UploadSuccess } from '$state/upload';
-import { UploadStatus, createUploadFamilyObserverAtom } from '$state/upload';
+import { createUploadFamilyObserverAtom, UploadStatus } from '$state/upload';
 import { loadImageElementFromMediaUrl } from '$utils/dom';
 import { isImageMimeType, safeUploadFile } from '$utils/mimeTypes';
 import { useSetting } from '$state/hooks/settings';
@@ -130,8 +139,8 @@ import * as Sentry from '@sentry/react';
 import {
   delayedEventsSupportedAtom,
   getScheduledMessageStateKey,
-  roomIdToScheduledTimeAtomFamily,
   roomIdToEditingScheduledDelayIdAtomFamily,
+  roomIdToScheduledTimeAtomFamily,
   serverMaxDelayMsAtom,
 } from '$state/scheduledMessages';
 import {
@@ -162,6 +171,7 @@ import {
   composerIcon,
   dropzoneIcon,
   File as FileIcon,
+  getPhosphorIconSize,
   Gif,
   ListBullets,
   MapPinPlusIcon,
@@ -169,8 +179,8 @@ import {
   Microphone,
   PaperPlaneTilt,
   PencilSimple,
-  getPhosphorIconSize,
   PlusCircle,
+  sizedIcon,
   Smiley,
   Sticker,
   Stop,
@@ -179,6 +189,7 @@ import {
 import { getSupportedAudioExtension } from '$plugins/voice-recorder-kit/supportedCodec';
 import { ErrorCode } from '../../cs-errorcode';
 import { PKitCommandMessageHandler } from '$plugins/pluralkit-handler/PKitCommandMessageHandler';
+
 import type { IGenericMSC4459, MSC4459ImagePackReference } from '$types/matrix/common';
 import {
   getImagePackReferencesForMxc,
@@ -194,14 +205,15 @@ import { MobileSwipeDownModal } from '$components/MobileSwipeDownModal';
 import { SchedulePickerDialog } from './schedule-send';
 import * as css from './schedule-send/SchedulePickerDialog.css';
 import {
+  buildGalleryContent,
   getAudioMsgContent,
   getFileMsgContent,
+  getGalleryItemContent,
+  getGifMsgContent,
   getImageMsgContent,
   getVideoMsgContent,
-  getGifMsgContent,
-  buildGalleryContent,
-  getGalleryItemContent,
 } from './msgContent';
+
 import { getSendableKlipyMxcUrl } from '$utils/klipy';
 import { CommandAutocomplete } from './CommandAutocomplete';
 import type {
@@ -216,7 +228,6 @@ import { PersonaPicker, type PersonaPickerTab } from './persona-picker/PersonaPi
 import { createComposerController, type ComposerController } from './composerController';
 import { buildEditReplacement, buildOutgoingMessage } from './composerMessage';
 import { pickNativeFile } from './nativeFilePicker';
-
 const LocationDialog = lazy(() =>
   import('./location-modal').then((module) => ({ default: module.LocationDialog }))
 );
@@ -387,6 +398,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const replyDraftRef = useRef(replyDraft);
     replyDraftRef.current = replyDraft;
 
+    const [embedLinks, setEmbedLinks] = useAtom(roomIdToEmbeddItemsAtomFamily(roomId));
+    const [embedsEnabled, setEmbedsEnabled] = useState(false);
+    const store = useStore();
     const [uploadBoard, setUploadBoard] = useState(true);
     const [uploadSending, setUploadSending] = useState(false);
     const [uploadBusy, setUploadBusy] = useState(false);
@@ -666,8 +680,56 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       setAutocompleteQuery(query);
     }, [editor]);
 
+    const [generateBundles] = useSetting(settingsAtom, 'generateBundles');
+    const [encryptBundledMedia] = useSetting(settingsAtom, 'encryptBundledMedia');
+
+    const checkForEmbedables = useCallback(
+      (text: string) => {
+        if (!generateBundles) {
+          return;
+        }
+        //from https://regex101.com/r/3fYy3x/1
+        const URL_REGEX = RegExp(
+          /http[s]?:\/\/.(?:www\.)?[-a-zA-Z0-9@%._+~#=]{2,256}\.[a-z]{2,10}\b(?:[-a-zA-Z0-9@:%_+.~#?&/=]*)/gm
+        );
+        const urls = Array.from(
+          text
+            .matchAll(URL_REGEX)
+            //dont include the url if its in angled braces  like <https://example.org> cant do this in regex because braces are context free (yay computer science)
+            .filter(
+              (e) =>
+                !(e.index > 0 && text[e.index - 1] == '<' && text[e.index + e[0].length] == '>')
+            )
+            .map((e) => e[0])
+        );
+        if (urls.length > 0) {
+          setUploadBoard(true);
+
+          const embedItems = urls.map(
+            (url): TEmbeddItem => ({
+              url: url,
+            })
+          );
+          setEmbedLinks({
+            type: 'CLEAR',
+          });
+          setEmbedLinks({
+            type: 'PUT',
+            item: embedItems,
+          });
+        } else {
+          setEmbedLinks({
+            type: 'CLEAR',
+          });
+          setEmbedsEnabled(false);
+        }
+      },
+      [setEmbedLinks, generateBundles]
+    );
+
     const handleEditorChange = useCallback(() => {
       setHasText(!isEmptyEditor(editor));
+      checkForEmbedables(Editor.string(editor, []));
       detectAutocomplete();
       if (!room.hasEncryptionStateEvent()) return;
 
@@ -676,7 +738,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
       lastEncryptionPreparationAt.current = now;
       mx.getCrypto()?.prepareToEncrypt(room);
-    }, [editor, detectAutocomplete, mx, room]);
+    }, [editor, detectAutocomplete, mx, room, checkForEmbedables]);
     const hasContent = hasText || selectedFiles.length > 0;
 
     const isComposing = useComposingCheck();
@@ -1487,6 +1549,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           }
           if (selectedFiles.length > 0) {
             const uploads = uploadBoardHandlers.current?.getSendableUploads() ?? [];
+
             const sendUpload = handleSendUploadRef.current;
             setUploadSending(true);
             try {
@@ -1502,7 +1565,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               if (isLive()) setUploadSending(false);
             }
           }
-
           const outgoing = await buildOutgoingMessage(submission.children, {
             mx,
             room,
@@ -1520,9 +1582,20 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
             latchedPersona,
             isPKCommand: (text) => PKitCommandMessageHandler.isPKCommand(text),
             imagePacksUsed: imagePacksUsedRef.current,
+            embedLinks,
+            embedsEnabled,
+            generateBundles,
+            store,
           });
 
           if (outgoing.kind === 'empty') return;
+          if (outgoing.kind === 'failed') {
+            if (isLive()) {
+              setSendError(outgoing.reason);
+            }
+            restoreSubmission(submission);
+            return;
+          }
           if (outgoing.kind === 'quickReact') {
             handleQuickReact(outgoing.key);
             return;
@@ -1711,6 +1784,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         pmpLatchingEnable,
         pmpNoFallback,
         latchedPersona,
+        embedsEnabled,
+        store,
+        generateBundles,
+        embedLinks,
       ]
     );
 
@@ -1840,6 +1917,13 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       },
       [editor, sendTypingStatus, hideActivity, detectAutocomplete]
     );
+
+    const handleEmbedsToggle = (state: boolean) => {
+      setEmbedsEnabled(state);
+      for (const param of roomEmbedAtomFamily.getParams()) {
+        roomEmbedAtomFamily.remove(param);
+      }
+    };
 
     const handleEmoticonSelect = (key: string, shortcode: string) => {
       const emoticonEl = createEmoticonElement(key, shortcode);
@@ -2043,7 +2127,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           forceMultilineLayout={showAudioRecorder}
           top={
             <>
-              {selectedFiles.length > 0 && (
+              {(selectedFiles.length > 0 || (embedLinks.length > 0 && generateBundles)) && (
                 <UploadBoard
                   header={
                     <UploadBoardHeader
@@ -2079,6 +2163,63 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                               hideCaption={
                                 selectedFiles.length == 1 && sendIndividualAttachmentAsCaption
                               }
+                            />
+                          ))}
+
+                        {embedLinks.length > 0 && generateBundles && (
+                          <>
+                            {selectedFiles.length > 0 && (
+                              <Box style={{ borderLeft: '1px solid currentColor' }} />
+                            )}
+                            <UploadCard
+                              key="embed_toggle"
+                              radii="300"
+                              compact
+                              style={{ maxWidth: toRem(400), flexShrink: 0 }}
+                              before={<></>}
+                              after={
+                                //fake close button to keep box size
+                                <div style={{ visibility: 'hidden' }}>
+                                  <IconButton
+                                    aria-label="Cancel Upload"
+                                    variant="SurfaceVariant"
+                                    radii="Pill"
+                                    size="300"
+                                  >
+                                    {sizedIcon(X, '200')}
+                                  </IconButton>
+                                </div>
+                              }
+                              bottom={
+                                <>
+                                  <Box
+                                    wrap="Wrap"
+                                    alignItems={'Center'}
+                                    direction="Column"
+                                    gap={'200'}
+                                  >
+                                    <Text>
+                                      Bundled <br /> Embeds
+                                    </Text>
+
+                                    <Switch value={embedsEnabled} onChange={handleEmbedsToggle} />
+                                  </Box>
+                                </>
+                              }
+                            >
+                              <Text size="H6" truncate style={{ minWidth: 0, flexGrow: 1 }}>
+                                {'Links found'}
+                              </Text>
+                            </UploadCard>
+                          </>
+                        )}
+                        {embedsEnabled &&
+                          Array.from(embedLinks).map((link) => (
+                            <EmbedCardRenderer
+                              key={link.url}
+                              url={link.url}
+                              encrypt={room.hasEncryptionStateEvent() && encryptBundledMedia}
+                              successCallback={() => {}}
                             />
                           ))}
                       </UploadBoardContent>

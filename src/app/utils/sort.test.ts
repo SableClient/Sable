@@ -25,6 +25,7 @@ function makeClient(
         name: r.name,
         getLastActiveTimestamp: () => r.ts,
         getBumpStamp: () => r.bumpStamp,
+        getLiveTimeline: () => ({ getEvents: () => [] }),
       } as unknown as ReturnType<MatrixClient['getRoom']>;
     },
   } as unknown as MatrixClient;
@@ -71,15 +72,6 @@ describe('factoryRoomIdByActivity', () => {
     const mx = makeClient({ '!known:h': { name: 'Known', ts: 1000 } });
     const sort = factoryRoomIdByActivity(mx);
     expect(['!unknown:h', '!known:h'].toSorted(sort)).toEqual(['!known:h', '!unknown:h']);
-  });
-
-  it('uses sliding-sync bump stamps when no timeline event is loaded', () => {
-    const mx = makeClient({
-      '!old:h': { name: 'Old', ts: Number.MIN_SAFE_INTEGER, bumpStamp: 1000 },
-      '!new:h': { name: 'New', ts: Number.MIN_SAFE_INTEGER, bumpStamp: 9000 },
-    });
-    const sort = factoryRoomIdByActivity(mx);
-    expect(['!old:h', '!new:h'].toSorted(sort)).toEqual(['!new:h', '!old:h']);
   });
 });
 

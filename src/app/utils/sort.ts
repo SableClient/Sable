@@ -1,14 +1,25 @@
-import type { MatrixClient } from '$types/matrix-sdk';
+import type { MatrixClient, Room } from '$types/matrix-sdk';
+import { isNotificationEvent } from '$utils/room/unread';
 
 export type SortFunc<T> = (a: T, b: T) => number;
+
+const getLastActivityTs = (room: Room): number | undefined => {
+  const events = room.getLiveTimeline().getEvents();
+  for (let i = events.length - 1; i >= 0; i--) {
+    const mEvent = events[i];
+    if (mEvent && isNotificationEvent(mEvent)) {
+      return mEvent.getTs();
+    }
+  }
+  return undefined;
+};
 
 const getRoomActivity = (mx: MatrixClient, roomId: string): number => {
   const room = mx.getRoom(roomId);
   if (!room) return Number.MIN_SAFE_INTEGER;
-  const timelineTimestamp = room.getLastActiveTimestamp();
-  return timelineTimestamp === Number.MIN_SAFE_INTEGER
-    ? (room.getBumpStamp() ?? Number.MIN_SAFE_INTEGER)
-    : timelineTimestamp;
+  const activityTs = getLastActivityTs(room);
+  if (activityTs !== undefined) return activityTs;
+  return room.getLastActiveTimestamp();
 };
 
 export const factoryRoomIdByActivity =

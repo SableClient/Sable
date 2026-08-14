@@ -960,6 +960,7 @@ export function RoomTimeline({
       const prev = prevViewportHeightRef.current;
       const shrank = newHeight < prev;
       prevViewportHeightRef.current = newHeight;
+      let rePinned = false;
       if (scrollOwnerRef.current === 'live' && atBottomRef.current && shrank) {
         // The atBottom flag lags real scroll position by up to 100px, so a user
         // who has begun scrolling up is still flagged while a growing composer
@@ -970,10 +971,10 @@ export function RoomTimeline({
         if (wasPinned) {
           // Geometry is still pre-scroll here; the repin's own scroll event resyncs.
           scrollToBottom();
-          return;
+          rePinned = true;
         }
       }
-      syncAtBottom();
+      if (!rePinned) syncAtBottom();
     });
 
     observer.observe(el);

@@ -98,23 +98,58 @@ const matchLinkSpan = (text: string): InlineMatch | null => {
   };
 };
 
-const matchInlineSpan = (text: string): InlineMatch | null => {
+// CommonMark's underscore rule: `_` only opens/closes emphasis when flanked by
+// whitespace or punctuation, so `1_test_1` stays literal while `_bar_`
+// emphasises. `*` has no such restriction (`foo*bar*baz` emphasises `bar`).
+// Line/paragraph edges count as whitespace, like the reference implementations.
+const isWhitespace = (ch: string): boolean => /\s/.test(ch);
+const isPunctuation = (ch: string): boolean => /[\p{P}]/u.test(ch);
+const charBefore = (text: string, idx: number): string => text[idx - 1] ?? '\n';
+const charAfter = (text: string, idx: number, length: number): string => text[idx + length] ?? '\n';
+
+const canOpenUnderscore = (text: string, idx: number, length: number): boolean => {
+  const before = charBefore(text, idx);
+  const after = charAfter(text, idx, length);
+  const leftFlanking =
+    !isWhitespace(after) &&
+    (!isPunctuation(after) || isWhitespace(before) || isPunctuation(before));
+  return leftFlanking && (isWhitespace(before) || isPunctuation(before) || isPunctuation(after));
+};
+
+const canCloseUnderscore = (text: string, idx: number, length: number): boolean => {
+  const before = charBefore(text, idx);
+  const after = charAfter(text, idx, length);
+  const rightFlanking =
+    !isWhitespace(before) &&
+    (!isPunctuation(before) || isWhitespace(after) || isPunctuation(after));
+  return rightFlanking && (isWhitespace(after) || isPunctuation(after) || isPunctuation(before));
+};
+
+const matchInlineSpan = (text: string, from: number, to: number): InlineMatch | null => {
+  const rest = text.slice(from, to);
   for (const span of INLINE_SPANS) {
-    if (!text.startsWith(span.open)) continue;
-    let closeIdx = text.indexOf(span.close, span.open.length);
-    while (closeIdx >= 0 && isEscaped(text, closeIdx)) {
+    if (!rest.startsWith(span.open)) continue;
+    const isUnderscoreDelimiter = span.open[0] === '_';
+    if (isUnderscoreDelimiter && !canOpenUnderscore(text, from, span.open.length)) continue;
+    let closeIdx = text.indexOf(span.close, from + span.open.length);
+    const isCloser = (idx: number): boolean =>
+      !isEscaped(text, idx) &&
+      (!isUnderscoreDelimiter || canCloseUnderscore(text, idx, span.close.length));
+    while (closeIdx >= 0 && closeIdx < to && !isCloser(closeIdx)) {
       closeIdx = text.indexOf(span.close, closeIdx + 1);
     }
-    if (closeIdx <= span.open.length) continue;
-    const content = text.slice(span.open.length, closeIdx);
+    if (closeIdx < 0 || closeIdx >= to) continue;
+    const relClose = closeIdx - from;
+    if (relClose <= span.open.length) continue;
+    const content = text.slice(from + span.open.length, closeIdx);
     if (!content.trim()) continue;
     return {
       contentStart: span.open.length,
-      contentEnd: closeIdx,
+      contentEnd: relClose,
       inner: span.inner,
       // Code spans are literal: markers inside them are not formatting.
       recurse: !span.inner.markdownCode,
-      totalLength: closeIdx + span.close.length,
+      totalLength: relClose + span.close.length,
     };
   }
   return null;
@@ -168,7 +203,7 @@ const scanInline = (
     const match =
       matchLinkSpan(rest) ??
       (marks.markdownLink ? null : matchBareUrl(rest)) ??
-      matchInlineSpan(rest);
+      matchInlineSpan(text, i, to);
     if (!match) {
       // A backslash keeps the next character literal.
       if (text[i] === '\\' && i + 1 < to) {

@@ -158,6 +158,43 @@ describe('tokenizeMarkdown', () => {
     expect(italic?.end).toBe(7);
   });
 
+  it('keeps intraword underscores literal like the sent renderer', () => {
+    expect(tokenizeMarkdown('1_test_1').some((t) => t.markdownItalic)).toBe(false);
+    expect(tokenizeMarkdown('foo_bar_baz').some((t) => t.markdownItalic)).toBe(false);
+    expect(tokenizeMarkdown('x_foo_y_').some((t) => t.markdownItalic)).toBe(false);
+    expect(tokenizeMarkdown('a_b_').some((t) => t.markdownItalic)).toBe(false);
+    expect(tokenizeMarkdown('_ foo_').some((t) => t.markdownItalic)).toBe(false);
+    expect(tokenizeMarkdown('foo_.bar_').some((t) => t.markdownItalic)).toBe(false);
+  });
+
+  it('skips an intraword underscore when looking for the closer', () => {
+    const tokens = tokenizeMarkdown('_foo_bar_');
+    const italics = tokens.filter((t) => t.markdownItalic);
+    expect(italics.map((t) => t.start)).toEqual([1, 4]);
+    expect(italics.map((t) => t.end)).toEqual([4, 8]);
+  });
+
+  it('applies the flanking rule to strong underscores too', () => {
+    const tokens = tokenizeMarkdown('__bar__');
+    expect(tokens.some((t) => t.markdownUnderline)).toBe(true);
+    expect(tokenizeMarkdown('foo__bar__baz').some((t) => t.markdownUnderline)).toBe(false);
+  });
+
+  it('applies intraword emphasis to asterisks but not underscores', () => {
+    const tokens = tokenizeMarkdown('foo*bar*baz');
+    const italic = findToken(tokens, (t) => t.markdownItalic);
+    expect(italic?.start).toBe(4);
+    expect(italic?.end).toBe(7);
+    expect(tokenizeMarkdown('foo_bar_baz').some((t) => t.markdownItalic)).toBe(false);
+  });
+
+  it('opens an underscore after punctuation like the sent renderer', () => {
+    const tokens = tokenizeMarkdown('foo_._bar_');
+    const italic = findToken(tokens, (t) => t.markdownItalic);
+    expect(italic?.start).toBe(6);
+    expect(italic?.end).toBe(9);
+  });
+
   it('treats code spans as literal so markers inside do not style', () => {
     const tokens = tokenizeMarkdown('`**x**`');
     const code = findToken(tokens, (t) => t.markdownCode);

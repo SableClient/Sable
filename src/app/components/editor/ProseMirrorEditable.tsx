@@ -6,9 +6,9 @@ import type { ProseMirrorEditorController } from './prosemirrorController';
 const hostConsumedEvents = new WeakSet<Event>();
 
 /** Hosts mark keydowns they fully handled (e.g. sending on Enter) so the
-    editable won't also act on them. The view preventDefaults every Enter
-    (captureKeyDown in prosemirror-view), so defaultPrevented is not a
-    reliable host-consumption signal. */
+ * editable won't also act on them. The view preventDefaults every Enter
+ * (captureKeyDown in prosemirror-view), so defaultPrevented is not a
+ * reliable host-consumption signal. */
 export const markEventConsumedByHost = (event: Event): void => {
   hostConsumedEvents.add(event);
 };

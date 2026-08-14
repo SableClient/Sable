@@ -400,8 +400,8 @@ const inFlightHighlights = new Set<string>();
 let previewDispatch: (() => void) | null = null;
 
 /** The composer has no view handle inside the decoration pass, so the controller
-    hands the plugin a callback that dispatches an empty transaction (re-running
-    decorations) once queued syntax highlighting resolves. */
+ * hands the plugin a callback that dispatches an empty transaction (re-running
+ * decorations) once queued syntax highlighting resolves. */
 export const setMarkdownPreviewDispatch = (dispatch: (() => void) | null): void => {
   previewDispatch = dispatch;
 };
@@ -524,8 +524,8 @@ const decorateCodeLine = (
 };
 
 /** The composer stores one line per paragraph (insertNewline splits the block),
-    so fenced code blocks span several paragraphs. Walk them in order and track
-    whether the current paragraph is inside a fence. */
+ * so fenced code blocks span several paragraphs. Walk them in order and track
+ * whether the current paragraph is inside a fence. */
 export const markdownDecorations = (state: EditorState): DecorationSet => {
   const decorations: Decoration[] = [];
   const pending: Array<{ lang: string | null; line: string }> = [];

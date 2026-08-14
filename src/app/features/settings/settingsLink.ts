@@ -76,6 +76,7 @@ export const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly s
     'custom-call-ringtone',
     'custom-call-ringback',
     'composer-button-order',
+    'composer-markdown-preview',
     'show-emoji-button',
     'show-gif-button',
     'show-sticker-button',

@@ -194,6 +194,5 @@ export const EditorMarkdownSpoiler = style({
 
 export const EditorMarkdownPreviewContent = style({
   maxHeight: toRem(220),
-  overflowY: 'auto',
   overscrollBehavior: 'contain',
 });

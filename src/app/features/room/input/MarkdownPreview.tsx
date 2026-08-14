@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { Box, Text, config } from 'folds';
+import { Box, Scroll, Text, config } from 'folds';
 import type { Room } from '$types/matrix-sdk';
 import { EventType, MatrixEvent } from '$types/matrix-sdk';
 import { useRoomMessagePreviewRenderer } from '$components/message-preview';
@@ -34,13 +34,16 @@ export function MarkdownPreview({ room, markdown }: MarkdownPreviewProps) {
       <Text size="L400" priority="300">
         Preview
       </Text>
-      <Box
-        direction="Column"
+      <Scroll
         className={editorCss.EditorMarkdownPreviewContent}
+        variant="SurfaceVariant"
+        size="300"
+        visibility="Always"
+        hideTrack
         style={{ minWidth: 0 }}
       >
         {renderContent(EventType.RoomMessage, false, event, '', () => event.getContent())}
-      </Box>
+      </Scroll>
     </Box>
   );
 }

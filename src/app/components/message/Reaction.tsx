@@ -64,9 +64,11 @@ export const Reaction = as<
           </Text>
         )}
       </Text>
-      <Text as="span" size="T300">
-        {count}
-      </Text>
+      {count > 1 && (
+        <Text as="span" size="T300">
+          {count}
+        </Text>
+      )}
     </Box>
   );
 });

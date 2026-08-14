@@ -456,9 +456,15 @@ describe('RoomTimeline content ResizeObserver', () => {
     await settleInitialScroll();
     vListHandle.scrollToIndex.mockClear();
 
+    // Pinned: the view ends exactly at the content bottom (1000 - 400 - 600 = 0).
+    vListHandle.scrollOffset = 400;
+    act(() => lastOnScroll?.(400));
+
+    // A growing composer shrinks the timeline viewport (600 -> 578).
     const timeline = container.querySelector('[data-testid="timeline"]');
     expect(timeline).toBeTruthy();
-    act(() => fireResize(timeline!));
+    act(() => fireResize(timeline!, 600));
+    act(() => fireResize(timeline!, 578));
 
     expect(vListHandle.scrollToIndex).toHaveBeenCalledWith(
       0,

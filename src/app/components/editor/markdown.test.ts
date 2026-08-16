@@ -276,6 +276,19 @@ describe('tokenizeMarkdown', () => {
     expect(link?.url).toBe('https://x.com');
   });
 
+  it('keeps underscores inside bare URLs', () => {
+    const tokens = tokenizeMarkdown('https://example.com/foo_bar_baz');
+    const link = findToken(tokens, (t) => t.markdownLink);
+    expectRange(link, 0, 31);
+    expect(link?.url).toBe('https://example.com/foo_bar_baz');
+  });
+
+  it('trims trailing punctuation from a bare URL with an underscore', () => {
+    const link = findToken(tokenizeMarkdown('https://x.com/a_b,'), (t) => t.markdownLink);
+    expectRange(link, 0, 17);
+    expect(link?.url).toBe('https://x.com/a_b');
+  });
+
   it('trims trailing punctuation from bare URLs', () => {
     const link = findToken(tokenizeMarkdown('https://x.com.'), (t) => t.markdownLink);
     expectRange(link, 0, 13);

@@ -161,8 +161,10 @@ const matchInlineSpan = (text: string, from: number, to: number): InlineMatch | 
 };
 
 // Bare URLs (schemes Sable linkifies when sending) get the same link styling as
-// [label](url). A non-word boundary keeps `abchttps://x` from matching mid-word.
-const BARE_URL_RE = /(?<![\w.])(?:https?|ftp|mailto|magnet|matrix):\/?\/?[^\s()[\]{}<>`|*_~]+/i;
+// [label](url); a non-word boundary keeps `abchttps://x` from matching mid-word.
+// `_` is kept because it's a legal URL path character (the sent renderer links
+// `https://x.com/foo_bar` whole).
+const BARE_URL_RE = /(?<![\w.])(?:https?|ftp|mailto|magnet|matrix):\/?\/?[^\s()[\]{}<>`|*~]+/i;
 
 const matchBareUrl = (text: string): InlineMatch | null => {
   const match = BARE_URL_RE.exec(text);

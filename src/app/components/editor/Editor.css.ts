@@ -125,6 +125,12 @@ export const EditorMarkdownToken = style({
   opacity: 0.4,
 });
 
+// Matches the dimmed block markers and the sent renderer's <hr> border.
+export const EditorMarkdownDivider = style({
+  opacity: 0.4,
+  borderBottom: `${config.borderWidth.B300} solid ${color.SurfaceVariant.ContainerLine}`,
+});
+
 export const EditorMarkdownItalic = style({
   fontStyle: 'italic',
 });

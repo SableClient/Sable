@@ -596,4 +596,41 @@ describe('markdownPreviewPlugin decorations', () => {
     view.destroy();
     setMarkdownPreviewDispatch(null);
   });
+
+  describe('thematic breaks', () => {
+    it('turns a standalone --- line into a divider block decoration', () => {
+      expect(decorationFinder(['---'])).toHaveLength(1);
+    });
+
+    it('recognizes ***, ___, and spaced marker runs as dividers', () => {
+      for (const line of ['***', '___', '- - -']) {
+        expect(decorationFinder([line])).toHaveLength(1);
+      }
+    });
+
+    it('does not treat mixed or suffixed marker runs as dividers', () => {
+      for (const line of ['*-*', '---x', '--']) {
+        const { container, view } = renderEditor([line]);
+        const p = container.querySelector('p');
+        expect(p?.className.includes(editorCss.EditorMarkdownDivider)).toBe(false);
+        view.destroy();
+      }
+    });
+
+    it('leaves --- inside a code fence literal', () => {
+      const { container, view } = renderEditor(['```', '---', '```']);
+      const ps = Array.from(container.querySelectorAll('p'));
+      expect(ps[1]?.className.includes(editorCss.EditorMarkdownDivider)).toBe(false);
+      expect(decorationSpan(container, editorCss.EditorMarkdownCodeBlock)?.textContent).toBe('---');
+      view.destroy();
+    });
+
+    it('styles the divider paragraph in the DOM', () => {
+      const { container, view } = renderEditor(['text', '---']);
+      const ps = Array.from(container.querySelectorAll('p'));
+      expect(ps[1]?.className.includes(editorCss.EditorMarkdownDivider)).toBe(true);
+      expect(ps[0]?.className.includes(editorCss.EditorMarkdownDivider)).toBe(false);
+      view.destroy();
+    });
+  });
 });

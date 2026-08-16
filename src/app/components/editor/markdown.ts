@@ -39,6 +39,11 @@ const BLOCK_PREFIX_PATTERNS: ReadonlyArray<{ re: RegExp; heading: boolean }> = [
   { re: /^\d+\.\s/, heading: false },
 ];
 
+// A `---`/`***`/`___` line is a divider (marked renders it as an <hr>). We
+// never read `text\n---` as a setext h2, so typing a separator can't re-style
+// the line above.
+const THEMATIC_BREAK_RE = /^[ \t]{0,3}([-*_])(?:[ \t]*\1){2,}[ \t]*$/;
+
 const matchBlockPrefix = (line: string): { length: number; headingLevel: number } | null => {
   for (const { re, heading } of BLOCK_PREFIX_PATTERNS) {
     const match = line.match(re);
@@ -552,6 +557,10 @@ export const markdownDecorations = (state: EditorState): DecorationSet => {
         }
       } else if (inCode) {
         decorateCodeLine(children, currentLang, line, decorations, pending);
+      } else if (THEMATIC_BREAK_RE.test(line)) {
+        decorations.push(
+          Decoration.node(pos, pos + node.nodeSize, { class: css.EditorMarkdownDivider })
+        );
       } else {
         lineTokensToDecorations(children, tokenizeLine(line, true), decorations);
       }

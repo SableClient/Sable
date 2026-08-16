@@ -151,6 +151,7 @@ export const EditorMarkdownCode = style([
   DefaultReset,
   {
     fontFamily: 'var(--font-monospace)',
+    fontSize: '0.9em',
     color: color.SurfaceVariant.OnContainer,
     background: color.SurfaceVariant.Container,
     border: `${config.borderWidth.B300} solid ${color.SurfaceVariant.ContainerLine}`,

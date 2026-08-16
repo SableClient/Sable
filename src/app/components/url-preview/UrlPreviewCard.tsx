@@ -17,7 +17,11 @@ import { ImageViewer } from '../image-viewer';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import type { IImageInfo } from '$types/matrix/common';
-import { MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME } from '$unstable/prefixes';
+import {
+  MATRIX_BUNDLED_EMBEDS_ENCRYPTED_PROPERTY_NAME,
+  MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME,
+} from '$unstable/prefixes';
+import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 
 const linkStyles = { color: color.Success.Main };
 
@@ -99,21 +103,43 @@ export const UrlPreviewCard = as<
   const [linkPreviewImageMaxHeight] = useSetting(settingsAtom, 'linkPreviewImageMaxHeight');
   const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
 
+  type PreviewRenderProps = {
+    bundle: IPreviewUrlResponse;
+    encdata?: EncryptedAttachmentInfo & {
+      url: string;
+    };
+  };
+
   const [previewStatus, loadPreview] = useAsyncCallback(
-    useCallback(() => {
-      if (!ts && !bundle) return Promise.resolve(null);
+    useCallback(async (): Promise<PreviewRenderProps | null | undefined> => {
+      if (!ts && !bundle) return null;
       if (urlPreview && ts) {
         const clientCache = getClientCache(mx);
         const cached = clientCache.get(url);
-        if (cached !== undefined) return cached;
+        if (cached !== undefined) return { bundle: await cached };
         const previewResult = mx?.getUrlPreview(url, ts);
-        if (!previewResult) return Promise.resolve(null);
+        if (!previewResult) return null;
         clientCache.set(url, previewResult);
         previewResult.finally(() => clientCache.delete(url)).catch(() => {});
-        return previewResult;
+        return { bundle: await previewResult };
       }
-      return Promise.resolve(bundle);
-    }, [ts, bundle, urlPreview, mx, url])
+      if (bundle && bundle[MATRIX_BUNDLED_EMBEDS_ENCRYPTED_PROPERTY_NAME]) {
+        let encinfo = bundle[
+          MATRIX_BUNDLED_EMBEDS_ENCRYPTED_PROPERTY_NAME
+        ] as unknown as EncryptedAttachmentInfo & {
+          url: string;
+        };
+        const encryptedUrl = mxcUrlToHttp(mx, encinfo['url'] || '', useAuthentication);
+        if (!encryptedUrl) return { bundle: bundle };
+        try {
+          return { bundle: bundle, encdata: encinfo };
+        } catch (e) {
+          console.error(e);
+          return bundle ? { bundle: bundle } : null;
+        }
+      }
+      return bundle ? { bundle: bundle } : null;
+    }, [ts, bundle, urlPreview, mx, url, useAuthentication])
   );
 
   useEffect(() => {
@@ -124,11 +150,13 @@ export const UrlPreviewCard = as<
 
   if (previewStatus.status === AsyncStatus.Error) return null;
 
-  const renderContent = (prev: IPreviewUrlResponse) => {
+  const renderContent = (renderProps: PreviewRenderProps) => {
+    let prev = renderProps.bundle;
     const siteName = prev['og:site_name'];
     const title = prev['og:title'];
     const description = prev['og:description'];
-    const imgUrl = mxcUrlToHttp(
+
+    let imgUrl = mxcUrlToHttp(
       mx,
       prev['og:image'] || '',
       useAuthentication,
@@ -137,6 +165,7 @@ export const UrlPreviewCard = as<
       'scale',
       false
     );
+
     const handleAuxClick = (ev: React.MouseEvent) => {
       if (!prev['og:image']) {
         console.warn('No image');
@@ -273,64 +302,68 @@ export const UrlPreviewCard = as<
             />
           </Box>
         )}
-        {!showOgVideo && prev['og:image'] && (
-          <Box
-            shrink="No"
-            className={urlPreviewChrome.UrlPreviewMediaWell}
-            style={{
-              width: '100%',
-              maxHeight: toRem(linkPreviewImageMaxHeight),
-              aspectRatio: aspectRatio ?? '16 / 9',
-              flexShrink: 1,
-              minHeight: 0,
-              overflow: 'hidden',
-              position: 'relative',
-            }}
-          >
-            <ImageContent
+        {!showOgVideo &&
+          (prev['og:image:type'] || prev['og:image'] || prev['matrix:image:size']) && (
+            <Box
+              shrink="No"
+              className={urlPreviewChrome.UrlPreviewMediaWell}
               style={{
-                position: 'absolute',
-                inset: 0,
                 width: '100%',
-                height: '100%',
+                maxHeight: toRem(linkPreviewImageMaxHeight),
+                aspectRatio: aspectRatio ?? '16 / 9',
+                flexShrink: 1,
+                minHeight: 0,
+                overflow: 'hidden',
+                position: 'relative',
               }}
-              mediaLayout="contained"
-              fillsPreviewSlot
-              autoPlay={mediaAutoLoad}
-              onAuxClick={handleAuxClick}
-              body={prev['og:title']}
-              url={prev['og:image']}
-              info={ogImageInfo}
-              matrixThumbnailMaxEdge={previewThumbMaxEdge}
-              renderViewer={(p) => <ImageViewer {...p} />}
-              renderImage={(p) => (
-                <Image
-                  info={ogImageInfo}
-                  {...p}
-                  style={{
-                    display: 'block',
-                    maxWidth: '100%',
-                    maxHeight: '100%',
-                    width: 'auto',
-                    height: 'auto',
-                    objectFit: 'contain',
-                    objectPosition: 'center',
-                  }}
-                />
-              )}
-            />
-          </Box>
-        )}
-        {!showOgVideo && !prev['og:image'] && prev['og:audio'] && (
-          <Box className={css.UrlPreviewAudio} style={{ flexShrink: 0 }}>
-            <AudioContent
-              url={(prev['og:audio'] as string) ?? ''}
-              mimeType={(prev['og:audio:type'] as string) ?? ''}
-              info={{}}
-              renderMediaControl={(p) => <MediaControl {...p} />}
-            />
-          </Box>
-        )}
+            >
+              <ImageContent
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  width: '100%',
+                  height: '100%',
+                }}
+                mediaLayout="contained"
+                fillsPreviewSlot
+                autoPlay={mediaAutoLoad}
+                onAuxClick={handleAuxClick}
+                body={prev['og:title']}
+                encInfo={renderProps.encdata}
+                url={renderProps.encdata ? renderProps.encdata.url : (prev['og:image'] ?? '')}
+                info={ogImageInfo}
+                matrixThumbnailMaxEdge={previewThumbMaxEdge}
+                renderViewer={(p) => <ImageViewer {...p} />}
+                renderImage={(p) => (
+                  <Image
+                    info={ogImageInfo}
+                    {...p}
+                    style={{
+                      display: 'block',
+                      maxWidth: '100%',
+                      maxHeight: '100%',
+                      width: 'auto',
+                      height: 'auto',
+                      objectFit: 'contain',
+                      objectPosition: 'center',
+                    }}
+                  />
+                )}
+              />
+            </Box>
+          )}
+        {!showOgVideo &&
+          !(prev['og:image:type'] || prev['og:image'] || prev['matrix:image:size']) &&
+          (prev['og:audio:type'] || prev['og:audio']) && (
+            <Box className={css.UrlPreviewAudio} style={{ flexShrink: 0 }}>
+              <AudioContent
+                url={(prev['og:audio'] as string) ?? ''}
+                mimeType={(prev['og:audio:type'] as string) ?? ''}
+                info={{}}
+                renderMediaControl={(p) => <MediaControl {...p} />}
+              />
+            </Box>
+          )}
       </Box>
     );
   };

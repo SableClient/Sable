@@ -4,6 +4,9 @@
 export const MATRIX_UNSTABLE_PROFILE_BANNER_PROPERTY_NAME = 'chat.commet.profile_banner';
 export const MATRIX_COMMET_UNSTABLE_PROFILE_COLOR_SCHEME_PROPERTY_NAME =
   'chat.commet.profile_color_scheme';
+///opengraph field for encrypted embeds
+export const MATRIX_BUNDLED_EMBEDS_ENCRYPTED_PROPERTY_NAME = 'beeper:image:encryption';
+
 /**
  * @deprecated
  */

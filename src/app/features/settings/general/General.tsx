@@ -1041,6 +1041,10 @@ function Embeds() {
     settingsAtom,
     'clientPreviewYoutube'
   );
+  const [externalGifAutoLoadEncrypted, setExternalGifAutoLoadEncrypted] = useSetting(
+    settingsAtom,
+    'externalGifAutoLoadEncrypted'
+  );
   const [enableGifPicker, setEnableGifPicker] = useSetting(settingsAtom, 'enableGifPicker');
   return (
     <Box direction="Column" gap="100">
@@ -1128,6 +1132,13 @@ function Embeds() {
         value={enableGifPicker}
         onChange={setEnableGifPicker}
         switchTitle={enableGifPicker ? 'Disable Gif Picker' : 'Enable Gif Picker'}
+      />
+      <SettingToggle
+        title="Automatically Load External GIFs in Encrypted Rooms"
+        focusId="external-gif-auto-load-encrypted"
+        description="Loading contacts the GIF provider directly and may reveal when you viewed a GIF."
+        value={externalGifAutoLoadEncrypted}
+        onChange={setExternalGifAutoLoadEncrypted}
       />
       <SettingToggle
         title="Show Interactive maps"

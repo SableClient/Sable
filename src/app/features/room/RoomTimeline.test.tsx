@@ -40,6 +40,7 @@ const {
     scrollTo: vi.fn<() => void>(),
     getItemOffset: () => 0,
     getItemSize: () => 100,
+    findItemIndex: () => 0,
   },
   timelineSync: {
     eventsLength: 1,

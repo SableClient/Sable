@@ -8,6 +8,22 @@ import { DecompressionStream as NodeDecompressionStream } from 'node:stream/web'
 
 vi.stubGlobal('Blob', NodeBlob);
 vi.stubGlobal('DecompressionStream', NodeDecompressionStream);
+vi.stubGlobal(
+  'IntersectionObserver',
+  class {
+    constructor(private readonly callback: IntersectionObserverCallback) {}
+
+    observe(target: Element) {
+      this.callback(
+        [{ isIntersecting: true, target } as IntersectionObserverEntry],
+        this as unknown as IntersectionObserver
+      );
+    }
+
+    unobserve() {}
+    disconnect() {}
+  }
+);
 
 // file from https://github.com/LottieFiles/test-files/blob/main/data/shapes/rectangle.json
 const lottieJson =

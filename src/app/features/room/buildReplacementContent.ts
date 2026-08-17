@@ -67,6 +67,7 @@ export function buildReplacementContent(
     'm.mentions': mMentions,
     'm.new_content': newContent,
   };
+  delete content['pet.plz.gif'];
 
   if (!customHtmlEqualsPlainText(adjustedCustomHtml, adjustedPlainText)) {
     newContent.format = 'org.matrix.custom.html';

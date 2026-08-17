@@ -10,7 +10,6 @@ export type HashRouterConfig = {
 
 export type GifsConfig = {
   klipyApiKey?: string;
-  proxyUrl?: string;
 };
 
 export type ClientConfig = {

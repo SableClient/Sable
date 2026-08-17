@@ -6,9 +6,9 @@ import { Box, Chip, IconButton, Spinner, Text, config } from 'folds';
 import { PopOut } from '$components/overlay-stack';
 import { composerIcon, Smiley } from '$components/icons/phosphor';
 import { isKeyHotkey } from 'is-hotkey';
-import type { EditorAutocompleteQuery } from '$components/editor/prosemirrorController';
 import {
   AutocompletePrefix,
+  useAutocompleteQuery,
   EmoticonAutocomplete,
   MarkdownFormattingToolbarBottom,
   MarkdownFormattingToolbarToggle,
@@ -42,8 +42,8 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
   const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
   const [shortcutOverrides] = useSetting(settingsAtom, 'shortcutOverrides');
 
-  const [autocompleteQuery, setAutocompleteQuery] =
-    useState<EditorAutocompleteQuery<AutocompletePrefix>>();
+  const [autocompleteQuery, setAutocompleteQuery, handleCloseAutocomplete] =
+    useAutocompleteQuery(editor);
   const [hasChanged, setHasChanged] = useState(false);
 
   const prevValue = useRef(value);
@@ -118,13 +118,8 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
       }
       setAutocompleteQuery(editor.getAutocompleteQuery([AutocompletePrefix.Emoticon]));
     },
-    [editor]
+    [editor, setAutocompleteQuery]
   );
-
-  const handleCloseAutocomplete = useCallback(() => {
-    editor.focus();
-    setAutocompleteQuery(undefined);
-  }, [editor]);
 
   const handleEmoticonSelect = (key: string, shortcode: string) => {
     editor.insertInline(createEmoticonElement(key, shortcode));

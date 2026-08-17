@@ -29,19 +29,32 @@ vi.mock('./message/PollEvent', () => ({
   PollEvent: () => <div data-testid="poll-event" />,
 }));
 
+const matrixClient = {
+  getAccountData: () => undefined,
+  on: () => undefined,
+  removeListener: () => undefined,
+} as never;
+
 function renderMessage(body: string) {
+  return renderMessageWithContent({ body });
+}
+
+function renderMessageWithContent(content: Record<string, unknown>, room?: unknown) {
   return render(
     <ClientConfigProvider value={{}}>
-      <RenderMessageContent
-        displayName="Alice"
-        msgType={MsgType.Text}
-        ts={0}
-        getContent={() => ({ body }) as never}
-        urlPreview
-        clientUrlPreview
-        htmlReactParserOptions={{}}
-        linkifyOpts={{}}
-      />
+      <MatrixClientProvider value={matrixClient}>
+        <RenderMessageContent
+          displayName="Alice"
+          msgType={typeof content.msgtype === 'string' ? content.msgtype : (MsgType.Text as string)}
+          ts={0}
+          getContent={() => content as never}
+          urlPreview
+          clientUrlPreview
+          htmlReactParserOptions={{}}
+          linkifyOpts={{}}
+          room={room as never}
+        />
+      </MatrixClientProvider>
     </ClientConfigProvider>
   );
 }
@@ -49,7 +62,7 @@ function renderMessage(body: string) {
 function renderFileMessage(content: Record<string, unknown>) {
   return render(
     <ClientConfigProvider value={{}}>
-      <MatrixClientProvider value={{} as never}>
+      <MatrixClientProvider value={matrixClient}>
         <RenderMessageContent
           displayName="Alice"
           msgType={MsgType.File}
@@ -62,6 +75,18 @@ function renderFileMessage(content: Record<string, unknown>) {
     </ClientConfigProvider>
   );
 }
+
+const externalGifContent = {
+  msgtype: MsgType.Text,
+  body: 'https://klipy.com/gif/reaction',
+  'pet.plz.gif': {
+    v: 1,
+    provider: 'klipy',
+    media_url: 'https://static.klipy.com/ii/reaction.gif',
+    w: 480,
+    h: 270,
+  },
+};
 
 beforeEach(() => {
   vi.stubGlobal('location', { origin: 'https://app.example' } as Location);
@@ -96,6 +121,46 @@ describe('RenderMessageContent', () => {
 
     expect(screen.getByTestId('url-preview-holder')).toBeInTheDocument();
     expect(screen.getByTestId('url-preview-card')).toHaveTextContent('https://example.com');
+  });
+
+  it('does not request external GIF media by default in encrypted rooms', () => {
+    renderMessageWithContent(externalGifContent, {
+      hasEncryptionStateEvent: () => true,
+    });
+
+    expect(screen.getByText(externalGifContent.body)).toBeInTheDocument();
+    expect(screen.queryByRole('img')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Load GIF' })).toBeInTheDocument();
+  });
+
+  it('keeps normal URL previews when external GIF metadata is invalid', () => {
+    renderMessageWithContent({
+      msgtype: MsgType.Text,
+      body: 'https://example.com',
+      'pet.plz.gif': {
+        v: 1,
+        provider: 'klipy',
+        media_url: 'https://attacker.example/track.gif',
+        w: 480,
+        h: 270,
+      },
+    });
+
+    expect(screen.getByTestId('url-preview-card')).toHaveTextContent('https://example.com');
+  });
+
+  it('renders historical Soliditas MXC GIFs through the external GIF path', () => {
+    renderMessageWithContent(
+      {
+        msgtype: MsgType.Image,
+        body: 'Reaction',
+        url: 'mxc://gifs.sable.moe/klipy_ZXhhbXBsZS5naWY',
+        info: { w: 480, h: 270, mimetype: 'image/gif' },
+      },
+      { hasEncryptionStateEvent: () => true }
+    );
+
+    expect(screen.getByRole('button', { name: 'Load GIF' })).toBeInTheDocument();
   });
 
   it('render url previews for text starting with paranthesis', () => {

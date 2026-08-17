@@ -1,14 +1,14 @@
 import type { KeyboardEventHandler } from 'react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { Room } from '$types/matrix-sdk';
 import type { RectCords } from 'folds';
 import { Box, Chip, IconButton, Spinner, Text, config } from 'folds';
 import { PopOut } from '$components/overlay-stack';
 import { Smiley, sizedIcon } from '$components/icons/phosphor';
 import { isKeyHotkey } from 'is-hotkey';
-import type { EditorAutocompleteQuery } from '$components/editor/prosemirrorController';
 import {
   AutocompletePrefix,
+  useAutocompleteQuery,
   EmoticonAutocomplete,
   MarkdownFormattingToolbarBottom,
   MarkdownFormattingToolbarToggle,
@@ -48,8 +48,8 @@ export function DescriptionEditor({
   const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
   const [shortcutOverrides] = useSetting(settingsAtom, 'shortcutOverrides');
 
-  const [autocompleteQuery, setAutocompleteQuery] =
-    useState<EditorAutocompleteQuery<AutocompletePrefix>>();
+  const [autocompleteQuery, setAutocompleteQuery, handleCloseAutocomplete] =
+    useAutocompleteQuery(editor);
 
   const prevValue = useRef(value);
   const initialized = useRef(false);
@@ -121,13 +121,8 @@ export function DescriptionEditor({
       }
       setAutocompleteQuery(editor.getAutocompleteQuery([AutocompletePrefix.Emoticon]));
     },
-    [editor, onCancel]
+    [editor, onCancel, setAutocompleteQuery]
   );
-
-  const handleCloseAutocomplete = useCallback(() => {
-    editor.focus();
-    setAutocompleteQuery(undefined);
-  }, [editor]);
 
   const handleEmoticonSelect = (key: string, shortcode: string) => {
     editor.insertInline(createEmoticonElement(key, shortcode));

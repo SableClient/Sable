@@ -54,6 +54,12 @@ import { PollEvent } from './message/PollEvent';
 import { M_POLL_START, M_TEXT } from 'matrix-js-sdk';
 import type { IImageInfo, IGalleryContent } from '$types/matrix/common';
 import { GALLERY_MSGTYPE } from '$types/matrix/common';
+import { parseExternalGif } from '$utils/externalGif';
+import { parseLegacyKlipyGif } from '$utils/klipy';
+import {
+  MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME,
+  MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME,
+} from '$unstable/prefixes';
 import {
   convertBeeperFormatToOurPerMessageProfile,
   type PerMessageProfileBeeperFormat,
@@ -98,6 +104,7 @@ const isSableChatEmbedCandidate = (url: string): boolean =>
 
 const CAPTION_STYLE: CSSProperties = { marginTop: config.space.S200, maxWidth: '100%' };
 const TEXT_STYLE: CSSProperties = { maxWidth: '100%' };
+const EXTERNAL_GIF_MAX_SIZE = 400;
 
 function RenderMessageContentInternal({
   displayName,
@@ -127,6 +134,23 @@ function RenderMessageContentInternal({
   const [captionPosition] = useSetting(settingsAtom, 'captionPosition');
   const [themeChatSableWidgets] = useSetting(settingsAtom, 'themeChatSableWidgetsEnabled');
   const [multiplePreviews] = useSetting(settingsAtom, 'multiplePreviews');
+  const [externalGifAutoLoadEncrypted] = useSetting(settingsAtom, 'externalGifAutoLoadEncrypted');
+  const externalGif = useMemo(
+    () =>
+      msgType === (MsgType.Text as string)
+        ? parseExternalGif(content)
+        : msgType === (MsgType.Image as string)
+          ? parseLegacyKlipyGif(content)
+          : undefined,
+    [content, msgType]
+  );
+  const roomEncryptionKnown =
+    room !== undefined && typeof room.hasEncryptionStateEvent === 'function';
+  const isEncryptedRoom = roomEncryptionKnown ? room.hasEncryptionStateEvent() : false;
+  const externalGifAutoLoad =
+    roomEncryptionKnown &&
+    (!isEncryptedRoom || externalGifAutoLoadEncrypted) &&
+    (mediaAutoLoad ?? true);
   const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
   const captionPositionMap = {
     [CaptionPosition.Above]: 'column-reverse',
@@ -217,8 +241,13 @@ function RenderMessageContentInternal({
     ),
     [urlPreview]
   );
-  const messageUrlsPreview = urlPreview || themeChatSableWidgets ? renderUrlsPreview : undefined;
-  const messageBundlePreview = bundledPreview ? renderBundledPreviews : undefined;
+  const hasExternalGifMetadata = !!externalGif;
+  const messageUrlsPreview =
+    !hasExternalGifMetadata && (urlPreview || themeChatSableWidgets)
+      ? renderUrlsPreview
+      : undefined;
+  const messageBundlePreview =
+    !hasExternalGifMetadata && bundledPreview ? renderBundledPreviews : undefined;
 
   const renderCaption = () => {
     const hasCaption = content.body && (content.body as string).trim().length > 0;
@@ -266,6 +295,69 @@ function RenderMessageContentInternal({
     }
     return null;
   };
+
+  if (externalGif) {
+    const markedAsSpoiler = content[MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME] === true;
+    const externalGifWidth =
+      externalGif.h >= externalGif.w
+        ? `${(EXTERNAL_GIF_MAX_SIZE * externalGif.w) / externalGif.h}px`
+        : undefined;
+    return (
+      <Box direction="Column" style={{ maxWidth: '100%' }}>
+        {msgType === (MsgType.Text as string) && typeof content.body === 'string' && (
+          <Box
+            style={{
+              marginBottom: config.space.S200,
+              maxWidth: '100%',
+              wordBreak: 'break-word',
+            }}
+          >
+            <MText edited={edited} content={content} renderBody={renderBody} style={TEXT_STYLE} />
+          </Box>
+        )}
+        <ImageContent
+          url={externalGif.media_url}
+          body={externalGif.title}
+          info={{
+            w: externalGif.w,
+            h: externalGif.h,
+            mimetype: externalGif.mimetype,
+            size: externalGif.size,
+            [MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME]: externalGif.blurhash,
+          }}
+          autoPlay={externalGifAutoLoad && !markedAsSpoiler}
+          markedAsSpoiler={markedAsSpoiler}
+          favoriteShareUrl={
+            msgType === (MsgType.Text as string) && typeof content.body === 'string'
+              ? content.body
+              : externalGif.media_url
+          }
+          loadLabel="Load GIF"
+          loadDescription={`External GIF from ${externalGif.provider.toUpperCase()}`}
+          deferMediaLoad
+          style={{
+            borderRadius: config.radii.R300,
+            overflow: 'hidden',
+            width: externalGifWidth,
+            maxWidth: `min(100%, ${EXTERNAL_GIF_MAX_SIZE}px)`,
+            maxHeight: `${EXTERNAL_GIF_MAX_SIZE}px`,
+          }}
+          onOpenViewer={mEvent ? () => onOpenMedia?.(mEvent) ?? false : undefined}
+          renderImage={(p) => {
+            if (!autoplayGifs && p.src) {
+              return (
+                <ClientSideHoverFreeze src={p.src}>
+                  <Image info={p.info} {...p} loading="lazy" />
+                </ClientSideHoverFreeze>
+              );
+            }
+            return <Image info={p.info} {...p} loading="lazy" />;
+          }}
+          renderViewer={(p) => <ImageViewer {...p} />}
+        />
+      </Box>
+    );
+  }
 
   function renderCaptionedAttachment(attachment: JSX.Element, isInGallery?: boolean): JSX.Element {
     return (

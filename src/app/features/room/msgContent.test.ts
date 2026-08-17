@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { MsgType, type MatrixClient } from '$types/matrix-sdk';
 import type { TUploadItem } from '$state/room/roomInputDrafts';
 import { TGS_MIMETYPE } from '$utils/mimeTypes';
-import { getGalleryItemContent, getImageMsgContent } from './msgContent';
+import { getGalleryItemContent, getGifMsgContent, getImageMsgContent } from './msgContent';
 
 vi.mock('$utils/dom', () => ({
   getImageFileUrl: vi.fn<(file: File | Blob) => string>(() => 'blob:test'),
@@ -53,5 +53,57 @@ describe('TGS message content', () => {
     );
 
     expect(content.itemtype).toBe(MsgType.Image);
+  });
+});
+
+describe('KLIPY message content', () => {
+  it('sends a direct-link text event without fetching media', () => {
+    expect(
+      getGifMsgContent({
+        id: 'gif-id',
+        title: 'Reaction',
+        shareUrl: 'https://klipy.com/gif/gif-id',
+        mediaUrl: 'https://static.klipy.com/ii/reaction.gif',
+        width: 480,
+        height: 270,
+        mimetype: 'image/gif',
+      })
+    ).toEqual({
+      msgtype: MsgType.Text,
+      body: 'https://klipy.com/gif/gif-id',
+      'pet.plz.gif': {
+        v: 1,
+        provider: 'klipy',
+        media_url: 'https://static.klipy.com/ii/reaction.gif',
+        w: 480,
+        h: 270,
+        mimetype: 'image/gif',
+        id: 'gif-id',
+        title: 'Reaction',
+      },
+    });
+  });
+
+  it('keeps Matrix MXC favorites on the standard image path', () => {
+    expect(
+      getGifMsgContent({
+        id: 'matrix-gif',
+        title: 'Favorite',
+        shareUrl: 'mxc://matrix.example/media-id',
+        mediaUrl: 'mxc://matrix.example/media-id',
+        width: 320,
+        height: 240,
+        mimetype: 'image/gif',
+      })
+    ).toMatchObject({
+      msgtype: MsgType.Image,
+      body: 'Favorite',
+      url: 'mxc://matrix.example/media-id',
+      info: {
+        w: 320,
+        h: 240,
+        mimetype: 'image/gif',
+      },
+    });
   });
 });

@@ -19,7 +19,7 @@ export class AppShell {
   }
 
   async sendTextMessage(text: string): Promise<void> {
-    await this.page.locator('div[data-slate-editor="true"]').last().click();
+    await this.page.locator('[data-editable-name="RoomInput"]').last().click();
     await this.page.keyboard.type(text);
     await this.page.keyboard.press('Enter');
   }

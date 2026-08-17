@@ -68,8 +68,7 @@ import {
   MATRIX_UNSTABLE_PER_MESSAGE_PROFILE_PROPERTY_NAME,
 } from '$unstable/prefixes';
 import { useFavoriteGifs } from '$hooks/useFavoriteGifs';
-import type { IImageInfo } from '$types/matrix/common';
-import { getIncomingMediaMxcUrl } from '../MsgTypeRenderers';
+import { getFavoriteGifFromMessageContent } from '$utils/favoriteGif';
 import { TemporaryPersonaPicker } from '$features/room/persona-picker/PersonaPicker';
 import { type PerMessageProfileMsc4461 } from '$hooks/usePerMessageProfile';
 import { buildReplacementPmpContent } from '$features/room/buildReplacementContent';
@@ -289,36 +288,29 @@ const MessageFavoriteGifItem = as<
 >(({ room, mEvent, onClose, ...props }, ref) => {
   const mx = useMatrixClient();
   const content = mEvent.getContent();
-  const url = getIncomingMediaMxcUrl(content.file?.url ?? content.url) ?? '';
+  const favoriteGif = getFavoriteGifFromMessageContent(content);
+  const url = favoriteGif?.mediaUrl ?? '';
   const favoritedContent = useFavoriteGifs();
   const [favorited, setFavorited] = useState(
-    favoritedContent.gifs.find((v) => v.url == url) != undefined
+    favoritedContent.gifs.find((v) => v.mediaUrl == url) != undefined
   );
   const handleClick = async () => {
+    if (!favoriteGif) {
+      onClose?.();
+      return;
+    }
     if (!favorited) {
-      const info: IImageInfo | undefined = content?.info;
-      const body = content?.body;
       setFavorited(true);
       await mx
         .setAccountData(MATRIX_SABLE_UNSTABLE_FAVORITE_GIFS, {
-          gifs: [
-            ...favoritedContent.gifs,
-            {
-              title: body ?? '',
-              url: url,
-              width: info?.w,
-              height: info?.h,
-              size: info?.size,
-              mimetype: info?.mimetype,
-            },
-          ],
+          gifs: [...favoritedContent.gifs, favoriteGif],
         })
         .catch(() => setFavorited(false));
     } else {
       setFavorited(false);
       await mx
         .setAccountData(MATRIX_SABLE_UNSTABLE_FAVORITE_GIFS, {
-          gifs: favoritedContent.gifs.filter((v) => v.url != url),
+          gifs: favoritedContent.gifs.filter((v) => v.mediaUrl != url),
         })
         .catch(() => setFavorited(true));
     }

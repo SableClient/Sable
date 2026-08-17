@@ -33,6 +33,8 @@ import {
 import { canEditEvent, getEditedEvent } from '$utils/room/relations';
 import { getMemberAvatarMxc } from '$utils/room/display';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
+import { parseExternalGif } from '$utils/externalGif';
+import { parseLegacyKlipyGif } from '$utils/klipy';
 import type { MessageSpacing } from '$state/settings';
 import { getSettings, MessageLayout, settingsAtom } from '$state/settings';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -389,8 +391,12 @@ function MessageInternal(
 
   const isGif = useMemo(() => {
     const content = mEvent.getContent();
+    if (content.msgtype === MsgType.Text) return !!parseExternalGif(content);
     if (content.msgtype !== MsgType.Image) return false;
-    return checkIfGif(content?.info?.url ?? '', content?.info?.mimetype, content?.body);
+    return (
+      !!parseLegacyKlipyGif(content) ||
+      checkIfGif(content?.info?.url ?? '', content?.info?.mimetype, content?.body)
+    );
   }, [mEvent]);
 
   useEffect(() => {

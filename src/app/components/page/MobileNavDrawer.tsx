@@ -181,7 +181,9 @@ export function MobileNavDrawer({ nav, rail, bottomNav, children }: MobileNavDra
     (path: string) => {
       const viewport = viewportRef.current;
       if (!viewport || width === 0) {
-        startTransition(() => navigate(path));
+        startTransition(() => {
+          void navigate(path);
+        });
         return;
       }
 
@@ -196,7 +198,9 @@ export function MobileNavDrawer({ nav, rail, bottomNav, children }: MobileNavDra
         }
         setPanelIntent(1);
       });
-      startTransition(() => navigate(path));
+      startTransition(() => {
+        void navigate(path);
+      });
     },
     [navigate, settleToPanel, width]
   );
@@ -256,7 +260,9 @@ export function MobileNavDrawer({ nav, rail, bottomNav, children }: MobileNavDra
         if (section?.getRoomPath) {
           const lastRoomId = lastRoom?.[section.key];
           if (lastRoomId) {
-            startTransition(() => navigate(section.getRoomPath!(lastRoomId)));
+            startTransition(() => {
+              void navigate(section.getRoomPath!(lastRoomId));
+            });
             return;
           }
         }
@@ -270,7 +276,9 @@ export function MobileNavDrawer({ nav, rail, bottomNav, children }: MobileNavDra
       if (section.getRoomPath && matchedRoomId && isRoomRoute) {
         setLastRoom((prev) => ({ ...prev, [section.key]: matchedRoomId }));
       }
-      startTransition(() => navigate(section.listPath));
+      startTransition(() => {
+        void navigate(section.listPath);
+      });
     },
     [
       contentOpen,

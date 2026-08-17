@@ -13,8 +13,6 @@ import { useFavoriteGifs } from '$hooks/useFavoriteGifs';
 import { Star, Eye, EyeSlash, menuIcon } from '$components/icons/phosphor';
 import { MATRIX_SABLE_UNSTABLE_FAVORITE_GIFS } from '$unstable/prefixes';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { useClientConfig } from '$hooks/useClientConfig';
-import { getKlipyMxcUrl } from '$utils/klipy';
 
 const ANIMATED_MIME_TYPES = new Set(['image/gif', 'image/apng']);
 
@@ -173,27 +171,18 @@ export function GifItem({
 }) {
   const [isHovered, setIsHovered] = useState(false);
   const favoritedContent = useFavoriteGifs();
-  const clientConfig = useClientConfig();
 
-  const mxcUrl = gif?.url ? getKlipyMxcUrl(gif.url, clientConfig.gifs?.proxyUrl) : '';
+  const mediaUrl = gif.mediaUrl;
 
   const [favorited, setFavorited] = useState(
-    favoritedContent.gifs.some((v) => {
-      const vMxc = getKlipyMxcUrl(v.url, clientConfig.gifs?.proxyUrl);
-      return vMxc === mxcUrl && mxcUrl !== '';
-    })
+    favoritedContent.gifs.some((v) => v.mediaUrl === mediaUrl && mediaUrl !== '')
   );
   const [isSpoiler, setIsSpoiler] = useState(false);
   const mx = useMatrixClient();
 
   useEffect(() => {
-    setFavorited(
-      favoritedContent.gifs.some((v) => {
-        const vMxc = getKlipyMxcUrl(v.url, clientConfig.gifs?.proxyUrl);
-        return vMxc === mxcUrl && mxcUrl !== '';
-      })
-    );
-  }, [favoritedContent, mxcUrl, clientConfig.gifs?.proxyUrl]);
+    setFavorited(favoritedContent.gifs.some((v) => v.mediaUrl === mediaUrl && mediaUrl !== ''));
+  }, [favoritedContent, mediaUrl]);
 
   return (
     <Box
@@ -234,8 +223,9 @@ export function GifItem({
                         gifs: [
                           ...favoritedContent.gifs,
                           {
+                            shareUrl: gif.shareUrl,
+                            mediaUrl,
                             title: gif.title,
-                            url: mxcUrl,
                             width: gif.width,
                             height: gif.height,
                             size: gif.size,
@@ -248,9 +238,7 @@ export function GifItem({
                     setFavorited(false);
                     await mx
                       .setAccountData(MATRIX_SABLE_UNSTABLE_FAVORITE_GIFS, {
-                        gifs: favoritedContent.gifs.filter(
-                          (v) => getKlipyMxcUrl(v.url, clientConfig.gifs?.proxyUrl) !== mxcUrl
-                        ),
+                        gifs: favoritedContent.gifs.filter((v) => v.mediaUrl !== mediaUrl),
                       })
                       .catch(() => setFavorited(true));
                   }

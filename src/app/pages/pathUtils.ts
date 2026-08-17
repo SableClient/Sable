@@ -104,46 +104,46 @@ export const getHomeJoinPath = (): string => HOME_JOIN_PATH;
 export const getHomeSearchPath = (): string => HOME_SEARCH_PATH;
 export const getHomeRoomPath = (roomIdOrAlias: string, eventId?: string): string => {
   const params = {
-    roomIdOrAlias: encodeURIComponent(roomIdOrAlias),
-    eventId: eventId ? encodeURIComponent(eventId) : null,
+    roomIdOrAlias,
+    eventId: eventId ?? null,
   };
 
   return generatePath(HOME_ROOM_PATH, params);
 };
 
 export const getHomeForumPath = (roomIdOrAlias: string): string =>
-  generatePath(HOME_ROOM_FORUM_PATH, { roomIdOrAlias: encodeURIComponent(roomIdOrAlias) });
+  generatePath(HOME_ROOM_FORUM_PATH, { roomIdOrAlias });
 
 export const getDirectPath = (): string => DIRECT_PATH;
 export const getDirectCreatePath = (): string => DIRECT_CREATE_PATH;
 export const getDirectRoomPath = (roomIdOrAlias: string, eventId?: string): string => {
   const params = {
-    roomIdOrAlias: encodeURIComponent(roomIdOrAlias),
-    eventId: eventId ? encodeURIComponent(eventId) : null,
+    roomIdOrAlias,
+    eventId: eventId ?? null,
   };
 
   return generatePath(DIRECT_ROOM_PATH, params);
 };
 
 export const getDirectForumPath = (roomIdOrAlias: string): string =>
-  generatePath(DIRECT_ROOM_FORUM_PATH, { roomIdOrAlias: encodeURIComponent(roomIdOrAlias) });
+  generatePath(DIRECT_ROOM_FORUM_PATH, { roomIdOrAlias });
 
 export const getSpacePath = (spaceIdOrAlias: string): string => {
   const params = {
-    spaceIdOrAlias: encodeURIComponent(spaceIdOrAlias),
+    spaceIdOrAlias,
   };
 
   return generatePath(SPACE_PATH, params);
 };
 export const getSpaceLobbyPath = (spaceIdOrAlias: string): string => {
   const params = {
-    spaceIdOrAlias: encodeURIComponent(spaceIdOrAlias),
+    spaceIdOrAlias,
   };
   return generatePath(SPACE_LOBBY_PATH, params);
 };
 export const getSpaceSearchPath = (spaceIdOrAlias: string): string => {
   const params = {
-    spaceIdOrAlias: encodeURIComponent(spaceIdOrAlias),
+    spaceIdOrAlias,
   };
   return generatePath(SPACE_SEARCH_PATH, params);
 };
@@ -153,24 +153,24 @@ export const getSpaceRoomPath = (
   eventId?: string
 ): string => {
   const params = {
-    spaceIdOrAlias: encodeURIComponent(spaceIdOrAlias),
-    roomIdOrAlias: encodeURIComponent(roomIdOrAlias),
-    eventId: eventId ? encodeURIComponent(eventId) : null,
+    spaceIdOrAlias,
+    roomIdOrAlias,
+    eventId: eventId ?? null,
   };
 
   return generatePath(SPACE_ROOM_PATH, params);
 };
 export const getSpaceForumPath = (spaceIdOrAlias: string, roomIdOrAlias: string): string =>
   generatePath(SPACE_ROOM_FORUM_PATH, {
-    spaceIdOrAlias: encodeURIComponent(spaceIdOrAlias),
-    roomIdOrAlias: encodeURIComponent(roomIdOrAlias),
+    spaceIdOrAlias,
+    roomIdOrAlias,
   });
 
 export const getExplorePath = (): string => EXPLORE_PATH;
 export const getExploreFeaturedPath = (): string => EXPLORE_FEATURED_PATH;
 export const getExploreServerPath = (server: string): string => {
   const params = {
-    server: encodeURIComponent(server),
+    server,
   };
   return generatePath(EXPLORE_SERVER_PATH, params);
 };

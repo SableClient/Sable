@@ -403,7 +403,9 @@ export function RoomNavItem({
         openMobileDrawerContent(linkPath);
       } else {
         // Render the room off the urgent path so the tap doesn't freeze the UI on mount.
-        startTransition(() => navigate(linkPath));
+        startTransition(() => {
+          void navigate(linkPath);
+        });
       }
     }
   };

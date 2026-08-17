@@ -29,7 +29,7 @@ type DotLottieInstance = Parameters<
 const DotLottieReact = lazy(() =>
   Promise.all([
     import('@lottiefiles/dotlottie-react'),
-    import('@lottiefiles/dotlottie-web/dist/dotlottie-player.wasm?url'),
+    import('@lottiefiles/dotlottie-web/dotlottie-player.wasm?url'),
   ]).then(([module, wasm]) => {
     module.setWasmUrl(wasm.default);
     return { default: module.DotLottieReact };

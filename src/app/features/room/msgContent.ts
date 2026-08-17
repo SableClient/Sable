@@ -16,16 +16,15 @@ import {
   getImageInfo,
   getThumbnailContent,
   getVideoInfo,
-  mxcUrlToHttp,
   uploadContentToServer,
 } from '$utils/matrix';
-import { isImageMimeType, mimeTypeToExt } from '$utils/mimeTypes';
+import { isImageMimeType } from '$utils/mimeTypes';
 import type { TUploadItem } from '$state/room/roomInputDrafts';
 import type { GifData } from '$components/emoji-board/types';
 import { encodeBlurHashAsync } from '$utils/blurHash';
 import { scaleYDimension } from '$utils/common';
 import { createLogger } from '$utils/debug';
-import { fetchMediaBlob } from '$utils/mediaTransport';
+import { getKlipyGifMetadata } from '$utils/klipy';
 import {
   MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME,
   MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME,
@@ -270,63 +269,30 @@ export const getFileMsgContent = (item: TUploadItem, mxc: string): IContent => {
   return content;
 };
 
-export const getGifMsgContent = async (
-  mx: MatrixClient,
-  gif: GifData,
-  mxcUrl: string,
-  spoiler?: boolean
-): Promise<IContent | undefined> => {
-  if (!mxcUrl.startsWith('mxc://')) return undefined;
-
-  const proxyUrl = mxcUrlToHttp(mx, mxcUrl, true);
-  let imgEl: HTMLImageElement | undefined;
-  try {
-    if (proxyUrl) {
-      const blob = await fetchMediaBlob(proxyUrl);
-      const objectUrl = URL.createObjectURL(blob);
-      imgEl = await loadImageElement(objectUrl);
-      URL.revokeObjectURL(objectUrl);
-    } else {
-      imgEl = await loadImageElement(gif.url, 'anonymous');
-    }
-  } catch (e) {
-    log.warn('Failed to load image element for blurhash, falling back to basic metadata:', e);
+export const getGifMsgContent = (gif: GifData, spoiler?: boolean): IContent | undefined => {
+  const metadata = getKlipyGifMetadata(gif);
+  if (!metadata) {
+    if (!gif.mediaUrl.startsWith('mxc://')) return undefined;
+    return {
+      msgtype: MsgType.Image,
+      body: gif.title,
+      url: gif.mediaUrl,
+      info: {
+        w: gif.width,
+        h: gif.height,
+        mimetype: gif.mimetype ?? 'image/gif',
+        ...(gif.size !== undefined ? { size: gif.size } : {}),
+      },
+      ...(spoiler ? { [MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME]: true } : {}),
+    };
   }
 
-  const mimetype = gif.mimetype ?? 'image/gif';
-  const ext = mimeTypeToExt(mimetype);
-
-  const content: IContent = {
-    msgtype: MsgType.Image,
-    body: gif.title.endsWith(`.${ext}`) ? gif.title : `${gif.title}.${ext}`,
-    url: mxcUrl,
-    info: {
-      w: gif.width,
-      h: gif.height,
-      mimetype,
-    },
+  return {
+    msgtype: MsgType.Text,
+    body: gif.shareUrl || metadata.media_url,
+    'pet.plz.gif': metadata,
+    ...(spoiler ? { [MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME]: true } : {}),
   };
-
-  if (gif.size) {
-    content.info.size = gif.size;
-  }
-
-  if (spoiler) {
-    content[MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME] = true;
-  }
-
-  if (imgEl) {
-    const blurHash = await encodeBlurHashAsync(
-      imgEl,
-      512,
-      scaleYDimension(imgEl.width, 512, imgEl.height)
-    );
-    if (blurHash) {
-      content.info[MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME] = blurHash;
-    }
-  }
-
-  return content;
 };
 
 const swapMsgTypeToItemType = (

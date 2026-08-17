@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ImageContent } from './ImageContent';
-import { downloadEncryptedMedia } from '$utils/matrix';
+import { downloadEncryptedMedia, mxcUrlToHttp } from '$utils/matrix';
 
 const screenMocks = vi.hoisted(() => ({ isMobile: true, tauri: false }));
 vi.mock('$hooks/useScreenSize', () => ({
@@ -21,7 +21,7 @@ vi.mock('@tauri-apps/api/core', () => ({
 const SABLE_MEDIA_URL =
   'sable-media://https://hs.example/_matrix/client/v1/media/download/example.org/abc123?__sable_media_cache=3';
 vi.mock('$utils/matrix', () => ({
-  mxcUrlToHttp: () => SABLE_MEDIA_URL,
+  mxcUrlToHttp: vi.fn<(...args: unknown[]) => string>(() => SABLE_MEDIA_URL),
   rewriteAuthenticatedMediaUrl: (url: string | null) => url,
   downloadEncryptedMedia: vi.fn<() => Promise<ArrayBuffer>>(),
   decryptFile: vi.fn<() => Promise<ArrayBuffer>>(),
@@ -228,6 +228,41 @@ describe('ImageContent', () => {
     } finally {
       screenMocks.tauri = false;
     }
+  });
+
+  it('falls back to the original when the homeserver thumbnail is transposed', async () => {
+    vi.mocked(mxcUrlToHttp).mockClear();
+    render(
+      <ImageContent
+        url="mxc://example.org/abc123"
+        info={{ w: 1500, h: 2000, size: 4 * 1024 * 1024, mimetype: 'image/jpeg' }}
+        renderImage={(props) => <img alt="preview" src={props.src} onLoad={props.onLoad} />}
+        renderViewer={() => <div>viewer</div>}
+      />
+    );
+
+    touchTap(screen.getByRole('button', { name: 'View' }));
+    const img = await screen.findByAltText('preview');
+    expect(vi.mocked(mxcUrlToHttp).mock.calls.at(-1)).toEqual([
+      {},
+      'mxc://example.org/abc123',
+      false,
+      800,
+      600,
+      'scale',
+    ]);
+
+    Object.defineProperty(img, 'naturalWidth', { value: 800, configurable: true });
+    Object.defineProperty(img, 'naturalHeight', { value: 600, configurable: true });
+    fireEvent.load(img);
+
+    await waitFor(() =>
+      expect(vi.mocked(mxcUrlToHttp).mock.calls.at(-1)).toEqual([
+        {},
+        'mxc://example.org/abc123',
+        false,
+      ])
+    );
   });
 
   it('still allows ordinary message touches to start long press', () => {

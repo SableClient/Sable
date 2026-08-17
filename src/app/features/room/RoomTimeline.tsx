@@ -77,6 +77,7 @@ import { RoomMediaViewer } from '$components/image-viewer/RoomMediaViewer';
 import type { RoomMediaItem } from '$components/image-viewer/RoomMediaViewer';
 import type { IImageContent } from '$types/matrix/common';
 import { useTimelineRendererContext } from '$hooks/timeline/useTimelineRendererContext';
+import { useUrlPreviewPrefetch } from '$hooks/timeline/useUrlPreviewPrefetch';
 import { TimelineScrollingProvider, useScrollActivity } from '$hooks/useTimelineScrollActivity';
 import * as css from './RoomTimeline.css';
 import type { Persona } from '$app/persona';
@@ -1183,11 +1184,24 @@ export function RoomTimeline({
     };
   }, [eventId]);
 
+  const prefetchPreviews = useUrlPreviewPrefetch(mx, settings.showUrlPreview, processedEventsRef);
+
+  const prefetchAroundViewport = useCallback(() => {
+    const v = vListRef.current;
+    if (!v) return;
+    const { scrollOffset, viewportSize } = v;
+    prefetchPreviews(v.findItemIndex(scrollOffset), v.findItemIndex(scrollOffset + viewportSize));
+  }, [prefetchPreviews]);
+
+  useEffect(prefetchAroundViewport, [prefetchAroundViewport, timelineSync.eventsLength]);
+
   const handleVListScroll = useCallback(
     (offset: number) => {
       notifyScroll();
       const v = vListRef.current;
       if (!v) return;
+
+      prefetchAroundViewport();
 
       const distanceFromBottom = v.scrollSize - offset - v.viewportSize;
       syncAtBottom(offset);
@@ -1236,7 +1250,7 @@ export function RoomTimeline({
         void timelineSyncRef.current.handleTimelinePagination(false);
       }
     },
-    [eventId, notifyScroll, syncAtBottom]
+    [eventId, notifyScroll, syncAtBottom, prefetchAroundViewport]
   );
   const handleVListScrollEnd = useCallback(() => {
     if (!timelineSyncRef.current.focusItem?.scrollTo) return;

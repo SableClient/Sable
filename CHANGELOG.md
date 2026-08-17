@@ -1,5 +1,44 @@
 # Sable Client Changelog
 
+## 1.21.0 (2026-08-17)
+
+### Features
+
+* Add the `forum` room type with a dedicated forum view that presents threads as topics. by @smokku in #980
+* New composer commands: `/gif` opens the GIF picker and `/rainbowme` sends rainbow-formatted action messages (#1109). by @eleboucher in #1573
+* Add selectable app icons on Android and iOS. by @eleboucher in #1594
+* Add MSC4466 profile sync controls for supported homeservers. by @7w1 in #1117
+* Add experimental new calls using LiveKit on web, desktop, and supported mobile devices, enabled by a single setting with Element Call as the fallback. by @eleboucher in #1575
+* Add toggleable, reorderable composer trigger buttons (emoji, gif, sticker) with a drag-and-drop settings list. by @eleboucher in #1261
+* Settings improvements: search the settings sidebar and customize keyboard shortcuts (#1121). by @eleboucher in #1660
+* Add an accessibility settings tab with color correction filters. by @j0lol in #1664
+* Persona improvements: pick a persona directly in the editor, an account-wide persona toggle, latching shorthands, persona name colors, and a redesigned persona settings menu (#1223, #1264, #1368, #1369, #1435, #1462). by @j0lol in #1171
+* Style tables in formatted messages. by @Steffo99 in #1580
+* New bottom sheets across the app: attach files and pick emoji from sheets in the composer, plus a room details sheet on small screens (#1173, #1433). by @eleboucher in #1234
+* Update the device display name after login to reflect the current client and build flavor. by @hazre in #1458
+* Replaced the connection status top bar with a small styled popup and added a variant that shows sliding sync initial progress. by @7w1 in #1200
+* Add per-message profiles (MSC4461): a different name and avatar in each room, with PluralKit import, shorthands, backup and restore, editing sent messages, and profile info on user profiles (#1352, #1479, #1586, #1611, #1651, #1701). by @j0lol in #1589
+* The notifications inbox is now built from push rules evaluated on this device instead of the server's `/notifications` endpoint, so mentions in encrypted rooms are detected correctly. by @eleboucher in #1372
+* Add beta desktop and mobile builds with a greatly improved mobile experience, UnifiedPush support and more reliable notifications, better desktop shortcuts, updates and window controls, and improved native media handling and sharing. by @eleboucher in #1103
+
+### Fixes
+
+* Publish an `obtainium.json` app config with every release so Android builds can be installed and auto-updated through Obtainium. by @eleboucher in #1616
+* Performance: faster startup and warm syncs by caching room metadata, profile data, and device verification, plus lower memory use by pruning inactive room history (#1127, #1184, #1305, #1466). by @7w1 in #1118
+* Login and account fixes: full-URL homeservers no longer land on an empty room, a retry button when discovery fails, OAuth device verification no longer hangs, identity reset completes, key backup restores on verified devices, and account switch or logout from the offline screen (#1115, #1270, #1348, #1379, #1380). by @eleboucher in #1582
+* Media fixes: encrypted images and GIFs render again, playback works on Firefox, better loading on slow connections, decrypted media is freed from memory, gzipped Lottie support, stickers send reliably, and notification sounds no longer play as media (#1104, #1296, #1331, #1332, #1334, #1353, #1381). by @eleboucher in #1271
+* Fix link previews leaving empty space in a message until it is reloaded by @eleboucher in #1827
+* Message formatting fixes: checklists no longer render as raw HTML, spoilers work with proxy tags, maps with malformed coordinates no longer crash the app, and membership reasons are wrapped in parentheses (#1248, #1307, #1470). by @eleboucher in #1354
+* Fix context menus closing instead of opening, keep the room options sheet open, and let sidebar, space, and image viewer menus open on long-press as well as right-click (#1336, #1358). by @eleboucher in #1431
+* Assorted fixes: popups on start appear one at a time, room leave updates immediately, accepted invites stop reappearing, synced CSS tweaks are restored, the scheduled-messages chip shows again, faster recovery from network switches, plus small visual and formatting fixes (#1114, #1120, #1146, #1200, #1220, #1284, #1514, #1656). by @eleboucher in #1399
+* Profile fixes: hero colours and full scrolling restored on profile sheets, local time respects the 24-hour setting, devices stay sorted when last-active times are missing, and no crash in room cosmetics before members load (#1298, #1579, #1793). by @eleboucher in #1503
+* Fix sliding sync issues: missing or stale display names, bridged avatars, blank space icons, sticker and emote packs, subspaces, call updates, and incomplete member lists (#1111, #1112, #1119, #1173, #1530, #1554). by @7w1 in #1170
+* Notification and unread fixes: rooms no longer stay unread after a thread reply or restart, the inbox shows real message previews, the page title shows the mention count, and tapping a notification navigates correctly (#1245, #1390). by @eleboucher in #1816
+* Timeline fixes: reliably follow new messages, stop loading a room's whole history on open, unstuck pagination, restored polls, and fixed thread rendering, reactions, and replies (#1113, #1358, #1363, #1367, #1373, #1425). by @eleboucher in #1105
+* Fix voice recordings continuing after cancel or rapid taps, and stop the microphone when a recording is interrupted before the permission prompt resolves (#1428). by @eleboucher in #1252
+* Add option to always keep the last line of the text editor "inline" with the UI buttons. by @lunar-seal in #1218
+* Mobile polish: smoother swipe navigation and drawer, steady keyboard while editing, better touch feedback, chat input and account panel, swipe-to-edit on messages, and fixed swiping in attachments (#1103, #1130, #1131, #1144, #1173, #1267, #1303, #1382, #1754). by @eleboucher in #1166
+
 ## 1.20.0 (2026-07-17)
 
 ### Security

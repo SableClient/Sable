@@ -428,6 +428,15 @@ export const prepareSlidingSyncTimelines = (
       continue;
     }
 
+    // The SDK writes prev_batch over the live timeline's BACKWARDS token on every
+    // limited response. When the window starts at an event we already have below
+    // our top, nothing is prepended and the top does not move, so that token would
+    // back-paginate from the wrong stream position and prepend newer events.
+    if (timelineData.limited === true && firstKnownResponseIndex === 0 && firstKnownLiveIndex > 0) {
+      const topToken = liveTimeline?.getPaginationToken(EventTimeline.BACKWARDS);
+      if (typeof topToken === 'string') timelineData.prev_batch = topToken;
+    }
+
     if (!shouldMarkLimited) {
       continue;
     }

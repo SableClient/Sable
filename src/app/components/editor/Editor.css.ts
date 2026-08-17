@@ -66,6 +66,7 @@ export const EditorTextarea = style([
     flexGrow: 1,
     height: 'auto',
     padding: `${toRem(13)} 0`,
+    fontSize: '1rem',
     position: 'relative',
     whiteSpace: 'pre-wrap',
     wordWrap: 'break-word',

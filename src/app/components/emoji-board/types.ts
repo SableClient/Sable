@@ -21,10 +21,12 @@ export type EmojiItemInfo = {
 export type GifData = {
   id: string;
   title: string;
-  url: string;
+  shareUrl: string;
+  mediaUrl: string;
   preview_url?: string;
   width?: number;
   height?: number;
   size?: number;
   mimetype?: string;
+  blurhash?: string;
 };

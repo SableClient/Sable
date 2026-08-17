@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react';
+import type { CSSProperties, ReactNode, SyntheticEvent } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Badge,
@@ -95,6 +95,14 @@ function wantsThumbnail(info: IImageInfo | undefined, width: number, height: num
   return window.devicePixelRatio === 1 || info.size > THUMBNAIL_MIN_SOURCE_BYTES;
 }
 
+// `info.w`/`info.h` have the source EXIF orientation applied; homeservers that scale raw pixels
+// return a transposed thumbnail with no EXIF left for the browser to correct.
+function isTransposedThumbnail(info: IImageInfo | undefined, image: HTMLImageElement): boolean {
+  const { naturalWidth, naturalHeight } = image;
+  if (!info?.w || !info.h || !naturalWidth || !naturalHeight) return false;
+  return info.w > info.h !== naturalWidth > naturalHeight;
+}
+
 type RenderViewerProps = {
   src: string;
   alt: string;
@@ -108,7 +116,7 @@ type RenderImageProps = {
   title: string;
   src: string;
   info?: IImageInfo;
-  onLoad: () => void;
+  onLoad: (event?: SyntheticEvent<HTMLImageElement>) => void;
   onError: () => void;
   onLottieLoad: () => void;
   onLottieError: () => void;
@@ -124,6 +132,10 @@ export type ImageContentProps = {
   info?: IImageInfo;
   encInfo?: EncryptedAttachmentInfo;
   autoPlay?: boolean;
+  favoriteShareUrl?: string;
+  loadLabel?: string;
+  loadDescription?: string;
+  deferMediaLoad?: boolean;
   markedAsSpoiler?: boolean;
   spoilerReason?: string;
   renderViewer: (props: RenderViewerProps) => ReactNode;
@@ -148,6 +160,10 @@ export const ImageContent = as<'div', ImageContentProps>(
       info,
       encInfo,
       autoPlay,
+      favoriteShareUrl,
+      loadLabel,
+      loadDescription,
+      deferMediaLoad = false,
       markedAsSpoiler,
       spoilerReason,
       renderViewer,
@@ -168,6 +184,7 @@ export const ImageContent = as<'div', ImageContentProps>(
 
     const [load, setLoad] = useState(false);
     const [error, setError] = useState(false);
+    const [loadRequested, setLoadRequested] = useState(autoPlay ?? false);
     // Tauri only: each retry gets a distinct sable-media:// src.
     const retryRevisionRef = useRef(0);
     const [viewer, setViewer] = useState(false);
@@ -177,7 +194,7 @@ export const ImageContent = as<'div', ImageContentProps>(
 
     const favoritedContent = useFavoriteGifs();
     const [favorited, setFavorited] = useState(
-      favoritedContent.gifs.find((v) => v.url == url) != undefined
+      favoritedContent.gifs.find((v) => v.mediaUrl == url) != undefined
     );
 
     const isGif = checkIfGif(url, info?.mimetype, body);
@@ -207,7 +224,10 @@ export const ImageContent = as<'div', ImageContentProps>(
       return mxcUrlToHttp(mx, url, useAuthentication) ?? undefined;
     }, [mx, url, useAuthentication, usesThumbnail, thumbWidth, thumbHeight]);
 
-    const resolvedMediaUrl = useRenderableMediaUrl(encInfo ? undefined : rawMediaUrl);
+    const shouldResolveMedia = !deferMediaLoad || autoPlay || loadRequested;
+    const resolvedMediaUrl = useRenderableMediaUrl(
+      encInfo || !shouldResolveMedia ? undefined : rawMediaUrl
+    );
 
     const createObjectURL = useCreateObjectURL();
 
@@ -255,7 +275,11 @@ export const ImageContent = as<'div', ImageContentProps>(
       };
     }, [viewer, usesThumbnail, url, mx, useAuthentication]);
 
-    const handleLoad = () => {
+    const handleLoad = (event?: SyntheticEvent<HTMLImageElement>) => {
+      if (usesThumbnail && event && isTransposedThumbnail(info, event.currentTarget)) {
+        setThumbnailFailed(true);
+        return;
+      }
       setLoad(true);
     };
     const handleError = () => {
@@ -269,12 +293,14 @@ export const ImageContent = as<'div', ImageContentProps>(
     };
 
     const handleRetry = () => {
+      setLoadRequested(true);
       setError(false);
       retryRevisionRef.current += 1;
       loadSrc().catch(() => undefined);
     };
 
     const handleView = async () => {
+      setLoadRequested(true);
       if (srcState.status !== AsyncStatus.Idle) return;
       try {
         const src = await loadSrc();
@@ -398,8 +424,11 @@ export const ImageContent = as<'div', ImageContentProps>(
             className={css.AbsoluteContainer}
             alignItems="Center"
             justifyContent="Center"
+            direction="Column"
+            gap="200"
             {...viewActivation}
           >
+            {loadDescription && <Text size="T300">{loadDescription}</Text>}
             <Button
               variant="Secondary"
               fill="Solid"
@@ -407,7 +436,7 @@ export const ImageContent = as<'div', ImageContentProps>(
               size="300"
               before={sizedIcon(Image, 'Inherit', { filled: true })}
             >
-              <Text size="B300">View</Text>
+              <Text size="B300">{loadLabel ?? 'View'}</Text>
             </Button>
           </Box>
         )}
@@ -444,6 +473,7 @@ export const ImageContent = as<'div', ImageContentProps>(
             justifyContent="Center"
             onClick={() => {
               setBlurred(false);
+              setLoadRequested(true);
               if (srcState.status === AsyncStatus.Idle) {
                 loadSrc().catch(() => undefined);
               }
@@ -456,6 +486,7 @@ export const ImageContent = as<'div', ImageContentProps>(
               outlined
               onClick={() => {
                 setBlurred(false);
+                setLoadRequested(true);
                 if (srcState.status === AsyncStatus.Idle) {
                   loadSrc().catch(() => undefined);
                 }
@@ -522,6 +553,7 @@ export const ImageContent = as<'div', ImageContentProps>(
                   onClick={(e) => {
                     e.preventDefault();
                     if (srcState.status === AsyncStatus.Idle) {
+                      setLoadRequested(true);
                       loadSrc().catch(() => undefined);
                       setBlurred(false);
                     } else setBlurred(!blurred);
@@ -547,11 +579,17 @@ export const ImageContent = as<'div', ImageContentProps>(
                                 ...favoritedContent.gifs,
                                 {
                                   title: body ?? '',
-                                  url: url,
+                                  shareUrl: favoriteShareUrl ?? url,
+                                  mediaUrl: url,
                                   width: imageW,
                                   height: imageH,
                                   size: info?.size,
                                   mimetype: info?.mimetype,
+                                  ...(info?.[MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME]
+                                    ? {
+                                        blurhash: info[MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME],
+                                      }
+                                    : {}),
                                 },
                               ],
                             })
@@ -560,7 +598,7 @@ export const ImageContent = as<'div', ImageContentProps>(
                           setFavorited(false);
                           await mx
                             .setAccountData(MATRIX_SABLE_UNSTABLE_FAVORITE_GIFS, {
-                              gifs: favoritedContent.gifs.filter((v) => v.url != url),
+                              gifs: favoritedContent.gifs.filter((v) => v.mediaUrl != url),
                             })
                             .catch(() => setFavorited(true));
                         }

@@ -33,6 +33,7 @@ export const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly s
     'enable-swiping',
     'encrypted-room-embeds',
     'encrypted-room-url-preview',
+    'external-gif-auto-load-encrypted',
     'enter-for-newline',
     'error-reporting',
     'export-diagnostics',

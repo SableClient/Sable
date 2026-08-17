@@ -600,6 +600,37 @@ describe('timeline reconciliation in matrix-js-sdk', () => {
     expect(timelineIds(mx)).toEqual(['$e3', '$e4']);
   });
 
+  it('keeps the top-of-timeline token when a limited response overlaps mid-timeline', async () => {
+    const { mx, deliver } = makeSdk();
+    await deliver(roomId, {
+      initial: true,
+      required_state: [],
+      timeline: history,
+      limited: true,
+      prev_batch: 'top-token',
+    } as unknown as MSC3575RoomData);
+    const room = mx.getRoom(roomId)!;
+    expect(room.getLiveTimeline().getPaginationToken(EventTimeline.BACKWARDS)).toBe('top-token');
+
+    const roomData = {
+      required_state: [],
+      timeline: [newest, message('$e4', 400)],
+      limited: true,
+      prev_batch: 'mid-token',
+    } as unknown as MSC3575RoomData;
+    const resp = {
+      pos: 'p4',
+      rooms: { [roomId]: roomData },
+    } as unknown as MSC3575SlidingSyncResponse;
+    prepareSlidingSyncTimelines(resp, mx);
+    await deliver(roomId, roomData);
+
+    expect(timelineIds(mx)).toEqual(['$e1', '$e2', '$e3', '$e4']);
+    // 'mid-token' paginates back from $e3, so it would prepend above $e1 events
+    // that belong below it.
+    expect(room.getLiveTimeline().getPaginationToken(EventTimeline.BACKWARDS)).toBe('top-token');
+  });
+
   it('keeps a usable back-pagination token after reconciling', async () => {
     const { mx, deliver } = makeSdk();
     await deliver(roomId, initialRoomData(newest));

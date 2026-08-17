@@ -64,6 +64,7 @@ import { useGifSearch } from './useGifSearch';
 import { useFavoriteGifs } from '$hooks/useFavoriteGifs';
 import * as css from './components/styles.css';
 import { useMobileSheetClose } from '$components/MobileSwipeDownModal';
+import { isAllowedKlipyMediaUrl } from '$utils/externalGif';
 
 const RECENT_GROUP_ID = 'recent_group';
 const SEARCH_GROUP_ID = 'search_group';
@@ -173,10 +174,14 @@ const useItemRenderer = (tab: EmojiBoardTab, saveStickerEmojiBandwidth: boolean)
     if (tab === EmojiBoardTab.Gif) {
       const gif = item as GifData;
 
-      let initialGifUrl = gif.preview_url ?? gif.url;
-      let gifUrl = initialGifUrl.startsWith('mxc://')
-        ? (mxcUrlToHttp(mx, initialGifUrl, useAuthentication) ?? '')
-        : initialGifUrl;
+      const previewUrl = gif.preview_url;
+      const gifUrl =
+        (previewUrl && isAllowedKlipyMediaUrl(previewUrl) ? previewUrl : undefined) ??
+        (isAllowedKlipyMediaUrl(gif.mediaUrl)
+          ? gif.mediaUrl
+          : gif.mediaUrl.startsWith('mxc://')
+            ? (mxcUrlToHttp(mx, gif.mediaUrl, useAuthentication) ?? '')
+            : '');
       const aspectRatio =
         gif.width && gif.height && gif.width > 0 && gif.height > 0
           ? `${gif.width} / ${gif.height}`
@@ -187,18 +192,20 @@ const useItemRenderer = (tab: EmojiBoardTab, saveStickerEmojiBandwidth: boolean)
           key={gif.id + index}
           label={gif.title}
           type={EmojiType.Gif}
-          data={gif.url}
+          data={gif.mediaUrl}
           shortcode={gif.title}
           gif={gif}
           style={{ aspectRatio }}
         >
-          <MediaImage
-            loading="lazy"
-            alt=""
-            aria-hidden
-            src={gifUrl}
-            style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }}
-          />
+          {gifUrl && (
+            <MediaImage
+              loading="lazy"
+              alt=""
+              aria-hidden
+              src={gifUrl}
+              style={{ display: 'block', width: '100%', height: '100%', objectFit: 'cover' }}
+            />
+          )}
         </GifItem>
       );
     }

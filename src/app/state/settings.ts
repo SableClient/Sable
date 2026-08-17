@@ -154,6 +154,7 @@ export interface Settings {
   encUrlPreview: boolean;
   clientUrlPreview: boolean;
   encClientUrlPreview: boolean;
+  externalGifAutoLoadEncrypted: boolean;
   clientPreviewYoutube: boolean;
   enableGifPicker: boolean;
   showInteractiveMap: boolean;
@@ -331,6 +332,7 @@ export const defaultSettings: Settings = {
   encUrlPreview: false,
   clientUrlPreview: false,
   encClientUrlPreview: false,
+  externalGifAutoLoadEncrypted: false,
   clientPreviewYoutube: false,
   enableGifPicker: true,
   showInteractiveMap: true,

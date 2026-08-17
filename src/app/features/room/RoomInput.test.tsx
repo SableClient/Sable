@@ -130,7 +130,9 @@ vi.mock('$state/upload', async () => {
   };
 });
 
-vi.mock('$components/editor', () => {
+vi.mock('$components/editor', async () => {
+  const { useAutocompleteQuery } =
+    await import('$components/editor/autocomplete/useAutocompleteQuery');
   const textOf = (nodes: any[]): string =>
     nodes
       .map((node) => (typeof node.text === 'string' ? node.text : textOf(node.children ?? [])))
@@ -205,6 +207,7 @@ vi.mock('$components/editor', () => {
     toPlainText: textOf,
     trimCommand: (_command: unknown, text: string) => text,
     trimCustomHtml: (html: string) => html,
+    useAutocompleteQuery,
   };
 });
 
@@ -252,10 +255,16 @@ vi.mock('$components/upload-card', () => ({
 }));
 vi.mock('./msgContent', async (importOriginal) => ({
   ...(await importOriginal<typeof MsgContentModule>()),
-  getGifMsgContent: async (_mx: unknown, gif: { title: string }, url: string) => ({
-    msgtype: 'm.image',
+  getGifMsgContent: (gif: { title: string }) => ({
+    msgtype: 'm.text',
     body: gif.title,
-    url,
+    'pet.plz.gif': {
+      v: 1,
+      provider: 'klipy',
+      media_url: 'https://static.klipy.com/ii/gif.gif',
+      w: 320,
+      h: 240,
+    },
   }),
 }));
 vi.mock('$components/attachment-sheet/AttachmentSheet', () => ({ AttachmentSheet: () => null }));
@@ -269,8 +278,10 @@ vi.mock('$components/emoji-board', () => ({
         type="button"
         onClick={() =>
           onGifSelect({
-            url: 'mxc://gif',
+            id: 'gif-id',
             title: 'gif',
+            shareUrl: 'https://klipy.com/gif/gif-id',
+            mediaUrl: 'https://static.klipy.com/ii/gif.gif',
             width: 320,
             height: 240,
             mimetype: 'image/gif',

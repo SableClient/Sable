@@ -41,6 +41,7 @@ import {
 } from './slidingSync';
 import { PresenceSyncManager } from './presenceSync';
 import { SlidingSyncSidebarCache } from './slidingSyncSidebarCache';
+import { disposeSyncStorePersistence, installSyncStorePersistence } from './syncStorePersistence';
 import { clearCachedUserProfiles } from './userProfileCache';
 import {
   clearLocalNotificationCache,
@@ -570,6 +571,7 @@ export const startClient = async (mx: MatrixClient, config?: StartClientConfig):
         }),
       { transport: useSliding ? 'sliding' : 'classic' }
     );
+    if (!useSliding) installSyncStorePersistence(mx);
     if (manager && (await manager.waitForSidebarCacheHydration())) {
       config?.onCachedRoomsLoaded?.();
     }
@@ -592,6 +594,7 @@ export const stopClient = (mx: MatrixClient): void => {
   log.log('stopClient', mx.getUserId());
   debugLog.info('sync', 'Stopping client', { userId: mx.getUserId() });
   slidingSyncRequestCleanupByClient.get(mx)?.();
+  disposeSyncStorePersistence(mx);
   disposeSlidingSync(mx);
   disposePresenceSync(mx);
   mx.stopClient();

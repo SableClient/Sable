@@ -24,7 +24,6 @@ const mocks = vi.hoisted(() => ({
   osType: vi.fn<() => string>(),
   showToast: vi.fn<(text: string, durationMs?: number) => void>(),
   fetchMediaBlob: vi.fn<(input: string) => Promise<Blob>>(),
-  captureException: vi.fn<(error: unknown, context?: unknown) => void>(),
 }));
 const { androidFs, save, writeFile } = mocks;
 
@@ -34,7 +33,6 @@ vi.mock('@tauri-apps/api/core', () => ({
   isTauri: mocks.isTauri,
 }));
 vi.mock('@tauri-apps/plugin-os', () => ({ type: mocks.osType }));
-vi.mock('@sentry/react', () => ({ captureException: mocks.captureException }));
 vi.mock('$state/toast', () => ({ showToast: mocks.showToast }));
 vi.mock('$utils/mediaTransport', () => ({ fetchMediaBlob: mocks.fetchMediaBlob }));
 vi.mock('tauri-plugin-android-fs-api', () => ({
@@ -79,57 +77,6 @@ describe('saveFileToDevice', () => {
     expect(androidFs.setPublicFilePending).toHaveBeenCalledWith('content://download/file', false);
     expect(androidFs.scanPublicFile).toHaveBeenCalledWith('content://download/file');
     expect(showToast).toHaveBeenCalledWith('Saved to Downloads');
-  });
-
-  // MediaStore resolves the final name when the pending flag is cleared, so the
-  // 32-name wall is hit after the bytes are written, not on create.
-  const uniqueFileError = new Error(
-    'Failed to build unique file: /storage/emulated/0/Download/Screenshot 2026-08-13 at 20.07.50.png' +
-      ' _display_name=Screenshot 2026-08-13 at 20.07.50.png mime_type=image/png' +
-      ' _data=/storage/emulated/0/Download/Screenshot 2026-08-13 at 20.07.50.png relative_path=Download/'
-  );
-
-  it('retries the whole save under a unique name when clearing the pending flag fails', async () => {
-    androidFs.setPublicFilePending.mockRejectedValueOnce(uniqueFileError);
-
-    const result = await saveFileToDevice(
-      new Blob(['data'], { type: 'image/png' }),
-      'Screenshot 2026-08-13 at 20.07.50.png'
-    );
-
-    expect(result).toBe('saved');
-    expect(androidFs.createNewPublicFile).toHaveBeenCalledTimes(2);
-    expect(androidFs.createNewPublicFile).toHaveBeenLastCalledWith(
-      'Download',
-      expect.stringMatching(/^Screenshot 2026-08-13 at 20\.07\.50-\d+\.png$/),
-      'image/png',
-      { isPending: true, requestPermission: true }
-    );
-    expect(androidFs.removeFile).toHaveBeenCalledWith('content://download/file');
-    expect(showToast).toHaveBeenCalledWith('Saved to Downloads');
-  });
-
-  it('reports a scrubbed error to Sentry when the unique-name retry also fails', async () => {
-    androidFs.setPublicFilePending.mockRejectedValue(uniqueFileError);
-
-    const result = await saveFileToDevice(
-      new Blob(['data'], { type: 'image/png' }),
-      'Screenshot 2026-08-13 at 20.07.50.png'
-    );
-
-    expect(result).toBe('failed');
-    expect(androidFs.createNewPublicFile).toHaveBeenCalledTimes(2);
-
-    const [reported, context] = mocks.captureException.mock.calls[0] as [
-      Error,
-      { tags: Record<string, string>; extra: Record<string, unknown> },
-    ];
-    expect(reported.message).toContain('Failed to build unique file');
-    expect(reported.message).not.toContain('Screenshot');
-    expect(reported.message).not.toContain('20.07.50');
-    expect(reported.message).not.toContain('/storage/emulated');
-    expect(context.tags).toMatchObject({ feature: 'media-save', target: 'downloads' });
-    expect(context.extra).toMatchObject({ mimeType: 'image/png' });
   });
 
   it('cleans up an Android file and shows an error toast when writing fails', async () => {

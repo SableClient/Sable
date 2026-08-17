@@ -4,6 +4,7 @@
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
 import { EventType } from 'matrix-js-sdk/lib/@types/event';
 
+import { MATRIX_UNSTABLE_MSC4174_PUSHERS_ACK_PATH } from '$unstable/prefixes';
 import { createPushNotifications } from './sw/pushNotification';
 import { readPersistedSession } from './sw-session-persistence';
 
@@ -810,14 +811,12 @@ function respondWithInflightMedia(
   // mode: "no-cors", which prevents the Authorization header above from reaching the server.
   // Preserve Range header for streaming audio and video.
   const promise = fetch(request.url, { ...fetchConfig(token, request), redirect })
-    .then(
-      async (res): Promise<BufferedMediaResponse> => ({
-        status: res.status,
-        statusText: res.statusText,
-        headers: new Headers(res.headers),
-        body: await res.arrayBuffer(),
-      })
-    )
+    .then(async (res): Promise<BufferedMediaResponse> => ({
+      status: res.status,
+      statusText: res.statusText,
+      headers: new Headers(res.headers),
+      body: await res.arrayBuffer(),
+    }))
     .finally(() => {
       inflightMediaFetches.delete(key);
     });
@@ -869,6 +868,8 @@ export const swTestHooks = {
   requestSessionWithTimeout,
   respondWithMediaAuthRecovery,
   setSession,
+  isWebPushActivationPayload,
+  acknowledgeWebPushActivation,
 };
 
 self.addEventListener('message', (event: ExtendableMessageEvent) => {
@@ -950,6 +951,69 @@ self.addEventListener('fetch', (event: FetchEvent) => {
   );
 });
 
+// ---------------------------------------------------------------------------
+// MSC4174 web push activation
+// ---------------------------------------------------------------------------
+
+/** MSC4174 validation push: `{ app_id, ack_token }` and nothing else. */
+function isWebPushActivationPayload(data: unknown): data is { app_id: string; ack_token: string } {
+  if (!data || typeof data !== 'object') return false;
+  const d = data as Record<string, unknown>;
+  return (
+    typeof d.app_id === 'string' &&
+    typeof d.ack_token === 'string' &&
+    d.room_id === undefined &&
+    d.event_id === undefined &&
+    d.type === undefined &&
+    typeof d.unread !== 'number'
+  );
+}
+
+async function postWebPushAck(
+  session: SessionInfo,
+  appId: string,
+  ackToken: string
+): Promise<boolean> {
+  try {
+    const res = await fetch(`${session.baseUrl}${MATRIX_UNSTABLE_MSC4174_PUSHERS_ACK_PATH}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ app_id: appId, ack_token: ackToken }),
+    });
+    if (res.ok) return true;
+    console.warn('[SW push] MSC4174 ack rejected with HTTP', res.status);
+  } catch (err) {
+    console.warn('[SW push] MSC4174 ack failed', err);
+  }
+  return false;
+}
+
+/**
+ * Acknowledges a MSC4174 validation push. The payload does not identify the
+ * account that registered the pusher, so each known session is tried in turn.
+ */
+async function acknowledgeWebPushActivation(appId: string, ackToken: string): Promise<boolean> {
+  const candidates: SessionInfo[] = [...sessions.values()];
+  const seen = new Set(candidates.map((session) => session.userId).filter(Boolean));
+  const persisted = await loadPersistedSessions();
+  Object.values(persisted).forEach((session) => {
+    if (!seen.has(session.userId)) {
+      candidates.push(session);
+      seen.add(session.userId);
+    }
+  });
+
+  // Chain sessions sequentially to avoid await-in-loop.
+  return candidates.reduce(
+    (prevPromise, session) =>
+      prevPromise.then((acked) => acked || postWebPushAck(session, appId, ackToken)),
+    Promise.resolve(false)
+  );
+}
+
 // Detect a minimal (event_id_only) payload: has room_id + event_id but no
 // event type field — meaning the homeserver stripped the event content.
 function isMinimalPushPayload(
@@ -962,6 +1026,14 @@ function isMinimalPushPayload(
 
 const onPushNotification = async (event: PushEvent) => {
   if (!event?.data) return;
+
+  const pushData = event.data.json();
+
+  // MSC4174 validation push: not a notification, ack even while visible.
+  if (isWebPushActivationPayload(pushData)) {
+    await acknowledgeWebPushActivation(pushData.app_id, pushData.ack_token);
+    return;
+  }
 
   // The SW may have been restarted by the OS (iOS is aggressive about this),
   // so in-memory settings would be at their defaults.  Reload from cache and
@@ -989,7 +1061,6 @@ const onPushNotification = async (event: PushEvent) => {
     return;
   }
 
-  const pushData = event.data.json();
   console.debug('[SW push] raw payload:', JSON.stringify(pushData, null, 2));
 
   try {

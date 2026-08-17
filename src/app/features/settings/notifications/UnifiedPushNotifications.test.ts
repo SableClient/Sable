@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type * as WebPushSupportModule from './webPushSupport';
 import {
   DEFAULT_UNIFIED_PUSH_APP_ID,
   disableUnifiedPush,
@@ -53,6 +54,13 @@ const invoke = vi.hoisted(() =>
   vi.fn<(cmd: string, args?: Record<string, unknown>) => Promise<unknown>>()
 );
 
+const getWebPushServerSupport = vi.hoisted(() =>
+  vi.fn<() => Promise<WebPushSupportModule.WebPushServerSupport>>()
+);
+const acknowledgeWebPushPusher = vi.hoisted(() =>
+  vi.fn<() => Promise<void>>().mockResolvedValue(undefined)
+);
+
 const addPluginListener = vi.hoisted(() =>
   vi.fn<
     (
@@ -78,6 +86,11 @@ vi.mock('@tauri-apps/api/core', () => ({
 vi.mock('$utils/fetch', () => ({
   fetch: (...args: Parameters<typeof globalThis.fetch>) => globalThis.fetch(...args),
 }));
+
+vi.mock('./webPushSupport', async (importOriginal) => {
+  const actual = await importOriginal<typeof WebPushSupportModule>();
+  return { ...actual, getWebPushServerSupport, acknowledgeWebPushPusher };
+});
 
 function makeRoom() {
   return {
@@ -106,6 +119,8 @@ describe('UnifiedPushNotifications', () => {
     notificationsApi.createChannel.mockResolvedValue(undefined);
     notificationsApi.removeChannel.mockResolvedValue(undefined);
     getTauriNotificationsApi.mockResolvedValue(notificationsApi);
+    getWebPushServerSupport.mockResolvedValue({ supported: false });
+    acknowledgeWebPushPusher.mockResolvedValue(undefined);
     unifiedPushTransport.registerUnifiedPushTransport.mockResolvedValue({
       status: 'registered',
       permissionState: 'granted',
@@ -630,6 +645,102 @@ describe('UnifiedPushNotifications', () => {
     );
   }, 15_000);
 
+  it('registers an MSC4174 webpush pusher without a gateway when supported', async () => {
+    getWebPushServerSupport.mockResolvedValue({ supported: true, vapidPublicKey: 'hs-vapid' });
+    unifiedPushTransport.registerUnifiedPushTransport.mockResolvedValue({
+      status: 'registered',
+      permissionState: 'granted',
+      endpoint: 'https://fcm.googleapis.com/fcm/send/device',
+      distributor: 'embedded.fcm.distributor',
+      p256dh: 'p256-key',
+      auth: 'auth-secret',
+    });
+
+    await expect(
+      tryEnableUnifiedPush(matrixClient as never, {
+        webPushAppID: 'moe.sable.app',
+        vapidPublicKey: 'gateway-vapid',
+      })
+    ).resolves.toMatchObject({
+      status: 'registered',
+      endpoint: 'https://fcm.googleapis.com/fcm/send/device',
+    });
+
+    expect(unifiedPushTransport.registerUnifiedPushTransport).toHaveBeenCalledWith('hs-vapid');
+    expect(matrixClient.setPusher).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'org.matrix.msc4174.webpush',
+        app_id: 'moe.sable.app',
+        pushkey: 'p256-key',
+        data: expect.objectContaining({
+          url: 'https://fcm.googleapis.com/fcm/send/device',
+          auth: 'auth-secret',
+          format: 'event_id_only',
+          default_payload: { user_id: '@user:example.com' },
+        }),
+      })
+    );
+  }, 15_000);
+
+  it('keeps the gateway webpush pusher when the homeserver does not support MSC4174', async () => {
+    unifiedPushTransport.registerUnifiedPushTransport.mockResolvedValue({
+      status: 'registered',
+      permissionState: 'granted',
+      endpoint: 'https://up.example/device',
+      distributor: 'org.unifiedpush.distributor.ntfy',
+      p256dh: 'p256-key',
+      auth: 'auth-secret',
+    });
+
+    await tryEnableUnifiedPush(matrixClient as never, {
+      webPushAppID: 'moe.sable.app',
+      pushNotifyUrl: 'https://sygnal.example/_matrix/push/v1/notify',
+      vapidPublicKey: 'gateway-vapid',
+    });
+
+    expect(unifiedPushTransport.registerUnifiedPushTransport).toHaveBeenCalledWith('gateway-vapid');
+    expect(matrixClient.setPusher).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'http',
+        app_id: 'moe.sable.app',
+        pushkey: 'p256-key',
+        data: expect.objectContaining({
+          url: 'https://sygnal.example/_matrix/push/v1/notify',
+          endpoint: 'https://up.example/device',
+          p256dh: 'p256-key',
+          auth: 'auth-secret',
+        }),
+      })
+    );
+  }, 15_000);
+
+  it('acknowledges MSC4174 activation pushes instead of notifying', async () => {
+    await listenForUnifiedPushMessages(() => makeSettings() as never);
+
+    pushHandler({
+      message: JSON.stringify({ app_id: 'moe.sable.app', ack_token: 'token-123' }),
+    });
+
+    await vi.waitFor(() =>
+      expect(acknowledgeWebPushPusher).toHaveBeenCalledWith(
+        matrixClient,
+        'moe.sable.app',
+        'token-123'
+      )
+    );
+    expect(notificationsApi.sendNotification).not.toHaveBeenCalled();
+  });
+
+  it('acknowledges MSC4174 activation pushes even without a user_id match', async () => {
+    await listenForUnifiedPushMessages(() => makeSettings() as never);
+
+    pushHandler({
+      message: JSON.stringify({ app_id: 'moe.sable.app', ack_token: 'token-456' }),
+    });
+
+    await vi.waitFor(() => expect(acknowledgeWebPushPusher).toHaveBeenCalledOnce());
+  });
+
   it('clears the UnifiedPush registration timeout after successful registration', async () => {
     vi.useFakeTimers();
 
@@ -671,6 +782,12 @@ describe('UnifiedPushNotifications', () => {
         },
         {
           app_id: 'com.example.up',
+          pushkey: 'stale-webpush-key',
+          device_display_name: 'Pixel',
+          kind: 'org.matrix.msc4174.webpush',
+        },
+        {
+          app_id: 'com.example.up',
           pushkey: 'other-device-endpoint',
           device_display_name: 'Other Phone',
           kind: 'http',
@@ -684,7 +801,7 @@ describe('UnifiedPushNotifications', () => {
       },
     });
 
-    expect(matrixClient.setPusher).toHaveBeenCalledTimes(2);
+    expect(matrixClient.setPusher).toHaveBeenCalledTimes(3);
     expect(matrixClient.setPusher).toHaveBeenCalledWith(
       expect.objectContaining({
         kind: null,
@@ -697,6 +814,13 @@ describe('UnifiedPushNotifications', () => {
         kind: null,
         app_id: 'com.example.up',
         pushkey: 'stale-endpoint-2',
+      })
+    );
+    expect(matrixClient.setPusher).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: null,
+        app_id: 'com.example.up',
+        pushkey: 'stale-webpush-key',
       })
     );
     expect(unifiedPushTransport.unregisterUnifiedPushTransport).toHaveBeenCalledOnce();

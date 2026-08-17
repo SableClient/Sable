@@ -1,6 +1,9 @@
 import type { IPusherRequest, MatrixClient } from '$types/matrix-sdk';
 import type { ClientConfig } from '$hooks/useClientConfig';
+import { MATRIX_UNSTABLE_MSC4174_WEBPUSH_PUSHER_KIND } from '$unstable/prefixes';
 import { getNativePushNotificationsApi } from './NativePushNotificationsApiClient';
+import { resolvePushNotifyUrl } from './PushPusherConfig';
+import { getWebPushServerSupport, removeStaleHttpPushers } from './webPushSupport';
 
 const NATIVE_PUSH_PUSHKEY_STORAGE_KEY = 'nativePushToken';
 const NATIVE_PUSH_APP_ID_STORAGE_KEY = 'nativePushAppId';
@@ -61,12 +64,12 @@ function getWebPushAppId(clientConfig: ClientConfig): string {
   return appId;
 }
 
-function getPushGatewayUrl(clientConfig: ClientConfig): string {
+function getPushGatewayUrl(clientConfig: ClientConfig, pushNotifyUrlOverride?: string): string {
   const pushGatewayUrl = clientConfig.pushNotificationDetails?.pushNotifyUrl;
-  if (!pushGatewayUrl) {
+  if (!pushGatewayUrl && !pushNotifyUrlOverride?.trim()) {
     throw new Error('Native push requires pushNotificationDetails.pushNotifyUrl in config.json.');
   }
-  return pushGatewayUrl;
+  return resolvePushNotifyUrl(pushGatewayUrl, pushNotifyUrlOverride);
 }
 
 export async function isNativePushPermissionGranted(): Promise<boolean | null> {
@@ -136,7 +139,7 @@ async function removeNativePushersForCurrentDevice(mx: MatrixClient, appId: stri
     (pusher) =>
       pusher.app_id === appId &&
       pusher.device_display_name === deviceDisplayName &&
-      pusher.kind === 'http'
+      (pusher.kind === 'http' || pusher.kind === MATRIX_UNSTABLE_MSC4174_WEBPUSH_PUSHER_KIND)
   );
 
   if (currentDevicePushers.length === 0) {
@@ -156,9 +159,13 @@ async function removeNativePushersForCurrentDevice(mx: MatrixClient, appId: stri
 
 export async function enableNativePush(
   mx: MatrixClient,
-  clientConfig: ClientConfig
+  clientConfig: ClientConfig,
+  pushNotifyUrlOverride?: string
 ): Promise<string> {
-  const vapid = clientConfig.pushNotificationDetails?.vapidPublicKey;
+  const webPushSupport = await getWebPushServerSupport(mx);
+  const vapid = webPushSupport.supported
+    ? webPushSupport.vapidPublicKey
+    : clientConfig.pushNotificationDetails?.vapidPublicKey;
   const registration = await ensureNativePushRegistered(vapid);
 
   if (registration.permission !== 'granted' || !registration.token) {
@@ -169,12 +176,36 @@ export async function enableNativePush(
     );
   }
 
-  const pushGatewayUrl = getPushGatewayUrl(clientConfig);
   const deviceDisplayName =
     (await mx.getDevice(mx.getDeviceId() ?? ''))?.display_name ?? 'Mobile Device';
 
   if (registration.p256dh && registration.auth) {
     const appId = getWebPushAppId(clientConfig);
+
+    if (webPushSupport.supported) {
+      // MSC4174: registration.token is the web push endpoint (e.g. FCM's).
+      await mx.setPusher({
+        kind: MATRIX_UNSTABLE_MSC4174_WEBPUSH_PUSHER_KIND,
+        app_id: appId,
+        pushkey: registration.p256dh,
+        app_display_name: 'Sable (Native Push)',
+        device_display_name: deviceDisplayName,
+        lang: navigator.language || 'en',
+        data: {
+          url: registration.token,
+          format: 'event_id_only',
+          auth: registration.auth,
+          default_payload: { user_id: mx.getSafeUserId() },
+        },
+        append: false,
+      } as unknown as IPusherRequest);
+
+      await removeStaleHttpPushers(mx, appId, [deviceDisplayName]);
+      storeNativePushRegistration(appId, registration.p256dh);
+      return registration.p256dh;
+    }
+
+    const pushGatewayUrl = getPushGatewayUrl(clientConfig, pushNotifyUrlOverride);
     await mx.setPusher({
       kind: 'http',
       app_id: appId,
@@ -196,6 +227,7 @@ export async function enableNativePush(
     return registration.p256dh;
   }
 
+  const pushGatewayUrl = getPushGatewayUrl(clientConfig, pushNotifyUrlOverride);
   const appId = getNativePushAppId(clientConfig);
   await mx.setPusher({
     kind: 'http',

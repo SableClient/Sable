@@ -210,6 +210,7 @@ export const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly s
     'unified-push-app-id',
     'unified-push-distributor',
     'unified-push-gateway-url',
+    'web-push-gateway-url',
   ],
   devices: [
     'device-dashboard',

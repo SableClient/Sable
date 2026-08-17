@@ -125,6 +125,9 @@ export function NotificationTransportRuntimeFeature() {
   const clientConfigRef = useRef(clientConfig);
   clientConfigRef.current = clientConfig;
 
+  const pushNotifyUrlOverrideRef = useRef(pushNotifyUrlOverride);
+  pushNotifyUrlOverrideRef.current = pushNotifyUrlOverride;
+
   const lastEndpointRef = useRef<string | null>(null);
   useEffect(() => {
     if (!mx) return undefined;
@@ -142,7 +145,11 @@ export function NotificationTransportRuntimeFeature() {
           const result = await enableUnifiedPush(mx, upConfigRef.current);
           lastEndpointRef.current = result.endpoint;
         } else if (provider === 'native') {
-          const token = await enableNativePush(mx, clientConfigRef.current);
+          const token = await enableNativePush(
+            mx,
+            clientConfigRef.current,
+            pushNotifyUrlOverrideRef.current
+          );
           lastEndpointRef.current = token;
         }
       } catch (error) {

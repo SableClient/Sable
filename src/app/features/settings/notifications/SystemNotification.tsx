@@ -104,9 +104,8 @@ function getNativePushConfigError(clientConfig: ReturnType<typeof useClientConfi
     return 'Native push requires pushNotificationDetails.nativePushAppID in config.json.';
   }
 
-  if (!clientConfig.pushNotificationDetails?.pushNotifyUrl) {
-    return 'Native push requires pushNotificationDetails.pushNotifyUrl in config.json.';
-  }
+  // pushNotifyUrl is intentionally not required here: MSC4174 web push needs no
+  // gateway, and legacy paths surface a missing gateway at registration time.
 
   return null;
 }
@@ -343,7 +342,10 @@ function BackgroundPushNotificationSetting() {
     'pushTransportOverride'
   );
   const [useRichPushPayloads] = useSetting(settingsAtom, 'useRichPushPayloads');
-  const [pushNotifyUrlOverride] = useSetting(settingsAtom, 'pushNotifyUrlOverride');
+  const [pushNotifyUrlOverride, setPushNotifyUrlOverride] = useSetting(
+    settingsAtom,
+    'pushNotifyUrlOverride'
+  );
   const pushSubAtom = useAtom(pushSubscriptionAtom);
   const [upEndpoint, setUpEndpoint] = useAtom(unifiedPushEndpointAtom);
   const unifiedPushStateRef = useRef<UnifiedPushState>(upEndpoint);
@@ -503,7 +505,7 @@ function BackgroundPushNotificationSetting() {
           throw new Error('Browser notification permission was not granted.');
         }
       }
-      await enablePushNotifications(mx, clientConfig, pushSubAtom);
+      await enablePushNotifications(mx, clientConfig, pushSubAtom, pushNotifyUrlOverride);
       return;
     }
 
@@ -528,7 +530,7 @@ function BackgroundPushNotificationSetting() {
       throw new Error(nativePushConfigError);
     }
 
-    await enableNativePush(mx, clientConfig);
+    await enableNativePush(mx, clientConfig, pushNotifyUrlOverride);
   };
 
   const deactivateTransport = async (kind: BackgroundPushKind | null) => {
@@ -837,6 +839,22 @@ function BackgroundPushNotificationSetting() {
             onSave={(nextValue) => updatePushTransportOverride({ unifiedPushAppID: nextValue })}
           />
         </>
+      )}
+      {backgroundPushSupported && (
+        <NotificationTransportOverrideInput
+          focusId="web-push-gateway-url"
+          title="Push Gateway URL"
+          description={`Used only when the homeserver does not support MSC4174 web push. Default: ${
+            clientConfig.pushNotificationDetails?.pushNotifyUrl ?? 'none'
+          }`}
+          name="pushNotifyUrlOverride"
+          value={pushNotifyUrlOverride ?? ''}
+          placeholder={
+            clientConfig.pushNotificationDetails?.pushNotifyUrl ??
+            'https://sygnal.example.org/_matrix/push/v1/notify'
+          }
+          onSave={(nextValue) => setPushNotifyUrlOverride(nextValue.trim() || undefined)}
+        />
       )}
     </>
   );

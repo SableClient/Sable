@@ -30,6 +30,13 @@ import {
   withPushPayloadFormat,
   type PushPusherSettings,
 } from './PushPusherConfig';
+import {
+  acknowledgeWebPushPusher,
+  getWebPushServerSupport,
+  isWebPushActivationPayload,
+  removeStaleHttpPushers,
+} from './webPushSupport';
+import { MATRIX_UNSTABLE_MSC4174_WEBPUSH_PUSHER_KIND } from '$unstable/prefixes';
 
 const UP_PUBLIC_GATEWAY = 'https://matrix.gateway.unifiedpush.org/_matrix/push/v1/notify';
 export const DEFAULT_UNIFIED_PUSH_APP_ID = 'moe.sable.up';
@@ -147,7 +154,10 @@ export async function tryEnableUnifiedPush(
   const notificationsApi = await getTauriNotificationsApi();
   await ensureNotificationChannels(notificationsApi);
 
-  const registration = await registerUnifiedPushWithTimeout(config?.vapidPublicKey);
+  // MSC4174: subscribe with the homeserver VAPID key when it pushes directly.
+  const webPushSupport = await getWebPushServerSupport(mx);
+  const vapid = webPushSupport.supported ? webPushSupport.vapidPublicKey : config?.vapidPublicKey;
+  const registration = await registerUnifiedPushWithTimeout(vapid);
 
   if (registration.status !== 'registered') {
     return registration;
@@ -157,34 +167,69 @@ export async function tryEnableUnifiedPush(
   const deviceDisplayName =
     (await mx.getDevice(mx.getDeviceId() ?? ''))?.display_name ?? 'Android Device';
 
-  if (registration.p256dh && registration.auth && config?.webPushAppID && config?.pushNotifyUrl) {
-    const pushNotifyUrl = resolvePushNotifyUrl(config.pushNotifyUrl, config?.pushNotifyUrlOverride);
-    await mx.setPusher({
-      kind: 'http',
-      app_id: config.webPushAppID,
-      pushkey: registration.p256dh,
-      app_display_name: 'Sable (UnifiedPush)',
-      device_display_name: deviceDisplayName,
-      lang: navigator.language || 'en',
-      data: withPushPayloadFormat(
-        {
-          url: pushNotifyUrl,
-          endpoint,
-          p256dh: registration.p256dh,
-          auth: registration.auth,
-          default_payload: { user_id: mx.getSafeUserId() },
-        },
-        config?.useRichPushPayloads
-      ),
-      append: false,
-    } as unknown as IPusherRequest);
+  if (registration.p256dh && registration.auth && config?.webPushAppID) {
+    if (webPushSupport.supported) {
+      // MSC4174: data.url is the distributor's push endpoint, not a gateway.
+      await mx.setPusher({
+        kind: MATRIX_UNSTABLE_MSC4174_WEBPUSH_PUSHER_KIND,
+        app_id: config.webPushAppID,
+        pushkey: registration.p256dh,
+        app_display_name: 'Sable (UnifiedPush)',
+        device_display_name: deviceDisplayName,
+        lang: navigator.language || 'en',
+        data: withPushPayloadFormat(
+          {
+            url: endpoint,
+            auth: registration.auth,
+            default_payload: { user_id: mx.getSafeUserId() },
+          },
+          config?.useRichPushPayloads
+        ),
+        append: false,
+      } as unknown as IPusherRequest);
 
-    return {
-      status: 'registered',
-      endpoint,
-      gatewayUrl: pushNotifyUrl,
-      distributor: registration.distributor,
-    };
+      await removeStaleHttpPushers(mx, config.webPushAppID, [deviceDisplayName]);
+
+      return {
+        status: 'registered',
+        endpoint,
+        gatewayUrl: endpoint,
+        distributor: registration.distributor,
+      };
+    }
+
+    if (config?.pushNotifyUrl) {
+      const pushNotifyUrl = resolvePushNotifyUrl(
+        config.pushNotifyUrl,
+        config?.pushNotifyUrlOverride
+      );
+      await mx.setPusher({
+        kind: 'http',
+        app_id: config.webPushAppID,
+        pushkey: registration.p256dh,
+        app_display_name: 'Sable (UnifiedPush)',
+        device_display_name: deviceDisplayName,
+        lang: navigator.language || 'en',
+        data: withPushPayloadFormat(
+          {
+            url: pushNotifyUrl,
+            endpoint,
+            p256dh: registration.p256dh,
+            auth: registration.auth,
+            default_payload: { user_id: mx.getSafeUserId() },
+          },
+          config?.useRichPushPayloads
+        ),
+        append: false,
+      } as unknown as IPusherRequest);
+
+      return {
+        status: 'registered',
+        endpoint,
+        gatewayUrl: pushNotifyUrl,
+        distributor: registration.distributor,
+      };
+    }
   }
 
   const resolvedConfig = resolveUnifiedPushPusherConfig(config);
@@ -253,7 +298,7 @@ async function getCurrentDeviceUnifiedPushPushkeys(
       (pusher) =>
         pusher.app_id === appId &&
         pusher.device_display_name === deviceDisplayName &&
-        pusher.kind === 'http' &&
+        (pusher.kind === 'http' || pusher.kind === MATRIX_UNSTABLE_MSC4174_WEBPUSH_PUSHER_KIND) &&
         isNonEmptyString(pusher.pushkey)
     )
     .map((pusher) => pusher.pushkey);
@@ -1027,12 +1072,27 @@ async function handleUnifiedPushPayload(
 ) {
   const settings = getSettings();
 
+  const pushData = (raw.extra ?? raw) as UnifiedPushPayload;
+
+  // MSC4174 validation push: not a notification, ack even while visible.
+  if (isWebPushActivationPayload(pushData)) {
+    try {
+      await acknowledgeWebPushPusher(settings.mx, pushData.app_id, pushData.ack_token);
+    } catch (error) {
+      unifiedPushLog.warn(
+        'notification',
+        'MSC4174 pusher activation failed',
+        error instanceof Error ? error : new Error(String(error))
+      );
+    }
+    return;
+  }
+
   // Skip system notification when in-app banners are active and visible.
   if (document.visibilityState === 'visible' && settings.useInAppNotifications) {
     return;
   }
 
-  const pushData = (raw.extra ?? raw) as UnifiedPushPayload;
   const eventType = pushData?.type as EventType | undefined;
   const userId = isNonEmptyString(pushData?.user_id) ? pushData.user_id.trim() : undefined;
   if (!userId || userId !== settings.mx.getUserId()) {

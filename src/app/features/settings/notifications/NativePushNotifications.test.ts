@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type * as WebPushSupportModule from './webPushSupport';
 import {
   disableNativePush,
   enableNativePush,
@@ -20,6 +21,10 @@ const getNativePushNotificationsApi = vi.hoisted(() =>
   vi.fn<() => Promise<typeof nativePushApi>>().mockResolvedValue(nativePushApi)
 );
 
+const getWebPushServerSupport = vi.hoisted(() =>
+  vi.fn<() => Promise<WebPushSupportModule.WebPushServerSupport>>()
+);
+
 const matrixClient = vi.hoisted(() => ({
   setPusher: vi.fn<() => Promise<void>>().mockResolvedValue(undefined),
   getDeviceId: vi.fn<() => string>(() => 'DEVICE'),
@@ -29,6 +34,7 @@ const matrixClient = vi.hoisted(() => ({
   getPushers: vi
     .fn<() => Promise<{ pushers: Array<unknown> }>>()
     .mockResolvedValue({ pushers: [] }),
+  getSafeUserId: vi.fn<() => string>(() => '@user:example.com'),
 }));
 
 const nativePushClientConfig = {
@@ -41,6 +47,15 @@ const nativePushClientConfig = {
 vi.mock('./NativePushNotificationsApiClient', () => ({
   getNativePushNotificationsApi,
 }));
+
+vi.mock('./webPushSupport', async (importOriginal) => {
+  const actual = await importOriginal<typeof WebPushSupportModule>();
+  return { ...actual, getWebPushServerSupport };
+});
+
+beforeEach(() => {
+  getWebPushServerSupport.mockResolvedValue({ supported: false });
+});
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -203,6 +218,108 @@ describe('native push pusher registration', () => {
           endpoint: 'https://fcm.googleapis.com/fcm/send/endpoint',
           p256dh: 'p256-key',
           auth: 'auth-secret',
+        }),
+      })
+    );
+  });
+
+  it('registers an MSC4174 webpush pusher with the homeserver VAPID key when supported', async () => {
+    getWebPushServerSupport.mockResolvedValue({ supported: true, vapidPublicKey: 'hs-vapid' });
+    nativePushApi.isPermissionGranted.mockResolvedValue(true);
+    nativePushApi.registerForPushNotifications.mockResolvedValue({
+      deviceToken: 'https://fcm.googleapis.com/fcm/send/endpoint',
+      p256dh: 'p256-key',
+      auth: 'auth-secret',
+    });
+
+    const webPushConfig = {
+      pushNotificationDetails: {
+        webPushAppID: 'moe.sable.app.sygnal',
+        nativePushAppID: 'moe.sable.mobile',
+        pushNotifyUrl: 'https://sygnal.example/_matrix/push/v1/notify',
+        vapidPublicKey: 'vapid-pub',
+      },
+    } as const;
+
+    await expect(enableNativePush(matrixClient as never, webPushConfig)).resolves.toBe('p256-key');
+    expect(nativePushApi.registerForPushNotifications).toHaveBeenCalledWith('hs-vapid');
+    expect(localStorage.getItem('nativePushAppId')).toBe('moe.sable.app.sygnal');
+    expect(localStorage.getItem('nativePushToken')).toBe('p256-key');
+    expect(matrixClient.setPusher).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'org.matrix.msc4174.webpush',
+        app_id: 'moe.sable.app.sygnal',
+        pushkey: 'p256-key',
+        data: expect.objectContaining({
+          url: 'https://fcm.googleapis.com/fcm/send/endpoint',
+          auth: 'auth-secret',
+          format: 'event_id_only',
+          default_payload: { user_id: '@user:example.com' },
+        }),
+      })
+    );
+  });
+
+  it('removes stale http gateway pushers when registering an MSC4174 webpush pusher', async () => {
+    getWebPushServerSupport.mockResolvedValue({ supported: true, vapidPublicKey: 'hs-vapid' });
+    nativePushApi.isPermissionGranted.mockResolvedValue(true);
+    nativePushApi.registerForPushNotifications.mockResolvedValue({
+      deviceToken: 'https://fcm.googleapis.com/fcm/send/endpoint',
+      p256dh: 'p256-key',
+      auth: 'auth-secret',
+    });
+    matrixClient.getPushers.mockResolvedValue({
+      pushers: [
+        {
+          app_id: 'moe.sable.app.sygnal',
+          pushkey: 'old-p256-key',
+          device_display_name: 'Pixel',
+          kind: 'http',
+        },
+        {
+          app_id: 'moe.sable.app.sygnal',
+          pushkey: 'other-device-key',
+          device_display_name: 'Other Phone',
+          kind: 'http',
+        },
+      ],
+    });
+
+    const webPushConfig = {
+      pushNotificationDetails: {
+        webPushAppID: 'moe.sable.app.sygnal',
+        nativePushAppID: 'moe.sable.mobile',
+        vapidPublicKey: 'vapid-pub',
+      },
+    } as const;
+
+    await expect(enableNativePush(matrixClient as never, webPushConfig)).resolves.toBe('p256-key');
+    // One webpush registration + one stale http pusher removal.
+    expect(matrixClient.setPusher).toHaveBeenCalledTimes(2);
+    expect(matrixClient.setPusher).toHaveBeenCalledWith({
+      kind: null,
+      app_id: 'moe.sable.app.sygnal',
+      pushkey: 'old-p256-key',
+    });
+  });
+
+  it('honors the gateway URL override for plain-token native push', async () => {
+    nativePushApi.isPermissionGranted.mockResolvedValue(true);
+    nativePushApi.registerForPushNotifications.mockResolvedValue({ deviceToken: 'native-token' });
+
+    await expect(
+      enableNativePush(
+        matrixClient as never,
+        nativePushClientConfig,
+        'https://other-gateway.example/_matrix/push/v1/notify'
+      )
+    ).resolves.toBe('native-token');
+    expect(matrixClient.setPusher).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'http',
+        pushkey: 'native-token',
+        data: expect.objectContaining({
+          url: 'https://other-gateway.example/_matrix/push/v1/notify',
         }),
       })
     );

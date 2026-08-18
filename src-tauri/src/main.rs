@@ -252,15 +252,20 @@ fn main() {
                 );
             }
 
-            // The bundle ships its own GStreamer; mixing it with the host's
-            // plugins loads two libgstreamer cores.
+            // Both paths, or the host-probing block below fills the one left
+            // unset and its plugins load against our older GStreamer core.
             let gst = runtime.join("gstreamer-1.0");
             if gst.is_dir() {
-                if std::env::var_os("GST_PLUGIN_SYSTEM_PATH_1_0").is_none() {
-                    std::env::set_var("GST_PLUGIN_SYSTEM_PATH_1_0", &gst);
+                for key in ["GST_PLUGIN_SYSTEM_PATH_1_0", "GST_PLUGIN_PATH_1_0"] {
+                    if std::env::var_os(key).is_none() {
+                        std::env::set_var(key, &gst);
+                    }
                 }
                 if std::env::var_os("GST_PLUGIN_SCANNER").is_none() {
                     std::env::set_var("GST_PLUGIN_SCANNER", gst.join("gst-plugin-scanner"));
+                }
+                if std::env::var_os("GST_REGISTRY_1_0").is_none() {
+                    std::env::set_var("GST_REGISTRY_1_0", runtime.join("gst-registry.bin"));
                 }
             }
         }

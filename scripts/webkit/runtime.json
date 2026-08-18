@@ -1,5 +1,5 @@
 {
-  "$comment": "Portable WebKitGTK runtime embedded in wry Linux builds. Built by the webkitgtk-webrtc portable pipeline (glibc 2.35 floor, relocatable exec path). Re-pin `run` after each rebuild.",
+  "$comment": "Portable WebKitGTK runtime embedded in wry Linux builds. Built by the webkitgtk-webrtc portable pipeline (glibc 2.39 floor, relocatable exec path). Re-pin `run` after each rebuild.",
   "repository": "https://git.erwanleboucher.dev/eleboucher/webkitgtk-webrtc",
   "run": 13100,
   "artifact": "webkit2gtk-4.1-portable",

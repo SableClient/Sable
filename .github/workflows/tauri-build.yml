@@ -783,12 +783,6 @@ jobs:
           workspaces: src-tauri
           key: wry-x86_64
 
-      - name: Cache WebKit runtime
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: src-tauri/target/webkit-runtime
-          key: webkit-runtime-${{ hashFiles('scripts/webkit/runtime.json') }}
-
       - name: Stamp release version into tauri.conf.json
         shell: bash
         env:

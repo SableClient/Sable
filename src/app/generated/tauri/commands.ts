@@ -34,6 +34,22 @@ export async function deactivateCallAudioSession(): Promise<void> {
   return invoke('deactivate_call_audio_session');
 }
 
+export async function engineClose(params: types.EngineCloseParams): Promise<boolean> {
+  return invoke('engine_close', params);
+}
+
+export async function engineInvoke(params: types.EngineInvokeParams): Promise<string> {
+  return invoke('engine_invoke', params);
+}
+
+export async function engineOpen(params: types.EngineOpenParams): Promise<types.EngineInfo> {
+  return invoke('engine_open', params);
+}
+
+export async function engineWipe(params: types.EngineWipeParams): Promise<void> {
+  return invoke('engine_wipe', params);
+}
+
 export async function exportDiagnostics(params: types.ExportDiagnosticsParams): Promise<string | null> {
   return invoke('export_diagnostics', params);
 }

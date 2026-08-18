@@ -51,6 +51,7 @@
     "@livekit/components-react": "2.9.23",
     "@lottiefiles/dotlottie-react": "^0.19.14",
     "@lottiefiles/dotlottie-web": "0.79.1",
+    "@matrix-org/matrix-sdk-crypto-wasm": "^18.3.1",
     "@noble/hashes": "^2.3.0",
     "@phosphor-icons/react": "^2.1.10",
     "@sableclient/matrixrtc": "^0.1.0",

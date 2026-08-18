@@ -15,6 +15,8 @@ import {
 import { fetch } from '$utils/fetch';
 import { matrixFetch } from './matrixFetch';
 import { clearMediaCache } from '$utils/mediaCache';
+import { isTauri } from '@tauri-apps/api/core';
+import { engineWipe } from '$generated/tauri/commands';
 
 import { clearNavToActivePathStore } from '$state/navToActivePath';
 import type { Session, Sessions, SessionStoreName } from '$state/sessions';
@@ -33,6 +35,7 @@ import { pushSessionToSW } from '../sw-session';
 import { assertAuthMetadataIssuer, createSessionTokenRefresher } from './oidcTokenRefresher';
 import { revokeOAuthToken } from './oauthTokenRevocation';
 import { clearSecretStorageKeys, cryptoCallbacks } from './secretStorageKeys';
+import { installRustCrypto, rustEngineEnabled } from '$app/crypto/install';
 import type { SlidingSyncDiagnostics } from './slidingSync';
 import {
   prepareSlidingSyncTimelines,
@@ -232,6 +235,29 @@ const deleteSessionStores = async (storeName: SessionStoreName): Promise<void> =
   ]);
 };
 
+const clearSessionCaches = (session: Session): void => {
+  SlidingSyncSidebarCache.clear(session.userId);
+  clearCachedVersions(session.baseUrl, session.userId);
+  clearCachedUserProfiles(session.userId);
+  clearSecretStorageKeys();
+};
+
+export const discardSessionStores = async (session: Session): Promise<void> => {
+  clearSessionCaches(session);
+  const storeName = getSessionStoreName(session);
+  await deleteSessionStores(storeName);
+  await wipeNativeCryptoStore(session);
+};
+
+const wipeNativeCryptoStore = async (session: Session): Promise<void> => {
+  if (!isTauri() || !session.deviceId) return;
+  try {
+    await engineWipe({ userId: session.userId, deviceId: session.deviceId });
+  } catch (error) {
+    log.warn('wipeNativeCryptoStore failed', session.userId, error);
+  }
+};
+
 const isMismatch = (err: unknown): boolean => {
   const msg = err instanceof Error ? err.message : String(err);
   return (
@@ -304,9 +330,13 @@ const initializeClient = async (
   });
 
   const syncStorePromise = measureStartupPhase('sync_store', () => indexedDBStore.startup());
-  const cryptoPromise = measureStartupPhase('rust_crypto', () =>
-    mx.initRustCrypto({ cryptoDatabasePrefix })
-  );
+  const cryptoPromise = measureStartupPhase('rust_crypto', async () => {
+    if (await rustEngineEnabled(cryptoDatabasePrefix)) {
+      await installRustCrypto(mx);
+      return;
+    }
+    await mx.initRustCrypto({ cryptoDatabasePrefix });
+  });
   const [syncStoreResult, cryptoResult] = await Promise.allSettled([
     syncStorePromise,
     cryptoPromise,
@@ -665,17 +695,13 @@ export const logoutClient = async (mx: MatrixClient, session?: Session) => {
   }
 
   if (session) {
-    SlidingSyncSidebarCache.clear(session.userId);
-    clearCachedVersions(session.baseUrl, session.userId);
-    clearCachedUserProfiles(session.userId);
-    clearSecretStorageKeys();
+    clearSessionCaches(session);
     destroyLocalNotificationCache(session.userId);
     clearLocalNotificationCache(session.userId);
     const storeName: SessionStoreName = getSessionStoreName(session);
     await mx.clearStores({ cryptoDatabasePrefix: storeName.rustCryptoPrefix });
-    await deleteDatabase(storeName.sync);
-    await deleteDatabase(storeName.crypto);
-    await deleteDatabase(`${storeName.rustCryptoPrefix}::matrix-sdk-crypto`);
+    await deleteSessionStores(storeName);
+    await wipeNativeCryptoStore(session);
   } else {
     await mx.clearStores();
     window.localStorage.clear();

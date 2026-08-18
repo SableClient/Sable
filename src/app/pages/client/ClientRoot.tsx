@@ -12,11 +12,14 @@ import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import {
   clearCacheAndReload,
   clearLoginData,
+  discardSessionStores,
   initClient,
   logoutClient,
   startClient,
   stopClient,
 } from '$client/initMatrix';
+import { isLegacyWasmCryptoStoreError } from '$app/crypto/install';
+import { AsyncError } from '$components/AsyncError';
 import { SplashScreen } from '$components/splash-screen';
 import { ServerConfigsLoader } from '$components/ServerConfigsLoader';
 import { CapabilitiesProvider } from '$hooks/useCapabilities';
@@ -339,6 +342,18 @@ export function ClientRoot({ children }: ClientRootProps) {
     window.location.reload();
   }, [mx, activeSession, sessions, setSessions, setActiveSessionId]);
 
+  const [upgradeState, signOutForCryptoUpgrade] = useAsyncCallback<void, Error, []>(
+    useCallback(async () => {
+      if (!activeSession) return;
+      await discardSessionStores(activeSession);
+      setSessions({ type: 'DELETE', session: activeSession } as SessionsAction);
+      setActiveSessionId(
+        sessions.find((session) => session.userId !== activeSession.userId)?.userId ?? undefined
+      );
+      window.location.reload();
+    }, [activeSession, sessions, setSessions, setActiveSessionId])
+  );
+
   useSyncNicknames(mx);
   useLogoutListener(mx);
   useAppVisibility(mx);
@@ -404,6 +419,8 @@ export function ClientRoot({ children }: ClientRootProps) {
   );
 
   const isError = loadState.status === AsyncStatus.Error || startState.status === AsyncStatus.Error;
+  const legacyCryptoUpgradeRequired =
+    loadState.status === AsyncStatus.Error && isLegacyWasmCryptoStoreError(loadState.error);
 
   // Set matrix client context: homeserver and sync type (not PII)
   useEffect(() => {
@@ -444,7 +461,7 @@ export function ClientRoot({ children }: ClientRootProps) {
   // Capture fatal client failures — useAsyncCallback swallows these into state so
   // they never reach the React ErrorBoundary; explicit capture is required.
   useEffect(() => {
-    if (loadState.status === AsyncStatus.Error) {
+    if (loadState.status === AsyncStatus.Error && !isLegacyWasmCryptoStoreError(loadState.error)) {
       Sentry.captureException(loadState.error, { tags: { phase: 'load' } });
     }
   }, [loadState]);
@@ -464,17 +481,42 @@ export function ClientRoot({ children }: ClientRootProps) {
           <Box direction="Column" grow="Yes" alignItems="Center" justifyContent="Center" gap="400">
             <Dialog>
               <Box direction="Column" gap="400" style={{ padding: config.space.S400 }}>
-                {loadState.status === AsyncStatus.Error && (
-                  <Text>{`Failed to load. ${loadState.error.message}`}</Text>
-                )}
+                {loadState.status === AsyncStatus.Error &&
+                  (legacyCryptoUpgradeRequired ? (
+                    <>
+                      <Text>Encrypted chat needs a one-time upgrade.</Text>
+                      <Text>
+                        Sign out and sign in again to use native crypto. Local encrypted-message
+                        keys from this installation must be restored from backup.
+                      </Text>
+                      <AsyncError
+                        state={upgradeState}
+                        prefix="Failed to sign out for the crypto upgrade"
+                        size="T300"
+                      />
+                      <Button
+                        variant="Critical"
+                        onClick={signOutForCryptoUpgrade}
+                        disabled={upgradeState.status === AsyncStatus.Loading}
+                      >
+                        <Text as="span" size="B400">
+                          Sign out and upgrade
+                        </Text>
+                      </Button>
+                    </>
+                  ) : (
+                    <Text>{`Failed to load. ${loadState.error.message}`}</Text>
+                  ))}
                 {startState.status === AsyncStatus.Error && (
                   <Text>{`Failed to start. ${startState.error.message}`}</Text>
                 )}
-                <Button variant="Critical" onClick={mx ? () => startMatrix(mx) : loadMatrix}>
-                  <Text as="span" size="B400">
-                    Retry
-                  </Text>
-                </Button>
+                {!legacyCryptoUpgradeRequired && (
+                  <Button variant="Critical" onClick={mx ? () => startMatrix(mx) : loadMatrix}>
+                    <Text as="span" size="B400">
+                      Retry
+                    </Text>
+                  </Button>
+                )}
               </Box>
             </Dialog>
           </Box>

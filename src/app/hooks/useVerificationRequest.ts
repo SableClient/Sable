@@ -66,6 +66,8 @@ export const useVerifierShowSas = (
 ) => {
   useEffect(() => {
     verifier.on(VerifierEvent.ShowSas, onCallback);
+    const current = verifier.getShowSasCallbacks();
+    if (current) onCallback(current);
     return () => {
       verifier.removeListener(VerifierEvent.ShowSas, onCallback);
     };

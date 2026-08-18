@@ -7,12 +7,7 @@
     "type": true
   },
   "ignoreFiles": ["src/app/generated/**/*"],
-  "ignoreDependencies": [
-    "buffer",
-    "@sableclient/sable-call-embedded",
-    "@matrix-org/matrix-sdk-crypto-wasm",
-    "@sableclient/twemoji-font"
-  ],
+  "ignoreDependencies": ["buffer", "@sableclient/sable-call-embedded", "@sableclient/twemoji-font"],
   "ignoreBinaries": ["knope", "mise"],
   "rules": {
     "exports": "off",

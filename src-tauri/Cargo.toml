@@ -44,6 +44,7 @@ percent-encoding = "2"
 reqwest = { version = "0.12", default-features = false, features = ["stream"] }
 async-stream = "0.3"
 base64 = "0.23"
+zeroize = "1"
 tokio-util = { version = "0.7", features = ["codec"] }
 futures-util = "0.3"
 regex = "1"
@@ -58,6 +59,23 @@ tauri = { version = "2.11.5", default-features = false, features = [
   "dbus",
   "image-png",
 ] }
+
+# Rust Matrix crypto engine. Optional so regular builds don't pay the
+# matrix-rust-sdk compile cost.
+matrix-sdk = { version = "0.18", default-features = false, features = [
+  "e2e-encryption",
+  "sqlite",
+], optional = true }
+# `qrcode` is off by default upstream; Sable already supports QR device
+# verification, so the engine needs it for parity with the wasm backend.
+matrix-sdk-crypto = { version = "0.18", features = [
+  "qrcode",
+  "experimental-push-secrets",
+], optional = true }
+# `bundled` compiles SQLite from source. Android's NDK ships no libsqlite3 to link
+# against at any API level, so without this the aarch64 build fails at link time.
+matrix-sdk-sqlite = { version = "0.18", features = ["crypto-store", "bundled"], optional = true }
+http = { version = "1", optional = true }
 
 tauri-plugin-log = "2.9.0"
 tauri-plugin-opener = "2.5.4"
@@ -178,7 +196,7 @@ tauri-plugin-android-fs = { version = "=29.0.0", features = ["legacy-storage-per
 jni = "0.22"
 
 [features]
-default = ["wry", "updater"]
+default = ["wry", "updater", "matrix-crypto"]
 custom-protocol = ["tauri/custom-protocol"]
 wry = ["tauri/wry", "dep:webkit2gtk"]
 # Tauri auto-updater. Disable with --no-default-features --features wry,cef.
@@ -188,6 +206,7 @@ cef = ["dep:tauri-runtime-cef", "dep:cef"]
 # CrabNebula devtools. Off by default: its aggregator retains every metadata record for the
 # session, which costs hundreds of MB per minute once tauri-plugin-log feeds it.
 devtools = ["dep:tauri-plugin-devtools"]
+matrix-crypto = ["dep:matrix-sdk", "dep:matrix-sdk-crypto", "dep:matrix-sdk-sqlite", "dep:http"]
 [patch.crates-io]
 tauri-typegen = { git = "https://github.com/SableClient/tauri-typegen", branch = "fix/nondeterministic-generation-cache" }
 

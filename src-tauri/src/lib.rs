@@ -5,6 +5,8 @@ mod desktop;
 mod diagnostics;
 #[cfg(target_os = "ios")]
 mod ios;
+#[cfg(feature = "matrix-crypto")]
+mod matrix_crypto;
 #[cfg(target_os = "android")]
 mod mobile;
 #[cfg(any(target_os = "android", target_os = "ios"))]
@@ -459,6 +461,14 @@ pub fn run() {
             network::media_protocol::set_media_encryption,
             network::media_protocol::prepare_loopback_media,
             sentry::set_native_sentry_enabled,
+            #[cfg(feature = "matrix-crypto")]
+            matrix_crypto::engine_invoke,
+            #[cfg(feature = "matrix-crypto")]
+            matrix_crypto::engine_open,
+            #[cfg(feature = "matrix-crypto")]
+            matrix_crypto::engine_close,
+            #[cfg(feature = "matrix-crypto")]
+            matrix_crypto::engine_wipe,
             share_inbox::share_inbox_drain,
             share_inbox::share_inbox_read,
             share_inbox::share_inbox_clear,

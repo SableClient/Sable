@@ -78,10 +78,10 @@ jobs:
           save-if: ${{ github.ref == 'refs/heads/dev' }}
 
       - name: Check native app
-        run: cargo check --locked --manifest-path src-tauri/Cargo.toml
+        run: cargo check --locked --manifest-path src-tauri/Cargo.toml --features matrix-crypto
 
       - name: Run Rust tests
-        run: cargo test --locked --manifest-path src-tauri/Cargo.toml
+        run: cargo test --locked --manifest-path src-tauri/Cargo.toml --features matrix-crypto
 
       - name: Run Clippy
-        run: cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets -- -D warnings
+        run: cargo clippy --locked --manifest-path src-tauri/Cargo.toml --all-targets --features matrix-crypto -- -D warnings

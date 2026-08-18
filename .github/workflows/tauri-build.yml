@@ -170,7 +170,7 @@ jobs:
 
       - name: Build desktop bundles
         shell: bash
-        run: pnpm tauri build ${{ matrix.args }} $TAURI_BUILD_ARGS
+        run: pnpm tauri:wry build ${{ matrix.args }} $TAURI_BUILD_ARGS
 
       - name: Normalize desktop artifact names
         shell: bash
@@ -313,7 +313,7 @@ jobs:
           if [ "$IS_NIGHTLY" = "true" ]; then
             export SABLE_BUILD_FLAVOR=dev
           fi
-          pnpm tauri android build --apk --aab --target aarch64 armv7
+          pnpm tauri android build --apk --aab --target aarch64 armv7 -- --features matrix-crypto
           OUT='src-tauri/gen/android/app/build/outputs'
           APK=$(find "$OUT/apk/universal/release" -name '*.apk' -type f | head -1)
           AAB=$(find "$OUT/bundle/universalRelease" -name '*.aab' -type f | head -1)
@@ -443,7 +443,7 @@ jobs:
           if [ "$IS_NIGHTLY" = "true" ]; then
             export SABLE_BUILD_FLAVOR=dev
           fi
-          pnpm tauri ios build --no-sign --ci
+          pnpm tauri ios build --no-sign --ci -- --features matrix-crypto
           IPA=$(find src-tauri/gen/apple/build -name '*.ipa' -type f | head -1)
           [ -n "$IPA" ] || { echo "IPA not found"; ls -R src-tauri/gen/apple/build 2>/dev/null || true; exit 1; }
           NORMALIZED_IPA="$(dirname "$IPA")/Sable-${VERSION}-ios-arm64.ipa"

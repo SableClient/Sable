@@ -48,6 +48,17 @@ overrides:
       - libgl1
       - libegl1
       - libxkbcommon0
+      - libxtst6
+      - libxss1
+      - libatomic1
+      - libharfbuzz-icu0
+      - libnghttp2-14
+      - librsvg2-2
+      - libpsl5
+      - libtasn1-6
+      - libwayland-client0
+      - libwayland-egl1
+      - libxcb1
       - xdg-utils
       - libayatana-appindicator3-1
   rpm:
@@ -65,5 +76,16 @@ overrides:
       - mesa-libGL
       - mesa-libEGL
       - libxkbcommon
+      - libXtst
+      - libXScrnSaver
+      - libatomic
+      - harfbuzz-icu
+      - libnghttp2
+      - librsvg2
+      - libpsl
+      - libtasn1
+      - libwayland-client
+      - libwayland-egl
+      - libxcb
       - xdg-utils
       - libayatana-appindicator3.so.1()(64bit)

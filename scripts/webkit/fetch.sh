@@ -15,7 +15,7 @@ MANIFEST="$ROOT/scripts/webkit/runtime.json"
 read -r REPO RUN ARTIFACT VERSION < <(
   node -e '
     const m = require(process.argv[1]);
-    process.stdout.write([m.repository, m.run, m.artifact, m.version].join(" "));
+    process.stdout.write([m.repository, m.run, m.artifact, m.version].join(" ") + "\n");
   ' "$MANIFEST"
 )
 

@@ -40,6 +40,16 @@ export const PER_ROOM_SHOW_ROOM_ICON_OPTIONS: SettingMenuOption<ShowRoomIconValu
   ...SHOW_ROOM_ICON_OPTIONS,
 ];
 
+/** Sentinel for rooms that follow the account wide media-blur setting. */
+export const PRIVACY_BLUR_DEFAULT = 'default';
+export type PrivacyBlurValue = typeof PRIVACY_BLUR_DEFAULT | 'on' | 'off';
+
+export const PER_ROOM_PRIVACY_BLUR_OPTIONS: SettingMenuOption<PrivacyBlurValue>[] = [
+  { value: PRIVACY_BLUR_DEFAULT, label: 'Default' },
+  { value: 'on', label: 'Blur' },
+  { value: 'off', label: "Don't Blur" },
+];
+
 /** Labels are the current date rendered in each pattern, so they are built at render. */
 export const DATE_FORMATS: DateFormat[] = [
   'D MMM YYYY',

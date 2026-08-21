@@ -68,6 +68,7 @@ const INLINE_SPANS: ReadonlyArray<{
   { open: '~~', close: '~~', inner: { markdownStrikeThrough: true } },
   { open: '||', close: '||', inner: { markdownSpoiler: true } },
   { open: '__', close: '__', inner: { markdownUnderline: true } },
+  { open: '``', close: '``', inner: { markdownCode: true } },
   { open: '`', close: '`', inner: { markdownCode: true } },
   { open: '*', close: '*', inner: { markdownItalic: true } },
   { open: '_', close: '_', inner: { markdownItalic: true } },
@@ -180,7 +181,7 @@ const matchBareUrl = (text: string): InlineMatch | null => {
   };
 };
 
-const INLINE_OPENERS = ['**', '~~', '||', '__', '`', '*', '_', '['] as const;
+const INLINE_OPENERS = ['``', '**', '~~', '||', '__', '`', '*', '_', '['] as const;
 
 const hasMarks = (marks: MarkdownLeafMarks): boolean => Object.values(marks).some(Boolean);
 

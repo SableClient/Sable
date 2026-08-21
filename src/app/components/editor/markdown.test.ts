@@ -85,6 +85,16 @@ describe('tokenizeMarkdown', () => {
     expect(openTick?.end).toBe(5);
   });
 
+  it('styles double-backtick code and keeps single backticks inside literal', () => {
+    const tokens = tokenizeMarkdown('use ``a `b` c`` here');
+    const code = findToken(tokens, (t) => t.markdownCode);
+    expect(code?.start).toBe(6);
+    expect(code?.end).toBe(13);
+    expect(tokens.every((t) => !(t.markdownItalic || t.markdownBold))).toBe(true);
+    const openTicks = findToken(tokens, (t) => t.markdownToken && t.start === 4);
+    expect(openTicks?.end).toBe(6);
+  });
+
   it('does not treat unclosed delimiters as spans', () => {
     const tokens = tokenizeMarkdown('*unclosed');
     expect(tokens).toHaveLength(0);

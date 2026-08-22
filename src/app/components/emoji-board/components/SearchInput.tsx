@@ -3,6 +3,10 @@ import { useRef } from 'react';
 import { Input, Chip, Text } from 'folds';
 import { isMobileOrTablet } from '$utils/platform';
 import { ArrowRight, sizedIcon, MagnifyingGlass } from '$components/icons/phosphor';
+import { useClientConfig } from '$hooks/useClientConfig';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
+import { getGifProvider } from '$utils/gifProviders';
 import { EmojiBoardTab } from '../types';
 
 type SearchInputProps = {
@@ -22,6 +26,9 @@ export function SearchInput({
   tab,
 }: SearchInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
+  const clientConfig = useClientConfig();
+  const [gifProviderSetting] = useSetting(settingsAtom, 'gifProvider');
+  const gifProvider = getGifProvider(clientConfig.gifs, gifProviderSetting);
 
   const handleReact = () => {
     const textEmoji = inputRef.current?.value.trim();
@@ -36,7 +43,7 @@ export function SearchInput({
       size="400"
       placeholder={
         tab === EmojiBoardTab.Gif
-          ? 'Search KLIPY'
+          ? `Search ${gifProvider.label}`
           : allowTextCustomEmoji
             ? 'Search or Text Reaction '
             : 'Search'

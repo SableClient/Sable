@@ -8,7 +8,7 @@ const { fetchMock } = vi.hoisted(() => ({
 
 vi.mock('$utils/fetch', () => ({ fetch: fetchMock }));
 vi.mock('$hooks/useClientConfig', () => ({
-  useClientConfig: () => ({ gifs: { klipyApiKey: 'test-key' } }),
+  useClientConfig: () => ({ gifs: { provider: 'klipy', klipyApiKey: 'test-key' } }),
 }));
 
 type Deferred<T> = {

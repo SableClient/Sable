@@ -185,7 +185,6 @@ import { AttachmentContent } from '$components/attachment-sheet/AttachmentConten
 import { MobileSwipeDownModal } from '$components/MobileSwipeDownModal';
 import { SchedulePickerDialog } from './schedule-send';
 import * as css from './schedule-send/SchedulePickerDialog.css';
-import { getKlipyGifBlurhash } from '$utils/klipy';
 import {
   getAudioMsgContent,
   getFileMsgContent,
@@ -195,6 +194,7 @@ import {
   buildGalleryContent,
   getGalleryItemContent,
 } from './msgContent';
+import { useClientConfig } from '$hooks/useClientConfig';
 import { CommandAutocomplete } from './CommandAutocomplete';
 import type {
   AudioMessageRecorderHandle,
@@ -322,6 +322,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     // don't clobber the main room draft (and vice versa).
     const draftKey = threadRootId ?? roomId;
     const mx = useMatrixClient();
+    const gifProxyUrl = useClientConfig().gifs?.proxyUrl;
     const useAuthentication = useMediaAuthentication();
     const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
     const [editorOldAddFile] = useSetting(settingsAtom, 'editorOldAddFile');
@@ -1901,8 +1902,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       const submission = takeSubmission({ clearEditor: false });
       return composerControllerRef.current?.enqueue(async (isLive) => {
         try {
-          const blurhash = gif.blurhash ?? (await getKlipyGifBlurhash(gif));
-          const content = getGifMsgContent(blurhash ? { ...gif, blurhash } : gif, spoiler);
+          const content = await getGifMsgContent(gif, {
+            proxyUrl: gifProxyUrl,
+            spoiler,
+          });
           if (!content) throw new Error('Unsendable GIF content');
 
           const sent = await handleSendContents({ contents: [content], submission, isLive });

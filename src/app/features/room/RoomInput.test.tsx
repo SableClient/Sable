@@ -256,15 +256,10 @@ vi.mock('$components/upload-card', () => ({
 vi.mock('./msgContent', async (importOriginal) => ({
   ...(await importOriginal<typeof MsgContentModule>()),
   getGifMsgContent: (gif: { title: string }) => ({
-    msgtype: 'm.text',
-    body: gif.title,
-    'pet.plz.gif': {
-      v: 1,
-      provider: 'klipy',
-      media_url: 'https://static.klipy.com/ii/gif.gif',
-      w: 320,
-      h: 240,
-    },
+    msgtype: 'm.image',
+    body: `${gif.title}.gif`,
+    url: 'mxc://gifs.sable.moe/tenor_QWJDZEVmMTIz',
+    info: { w: 320, h: 240, mimetype: 'image/gif' },
   }),
 }));
 vi.mock('$components/attachment-sheet/AttachmentSheet', () => ({ AttachmentSheet: () => null }));
@@ -280,8 +275,8 @@ vi.mock('$components/emoji-board', () => ({
           onGifSelect({
             id: 'gif-id',
             title: 'gif',
-            shareUrl: 'https://klipy.com/gif/gif-id',
-            mediaUrl: 'https://static.klipy.com/ii/gif.gif',
+            shareUrl: 'https://tenor.com/view/gif-id',
+            mediaUrl: 'https://media.tenor.com/gif-id/gif.gif',
             width: 320,
             height: 240,
             mimetype: 'image/gif',

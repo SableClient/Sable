@@ -80,6 +80,7 @@ export const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly s
     'composer-button-order',
     'show-emoji-button',
     'show-gif-button',
+    'gif-provider',
     'show-sticker-button',
     'show-voice-recording-button',
   ],

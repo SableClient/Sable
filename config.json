@@ -46,6 +46,10 @@
   },
 
   "gifs": {
-    "klipyApiKey": "IfeIBlDMvq0av2BcKPDuxwRqbnYRbS90yNqFHEkK2Ja207tkR5nssh3NIlJRCr76"
+    "provider": "tenor",
+    "proxyUrl": "gifs.sable.moe",
+    "tenorApiKey": "AIzaSyCZt6SSh5VgVPzD9fhyzG1DprdPRhtoaR4",
+    "klipyApiKey": "pmpZyPifwSulBfELHCbpaOllUfgsjqt9yeImc2XWIcHSWjnAUBw9oueRf4kD5r25",
+    "giphyApiKey": "Gc7131jiJuvI7IdN0HZ1D7nh0ow5BU6g"
   }
 }

@@ -8,6 +8,7 @@ import type {
   PushTransportOverrides,
 } from '$features/settings/notifications/NotificationTransport';
 import type { IImageInfo } from '$types/matrix/common';
+import type { GifProviderSetting } from '$utils/gifProviders';
 import { isLocalImportTweakUrl } from '../theme/localImportUrls';
 import { sanitizeShortcutOverrides, type ShortcutOverrides } from '../keyboard/shortcuts';
 
@@ -129,6 +130,7 @@ export interface Settings {
   editorMicButton: boolean;
   editorEmojiButton: boolean;
   editorGifButton: boolean;
+  gifProvider: GifProviderSetting;
   editorStickerButton: boolean;
   editorTriggerButtonsMigrated: boolean;
   editorButtonOrder: EditorButtonId[];
@@ -318,6 +320,7 @@ export const defaultSettings: Settings = {
   editorMicButton: true,
   editorEmojiButton: true,
   editorGifButton: true,
+  gifProvider: 'default',
   editorStickerButton: true,
   editorTriggerButtonsMigrated: true,
   editorButtonOrder: [...EDITOR_BUTTON_ORDER_DEFAULT],

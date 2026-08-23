@@ -374,6 +374,11 @@ export class ProfileCatalog {
       const profiles = catalogV2.profiles.map(convertMsc4461V2ToV3);
       if (migrate) {
         await saveCatalog(this.mx, profiles);
+        await this.mx.deleteAccountData(
+          MATRIX_UNSTABLE_MSC4461_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME_V2 as Parameters<
+            typeof this.mx.deleteAccountData
+          >[0]
+        );
       }
       return profiles;
     }

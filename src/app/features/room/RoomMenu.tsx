@@ -53,8 +53,8 @@ const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose
     invitePrompt,
     setInvitePrompt,
     directInvitePrompt,
-    setDirectInvitePrompt,
     handleInviteDirect,
+    handleDirectInviteCancel,
     handleConvertAndInvite,
     convertState,
     navigateRoom,
@@ -64,18 +64,20 @@ const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose
   const notificationMode = getRoomNotificationMode(notificationPreferences, room.roomId);
   const compact = screenSize !== ScreenSize.Desktop;
 
-  const wrappedClose = (reason: string) => () => {
-    if (reason === 'invite') setInvitePrompt(false);
-    if (reason === 'directInvite') setDirectInvitePrompt(false);
-    requestClose();
-  };
-
   return (
     <Menu ref={ref} style={{ maxWidth: toRem(200) }}>
-      {invitePrompt && <InviteUserPrompt room={room} requestClose={wrappedClose('invite')} />}
+      {invitePrompt && (
+        <InviteUserPrompt
+          room={room}
+          requestClose={() => {
+            setInvitePrompt(false);
+            requestClose();
+          }}
+        />
+      )}
       {directInvitePrompt && (
         <DirectInvitePrompt
-          onCancel={wrappedClose('directInvite')}
+          onCancel={() => handleDirectInviteCancel(requestClose)}
           onInviteDirect={handleInviteDirect}
           onConvertAndInvite={handleConvertAndInvite}
           converting={convertState.status === AsyncStatus.Loading}

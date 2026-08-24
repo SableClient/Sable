@@ -4,6 +4,7 @@
 // buffer source does neither.
 
 let context: AudioContext | undefined;
+let playingSource: AudioBufferSourceNode | undefined;
 const buffers = new Map<string, Promise<AudioBuffer>>();
 
 const decode = (ctx: AudioContext, url: string): Promise<AudioBuffer> => {
@@ -27,9 +28,18 @@ export const playNotificationSound = async (url: string): Promise<void> => {
   // A context constructed outside a user gesture starts suspended, and Safari
   // moves it to 'interrupted' after a phone call or a route change.
   if (context.state !== 'running') await context.resume();
+  if (playingSource) return;
 
   const source = context.createBufferSource();
   source.buffer = buffer;
   source.connect(context.destination);
+  playingSource = source;
+  source.addEventListener(
+    'ended',
+    () => {
+      if (playingSource === source) playingSource = undefined;
+    },
+    { once: true }
+  );
   source.start();
 };

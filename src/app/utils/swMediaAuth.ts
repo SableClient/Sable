@@ -112,9 +112,11 @@ if (typeof window !== 'undefined' && typeof navigator !== 'undefined' && hasServ
     cachedSupport = controller ? undefined : false;
     inflightProbe = undefined;
     probedController = undefined;
-    notify(false);
-    if (controller) {
-      void probeSWMediaAuthSupport();
+    if (!controller) {
+      notify(false);
+      return;
     }
+    // A speculative `false` would flip every mounted consumer to the blob path and back.
+    void probeSWMediaAuthSupport();
   });
 }

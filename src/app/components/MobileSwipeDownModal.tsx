@@ -9,7 +9,7 @@ import React, {
 } from 'react';
 import { createPortal } from 'react-dom';
 import { Box } from 'folds';
-import FocusTrap from 'focus-trap-react';
+import { FocusTrap } from 'focus-trap-react';
 import { useDrag } from '@use-gesture/react';
 import * as css from '$features/room/message/styles.css';
 import { useOverlayLayer } from '$components/overlay-stack';
@@ -22,7 +22,7 @@ import * as animationCss from './mobileSheetAnimation.css';
 interface MobileSwipeDownModalProps {
   children: () => React.ReactNode;
   requestClose: () => void;
-  containerRef?: RefObject<HTMLElement>;
+  containerRef?: RefObject<HTMLElement | null>;
   focusTrap?: boolean;
   dialogLabel?: string;
   skipReturnFocusRef?: RefObject<boolean>;
@@ -32,7 +32,7 @@ interface MobileSwipeDownModalProps {
   overlayDragHandle?: boolean;
 }
 
-type FocusTrapOptions = ComponentProps<typeof FocusTrap>['focusTrapOptions'];
+type FocusTrapOptions = NonNullable<ComponentProps<typeof FocusTrap>['focusTrapOptions']>;
 
 const MobileSheetCloseContext = createContext<(() => void) | null>(null);
 
@@ -104,7 +104,7 @@ export function MobileSwipeDownModal({
   skipReturnFocusRef,
   sheetClassName,
   sheetStyle,
-  keyboardAware = false,
+  keyboardAware = true,
   overlayDragHandle = false,
 }: MobileSwipeDownModalProps) {
   const sheetRef = useRef<HTMLDivElement>(null);
@@ -333,7 +333,7 @@ export function MobileSwipeDownModal({
     fallbackFocus: () => sheetRef.current ?? target,
     preventScroll: true,
     returnFocusOnDeactivate: true,
-    setReturnFocus: (previousActiveElement: HTMLElement) =>
+    setReturnFocus: (previousActiveElement: HTMLElement | SVGElement) =>
       skipReturnFocusRef?.current ? false : previousActiveElement,
     allowOutsideClick: true,
     clickOutsideDeactivates: false,

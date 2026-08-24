@@ -20,6 +20,7 @@ import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
 import * as css from './ThreadDrawer.css';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { isMobileOrTablet } from '$utils/platform';
+import { useDismissOnBack } from '$utils/androidBack';
 import { useMatrixEvent } from '$hooks/useMatrixEvent';
 
 type ThreadPreviewProps = {
@@ -154,6 +155,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
   const loadingMoreRef = useRef(false);
   const canLoadMoreRef = useRef(false);
   canLoadMoreRef.current = canLoadMore;
+  useDismissOnBack(onClose);
 
   // On mount, set up thread event listeners, create the server-side thread
   // timeline sets, then fetch page 1 via paginate.  The two operations are

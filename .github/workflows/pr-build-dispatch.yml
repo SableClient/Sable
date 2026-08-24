@@ -1,0 +1,67 @@
+name: PR build dispatch
+
+# Member-only /build gate: dispatches pr-build.yml.
+#   /build            -> android + ios
+#   /build android    -> android only
+#   /build ios        -> ios only
+# Anyone without repo write access is ignored; the gate fails closed.
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  actions: write
+
+jobs:
+  dispatch:
+    if: github.event.issue.pull_request
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Parse /build command
+        id: cmd
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const body = (context.payload.comment.body || '').trim()
+            const match = /^\/build(?:\s+(android|ios|both))?\s*$/i.exec(body)
+            if (!match) {
+              core.setOutput('command', 'false')
+              return
+            }
+            core.setOutput('command', 'true')
+            core.setOutput('platform', (match[1] || 'both').toLowerCase())
+
+      - name: Check commenter is a member
+        id: perm
+        if: steps.cmd.outputs.command == 'true'
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { owner, repo } = context.repo
+            const login = context.payload.comment.user.login
+            try {
+              const { data } = await github.rest.repos.getCollaboratorPermissionLevel({
+                owner,
+                repo,
+                username: login,
+              })
+              const allowed = ['admin', 'maintain', 'write'].includes(data.permission)
+              core.info(`${login} has ${data.permission} -> ${allowed ? 'authorized' : 'not authorized'}`)
+              core.setOutput('allowed', String(allowed))
+            } catch {
+              core.info(`${login} is not a collaborator -> denied`)
+              core.setOutput('allowed', 'false')
+            }
+
+      - name: Dispatch PR build
+        if: ${{ steps.cmd.outputs.command == 'true' && steps.perm.outputs.allowed == 'true' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PR_NUMBER: ${{ github.event.issue.number }}
+          PLATFORM: ${{ steps.cmd.outputs.platform }}
+        run: |
+          gh workflow run pr-build.yml --ref dev \
+            --field pr_number="$PR_NUMBER" \
+            --field platform="$PLATFORM"
+          echo "Dispatched pr-build.yml for PR #$PR_NUMBER ($PLATFORM)."

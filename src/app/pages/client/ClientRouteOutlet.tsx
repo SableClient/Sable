@@ -1,5 +1,5 @@
 import { useRef } from 'react';
-import { useLocation, useOutlet } from 'react-router-dom';
+import { useLocation, useOutlet } from 'react-router';
 import { useScreenSizeContext } from '$hooks/useScreenSize';
 import { isShallowRoute } from './shallowRoute';
 

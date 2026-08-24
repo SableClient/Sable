@@ -4,7 +4,7 @@ import type {
   MutableRefObject,
   ReactNode,
 } from 'react';
-import { forwardRef, useCallback, useEffect, useRef, useState } from 'react';
+import { forwardRef, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { Box, Scroll } from 'folds';
 import { iosApp, isMobileOrTablet } from '$utils/platform';
 import { readClipboardText } from '$utils/dom';
@@ -28,6 +28,11 @@ export const useEditor = (): ProseMirrorEditorController => {
 };
 
 const log = createLogger('Editor');
+const MULTILINE_HEIGHT_EPSILON = 1;
+const TRAILING_SPACE_SENTINEL = '\u200B';
+
+const normalizeMeasurementText = (text: string): string =>
+  /[ \t]+$/.test(text) ? `${text}${TRAILING_SPACE_SENTINEL}` : text;
 
 type CustomEditorProps = {
   after?: ReactNode;
@@ -79,12 +84,103 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
     ref
   ) => {
     const [shortcutOverrides] = useSetting(settingsAtom, 'shortcutOverrides');
+    const [alwaysInlineEditor] = useSetting(settingsAtom, 'alwaysInlineEditor');
     const rootRef = useRef<HTMLDivElement | null>(null);
-    const focusScrollTimerRef = useRef<number>();
+    const rowRef = useRef<HTMLDivElement | null>(null);
+    const beforeRef = useRef<HTMLDivElement | null>(null);
+    const afterRef = useRef<HTMLDivElement | null>(null);
+    const editableRef = useRef<HTMLDivElement | null>(null);
+    const measurerRef = useRef<HTMLDivElement | null>(null);
+    const latestTextRef = useRef(editor.getText());
+    const focusScrollTimerRef = useRef<number | undefined>(undefined);
+    const [isMultiline, setIsMultiline] = useState(false);
+    const [measurementVersion, setMeasurementVersion] = useState(0);
 
-    // Buttons stay inline however tall the composer grows; only the audio
-    // recorder stacks, because its controls need a row of their own.
-    const showResponsiveAfterInFooter = Boolean(responsiveAfter) && forceMultilineLayout;
+    const hasBefore = Boolean(before);
+    const hasAfter = Boolean(after);
+    const layoutIsMultiline = !alwaysInlineEditor && (isMultiline || forceMultilineLayout);
+    const showResponsiveAfterInFooter = Boolean(responsiveAfter) && layoutIsMultiline;
+
+    const updateMultilineLayout = useCallback(() => {
+      const text = latestTextRef.current;
+      const row = rowRef.current;
+      const measurer = measurerRef.current;
+      const editable = editableRef.current;
+      if (!row || !measurer || !editable) return;
+
+      let nextMultiline = text.includes('\n');
+      if (!nextMultiline && text.length > 0) {
+        const computedStyle = getComputedStyle(editable);
+        const beforeWidth = beforeRef.current?.offsetWidth ?? 0;
+        const afterWidth = afterRef.current?.offsetWidth ?? 0;
+        const width = Math.max(0, row.clientWidth - beforeWidth - afterWidth);
+        if (width > 0) {
+          Object.assign(measurer.style, {
+            font: computedStyle.font,
+            lineHeight: computedStyle.lineHeight,
+            letterSpacing: computedStyle.letterSpacing,
+            fontKerning: computedStyle.fontKerning,
+            fontFeatureSettings: computedStyle.fontFeatureSettings,
+            fontVariationSettings: computedStyle.fontVariationSettings,
+            textTransform: computedStyle.textTransform,
+            textIndent: computedStyle.textIndent,
+            tabSize: computedStyle.tabSize,
+            width: 'max-content',
+          });
+          measurer.textContent = 'M';
+          const singleLineHeight = measurer.scrollHeight;
+          measurer.style.width = `${width}px`;
+          measurer.textContent = normalizeMeasurementText(text);
+          nextMultiline = measurer.scrollHeight > singleLineHeight + MULTILINE_HEIGHT_EPSILON;
+        }
+      }
+      setIsMultiline(nextMultiline);
+    }, []);
+
+    useEffect(() => {
+      const root = rootRef.current;
+      if (!root) return undefined;
+      const measurerHost = document.createElement('div');
+      const measurer = document.createElement('div');
+      measurer.dataset.editorMeasurer = editableName ?? '';
+      Object.assign(measurerHost.style, {
+        position: 'absolute',
+        width: '0',
+        height: '0',
+        overflow: 'hidden',
+        pointerEvents: 'none',
+        visibility: 'hidden',
+      });
+      Object.assign(measurer.style, {
+        padding: '0',
+        border: '0',
+        margin: '0',
+        whiteSpace: 'pre-wrap',
+        overflowWrap: 'break-word',
+        wordBreak: 'break-word',
+        boxSizing: 'border-box',
+      });
+      measurerHost.appendChild(measurer);
+      root.appendChild(measurerHost);
+      measurerRef.current = measurer;
+      return () => {
+        measurerRef.current = null;
+        measurerHost.remove();
+      };
+    }, [editableName]);
+
+    useLayoutEffect(() => {
+      updateMultilineLayout();
+    }, [measurementVersion, updateMultilineLayout]);
+
+    useEffect(() => {
+      if (typeof ResizeObserver === 'undefined') return undefined;
+      const observer = new ResizeObserver(updateMultilineLayout);
+      [rowRef.current, beforeRef.current, afterRef.current].forEach((element) => {
+        if (element) observer.observe(element);
+      });
+      return () => observer.disconnect();
+    }, [updateMultilineLayout, hasBefore, hasAfter]);
 
     useEffect(() => () => window.clearTimeout(focusScrollTimerRef.current), []);
     const handleKeyDown: KeyboardEventHandler = useCallback(
@@ -114,6 +210,33 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
       [editor, onPaste]
     );
 
+    useEffect(() => {
+      editor.setDomEventHandlers({
+        blur: (event) => {
+          if (!isMobileOrTablet() || suppressBlurRefocusRef?.current) return;
+          const next = event.relatedTarget as HTMLElement | null;
+          if (!next || next.isContentEditable) return;
+          // Only reclaim focus when it moved within the composer, so taps on
+          // the timeline (e.g. images) dismiss the keyboard.
+          if (!rootRef.current?.contains(next) && !next.closest('[data-autocomplete-menu]')) return;
+          editor.focus();
+        },
+        focus: () => {
+          if (!isMobileOrTablet()) return;
+          const editable = document.activeElement;
+          window.clearTimeout(focusScrollTimerRef.current);
+          const scrollIntoView = () => {
+            if (editable && editable === document.activeElement) {
+              rootRef.current?.scrollIntoView({ block: 'nearest' });
+            }
+          };
+          window.visualViewport?.addEventListener('resize', scrollIntoView, { once: true });
+          focusScrollTimerRef.current = window.setTimeout(scrollIntoView, 500);
+        },
+      });
+      return () => editor.setDomEventHandlers({});
+    }, [editor, suppressBlurRefocusRef]);
+
     const setRootRef = useCallback(
       (element: HTMLDivElement | null) => {
         rootRef.current = element;
@@ -124,22 +247,26 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
     );
     const handleDocumentChange = useCallback(
       (document: EditorDocument) => {
+        latestTextRef.current = editor.getText();
+        setMeasurementVersion((version) => version + 1);
         onChange?.(document);
       },
-      [onChange]
+      [editor, onChange]
     );
 
     return (
       <div ref={setRootRef} className={`${css.Editor} ${className ?? ''}`}>
         {top}
         <Box
-          className={`${css.EditorRow} ${forceMultilineLayout ? css.EditorRowMultiline : ''} ${showResponsiveAfterInFooter ? css.EditorRowMultilineWithResponsiveAfter : ''}`}
+          ref={rowRef}
+          className={`${css.EditorRow} ${layoutIsMultiline ? css.EditorRowMultiline : ''} ${showResponsiveAfterInFooter ? css.EditorRowMultilineWithResponsiveAfter : ''}`}
           alignItems="Start"
           style={{ display: after ? 'grid' : 'flex' }}
         >
           {before && (
             <Box
-              className={`${css.EditorOptions} ${forceMultilineLayout ? css.EditorOptionsMultiline : ''}`}
+              ref={beforeRef}
+              className={`${css.EditorOptions} ${layoutIsMultiline ? css.EditorOptionsMultiline : ''}`}
               alignItems="Center"
               gap="100"
               shrink="No"
@@ -148,7 +275,7 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
             </Box>
           )}
           <Scroll
-            className={`${css.EditorTextareaScroll} ${forceMultilineLayout ? css.EditorTextareaScrollMultiline : ''}`}
+            className={`${css.EditorTextareaScroll} ${layoutIsMultiline ? css.EditorTextareaScrollMultiline : ''}`}
             variant={variant}
             style={{ maxHeight: showResponsiveAfterInFooter ? undefined : maxHeight }}
             size="300"
@@ -156,6 +283,9 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
             hideTrack
           >
             <ProseMirrorEditable
+              onHostChange={(element) => {
+                editableRef.current = element;
+              }}
               controller={editor}
               editableName={editableName}
               editorClassName={css.EditorTextarea}
@@ -165,29 +295,12 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
               onKeyDown={handleKeyDown}
               onKeyUp={onKeyUp}
               onPaste={handlePaste}
-              onBlur={(event) => {
-                if (!isMobileOrTablet() || suppressBlurRefocusRef?.current) return;
-                const next = event.relatedTarget as HTMLElement | null;
-                if (!next || (next !== event.currentTarget && next.isContentEditable)) return;
-                editor.focus();
-              }}
-              onFocus={() => {
-                if (!isMobileOrTablet()) return;
-                const editable = document.activeElement;
-                window.clearTimeout(focusScrollTimerRef.current);
-                const scrollIntoView = () => {
-                  if (editable && editable === document.activeElement) {
-                    rootRef.current?.scrollIntoView({ block: 'nearest' });
-                  }
-                };
-                window.visualViewport?.addEventListener('resize', scrollIntoView, { once: true });
-                focusScrollTimerRef.current = window.setTimeout(scrollIntoView, 500);
-              }}
             />
           </Scroll>
           {(after || (responsiveAfter && !showResponsiveAfterInFooter)) && (
             <Box
-              className={`${css.EditorOptions} ${forceMultilineLayout ? `${css.EditorOptionsMultiline} ${css.EditorOptionsAfterMultiline}` : ''}`}
+              ref={afterRef}
+              className={`${css.EditorOptions} ${layoutIsMultiline ? `${css.EditorOptionsMultiline} ${css.EditorOptionsAfterMultiline}` : ''}`}
               alignItems="Center"
               gap="100"
               shrink="No"

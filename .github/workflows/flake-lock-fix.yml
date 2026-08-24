@@ -33,7 +33,7 @@ jobs:
         uses: DeterminateSystems/determinate-nix-action@61cbfe2efc2d4e7a8a6d56967c3c1058e846c858 # v3.21.9
 
       - id: check
-        run: nix flake check -L
+        run: nix flake check -L --keep-going
         continue-on-error: true
 
       - name: Fix hash mismatches

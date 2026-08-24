@@ -1,12 +1,12 @@
 import { useMemo, useRef, useEffect } from 'react';
 import * as Sentry from '@sentry/react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { Avatar, Text, Box } from 'folds';
 import { useAtomValue } from 'jotai';
 import type { Room } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
-import { getDirectRoomPath } from '$pages/pathUtils';
+import { getDirectForumPath, getDirectRoomPath } from '$pages/pathUtils';
 import {
   SidebarAvatar,
   SidebarItemLeft,
@@ -24,6 +24,7 @@ import { useGroupDMMembers } from '$hooks/useGroupDMMembers';
 import { useRoomAvatar, useRoomName } from '$hooks/useRoomMeta';
 import { useSidebarDirectRoomIds } from './useSidebarDirectRoomIds';
 import * as css from './DirectDMsList.css';
+import { CustomRoomType } from '$types/matrix/room';
 
 const MAX_GROUP_MEMBERS = 3;
 
@@ -39,7 +40,12 @@ function DMItem({ room, selected }: DMItemProps) {
   const roomToUnread = useAtomValue(roomToUnreadAtom);
 
   const handleClick = () => {
-    navigate(getDirectRoomPath(getCanonicalAliasOrRoomId(mx, room.roomId)));
+    const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, room.roomId);
+    navigate(
+      room.getType() === CustomRoomType.Forum
+        ? getDirectForumPath(roomIdOrAlias)
+        : getDirectRoomPath(roomIdOrAlias)
+    );
   };
 
   const roomName = useRoomName(room);

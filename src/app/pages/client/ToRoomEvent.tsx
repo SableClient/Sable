@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { activeSessionIdAtom, pendingNotificationAtom } from '$state/sessions';
 import { mDirectAtom } from '$state/mDirectList';

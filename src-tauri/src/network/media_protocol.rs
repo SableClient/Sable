@@ -10,12 +10,14 @@ use std::{
 use sha2::{Digest, Sha256};
 use tauri::{
     http::{header, Request, Response, StatusCode, Uri},
-    AppHandle, Manager, Runtime, State, UriSchemeContext, UriSchemeResponder,
+    AppHandle, Emitter, Manager, Runtime, State, UriSchemeContext, UriSchemeResponder,
 };
 
 mod crypto;
 mod lane;
 mod loopback;
+
+pub const LOOPBACK_REBOUND_EVENT: &str = "sable-media://loopback-rebound";
 mod response;
 mod session;
 
@@ -110,9 +112,12 @@ impl MediaSessionState {
     }
 
     fn set_session(&self, session: MediaSession) -> Result<(), String> {
-        self.session_store.set(session, || {
+        self.session_store.set(session, |changed| {
             self.forget_client_errors();
-            self.clear_loopback_media();
+            // Capabilities embed the access token, so only a real session change orphans them.
+            if changed {
+                self.clear_loopback_media();
+            }
         })
     }
 
@@ -127,6 +132,13 @@ impl MediaSessionState {
         if let Some(loopback) = &self.loopback {
             loopback.clear();
         }
+    }
+
+    fn ensure_loopback_media_live(&self) -> Result<bool, String> {
+        let Some(loopback) = &self.loopback else {
+            return Ok(false);
+        };
+        loopback.ensure_live().map_err(|err| err.to_string())
     }
 
     // Shared across requests so the connection pool and TLS sessions stay warm.
@@ -257,6 +269,17 @@ pub fn set_media_encryption(
 }
 
 #[tauri::command]
+pub fn ensure_loopback_media<R: Runtime>(
+    app: AppHandle<R>,
+    state: tauri::State<'_, MediaSessionState>,
+) -> Result<(), String> {
+    if state.ensure_loopback_media_live()? {
+        let _ = app.emit(LOOPBACK_REBOUND_EVENT, ());
+    }
+    Ok(())
+}
+
+#[tauri::command]
 pub async fn prepare_loopback_media<R: Runtime>(
     app: AppHandle<R>,
     url: String,
@@ -336,12 +359,60 @@ pub fn respond<R: Runtime>(
     });
 }
 
+struct ResolvedMedia {
+    cache_key: String,
+    content_type: String,
+    in_memory_body: Option<Arc<Vec<u8>>>,
+    disk_path: PathBuf,
+}
+
+enum Resolved {
+    Ready(MediaSession, ResolvedMedia),
+    SessionUnavailable,
+}
+
 async fn handle_request<R: Runtime>(
     app: &AppHandle<R>,
     uri: Uri,
     range: Option<String>,
     loopback: bool,
 ) -> Result<Response<Vec<u8>>, StatusCode> {
+    let (session, resolved) = match resolve_media(app, &uri).await? {
+        Resolved::SessionUnavailable => return Ok(session_unavailable_response()),
+        Resolved::Ready(session, resolved) => (session, resolved),
+    };
+    let ResolvedMedia {
+        cache_key,
+        content_type,
+        in_memory_body,
+        disk_path,
+    } = resolved;
+    log_served_content_type(&content_type, range.is_some());
+
+    if loopback && in_memory_body.is_none() {
+        let state = app.state::<MediaSessionState>();
+        if let Some(loopback) = &state.loopback {
+            if loopback.ensure_live().unwrap_or(false) {
+                let _ = app.emit(LOOPBACK_REBOUND_EVENT, ());
+            }
+            return Ok(loopback.redirect_response(&session, &cache_key, disk_path, &content_type));
+        }
+    }
+
+    match (range, in_memory_body) {
+        (Some(range_header), Some(body)) => {
+            Ok(serve_range_memory(&body, &content_type, &range_header))
+        }
+        (Some(range_header), None) => serve_range(disk_path, content_type, range_header).await,
+        (None, Some(body)) => {
+            let vec_body = Arc::try_unwrap(body).unwrap_or_else(|b| (*b).clone());
+            Ok(ok_response(vec_body, &content_type))
+        }
+        (None, None) => Ok(ok_response(read_full(disk_path).await?, &content_type)),
+    }
+}
+
+async fn resolve_media<R: Runtime>(app: &AppHandle<R>, uri: &Uri) -> Result<Resolved, StatusCode> {
     let target = percent_encoding::percent_decode_str(uri.path().trim_start_matches('/'))
         .decode_utf8()
         .map_err(|_| StatusCode::BAD_REQUEST)?
@@ -349,7 +420,7 @@ async fn handle_request<R: Runtime>(
 
     let state = app.state::<MediaSessionState>();
     let Some(session) = state.wait_for_session().await else {
-        return Ok(session_unavailable_response());
+        return Ok(Resolved::SessionUnavailable);
     };
 
     let mut media_url = Url::parse(&target).map_err(|_| StatusCode::BAD_REQUEST)?;
@@ -368,7 +439,7 @@ async fn handle_request<R: Runtime>(
     {
         return Err(StatusCode::FORBIDDEN);
     }
-    if !session_marker_matches(&uri, &session.scope)? {
+    if !session_marker_matches(uri, &session.scope)? {
         return Err(StatusCode::FORBIDDEN);
     }
 
@@ -381,25 +452,46 @@ async fn handle_request<R: Runtime>(
 
     let (content_type, in_memory_body, disk_path) =
         ensure_cached(&state, &session, &key, media_url, dir, temp_dir).await?;
-    log_served_content_type(&content_type, range.is_some());
 
-    if loopback && in_memory_body.is_none() {
-        if let Some(loopback) = &state.loopback {
-            return Ok(loopback.redirect_response(&session, &key, disk_path, &content_type));
+    Ok(Resolved::Ready(
+        session,
+        ResolvedMedia {
+            cache_key: key,
+            content_type,
+            in_memory_body,
+            disk_path,
+        },
+    ))
+}
+
+#[cfg(desktop)]
+pub(crate) async fn copy_media_to_file<R: Runtime>(
+    app: &AppHandle<R>,
+    url: &str,
+    destination: &Path,
+) -> Result<(), String> {
+    let uri = url.parse::<Uri>().map_err(|err| err.to_string())?;
+    let resolved = resolve_media(app, &uri)
+        .await
+        .map_err(|status| format!("media unavailable ({status})"))?;
+
+    let Resolved::Ready(_, media) = resolved else {
+        return Err("no active media session".to_owned());
+    };
+
+    match media.in_memory_body {
+        Some(body) => {
+            tokio::fs::write(destination, body.as_slice())
+                .await
+                .map_err(|err| err.to_string())?;
+        }
+        None => {
+            tokio::fs::copy(&media.disk_path, destination)
+                .await
+                .map_err(|err| err.to_string())?;
         }
     }
-
-    match (range, in_memory_body) {
-        (Some(range_header), Some(body)) => {
-            Ok(serve_range_memory(&body, &content_type, &range_header))
-        }
-        (Some(range_header), None) => serve_range(disk_path, content_type, range_header).await,
-        (None, Some(body)) => {
-            let vec_body = Arc::try_unwrap(body).unwrap_or_else(|b| (*b).clone());
-            Ok(ok_response(vec_body, &content_type))
-        }
-        (None, None) => Ok(ok_response(read_full(disk_path).await?, &content_type)),
-    }
+    Ok(())
 }
 
 // Ensure the body + content type are on disk (persistent or temporary), fetching from the homeserver on a miss.

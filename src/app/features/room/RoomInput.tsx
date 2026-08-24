@@ -187,7 +187,6 @@ import { AttachmentContent } from '$components/attachment-sheet/AttachmentConten
 import { MobileSwipeDownModal } from '$components/MobileSwipeDownModal';
 import { SchedulePickerDialog } from './schedule-send';
 import * as css from './schedule-send/SchedulePickerDialog.css';
-import { getKlipyGifBlurhash } from '$utils/klipy';
 import {
   getAudioMsgContent,
   getFileMsgContent,
@@ -197,6 +196,7 @@ import {
   buildGalleryContent,
   getGalleryItemContent,
 } from './msgContent';
+import { useClientConfig } from '$hooks/useClientConfig';
 import { CommandAutocomplete } from './CommandAutocomplete';
 import type {
   AudioMessageRecorderHandle,
@@ -297,7 +297,7 @@ interface SendContentsOptions {
 
 interface RoomInputProps {
   editor: ProseMirrorEditorController;
-  fileDropContainerRef: RefObject<HTMLElement>;
+  fileDropContainerRef: RefObject<HTMLElement | null>;
   roomId: string;
   room: Room;
   threadRootId?: string;
@@ -324,6 +324,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     // don't clobber the main room draft (and vice versa).
     const draftKey = threadRootId ?? roomId;
     const mx = useMatrixClient();
+    const gifProxyUrl = useClientConfig().gifs?.proxyUrl;
     const useAuthentication = useMediaAuthentication();
     const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
     const [editorOldAddFile] = useSetting(settingsAtom, 'editorOldAddFile');
@@ -386,7 +387,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [ingestingFiles, setIngestingFiles] = useState(false);
     const fileIngestionCountRef = useRef(0);
     const submissionInFlightRef = useRef(false);
-    const composerControllerRef = useRef<ComposerController>();
+    const composerControllerRef = useRef<ComposerController | undefined>(undefined);
     composerControllerRef.current ??= createComposerController();
     // Bumped when this composer goes away, so async work started for a previous
     // room/thread stops writing to the current one.
@@ -403,7 +404,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       roomUploadAtomFamily,
       selectedFiles.map((f) => f.file)
     );
-    const uploadBoardHandlers = useRef<UploadBoardImperativeHandlers>();
+    const uploadBoardHandlers = useRef<UploadBoardImperativeHandlers | undefined>(undefined);
     const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
     const isLongPress = useRef(false);
     const sentOnPointerUpRef = useRef(false);
@@ -436,8 +437,8 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const audioRecorderRef = useRef<AudioMessageRecorderHandle>(null);
     const micHoldStartRef = useRef(0);
     const micHoldReleaseRef = useRef<(() => void) | null>(null);
-    const recorderActionRef = useRef<'stop' | 'cancel'>();
-    const recorderTimerRef = useRef<ReturnType<typeof setTimeout>>();
+    const recorderActionRef = useRef<'stop' | 'cancel' | undefined>(undefined);
+    const recorderTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
     const scheduleRecorderTimer = useCallback((callback: () => void) => {
       recorderTimerRef.current = setTimeout(() => {
         recorderTimerRef.current = undefined;
@@ -489,7 +490,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       };
     }, [draftKey]);
 
-    const [inputKey, setInputKey] = useState(0);
     const getUploadItemKey = useCallback((fileItem: TUploadItem): string => {
       const existingKey = uploadItemKeysRef.current.get(fileItem.originalFile);
       if (existingKey) return existingKey;
@@ -689,6 +689,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [AddMenuAnchor, setAddMenuAnchor] = useState<RectCords>();
     const [showAttachmentSheet, setShowAttachmentSheet] = useState(false);
     const attachmentSkipReturnFocusRef = useRef(false);
+    const emojiBoardSkipReturnFocusRef = useRef(true);
     const [showPollPicker, setShowPollPicker] = useState(false);
     const [showLocationPicker, setShowLocationPicker] = useState(false);
     const [scheduleMenuAnchor, setScheduleMenuAnchor] = useState<RectCords>();
@@ -696,11 +697,13 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [silentReply, setSilentReply] = useState(!mentionInReplies);
     // Clears the reply draft up front so it cannot be re-sent, keeping a snapshot to
     // restore if the send never lands.
+    const claimedReplyEventIdRef = useRef<string | undefined>(undefined);
     const claimReply = useCallback((): ReplyClaim | undefined => {
       const currentReply = replyDraftRef.current;
       if (!currentReply) return undefined;
 
       const epoch = draftEpochRef.current;
+      claimedReplyEventIdRef.current = currentReply.eventId;
       replyDraftRef.current = replyDraftBase;
       setReplyDraft(replyDraftBase);
       return { epoch, snapshot: structuredClone(currentReply), silentReply };
@@ -711,6 +714,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         if (replyDraftRef.current !== replyDraftBase) return;
         replyDraftRef.current = claim.snapshot;
         setReplyDraft(claim.snapshot);
+        claimedReplyEventIdRef.current = undefined;
       },
       [replyDraftBase, setReplyDraft]
     );
@@ -730,7 +734,13 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     }, []);
     const toggleEmojiBoardTab = useCallback((tab: EmojiBoardTab) => {
       setEmojiBoardTab((prev) => {
-        if (prev !== tab) return tab;
+        if (prev !== tab) {
+          if (prev === undefined && isMobileOrTablet()) {
+            const activeElement = document.activeElement;
+            if (activeElement instanceof HTMLElement) activeElement.blur();
+          }
+          return tab;
+        }
         if (isMobileOrTablet()) {
           const activeElement = document.activeElement;
           if (activeElement instanceof HTMLElement) activeElement.blur();
@@ -771,12 +781,17 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       });
     }, [threadRootId, setReplyDraft, mx]);
 
+    // Rewritten with equal content on unmount, and appending it again would duplicate it.
+    const appliedDraftRef = useRef<string | undefined>(undefined);
     useEffect(() => {
+      const draft = JSON.stringify(msgDraft);
+      if (appliedDraftRef.current === draft) return;
+      appliedDraftRef.current = draft;
       editor.appendDocument(msgDraft);
     }, [editor, msgDraft]);
 
     const editingStateRef = useRef(false);
-    const preEditDraftRef = useRef<EditorDocument>();
+    const preEditDraftRef = useRef<EditorDocument | undefined>(undefined);
     useEffect(
       () => () => {
         if (editingStateRef.current) {
@@ -809,7 +824,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       [room]
     );
 
-    const prevEditingEventId = useRef<string>();
+    const prevEditingEventId = useRef<string | undefined>(undefined);
     useEffect(() => {
       if (!isMobile) {
         editingStateRef.current = false;
@@ -959,7 +974,14 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
               // Ignore focus errors
             }
           });
-        } else if (!newId && prevId && prevId !== threadRootId && !editId) {
+        } else if (
+          !newId &&
+          prevId &&
+          prevId !== threadRootId &&
+          !editId &&
+          prevId !== claimedReplyEventIdRef.current
+        ) {
+          if (!isMobile) return;
           scheduleEditorRaf(() => {
             try {
               editor.blur();
@@ -970,7 +992,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           });
         }
       }
-    }, [replyDraft?.eventId, threadRootId, editId, editor, scheduleEditorRaf]);
+    }, [replyDraft?.eventId, threadRootId, editId, isMobile, editor, scheduleEditorRaf]);
 
     const handleFileMetadata = useCallback(
       (fileItem: TUploadItem, metadata: TUploadMetadata) => {
@@ -1071,13 +1093,14 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         };
         if (clearEditor) {
           editor.clear();
-          setInputKey((prev) => prev + 1);
+          // The draft outlives this component, and a remount re-applies it.
+          setMsgDraft([]);
           imagePacksUsedRef.current.clear();
           sendTypingStatus(false);
         }
         return submission;
       },
-      [claimReply, editor, sendTypingStatus]
+      [claimReply, editor, sendTypingStatus, setMsgDraft]
     );
     const restoreSubmission = useCallback(
       (submission: Submission) => {
@@ -1493,6 +1516,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         }
         if (outgoing.kind === 'gifSearch') {
           restoreReplyClaim(submission.replyClaim);
+          if (isMobileOrTablet()) {
+            const activeElement = document.activeElement;
+            if (activeElement instanceof HTMLElement) activeElement.blur();
+          }
           setInitialGifSearch(outgoing.query);
           setEmojiBoardTab(EmojiBoardTab.Gif);
           return;
@@ -1887,8 +1914,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
       const submission = takeSubmission({ clearEditor: false });
       return composerControllerRef.current?.enqueue(async (isLive) => {
         try {
-          const blurhash = gif.blurhash ?? (await getKlipyGifBlurhash(gif));
-          const content = getGifMsgContent(blurhash ? { ...gif, blurhash } : gif, spoiler);
+          const content = await getGifMsgContent(gif, {
+            proxyUrl: gifProxyUrl,
+            spoiler,
+          });
           if (!content) throw new Error('Unsendable GIF content');
 
           const sent = await handleSendContents({ contents: [content], submission, isLive });
@@ -1993,7 +2022,6 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
         <CustomEditor
           editableName="RoomInput"
           editor={editor}
-          key={inputKey}
           placeholder="Send a message..."
           enterKeyHint={enterForNewline ? 'enter' : 'send'}
           suppressBlurRefocusRef={suppressBlurRefocusRef}
@@ -2216,7 +2244,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                 <>
                   <IconButton
                     onClick={() => {
-                      attachmentSkipReturnFocusRef.current = false;
+                      attachmentSkipReturnFocusRef.current = true;
+                      const activeElement = document.activeElement;
+                      if (activeElement instanceof HTMLElement) activeElement.blur();
                       setShowAttachmentSheet(true);
                     }}
                     onPointerDown={suppressEditorRefocus}
@@ -2363,11 +2393,13 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       requestClose={closeEmojiBoard}
                     />
                   );
+                  // Mobile has no room for three triggers next to text.
+                  const onlyEmojiTrigger = isMobile && hasText;
                   const triggers = (
                     <>
                       {editorButtonOrder.map((id) => {
                         let button: ReactElement | null = null;
-                        if (id === 'gif' && editorGifButton) {
+                        if (id === 'gif' && editorGifButton && !onlyEmojiTrigger) {
                           button = (
                             <IconButton
                               ref={gifBtnRef}
@@ -2386,7 +2418,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                               })}
                             </IconButton>
                           );
-                        } else if (id === 'sticker' && editorStickerButton) {
+                        } else if (id === 'sticker' && editorStickerButton && !onlyEmojiTrigger) {
                           button = (
                             <IconButton
                               ref={stickerBtnRef}
@@ -2440,7 +2472,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                             focusTrap
                             dialogLabel="Emoji picker"
                             sheetClassName={messageCss.MessageMobileOptionsContainerPicker}
-                            keyboardAware
+                            skipReturnFocusRef={emojiBoardSkipReturnFocusRef}
                           >
                             {() => emojiBoard}
                           </MobileSwipeDownModal>
@@ -2456,7 +2488,10 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       align="End"
                       anchor={(() => {
                         if (emojiBoardTab === undefined) return undefined;
-                        const buttonRefs: Record<EditorButtonId, RefObject<HTMLButtonElement>> = {
+                        const buttonRefs: Record<
+                          EditorButtonId,
+                          RefObject<HTMLButtonElement | null>
+                        > = {
                           gif: gifBtnRef,
                           sticker: stickerBtnRef,
                           emoji: emojiBtnRef,
@@ -2515,7 +2550,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                       return;
                     }
                     if (sentOnPointerUpRef.current) return;
-                    submit();
+                    submit().catch((error) => log.error('submit failed', { roomId }, error));
                     return;
                   }
                   if (!editorMicButton) return;
@@ -2594,7 +2629,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                     return;
                   }
                   sentOnPointerUpRef.current = true;
-                  submit();
+                  submit().catch((error) => log.error('submit failed', { roomId }, error));
                 }}
                 onPointerCancel={() => {
                   if (longPressTimer.current !== null) {

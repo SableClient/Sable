@@ -42,7 +42,7 @@ import { useClientConfig } from '$hooks/useClientConfig';
 import { getHomePath, getLoginPath, getProfilePath, withSearchParam } from '$pages/pathUtils';
 import { initClient, logoutClient, stopClient } from '$client/initMatrix';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useFocusWithin, useHover } from 'react-aria';
 import { setUserPresence } from '$utils/presence';
 import { useSetting } from '$state/hooks/settings';

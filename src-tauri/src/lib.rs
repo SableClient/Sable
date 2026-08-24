@@ -458,6 +458,7 @@ pub fn run() {
             network::media_protocol::clear_media_session,
             network::media_protocol::set_media_encryption,
             network::media_protocol::prepare_loopback_media,
+            network::media_protocol::ensure_loopback_media,
             sentry::set_native_sentry_enabled,
             share_inbox::share_inbox_drain,
             share_inbox::share_inbox_read,
@@ -466,6 +467,8 @@ pub fn run() {
             mobile::set_status_bar_color,
             #[cfg(target_os = "android")]
             mobile::set_navigation_bar_color,
+            #[cfg(target_os = "android")]
+            mobile::set_window_background_color,
             #[cfg(target_os = "android")]
             mobile::set_immersive_mode,
             #[cfg(target_os = "android")]
@@ -484,6 +487,8 @@ pub fn run() {
             ios::deactivate_call_audio_session,
             #[cfg(desktop)]
             desktop::download::save_download,
+            #[cfg(desktop)]
+            desktop::download::save_media_download,
             #[cfg(desktop)]
             desktop::diagnostics::export_diagnostics,
             #[cfg(any(target_os = "android", target_os = "ios"))]
@@ -515,12 +520,12 @@ pub fn run() {
         return;
     };
 
-    app.run(|app, event| {
+    app.run(|_app, _event| {
         #[cfg(desktop)]
-        desktop::tray::handle_run_event(app, event);
+        desktop::tray::handle_run_event(_app, _event);
 
         #[cfg(not(any(desktop, mobile)))]
-        let _ = (app, event);
+        let _ = (_app, _event);
     });
 }
 
@@ -540,6 +545,7 @@ mod tests {
             close_to_background_on_close: true,
             show_system_tray_icon: true,
             use_custom_title_bar: false,
+            spellcheck: true,
         };
         let _ = crate::desktop::runtime_state::DesktopRuntimeState {
             tray_available: true,

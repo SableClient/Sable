@@ -1,4 +1,4 @@
-declare module '@choochmeque/tauri-plugin-notifications-api' {
+declare module '@sableclient/tauri-plugin-notifications-api' {
   export type { PermissionState } from '@tauri-apps/api/core';
 
   export const Importance: {

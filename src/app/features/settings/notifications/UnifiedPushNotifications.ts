@@ -23,6 +23,7 @@ import {
   parseUnifiedPushMessage,
 } from './UnifiedPushMessageListener';
 import { addPluginListener, invoke } from '@tauri-apps/api/core';
+import { getSlidingSyncManager } from '$client/initMatrix';
 import type { PushTransportConfig } from './NotificationTransport';
 import { getTauriNotificationsApi, isMobileTauri } from './TauriNotificationsApiClient';
 import {
@@ -1063,7 +1064,9 @@ export async function listenForUnifiedPushMessages(getSettings: () => Notificati
 
   const listener = await addPluginListener('notifications', 'push-message', (data: unknown) => {
     const notification = parseUnifiedPushMessage(data);
-    if (notification) dispatch(notification);
+    if (!notification) return;
+    getSlidingSyncManager(getSettings().mx)?.resumeForPush();
+    dispatch(notification);
   });
 
   try {

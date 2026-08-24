@@ -6,6 +6,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { isTauri } from '@tauri-apps/api/core';
 import { type as osType } from '@tauri-apps/plugin-os';
 
+import { DesktopSpellcheck } from '$components/tauri/DesktopSpellcheck';
 import { TauriFrontendReady } from '$components/tauri/TauriFrontendReady';
 import { TauriWindowFocus } from '$components/tauri/TauriWindowFocus';
 import { DesktopTitleBar } from '$components/tauri/DesktopTitleBar';
@@ -89,6 +90,7 @@ function AppShellFrame({ children, portalContainer, onPortalContainerChange }: A
     <>
       <TauriFrontendReady />
       <TauriWindowFocus />
+      <DesktopSpellcheck />
       <div
         style={{
           display: 'flex',

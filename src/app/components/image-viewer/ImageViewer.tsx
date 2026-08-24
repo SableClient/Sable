@@ -42,8 +42,12 @@ import * as css from './ImageViewer.css';
 import type { IImageInfo } from '$types/matrix/common';
 import { CheckerboardIcon, CopyIcon, ImagesIcon } from '@phosphor-icons/react';
 import { copyImageToClipboard } from '$utils/dom';
-import { getDownloadFilename, saveFileToDevice, saveMediaToGallery } from '$utils/download';
-import { getTauriMediaSourceUrl } from '$utils/mediaUrl';
+import {
+  getDownloadFilename,
+  reportDownloadFailure,
+  saveFileToDevice,
+  saveMediaToGallery,
+} from '$utils/download';
 import { ResponsiveMenu } from '$components/ResponsiveMenu';
 import { isAndroidTauri, iosApp } from '$utils/platform';
 import { setImmersiveMode } from '$generated/tauri/commands';
@@ -156,13 +160,13 @@ export const ImageViewer = as<'div', ImageViewerProps>(
     const downloadFilename = getDownloadFilename(filename, alt, 'image');
     const canSaveToGallery = isAndroidTauri() && (galleryMimeType?.startsWith('image/') ?? false);
 
-    const loadDownloadBlob = () =>
-      getDownloadBlob ? getDownloadBlob() : downloadMedia(getTauriMediaSourceUrl(src) ?? src);
+    const loadDownloadBlob = () => (getDownloadBlob ? getDownloadBlob() : downloadMedia(src));
 
     const saveToGallery = async () => {
       try {
         await saveMediaToGallery(await loadDownloadBlob(), downloadFilename, galleryMimeType!);
       } catch (error) {
+        reportDownloadFailure(error, 'fetch', downloadFilename, galleryMimeType);
         const message = error instanceof Error ? error.message : 'unknown error';
         showToast(`Failed to save to gallery: ${message}`);
       }
@@ -177,6 +181,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
       try {
         fileContent = await loadDownloadBlob();
       } catch (error) {
+        reportDownloadFailure(error, 'fetch', downloadFilename, galleryMimeType);
         const message = error instanceof Error ? error.message : 'unknown error';
         showToast(`Failed to download file: ${message}`);
         return;

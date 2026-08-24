@@ -38,9 +38,10 @@ const sanitizedVersion = version.replace(/^(\d+\.\d+\.\d+-nightly)\.(.+)$/, (_, 
 // overflows the u32 Tauri parses each version part into.
 let stampedVersion = sanitizedVersion;
 if (foldNightlyIntoPatch) {
-  const nightly = /^(\d+\.\d+)\.\d+-nightly\.(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/.exec(
-    sanitizedVersion
-  );
+  const nightly =
+    /^(\d+\.\d+)\.\d+-nightly\.(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})(?:\.[0-9A-Za-z-]+)?$/.exec(
+      sanitizedVersion
+    );
   if (!nightly) {
     console.error(`--apple-short-version needs a nightly version (got: ${sanitizedVersion})`);
     process.exit(1);

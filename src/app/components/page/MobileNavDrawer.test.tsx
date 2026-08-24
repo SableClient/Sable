@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
-import { beforeAll, describe, expect, it, vi } from 'vitest';
-import { MemoryRouter } from 'react-router-dom';
+import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter, useNavigate } from 'react-router';
 import { MobileNavDrawer } from './MobileNavDrawer';
 import { useMobileNavDrawer } from './MobileNavDrawerContext';
 
@@ -10,23 +10,32 @@ vi.mock('$state/hooks/settings', () => ({
 }));
 
 vi.mock('./PersistentRoomHost', () => ({
-  PersistentRoomHost: () => <div data-testid="persistent-room-host" />,
+  PersistentRoomHost: () => (
+    <div data-testid="persistent-room-host">
+      <input aria-label="composer" />
+    </div>
+  ),
 }));
 
+let reduceMotion = false;
+
+afterEach(() => {
+  reduceMotion = false;
+  vi.restoreAllMocks();
+});
+
 beforeAll(() => {
-  window.matchMedia =
-    window.matchMedia ??
-    ((query: string) =>
-      ({
-        matches: false,
-        media: query,
-        addEventListener: () => {},
-        removeEventListener: () => {},
-        addListener: () => {},
-        removeListener: () => {},
-        onchange: null,
-        dispatchEvent: () => false,
-      }) as unknown as MediaQueryList);
+  window.matchMedia = (query: string) =>
+    ({
+      matches: query.includes('prefers-reduced-motion') ? reduceMotion : false,
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      addListener: () => {},
+      removeListener: () => {},
+      onchange: null,
+      dispatchEvent: () => false,
+    }) as unknown as MediaQueryList;
 });
 
 const renderDrawer = () =>
@@ -79,6 +88,21 @@ function ChatSwipeProbe({
   );
 }
 
+function BackToListHarness() {
+  const navigate = useNavigate();
+  return (
+    <MobileNavDrawer
+      nav={
+        <button type="button" onClick={() => navigate('/home')}>
+          back to list
+        </button>
+      }
+    >
+      <div>content</div>
+    </MobileNavDrawer>
+  );
+}
+
 describe('MobileNavDrawer', () => {
   // The panels sit side by side in a track twice the viewport wide, moved by transform.
   // `hidden` leaves a scrollport that focus or scrollIntoView scrolls a full panel width,
@@ -90,6 +114,25 @@ describe('MobileNavDrawer', () => {
 
     expect(viewport.style.overflow).toBe('clip');
     expect(viewport.style.overflow).not.toBe('hidden');
+  });
+
+  it('drops focus from the panel that slides out of view', () => {
+    reduceMotion = true;
+    vi.spyOn(HTMLElement.prototype, 'clientWidth', 'get').mockReturnValue(400);
+
+    render(
+      <MemoryRouter initialEntries={['/home/!room:example.org']}>
+        <BackToListHarness />
+      </MemoryRouter>
+    );
+
+    const composer = screen.getByLabelText('composer');
+    composer.focus();
+    expect(document.activeElement).toBe(composer);
+
+    fireEvent.click(screen.getByRole('button', { name: 'back to list' }));
+
+    expect(document.activeElement).not.toBe(composer);
   });
 
   it('still drives message swipe when the gesture starts on a nested ignored element (e.g. an image)', () => {

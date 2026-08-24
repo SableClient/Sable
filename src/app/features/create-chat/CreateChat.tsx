@@ -4,7 +4,7 @@ import type { FormEventHandler } from 'react';
 import { useCallback, useState } from 'react';
 import type { ICreateRoomStateEvent } from '$types/matrix-sdk';
 import { MatrixError, Preset, Visibility } from '$types/matrix-sdk';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { SettingTile } from '$components/setting-tile';
 import { SequenceCard } from '$components/sequence-card';
 import { addRoomIdToMDirect, isUserId } from '$utils/matrix';

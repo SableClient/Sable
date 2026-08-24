@@ -79,7 +79,7 @@ targets:
       {{~#each ios-additional-targets}}
       - path: {{prefix-path this}}{{/each}}
       - path: LaunchScreen.storyboard
-      - path: PrivacyInfo.xcprivacy
+      - path: ../../ios/PrivacyInfo.xcprivacy
         buildPhase: resources
       # UNNotificationSound resolves names from the bundle root, not tauri's assets/ dir.
       - path: ../../resources/notification.caf

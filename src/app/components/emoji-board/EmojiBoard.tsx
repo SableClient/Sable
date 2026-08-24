@@ -64,7 +64,7 @@ import { useGifSearch } from './useGifSearch';
 import { useFavoriteGifs } from '$hooks/useFavoriteGifs';
 import * as css from './components/styles.css';
 import { useMobileSheetClose } from '$components/MobileSwipeDownModal';
-import { isAllowedKlipyMediaUrl } from '$utils/externalGif';
+import { isAllowedGifMediaUrl } from '$utils/gifProviders';
 
 const RECENT_GROUP_ID = 'recent_group';
 const SEARCH_GROUP_ID = 'search_group';
@@ -176,8 +176,8 @@ const useItemRenderer = (tab: EmojiBoardTab, saveStickerEmojiBandwidth: boolean)
 
       const previewUrl = gif.preview_url;
       const gifUrl =
-        (previewUrl && isAllowedKlipyMediaUrl(previewUrl) ? previewUrl : undefined) ??
-        (isAllowedKlipyMediaUrl(gif.mediaUrl)
+        (previewUrl && isAllowedGifMediaUrl(previewUrl) ? previewUrl : undefined) ??
+        (isAllowedGifMediaUrl(gif.mediaUrl)
           ? gif.mediaUrl
           : gif.mediaUrl.startsWith('mxc://')
             ? (mxcUrlToHttp(mx, gif.mediaUrl, useAuthentication) ?? '')
@@ -379,7 +379,7 @@ function StickerSidebar({
 }
 
 type EmojiGroupHolderProps = {
-  contentScrollRef: RefObject<HTMLDivElement>;
+  contentScrollRef: RefObject<HTMLDivElement | null>;
   previewAtom: PrimitiveAtom<PreviewData | undefined>;
   children?: ReactNode;
   onGroupItemClick: MouseEventHandler;

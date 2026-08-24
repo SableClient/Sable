@@ -4,7 +4,7 @@ import type { RectCords } from 'folds';
 import { Box, config, Menu, Text } from 'folds';
 import { PopOut } from '$components/overlay-stack';
 import FocusTrap from 'focus-trap-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { SidebarAvatar, SidebarItemLeft, SidebarItemTooltip } from '$components/sidebar';
 import { stopPropagation } from '$utils/keyboard';
 import { SequenceCard } from '$components/sequence-card';

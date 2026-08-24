@@ -1,6 +1,6 @@
 import { render, waitFor } from '@testing-library/react';
 import { Provider, createStore } from 'jotai';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter } from 'react-router';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NativeNotificationActionRouting, NativeNotificationClickRouting } from './notifications';
 import { activeSessionIdAtom, pendingNotificationAtom } from '$state/sessions';

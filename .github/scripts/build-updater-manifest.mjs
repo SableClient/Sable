@@ -6,7 +6,6 @@ import { execSync } from 'node:child_process';
 import { readFileSync, readdirSync, writeFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { resolveReleaseMeta } from './release-meta.mjs';
 
 const TAG = process.env.TAG;
 const VERSION = process.env.VERSION;
@@ -21,18 +20,28 @@ if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/.test(VERSION)) {
 }
 const version = VERSION;
 
-const { isNightly } = resolveReleaseMeta({
-  eventName: process.env.EVENT_NAME,
-  inputTag: process.env.INPUT_TAG,
-  gitRef: process.env.GIT_REF,
-  gitRefName: process.env.GIT_REF_NAME,
-  gitSha: process.env.GIT_SHA,
-});
+const isNightly = process.env.IS_NIGHTLY === 'true';
 
 const dir = mkdtempSync(join(tmpdir(), 'sable-sigs-'));
-execSync(`gh release download "${TAG}" --repo "${REPO}" --pattern '*.sig' --dir "${dir}"`, {
-  stdio: 'inherit',
-});
+const signaturePattern = `Sable-${VERSION}-*.sig`;
+const signatures = execSync(
+  `gh release view "${TAG}" --repo "${REPO}" --json assets --jq '.assets[].name'`,
+  { encoding: 'utf8' }
+)
+  .split('\n')
+  .filter((name) => name.startsWith(`Sable-${VERSION}-`) && name.endsWith('.sig'));
+
+if (signatures.length === 0) {
+  console.warn('No signed artifacts found for this version; skipping updater manifest.');
+  process.exit(0);
+}
+
+execSync(
+  `gh release download "${TAG}" --repo "${REPO}" --pattern "${signaturePattern}" --dir "${dir}"`,
+  {
+    stdio: 'inherit',
+  }
+);
 
 const urlFor = (name) =>
   `https://github.com/${REPO}/releases/download/${TAG}/${encodeURIComponent(name)}`;

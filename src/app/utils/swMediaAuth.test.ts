@@ -96,7 +96,7 @@ describe('swMediaAuth', () => {
     expect(postMessage).toHaveBeenCalledTimes(2);
   }, 10_000);
 
-  it('notifies unsupported while a replacement controller probe is unresolved', async () => {
+  it('keeps listeners on the proven path while a replacement controller probe is unresolved', async () => {
     platform.hasServiceWorker.mockReturnValue(true);
     const firstController = {
       postMessage: vi.fn<(...args: unknown[]) => void>((...args: unknown[]) => {
@@ -113,18 +113,46 @@ describe('swMediaAuth', () => {
     listener.mockClear();
     vi.useFakeTimers();
 
-    serviceWorker.controller = { postMessage: vi.fn<() => void>() };
+    const replacement = { postMessage: vi.fn<() => void>() };
+    serviceWorker.controller = replacement;
     const controllerChange = serviceWorker.addEventListener.mock.calls.find(
       ([type]) => type === 'controllerchange'
     )?.[1] as (() => void) | undefined;
     controllerChange?.();
 
     expect(controllerChange).toBeTypeOf('function');
-    expect(listener).toHaveBeenCalledWith(false);
+    expect(listener).not.toHaveBeenCalled();
+    expect(replacement.postMessage).toHaveBeenCalledOnce();
     expect(mod.getCachedSWMediaAuthSupport()).toBeUndefined();
 
     await vi.advanceTimersByTimeAsync(1500);
     expect(mod.getCachedSWMediaAuthSupport()).toBeUndefined();
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('notifies unsupported when the page loses its controller', async () => {
+    platform.hasServiceWorker.mockReturnValue(true);
+    const serviceWorker = stubServiceWorker({
+      postMessage: vi.fn<(...args: unknown[]) => void>((...args: unknown[]) => {
+        const [port] = args[1] as MessagePort[];
+        port?.postMessage({ type: 'swMediaAuth', supported: true, version: 1 });
+      }),
+    });
+    const mod = await import('./swMediaAuth');
+    const listener = vi.fn<(supported: boolean) => void>();
+    mod.subscribeSWMediaAuthSupport(listener);
+
+    await expect(mod.probeSWMediaAuthSupport()).resolves.toBe(true);
+    listener.mockClear();
+
+    serviceWorker.controller = null;
+    const controllerChange = serviceWorker.addEventListener.mock.calls.find(
+      ([type]) => type === 'controllerchange'
+    )?.[1] as (() => void) | undefined;
+    controllerChange?.();
+
+    expect(listener).toHaveBeenCalledWith(false);
+    expect(mod.getCachedSWMediaAuthSupport()).toBe(false);
   });
 
   it('resolves false when posting the probe throws', async () => {

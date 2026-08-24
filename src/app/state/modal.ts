@@ -4,6 +4,8 @@ import type { OptionMenuProps } from '$components/message/modals/Options';
 
 export enum ModalType {
   MobileOptions = 'mobile_options',
+  ReactionPicker = 'reaction_picker',
+  ReproxyPicker = 'reproxy_picker',
   Delete = 'delete',
   // for forwarding a message to another room, not to be confused with the "share" action which is for sharing a message to another app
   Forward = 'forward',
@@ -14,8 +16,16 @@ export enum ModalType {
   ReadReceipts = 'read_receipts',
 }
 
-type ModalState =
+export type ModalState =
   | { type: ModalType.MobileOptions; options: OptionMenuProps }
+  | {
+      type: ModalType.ReactionPicker;
+      mEvent: MatrixEvent;
+      imagePackRooms?: Room[];
+      onReactionToggle?: (targetEventId: string, key: string, shortcode?: string) => void;
+      closeMenu: () => void;
+    }
+  | { type: ModalType.ReproxyPicker; room: Room; mEvent: MatrixEvent; closeMenu: () => void }
   | { type: ModalType.Delete; room: Room; mEvent: MatrixEvent }
   | { type: ModalType.Forward; room: Room; mEvent: MatrixEvent }
   | { type: ModalType.Report; room: Room; mEvent: MatrixEvent }
@@ -25,4 +35,19 @@ type ModalState =
   | { type: ModalType.ReadReceipts; room: Room; eventId: string }
   | null;
 
-export const modalAtom = atom<ModalState>(null);
+const modalStackAtom = atom<NonNullable<ModalState>[]>([]);
+
+export const modalAtom = atom(
+  (get) => get(modalStackAtom).at(-1) ?? null,
+  (_get, set, next: ModalState) => {
+    set(modalStackAtom, next ? [next] : []);
+  }
+);
+
+export const pushModalAtom = atom(null, (get, set, next: NonNullable<ModalState>) => {
+  set(modalStackAtom, [...get(modalStackAtom), next]);
+});
+
+export const popModalAtom = atom(null, (get, set) => {
+  set(modalStackAtom, get(modalStackAtom).slice(0, -1));
+});

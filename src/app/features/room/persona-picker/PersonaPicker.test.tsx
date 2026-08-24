@@ -238,6 +238,13 @@ describe('PersonaPicker async flows', () => {
     expect(screen.queryByText('First')).not.toBeInTheDocument();
   });
 
+  it('renders while profiles are loading', async () => {
+    mocked.getAll.mockReturnValue(new Promise<PerMessageProfileMsc4461[]>(() => {}));
+    renderPicker();
+
+    await waitFor(() => expect(mocked.getAll).toHaveBeenCalled());
+  });
+
   it('commits an independent global sync when the room sync is still pending', async () => {
     const roomSync = deferred<PerMessageProfileMsc4461 | undefined>();
     mocked.getRoom.mockReturnValue(roomSync.promise);

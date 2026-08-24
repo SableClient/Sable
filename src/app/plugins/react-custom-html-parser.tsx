@@ -1,5 +1,11 @@
 /* oxlint-disable jsx-a11y/alt-text */
-import type { CSSProperties, ComponentPropsWithoutRef, ReactEventHandler, ReactNode } from 'react';
+import type {
+  CSSProperties,
+  ComponentPropsWithoutRef,
+  JSX,
+  ReactEventHandler,
+  ReactNode,
+} from 'react';
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import { attributesToProps, domToReact, Element, Text as DOMText } from 'html-react-parser';
@@ -369,7 +375,7 @@ const scaleEmojiChunk = (text: string, output: (string | JSX.Element)[]) => {
 
 export const scaleSystemEmoji = (text: string): (string | JSX.Element)[] => {
   const parts: (string | JSX.Element)[] = [];
-  const urlReg = new RegExp(URL_REG);
+  const urlReg = new RegExp(URL_REG, 'g');
   let lastIndex = 0;
 
   [...text.matchAll(urlReg)].forEach((match) => {

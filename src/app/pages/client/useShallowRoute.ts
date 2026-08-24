@@ -1,5 +1,5 @@
 import { useCallback } from 'react';
-import { useLocation, useNavigate, type To } from 'react-router-dom';
+import { useLocation, useNavigate, type To } from 'react-router';
 import { getShallowCloseTarget, getShallowRoutePath } from './shallowRoute';
 
 /**

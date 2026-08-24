@@ -8,7 +8,7 @@ import {
   useLocation,
   useNavigate,
   useNavigationType,
-} from 'react-router-dom';
+} from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import { Text } from 'folds';
 import { SequenceCard } from '$components/sequence-card';

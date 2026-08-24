@@ -1,6 +1,6 @@
 import type { MouseEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Box, IconButton, Line, Scroll, Text, color, config } from 'folds';
+import { Box, Button, IconButton, Line, Scroll, Text, color, config } from 'folds';
 import { useAtom, useAtomValue } from 'jotai';
 import type { EventTimeline, MatrixEvent, Room } from 'matrix-js-sdk';
 import { Direction, EventType, RoomEvent } from 'matrix-js-sdk';
@@ -9,7 +9,7 @@ import type { Thread } from 'matrix-js-sdk/lib/models/thread';
 import { ThreadEvent } from 'matrix-js-sdk/lib/models/thread';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import type { Opts as LinkifyOpts } from 'linkifyjs';
-import { useRoom } from '$hooks/useRoom';
+import { useDisplayedEventId, useRoom } from '$hooks/useRoom';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { Page, PageContent, PageContentCenter, PageHeroSection } from '$components/page';
 import { CaretUp, Chats, composerIcon, sizedIcon } from '$components/icons/phosphor';
@@ -63,7 +63,25 @@ type ForumPost = {
  * Collect all top-level messages (not thread replies, not reactions/edits/redacted)
  * and return them as ForumPost items, sorted by latest activity descending.
  */
-const collectForumPosts = (room: Room): ForumPost[] => {
+const isPlainReplyEvent = (event: MatrixEvent): boolean => {
+  const content = event.getContent<Record<string, unknown>>();
+  const relation = content['m.relates_to'];
+  if (relation && typeof relation === 'object') {
+    const inReplyTo = (relation as { ['m.in_reply_to']?: unknown })['m.in_reply_to'];
+    if (inReplyTo && typeof inReplyTo === 'object') {
+      return typeof (inReplyTo as { event_id?: unknown }).event_id === 'string';
+    }
+  }
+
+  const inReplyTo = content['m.in_reply_to'];
+  return (
+    !!inReplyTo &&
+    typeof inReplyTo === 'object' &&
+    typeof (inReplyTo as { event_id?: unknown }).event_id === 'string'
+  );
+};
+
+export const collectForumPosts = (room: Room): ForumPost[] => {
   const threadMap = new Map<string, Thread>();
   room.getThreads().forEach((thread) => {
     threadMap.set(thread.id, thread);
@@ -89,17 +107,25 @@ const collectForumPosts = (room: Room): ForumPost[] => {
     });
   });
 
-  // Add top-level timeline messages that are NOT thread replies
-  const timeline = room.getLiveTimeline();
-  timeline.getEvents().forEach((ev) => {
+  const events = room
+    .getUnfilteredTimelineSet()
+    .getTimelines()
+    .flatMap((timeline) => timeline.getEvents());
+  events.forEach((ev) => {
     const evId = ev.getId();
     if (!evId) return;
     if (posts.has(evId)) return; // already added as thread root
     if (ev.isRedacted()) return;
     if (reactionOrEditEvent(ev)) return;
-    // Skip actual thread replies (rel_type: m.thread), but keep plain replies
-    // that just reference a thread root via m.in_reply_to
+    if (
+      ev.getType() !== (EventType.RoomMessage as string) &&
+      ev.getType() !== (EventType.RoomMessageEncrypted as string) &&
+      ev.getType() !== (EventType.Sticker as string)
+    ) {
+      return;
+    }
     if (ev.getRelation()?.rel_type === 'm.thread') return;
+    if (isPlainReplyEvent(ev)) return;
     if (ev.isState()) return; // skip state events
 
     posts.set(evId, {
@@ -117,6 +143,7 @@ const collectForumPosts = (room: Room): ForumPost[] => {
 export function ForumView() {
   const mx = useMatrixClient();
   const room = useRoom();
+  const eventId = useDisplayedEventId();
   const powerLevels = usePowerLevels(room);
   const members = useRoomMembers(mx, room.roomId);
 
@@ -138,6 +165,10 @@ export function ForumView() {
   const [openThreadId, setOpenThread] = useAtom(roomIdToOpenThreadAtomFamily(room.roomId));
   const [updateKey, forceUpdate] = useState(0);
   const [editId, setEditId] = useState<string | undefined>(undefined);
+  const [loadingOlderPosts, setLoadingOlderPosts] = useState(false);
+  const [canLoadOlderPosts, setCanLoadOlderPosts] = useState(
+    () => room.getLiveTimeline().getPaginationToken(Direction.Backward) !== null
+  );
 
   // Settings
   const [messageLayout] = useSetting(settingsAtom, 'messageLayout');
@@ -238,17 +269,71 @@ export function ForumView() {
       backwardTimeline = backwardTimeline.getNeighbouringTimeline(Direction.Backward);
     }
 
-    // Initialize thread timeline sets then fetch threads from server
-    room
-      .createThreadsTimelineSets()
-      .then(() => room.fetchRoomThreads())
-      .then(() => {
-        forceUpdate((n) => n + 1);
-      })
-      .catch(() => {
-        // Silently ignore — server may not support threads
+    let cancelled = false;
+    const loadThreads = async () => {
+      const sets = await room.createThreadsTimelineSets();
+      const [threadListTimelineSet] = sets ?? [];
+      if (!threadListTimelineSet || cancelled) return;
+
+      await room.fetchRoomThreads();
+      await mx.paginateEventTimeline(threadListTimelineSet.getLiveTimeline(), {
+        backwards: true,
       });
-  }, [room]);
+
+      threadListTimelineSet
+        .getLiveTimeline()
+        .getEvents()
+        .forEach((rootEvent) => {
+          const rootId = rootEvent.getId();
+          if (!rootId) return;
+          const thread = room.getThread(rootId);
+          if (!thread) {
+            room.createThread(rootId, rootEvent, [], false);
+          } else if (!thread.rootEvent) {
+            thread.rootEvent = rootEvent;
+            thread.setEventMetadata(rootEvent);
+          }
+        });
+
+      if (!cancelled) {
+        setCanLoadOlderPosts(
+          room.getLiveTimeline().getPaginationToken(Direction.Backward) !== null
+        );
+        forceUpdate((n) => n + 1);
+      }
+    };
+
+    loadThreads().catch(() => {
+      // Silently ignore, server may not support threads.
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [mx, room]);
+
+  useEffect(() => {
+    if (!eventId) return;
+
+    const event = room.findEventById(eventId);
+    let threadRootId = event?.threadRootId;
+    if (!threadRootId && room.getThread(eventId)) {
+      threadRootId = eventId;
+    }
+    if (!threadRootId) {
+      const thread = room
+        .getThreads()
+        .find(
+          (candidate) =>
+            candidate.id === eventId || candidate.events.some((ev) => ev.getId() === eventId)
+        );
+      threadRootId = thread?.id;
+    }
+
+    if (threadRootId && openThreadId !== threadRootId) {
+      setOpenThread(threadRootId);
+    }
+  }, [eventId, openThreadId, room, setOpenThread, updateKey]);
 
   // Re-render when threads or timeline change
   useEffect(() => {
@@ -324,9 +409,29 @@ export function ForumView() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   const posts = useMemo(() => collectForumPosts(room), [room, updateKey]);
 
+  const handleLoadOlderPosts = useCallback(async () => {
+    if (loadingOlderPosts || !canLoadOlderPosts) return;
+
+    setLoadingOlderPosts(true);
+    try {
+      const hasMore = await mx.paginateEventTimeline(room.getLiveTimeline(), {
+        backwards: true,
+        limit: 50,
+      });
+      setCanLoadOlderPosts(
+        hasMore && room.getLiveTimeline().getPaginationToken(Direction.Backward) !== null
+      );
+      forceUpdate((n) => n + 1);
+    } catch {
+      setCanLoadOlderPosts(false);
+    } finally {
+      setLoadingOlderPosts(false);
+    }
+  }, [canLoadOlderPosts, loadingOlderPosts, mx, room]);
+
   const handleOpenThread = useCallback(
-    (eventId: string) => {
-      setOpenThread(eventId);
+    (postEventId: string) => {
+      setOpenThread(postEventId);
     },
     [setOpenThread]
   );
@@ -514,6 +619,26 @@ export function ForumView() {
                       showMaps={showMaps}
                     />
                   ))}
+                  {canLoadOlderPosts && (
+                    <Box
+                      alignItems="Center"
+                      justifyContent="Center"
+                      style={{ paddingTop: config.space.S300 }}
+                    >
+                      <Button
+                        size="300"
+                        variant="Secondary"
+                        fill="Soft"
+                        radii="300"
+                        disabled={loadingOlderPosts}
+                        onClick={handleLoadOlderPosts}
+                      >
+                        <Text size="B300">
+                          {loadingOlderPosts ? 'Loading older posts…' : 'Load older posts'}
+                        </Text>
+                      </Button>
+                    </Box>
+                  )}
                   {posts.length === 0 && (
                     <Box
                       direction="Column"

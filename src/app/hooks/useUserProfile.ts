@@ -24,6 +24,16 @@ const PROFILE_REQUEST_DWELL_MS = 150;
 const inFlightProfiles = new WeakMap<MatrixClient, Map<string, Promise<Record<string, unknown>>>>();
 const activeProfileRequests = new WeakMap<MatrixClient, number>();
 const profileRequestQueues = new WeakMap<MatrixClient, Array<() => void>>();
+const profileFetchGenerations = new WeakMap<MatrixClient, Map<string, number>>();
+
+const getFetchGeneration = (mx: MatrixClient, userId: string): number =>
+  profileFetchGenerations.get(mx)?.get(userId) ?? 0;
+
+const bumpFetchGeneration = (mx: MatrixClient, userId: string): void => {
+  const generations = profileFetchGenerations.get(mx) ?? new Map<string, number>();
+  profileFetchGenerations.set(mx, generations);
+  generations.set(userId, (generations.get(userId) ?? 0) + 1);
+};
 
 export type ColorSet = {
   on_light?: string;
@@ -118,48 +128,111 @@ const normalizeInfo = (info: Record<string, unknown>): UserProfile => {
     }
   });
 
-  return {
+  const normalized: UserProfile = {
     avatarUrl: info.avatar_url as string | undefined,
     displayName: info.displayname as string | undefined,
-    pronouns: info[prefix.MATRIX_UNSTABLE_PROFILE_PRONOUNS_PROPERTY_NAME] as
-      | PronounSet[]
-      | undefined,
-    timezone: (info[prefix.MATRIX_UNSTABLE_PROFILE_TIMEZONE_PROPERTY_NAME] ||
-      info[prefix.MATRIX_STABLE_PROFILE_TIMEZONE_PROPERTY_NAME]) as string | undefined,
-    bio:
-      msc4440Bio?.['m.text']?.[0]?.body ||
-      (info[prefix.MATRIX_SABLE_UNSTABLE_PROFILE_BIOGRAPHY_PROPERTY_NAME] as string | undefined) ||
-      (info[prefix.MATRIX_COMMET_UNSTABLE_PROFILE_BIO_PROPERTY_NAME] as string | undefined),
-    status: info[prefix.MATRIX_COMMET_UNSTABLE_PROFILE_STATUS_PROPERTY_NAME] as string | undefined,
-    bannerUrl: info[prefix.MATRIX_UNSTABLE_PROFILE_BANNER_PROPERTY_NAME] as string | undefined,
-    nameColor: info[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_PROPERTY_NAME] as string | undefined,
-    nameColorDark: info[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_DARK_PROPERTY_NAME] as
-      | string
-      | undefined,
-    nameColorLight: info[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_LIGHT_PROPERTY_NAME] as
-      | string
-      | undefined,
-    nameColors: info[prefix.MATRIX_UNSTABLE_COLORS] as ColorSet | undefined,
-    heroColorScheme: info[prefix.MATRIX_COMMET_UNSTABLE_PROFILE_COLOR_SCHEME_PROPERTY_NAME] as
-      | Record<string, string>
-      | undefined,
-    isCat: info[prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_CAT_PROPERTY_NAME] as
-      | boolean
-      | undefined,
-    hasCats: info[prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_CAT_PROPERTY_NAME] as
-      | boolean
-      | undefined,
-    isAnimal: info[prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_ANIMAL_PROPERTY_NAME] as string,
-    hasAnimal: info[
-      prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_ANIMAL_PROPERTY_NAME
-    ] as string,
-    animalNeed: info[
-      prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_ANIMAL_NEED_PROPERTY_NAME
-    ] as string,
-    extended,
     _fetched: true,
     _fetchedAt: Date.now(),
   };
+
+  if (prefix.MATRIX_UNSTABLE_PROFILE_PRONOUNS_PROPERTY_NAME in info) {
+    normalized.pronouns = info[prefix.MATRIX_UNSTABLE_PROFILE_PRONOUNS_PROPERTY_NAME] as
+      | PronounSet[]
+      | undefined;
+  }
+  if (
+    prefix.MATRIX_UNSTABLE_PROFILE_TIMEZONE_PROPERTY_NAME in info ||
+    prefix.MATRIX_STABLE_PROFILE_TIMEZONE_PROPERTY_NAME in info
+  ) {
+    normalized.timezone = (info[prefix.MATRIX_UNSTABLE_PROFILE_TIMEZONE_PROPERTY_NAME] ||
+      info[prefix.MATRIX_STABLE_PROFILE_TIMEZONE_PROPERTY_NAME]) as string | undefined;
+  }
+  if (
+    prefix.MATRIX_UNSTABLE_PROFILE_BIOGRAPHY_PROPERTY_NAME in info ||
+    prefix.MATRIX_SABLE_UNSTABLE_PROFILE_BIOGRAPHY_PROPERTY_NAME in info ||
+    prefix.MATRIX_COMMET_UNSTABLE_PROFILE_BIO_PROPERTY_NAME in info
+  ) {
+    normalized.bio =
+      msc4440Bio?.['m.text']?.[0]?.body ||
+      (info[prefix.MATRIX_SABLE_UNSTABLE_PROFILE_BIOGRAPHY_PROPERTY_NAME] as string | undefined) ||
+      (info[prefix.MATRIX_COMMET_UNSTABLE_PROFILE_BIO_PROPERTY_NAME] as string | undefined);
+  }
+  if (prefix.MATRIX_COMMET_UNSTABLE_PROFILE_STATUS_PROPERTY_NAME in info) {
+    normalized.status = info[prefix.MATRIX_COMMET_UNSTABLE_PROFILE_STATUS_PROPERTY_NAME] as
+      | string
+      | undefined;
+  }
+  if (prefix.MATRIX_UNSTABLE_PROFILE_BANNER_PROPERTY_NAME in info) {
+    normalized.bannerUrl = info[prefix.MATRIX_UNSTABLE_PROFILE_BANNER_PROPERTY_NAME] as
+      | string
+      | undefined;
+  }
+  if (prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_PROPERTY_NAME in info) {
+    normalized.nameColor = info[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_PROPERTY_NAME] as
+      | string
+      | undefined;
+  }
+  if (prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_DARK_PROPERTY_NAME in info) {
+    normalized.nameColorDark = info[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_DARK_PROPERTY_NAME] as
+      | string
+      | undefined;
+  }
+  if (prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_LIGHT_PROPERTY_NAME in info) {
+    normalized.nameColorLight = info[
+      prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_LIGHT_PROPERTY_NAME
+    ] as string | undefined;
+  }
+  if (prefix.MATRIX_UNSTABLE_COLORS in info) {
+    normalized.nameColors = info[prefix.MATRIX_UNSTABLE_COLORS] as ColorSet | undefined;
+  }
+  if (prefix.MATRIX_COMMET_UNSTABLE_PROFILE_COLOR_SCHEME_PROPERTY_NAME in info) {
+    normalized.heroColorScheme = info[
+      prefix.MATRIX_COMMET_UNSTABLE_PROFILE_COLOR_SCHEME_PROPERTY_NAME
+    ] as Record<string, string> | undefined;
+  }
+  if (prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_CAT_PROPERTY_NAME in info) {
+    normalized.isCat = info[prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_CAT_PROPERTY_NAME] as
+      | boolean
+      | undefined;
+  }
+  if (prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_CAT_PROPERTY_NAME in info) {
+    normalized.hasCats = info[
+      prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_CAT_PROPERTY_NAME
+    ] as boolean | undefined;
+  }
+  if (prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_ANIMAL_PROPERTY_NAME in info) {
+    normalized.isAnimal = info[
+      prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_ANIMAL_PROPERTY_NAME
+    ] as string;
+  }
+  if (prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_ANIMAL_PROPERTY_NAME in info) {
+    normalized.hasAnimal = info[
+      prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_ANIMAL_PROPERTY_NAME
+    ] as string;
+  }
+  if (prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_ANIMAL_NEED_PROPERTY_NAME in info) {
+    normalized.animalNeed = info[
+      prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_ANIMAL_NEED_PROPERTY_NAME
+    ] as string;
+  }
+  if (Object.keys(extended).length > 0) {
+    normalized.extended = extended;
+  }
+
+  return normalized;
+};
+
+export const invalidateUserProfileCache = (
+  mx: MatrixClient,
+  userId: string,
+  setProfiles: (update: (prev: Record<string, UserProfile>) => Record<string, UserProfile>) => void
+): void => {
+  bumpFetchGeneration(mx, userId);
+  setProfiles((prev) => {
+    const existing = prev[userId];
+    if (!existing) return prev;
+    return { ...prev, [userId]: { ...existing, _fetchedAt: 0 } };
+  });
 };
 
 export const isValidHex = (c: unknown): string | undefined => {
@@ -227,11 +300,12 @@ export const useUserProfile = (
   useEffect(() => {
     if (!needsFetch) return undefined;
 
-    const timeoutId = window.setTimeout(() => {
+    const startFetch = () => {
       const clientInFlight = inFlightProfiles.get(mx) ?? new Map();
       inFlightProfiles.set(mx, clientInFlight);
       if (clientInFlight.has(userId)) return;
 
+      const generation = getFetchGeneration(mx, userId);
       const fetchPromise = scheduleProfileRequest(mx, () => mx.getProfileInfo(userId)).finally(
         () => {
           clientInFlight.delete(userId);
@@ -243,6 +317,10 @@ export const useUserProfile = (
       // the initiating row: a completed request remains useful after a fast virtualized scroll.
       fetchPromise
         .then((info: Record<string, unknown>) => {
+          if (getFetchGeneration(mx, userId) !== generation) {
+            startFetch();
+            return;
+          }
           const normalized = normalizeInfo(info);
           setGlobalProfiles((prev) => {
             const { [userId]: previousProfile, ...otherProfiles } = prev;
@@ -253,12 +331,18 @@ export const useUserProfile = (
           });
         })
         .catch(() => {
+          if (getFetchGeneration(mx, userId) !== generation) {
+            startFetch();
+            return;
+          }
           setGlobalProfiles((prev) => ({
             ...prev,
             [userId]: { ...prev[userId], _fetched: true, _fetchedAt: Date.now() },
           }));
         });
-    }, PROFILE_REQUEST_DWELL_MS);
+    };
+
+    const timeoutId = window.setTimeout(startFetch, PROFILE_REQUEST_DWELL_MS);
 
     return () => window.clearTimeout(timeoutId);
   }, [userId, needsFetch, mx, setGlobalProfiles]);

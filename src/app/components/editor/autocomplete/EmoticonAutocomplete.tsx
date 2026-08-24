@@ -105,57 +105,63 @@ export function EmoticonAutocomplete({
     });
   });
 
-  return autoCompleteEmoticon.length === 0 ? null : (
+  if (query.text.length < emojiThreshold) return null;
+
+  return (
     <AutocompleteMenu
       headerContent={<Text size="L400">{title ?? 'Emojis'}</Text>}
       requestClose={requestClose}
     >
-      {autoCompleteEmoticon.map((emoticon) => {
-        const isCustomEmoji = 'url' in emoticon;
-        const key = isCustomEmoji ? emoticon.url : emoticon.unicode;
-        const customEmojiUrl = mxcUrlToHttp(mx, key, useAuthentication);
+      {autoCompleteEmoticon.length === 0 ? (
+        <Text size="B400">No emojis found</Text>
+      ) : (
+        autoCompleteEmoticon.map((emoticon) => {
+          const isCustomEmoji = 'url' in emoticon;
+          const key = isCustomEmoji ? emoticon.url : emoticon.unicode;
+          const customEmojiUrl = mxcUrlToHttp(mx, key, useAuthentication);
 
-        return (
-          <MenuItem
-            key={emoticon.shortcode + key}
-            as="button"
-            radii="300"
-            onKeyDown={(evt: ReactKeyboardEvent<HTMLButtonElement>) =>
-              onTabPress(evt, () => handleAutocomplete(key, emoticon.shortcode))
-            }
-            onMouseDown={(evt: ReactMouseEvent<HTMLButtonElement>) => evt.preventDefault()}
-            onClick={() => handleAutocomplete(key, emoticon.shortcode)}
-            before={
-              isCustomEmoji && customEmojiUrl ? (
-                <Box
-                  shrink="No"
-                  as="img"
-                  src={customEmojiUrl}
-                  alt={emoticon.shortcode}
-                  style={{
-                    width: toRem(24),
-                    height: toRem(24),
-                    objectFit: 'contain',
-                  }}
-                />
-              ) : (
-                <Box
-                  shrink="No"
-                  as="span"
-                  display="InlineFlex"
-                  style={{ fontSize: toRem(24), lineHeight: toRem(24) }}
-                >
-                  {key}
-                </Box>
-              )
-            }
-          >
-            <Text style={{ flexGrow: 1 }} size="B400" truncate>
-              :{emoticon.shortcode}:
-            </Text>
-          </MenuItem>
-        );
-      })}
+          return (
+            <MenuItem
+              key={emoticon.shortcode + key}
+              as="button"
+              radii="300"
+              onKeyDown={(evt: ReactKeyboardEvent<HTMLButtonElement>) =>
+                onTabPress(evt, () => handleAutocomplete(key, emoticon.shortcode))
+              }
+              onMouseDown={(evt: ReactMouseEvent<HTMLButtonElement>) => evt.preventDefault()}
+              onClick={() => handleAutocomplete(key, emoticon.shortcode)}
+              before={
+                isCustomEmoji && customEmojiUrl ? (
+                  <Box
+                    shrink="No"
+                    as="img"
+                    src={customEmojiUrl}
+                    alt={emoticon.shortcode}
+                    style={{
+                      width: toRem(24),
+                      height: toRem(24),
+                      objectFit: 'contain',
+                    }}
+                  />
+                ) : (
+                  <Box
+                    shrink="No"
+                    as="span"
+                    display="InlineFlex"
+                    style={{ fontSize: toRem(24), lineHeight: toRem(24) }}
+                  >
+                    {key}
+                  </Box>
+                )
+              }
+            >
+              <Text style={{ flexGrow: 1 }} size="B400" truncate>
+                :{emoticon.shortcode}:
+              </Text>
+            </MenuItem>
+          );
+        })
+      )}
     </AutocompleteMenu>
   );
 }

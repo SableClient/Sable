@@ -3,7 +3,13 @@ import FileSaver from 'file-saver';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { type as osType } from '@tauri-apps/plugin-os';
 import { showToast } from '$state/toast';
-import { downloadJsonFile, saveFileToDevice, saveMediaToGallery } from './download';
+import { setMediaEncryption } from '$utils/tauriMediaEncryption';
+import {
+  downloadJsonFile,
+  saveFileToDevice,
+  saveMediaToDevice,
+  saveMediaToGallery,
+} from './download';
 
 const mocks = vi.hoisted(() => ({
   androidFs: {
@@ -25,6 +31,7 @@ const mocks = vi.hoisted(() => ({
   showToast: vi.fn<(text: string, durationMs?: number) => void>(),
   fetchMediaBlob: vi.fn<(input: string) => Promise<Blob>>(),
   captureException: vi.fn<(error: unknown, context?: unknown) => void>(),
+  setMediaEncryption: vi.fn<() => Promise<boolean>>(),
 }));
 const { androidFs, save, writeFile } = mocks;
 
@@ -37,6 +44,7 @@ vi.mock('@tauri-apps/plugin-os', () => ({ type: mocks.osType }));
 vi.mock('@sentry/react', () => ({ captureException: mocks.captureException }));
 vi.mock('$state/toast', () => ({ showToast: mocks.showToast }));
 vi.mock('$utils/mediaTransport', () => ({ fetchMediaBlob: mocks.fetchMediaBlob }));
+vi.mock('$utils/tauriMediaEncryption', () => ({ setMediaEncryption: mocks.setMediaEncryption }));
 vi.mock('tauri-plugin-android-fs-api', () => ({
   AndroidFs: mocks.androidFs,
   AndroidPublicGeneralPurposeDir: { Download: 'Download' },
@@ -59,6 +67,7 @@ beforeEach(() => {
   androidFs.removeFile.mockResolvedValue(undefined);
   save.mockResolvedValue(null);
   writeFile.mockResolvedValue(undefined);
+  mocks.setMediaEncryption.mockResolvedValue(true);
 });
 
 afterEach(() => {
@@ -448,6 +457,103 @@ describe('saveMediaToGallery', () => {
     expect(showToast).toHaveBeenCalledTimes(1);
     expect(showToast).toHaveBeenCalledWith('Failed to save to photos: decode failed');
     expect(invoke).not.toHaveBeenCalled();
+    expect(FileSaver.saveAs).not.toHaveBeenCalled();
+  });
+});
+
+describe('saveMediaToDevice', () => {
+  const INNER = 'https://matrix.example.org/_matrix/client/v1/media/download/example.org/report';
+  const MEDIA_URL = `sable-media://localhost/${encodeURIComponent(INNER)}?__sable_media_cache=3`;
+  const ENC_INFO = { key: { k: 'secret' }, iv: 'iv', hashes: { sha256: 'hash' } } as never;
+
+  const options = (overrides: Record<string, unknown> = {}) => ({
+    mediaUrl: MEDIA_URL,
+    filename: 'report.pdf',
+    mimeType: 'application/pdf',
+    loadBlob: vi.fn<() => Promise<Blob>>().mockResolvedValue(new Blob(['pdf'])),
+    ...overrides,
+  });
+
+  it('saves through the native command on desktop without moving bytes over IPC', async () => {
+    vi.mocked(osType).mockReturnValue('linux');
+    const opts = options();
+
+    await expect(saveMediaToDevice(opts)).resolves.toBe('saved');
+
+    expect(invoke).toHaveBeenCalledExactlyOnceWith('save_media_download', {
+      url: MEDIA_URL,
+      filename: 'report.pdf',
+    });
+    expect(opts.loadBlob).not.toHaveBeenCalled();
+    expect(mocks.fetchMediaBlob).not.toHaveBeenCalled();
+  });
+
+  it('registers the keys before a native save of encrypted media', async () => {
+    vi.mocked(osType).mockReturnValue('linux');
+    const opts = options({ encInfo: ENC_INFO });
+
+    await expect(saveMediaToDevice(opts)).resolves.toBe('saved');
+
+    expect(setMediaEncryption).toHaveBeenCalledWith(MEDIA_URL, ENC_INFO, 'application/pdf');
+    expect(invoke).toHaveBeenCalledWith('save_media_download', expect.anything());
+    expect(opts.loadBlob).not.toHaveBeenCalled();
+  });
+
+  it('decrypts in JS when the native handler cannot be given the keys', async () => {
+    vi.mocked(osType).mockReturnValue('linux');
+    mocks.setMediaEncryption.mockResolvedValue(false);
+    const opts = options({ encInfo: ENC_INFO });
+
+    await expect(saveMediaToDevice(opts)).resolves.toBe('saved');
+
+    expect(invoke).not.toHaveBeenCalledWith('save_media_download', expect.anything());
+    expect(opts.loadBlob).toHaveBeenCalledOnce();
+    expect(invoke).toHaveBeenCalledWith('save_download', expect.anything());
+  });
+
+  it('falls back to the blob path and reports when the native save fails', async () => {
+    vi.mocked(osType).mockReturnValue('linux');
+    vi.mocked(invoke).mockImplementation(async (cmd: string) => {
+      if (cmd === 'save_media_download') throw new Error('no active media session');
+      return true;
+    });
+    const opts = options();
+
+    await expect(saveMediaToDevice(opts)).resolves.toBe('saved');
+
+    expect(mocks.captureException).toHaveBeenCalledOnce();
+    expect(opts.loadBlob).toHaveBeenCalledOnce();
+  });
+
+  it('returns cancelled without a toast when the save dialog is dismissed', async () => {
+    vi.mocked(osType).mockReturnValue('linux');
+    vi.mocked(invoke).mockResolvedValue(false);
+
+    await expect(saveMediaToDevice(options())).resolves.toBe('cancelled');
+    expect(mocks.showToast).not.toHaveBeenCalled();
+  });
+
+  it('keeps Android on the public Downloads directory instead of the desktop command', async () => {
+    vi.mocked(osType).mockReturnValue('android');
+    const opts = options();
+
+    await expect(saveMediaToDevice(opts)).resolves.toBe('saved');
+
+    expect(invoke).not.toHaveBeenCalledWith('save_media_download', expect.anything());
+    expect(opts.loadBlob).toHaveBeenCalledOnce();
+    expect(androidFs.createNewPublicFile).toHaveBeenCalled();
+  });
+
+  it('reports and toasts once when the fetch behind the fallback fails', async () => {
+    vi.mocked(isTauri).mockReturnValue(false);
+    const opts = options({
+      loadBlob: vi.fn<() => Promise<Blob>>().mockRejectedValue(new Error('offline')),
+    });
+
+    await expect(saveMediaToDevice(opts)).resolves.toBe('failed');
+
+    expect(mocks.captureException).toHaveBeenCalledOnce();
+    expect(mocks.showToast).toHaveBeenCalledExactlyOnceWith('Failed to save file: offline');
     expect(FileSaver.saveAs).not.toHaveBeenCalled();
   });
 });

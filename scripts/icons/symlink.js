@@ -9,6 +9,9 @@ import process from 'node:process';
 import { createTextHelpers } from '../utils/console-style.js';
 
 const ROOT = process.cwd();
+const launcherIconDirectory = process.env.SABLE_LAUNCHER_ICON
+  ? path.join(ROOT, 'src-tauri', 'icons', 'generated', process.env.SABLE_LAUNCHER_ICON)
+  : path.join(ROOT, 'src-tauri', 'icons');
 const appIconsPath = path.join(ROOT, 'src-tauri', 'app-icons.json');
 const appIcons = fs.existsSync(appIconsPath)
   ? JSON.parse(fs.readFileSync(appIconsPath, 'utf8')).icons
@@ -156,7 +159,7 @@ function main() {
 
   processGroup(
     'Android',
-    path.join(ROOT, 'src-tauri', 'icons', 'android'),
+    path.join(launcherIconDirectory, 'android'),
     path.join(ROOT, 'src-tauri', 'gen', 'android', 'app', 'src', 'main', 'res'),
     ANDROID_ICONS,
     write,
@@ -166,7 +169,7 @@ function main() {
 
   processGroup(
     'iOS',
-    path.join(ROOT, 'src-tauri', 'icons', 'ios'),
+    path.join(launcherIconDirectory, 'ios'),
     path.join(ROOT, 'src-tauri', 'gen', 'apple', 'Assets.xcassets', 'AppIcon.appiconset'),
     IOS_ICONS,
     write,

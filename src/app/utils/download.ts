@@ -2,9 +2,10 @@ import FileSaver from 'file-saver';
 import * as Sentry from '@sentry/react';
 import { invoke, isTauri } from '@tauri-apps/api/core';
 import { type as osType } from '@tauri-apps/plugin-os';
+import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import { showToast } from '$state/toast';
 import { fetchMediaBlob } from '$utils/mediaTransport';
-import { getTauriMediaSourceUrl } from '$utils/mediaUrl';
+import { setMediaEncryption } from '$utils/tauriMediaEncryption';
 
 const INVALID_FILENAME_CHARS = /[<>:"/\\|?*]/g;
 const CONTROL_CHARS = /\p{Cc}/gu;
@@ -75,28 +76,43 @@ const saveWithUniqueName = async (
   }
 };
 
+// Name first: names contain spaces, so `\S*` would leave the rest behind.
+const scrubError = (error: unknown, filename: string): string =>
+  getErrorMessage(error)
+    .split(splitExtension(filename)[0])
+    .join('[FILENAME]')
+    .replace(/\/(?:storage|data|var|Users|home)\/\S*/g, '[PATH]')
+    .replace(/\b(_display_name|_data|title|relative_path)=\S*/g, '$1=[REDACTED]');
+
+const platformTag = (): string => (isTauri() ? osType() : 'web');
+
 const reportSaveFailure = (
   error: unknown,
   target: 'downloads' | 'gallery' | 'photos',
   filename: string,
   mimeType?: string
 ): void => {
-  // Name first: names contain spaces, so `\S*` would leave the rest behind.
-  const scrubbed = getErrorMessage(error)
-    .split(splitExtension(filename)[0])
-    .join('[FILENAME]')
-    .replace(/\/(?:storage|data|var|Users|home)\/\S*/g, '[PATH]')
-    .replace(/\b(_display_name|_data|title|relative_path)=\S*/g, '$1=[REDACTED]');
+  Sentry.captureException(new Error(scrubError(error, filename)), {
+    tags: { feature: 'media-save', target, platform: platformTag() },
+    extra: { mimeType },
+  });
+};
 
-  Sentry.captureException(new Error(scrubbed), {
-    tags: { feature: 'media-save', target, platform: osType() },
+export const reportDownloadFailure = (
+  error: unknown,
+  stage: 'fetch' | 'save',
+  filename: string,
+  mimeType?: string
+): void => {
+  Sentry.captureException(new Error(scrubError(error, filename)), {
+    tags: { feature: 'media-download', stage, platform: platformTag() },
     extra: { mimeType },
   });
 };
 
 async function resolveBlob(input: Blob | string): Promise<Blob> {
   if (typeof input !== 'string') return input;
-  return fetchMediaBlob(getTauriMediaSourceUrl(input) ?? input);
+  return fetchMediaBlob(input);
 }
 
 export async function saveMediaToGallery(
@@ -177,6 +193,7 @@ export async function saveFileToDevice(
   try {
     blob = await resolveBlob(input);
   } catch (error) {
+    reportDownloadFailure(error, 'fetch', filename, mimeType);
     showToast(`Failed to save file: ${getErrorMessage(error)}`);
     return 'failed';
   }
@@ -234,8 +251,60 @@ export async function saveFileToDevice(
     }
   }
 
-  FileSaver.saveAs(blob, filename);
+  try {
+    FileSaver.saveAs(blob, filename);
+  } catch (error) {
+    reportDownloadFailure(error, 'save', filename, mimeType || blob.type || undefined);
+    showToast(`Failed to save file: ${getErrorMessage(error)}`);
+    return 'failed';
+  }
   return 'saved';
+}
+
+const isDesktopTauri = (): boolean => isTauri() && osType() !== 'android' && osType() !== 'ios';
+
+export type SaveMediaOptions = {
+  mediaUrl: string;
+  filename: string;
+  mimeType?: string;
+  encInfo?: EncryptedAttachmentInfo;
+  loadBlob: () => Promise<Blob>;
+};
+
+export async function saveMediaToDevice({
+  mediaUrl,
+  filename,
+  mimeType,
+  encInfo,
+  loadBlob,
+}: SaveMediaOptions): Promise<'saved' | 'cancelled' | 'failed'> {
+  const saveFetchedBlob = async (): Promise<'saved' | 'cancelled' | 'failed'> => {
+    let blob: Blob;
+    try {
+      blob = await loadBlob();
+    } catch (error) {
+      reportDownloadFailure(error, 'fetch', filename, mimeType);
+      showToast(`Failed to save file: ${getErrorMessage(error)}`);
+      return 'failed';
+    }
+    return saveFileToDevice(blob, filename, mimeType);
+  };
+
+  if (!isDesktopTauri()) return saveFetchedBlob();
+
+  try {
+    // Without keys the native handler would write ciphertext.
+    if (encInfo && !(await setMediaEncryption(mediaUrl, encInfo, mimeType ?? ''))) {
+      return saveFetchedBlob();
+    }
+
+    const saved = await invoke<boolean>('save_media_download', { url: mediaUrl, filename });
+    if (saved) showToast('File saved');
+    return saved ? 'saved' : 'cancelled';
+  } catch (error) {
+    reportDownloadFailure(error, 'save', filename, mimeType);
+    return saveFetchedBlob();
+  }
 }
 
 export const downloadJsonFile = (

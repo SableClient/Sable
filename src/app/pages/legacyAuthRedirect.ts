@@ -1,5 +1,5 @@
-import type { LoaderFunctionArgs } from 'react-router-dom';
-import { redirect } from 'react-router-dom';
+import type { LoaderFunctionArgs } from 'react-router';
+import { redirect } from 'react-router';
 import { SERVER_SEARCH_PARAM } from './paths';
 
 // Moves the homeserver from the old path segment to the query string. A segment holding a

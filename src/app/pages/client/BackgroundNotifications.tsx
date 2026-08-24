@@ -101,6 +101,7 @@ const startBackgroundClient = async (session: Session): Promise<MatrixClient> =>
   };
 
   try {
+    await indexedDBStore.startup();
     await startClient(mx, startOpts);
     return mx;
   } catch (error) {

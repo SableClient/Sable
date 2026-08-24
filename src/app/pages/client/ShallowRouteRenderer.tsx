@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { matchPath, useLocation } from 'react-router-dom';
+import { matchPath, useLocation } from 'react-router';
 import { useScreenSizeContext } from '$hooks/useScreenSize';
 import { BUG_REPORT_PATH, CREATE_PATH, CREATE_ROOM_PATH, NAVIGATE_PATH } from '../paths';
 import { isShallowRoute } from './shallowRoute';

@@ -1,4 +1,4 @@
-import { matchPath, useLocation } from 'react-router-dom';
+import { matchPath, useLocation } from 'react-router';
 import { useScreenSizeContext } from '$hooks/useScreenSize';
 import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 import { isShallowRoute } from '$pages/client/shallowRoute';

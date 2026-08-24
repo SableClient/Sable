@@ -37,7 +37,7 @@ function ActiveSwipeWrapper({
   const [actionMode, setActionMode] = useState<SwipeActionMode>('none');
   const actionModeRef = useRef<SwipeActionMode>('none');
   const gestureActiveRef = useRef(false);
-  const settleRef = useRef<{ cancel: () => void }>();
+  const settleRef = useRef<{ cancel: () => void } | undefined>(undefined);
   const drawer = useMobileNavDrawer();
 
   const setOffset = useCallback((value: number) => {

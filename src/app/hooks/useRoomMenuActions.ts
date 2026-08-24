@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
 import type { Room } from '$types/matrix-sdk';
 
@@ -42,6 +42,11 @@ export function useRoomMenuActions(room: Room) {
   const [invitePrompt, setInvitePrompt] = useState(false);
   const [directInvitePrompt, setDirectInvitePrompt] = useState(false);
 
+  // Direct prompt's focus trap re-fires onCancel when it unmounts.
+  const invitePromptRef = useRef(invitePrompt);
+  invitePromptRef.current = invitePrompt;
+  const cancelConsumedRef = useRef(false);
+
   const [convertState, convertToRoom] = useAsyncCallback<void, Error, []>(
     useCallback(async () => {
       await removeRoomIdFromMDirect(mx, room.roomId);
@@ -53,6 +58,7 @@ export function useRoomMenuActions(room: Room) {
   }, [mx, room.roomId, hideReads]);
 
   const handleInvite = useCallback(() => {
+    cancelConsumedRef.current = false;
     if (isDirectConversation) {
       setDirectInvitePrompt(true);
       return;
@@ -63,6 +69,14 @@ export function useRoomMenuActions(room: Room) {
   const handleInviteDirect = useCallback(() => {
     setDirectInvitePrompt(false);
     setInvitePrompt(true);
+  }, []);
+
+  const handleDirectInviteCancel = useCallback((closeMenu: () => void) => {
+    setDirectInvitePrompt(false);
+    if (!invitePromptRef.current && !cancelConsumedRef.current) {
+      cancelConsumedRef.current = true;
+      closeMenu();
+    }
   }, []);
 
   const handleConvertAndInvite = useCallback(() => {
@@ -118,6 +132,7 @@ export function useRoomMenuActions(room: Room) {
     directInvitePrompt,
     setDirectInvitePrompt,
     handleInviteDirect,
+    handleDirectInviteCancel,
     handleConvertAndInvite,
     convertState,
     navigateRoom,

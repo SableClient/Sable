@@ -1,6 +1,6 @@
 import type { FormEventHandler, MouseEventHandler } from 'react';
 import { useCallback, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { Avatar, Box, Button, Dialog, Header, IconButton, Input, Text, color, config } from 'folds';
 import {
   Compass,

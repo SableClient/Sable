@@ -1,7 +1,4 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!-- The ID matches tauri.conf.json's `identifier`. tauri-plugin-single-instance
-     owns <identifier>.SingleInstance on D-Bus, and Flatpak only permits owning
-     names under the app ID, so the two have to agree or the app cannot start. -->
 <component type="desktop-application">
   <id>moe.sable.client</id>
 
@@ -46,9 +43,7 @@
 
   <launchable type="desktop-id">moe.sable.client.desktop</launchable>
 
-  <!-- Flathub requires at least one reachable screenshot. Commit real captures
-       under docs/screenshots/ and update these URLs before submitting. -->
-  <screenshots>
+    <screenshots>
     <screenshot type="default">
       <image>https://raw.githubusercontent.com/SableClient/Sable/dev/docs/screenshots/timeline.png</image>
       <caption>A room timeline</caption>
@@ -56,8 +51,8 @@
   </screenshots>
 
   <releases>
-    <release version="1.20.0" date="2026-07-17">
-      <url type="details">https://github.com/SableClient/Sable/releases/tag/v1.20.0</url>
+    <release version="1.21.0" date="2026-08-17">
+      <url type="details">https://github.com/SableClient/Sable/releases/tag/v1.21.0</url>
     </release>
   </releases>
 </component>

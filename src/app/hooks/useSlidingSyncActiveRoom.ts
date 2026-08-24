@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { matchPath, useLocation } from 'react-router-dom';
+import { matchPath, useLocation } from 'react-router';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useAccountDataCallback } from '$hooks/useAccountDataCallback';
 import { getSlidingSyncManager } from '$client/initMatrix';
@@ -11,10 +11,13 @@ import { ClientEvent } from '$types/matrix-sdk';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';
 import {
   DIRECT_ROOM_PATH,
+  DIRECT_ROOM_FORUM_PATH,
   HOME_ROOM_PATH,
+  HOME_ROOM_FORUM_PATH,
   SPACE_LOBBY_PATH,
   SPACE_PATH,
   SPACE_ROOM_PATH,
+  SPACE_ROOM_FORUM_PATH,
   SPACE_SEARCH_PATH,
 } from '$pages/paths';
 import { isRoomAlias, isRoomId } from '$utils/matrix';
@@ -31,14 +34,17 @@ const decodeRoomRef = (value: string | undefined): string | undefined => {
 };
 
 const getRouteRoomRefs = (pathname: string): RouteRoomRefs => {
-  const homeRoomMatch = matchPath(HOME_ROOM_PATH, pathname);
-  const directRoomMatch = matchPath(DIRECT_ROOM_PATH, pathname);
+  const homeRoomMatch =
+    matchPath(HOME_ROOM_FORUM_PATH, pathname) ?? matchPath(HOME_ROOM_PATH, pathname);
+  const directRoomMatch =
+    matchPath(DIRECT_ROOM_FORUM_PATH, pathname) ?? matchPath(DIRECT_ROOM_PATH, pathname);
   const nonSpaceRoomMatch = homeRoomMatch ?? directRoomMatch;
   if (nonSpaceRoomMatch) {
     return { roomIdOrAlias: decodeRoomRef(nonSpaceRoomMatch.params.roomIdOrAlias) };
   }
 
-  const spaceRoomMatch = matchPath(SPACE_ROOM_PATH, pathname);
+  const spaceRoomMatch =
+    matchPath(SPACE_ROOM_FORUM_PATH, pathname) ?? matchPath(SPACE_ROOM_PATH, pathname);
   if (spaceRoomMatch) {
     return {
       roomIdOrAlias: decodeRoomRef(spaceRoomMatch.params.roomIdOrAlias),

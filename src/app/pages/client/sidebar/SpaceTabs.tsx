@@ -1,7 +1,7 @@
 import type { FormEventHandler, MouseEventHandler, ReactNode, RefObject, ChangeEvent } from 'react';
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import {
   Box,
   Button,

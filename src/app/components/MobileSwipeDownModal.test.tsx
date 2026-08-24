@@ -214,6 +214,54 @@ describe('MobileSwipeDownModal', () => {
     }
   });
 
+  it('lifts clear of the keyboard without being asked to', () => {
+    const viewport = mockVisualViewport(800);
+
+    try {
+      setInnerHeight(800);
+      render(
+        <MobileSwipeDownModal requestClose={vi.fn<() => void>()} sheetClassName="default-sheet">
+          {() => <div data-testid="default-content" />}
+        </MobileSwipeDownModal>
+      );
+
+      const panel = screen.getByTestId('default-content').closest('.default-sheet') as HTMLElement;
+
+      viewport.resizeTo(500);
+
+      expect(panel.style.transform).toBe('translate3d(0, -300px, 0)');
+    } finally {
+      viewport.restore();
+    }
+  });
+
+  it('stays put for a sheet that opts out', () => {
+    const viewport = mockVisualViewport(800);
+
+    try {
+      setInnerHeight(800);
+      render(
+        <MobileSwipeDownModal
+          requestClose={vi.fn<() => void>()}
+          keyboardAware={false}
+          sheetClassName="opted-out-sheet"
+        >
+          {() => <div data-testid="opted-out-content" />}
+        </MobileSwipeDownModal>
+      );
+
+      const panel = screen
+        .getByTestId('opted-out-content')
+        .closest('.opted-out-sheet') as HTMLElement;
+
+      viewport.resizeTo(500);
+
+      expect(panel.style.transform).toBe('');
+    } finally {
+      viewport.restore();
+    }
+  });
+
   it('ignores the transient where only the visual viewport has shrunk', () => {
     const viewport = mockVisualViewport(807);
 

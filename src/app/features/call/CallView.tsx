@@ -159,7 +159,7 @@ function CallPrescreen() {
 }
 
 type CallJoinedProps = {
-  containerRef: RefObject<HTMLDivElement>;
+  containerRef: RefObject<HTMLDivElement | null>;
 };
 
 function CallJoined({ containerRef }: CallJoinedProps) {

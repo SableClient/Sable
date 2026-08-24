@@ -138,4 +138,20 @@ describe('Tauri media session coordinator', () => {
       scope: '@b:two.example',
     });
   });
+
+  it('does not wipe the native session when a sync reads no stored session', async () => {
+    mediaTransport.getActiveMediaSession.mockReturnValue(undefined);
+
+    await initTauriMediaSession();
+
+    window.dispatchEvent(new Event('sable-session-changed'));
+    window.dispatchEvent(new StorageEvent('storage', { key: 'matrixSessions' }));
+    await Promise.resolve();
+
+    expect(commands.clearMediaSession).not.toHaveBeenCalled();
+    expect(commands.setMediaSession).not.toHaveBeenCalled();
+
+    await updateTauriMediaSession();
+    expect(commands.clearMediaSession).toHaveBeenCalledTimes(1);
+  });
 });

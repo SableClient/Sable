@@ -3,14 +3,14 @@ import type { PushTransportConfig } from '$features/settings/notifications/Notif
 
 import type { Settings } from '$state/settings';
 
+import type { GifsConfig } from '$utils/gifProviders';
+
 export type HashRouterConfig = {
   enabled?: boolean;
   basename?: string;
 };
 
-export type GifsConfig = {
-  klipyApiKey?: string;
-};
+export type { GifsConfig } from '$utils/gifProviders';
 
 export type ClientConfig = {
   defaultHomeserver?: number;

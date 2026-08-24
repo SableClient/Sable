@@ -46,7 +46,8 @@ export const updateTauriMediaSession = (
 
 const syncTauriMediaSession = (): Promise<void> => {
   const session = getActiveMediaSession();
-  return updateTauriMediaSession(session?.baseUrl, session?.accessToken, session?.userId);
+  if (!session) return Promise.resolve();
+  return updateTauriMediaSession(session.baseUrl, session.accessToken, session.userId);
 };
 
 export const initTauriMediaSession = (): Promise<void> => {

@@ -4,7 +4,8 @@ use crate::desktop::runtime_state::DesktopRuntimeState;
 use crate::desktop::settings::{
     desktop_settings_from_values, tray_available_for_session, use_custom_title_bar_default,
     DesktopSettings, CLOSE_TO_BACKGROUND_ON_CLOSE_KEY, DESKTOP_SETTINGS_PATH,
-    LEGACY_KEEP_BACKGROUND_RUNNING_KEY, SHOW_SYSTEM_TRAY_ICON_KEY, USE_CUSTOM_TITLE_BAR_KEY,
+    LEGACY_KEEP_BACKGROUND_RUNNING_KEY, SHOW_SYSTEM_TRAY_ICON_KEY, SPELLCHECK_KEY,
+    USE_CUSTOM_TITLE_BAR_KEY,
 };
 use serde_json::json;
 use tauri::{
@@ -26,6 +27,7 @@ pub struct DesktopSettingsState {
     close_to_background_on_close: AtomicBool,
     show_system_tray_icon: AtomicBool,
     use_custom_title_bar: AtomicBool,
+    spellcheck: AtomicBool,
     tray_available: AtomicBool,
 }
 
@@ -35,6 +37,7 @@ impl Default for DesktopSettingsState {
             close_to_background_on_close: AtomicBool::new(true),
             show_system_tray_icon: AtomicBool::new(true),
             use_custom_title_bar: AtomicBool::new(use_custom_title_bar_default()),
+            spellcheck: AtomicBool::new(true),
             tray_available: AtomicBool::new(false),
         }
     }
@@ -98,6 +101,7 @@ pub(crate) fn load_desktop_settings(
                 USE_CUSTOM_TITLE_BAR_KEY.into(),
                 json!(use_custom_title_bar_default()),
             ),
+            (SPELLCHECK_KEY.into(), json!(true)),
         ]))
         .build()
         .map_err(|error| tauri::Error::PluginInitialization("store".into(), error.to_string()))?;
@@ -112,6 +116,7 @@ pub(crate) fn load_desktop_settings(
         store
             .get(USE_CUSTOM_TITLE_BAR_KEY)
             .and_then(|value| value.as_bool()),
+        store.get(SPELLCHECK_KEY).and_then(|value| value.as_bool()),
         store
             .get(LEGACY_KEEP_BACKGROUND_RUNNING_KEY)
             .and_then(|value| value.as_bool()),
@@ -124,6 +129,7 @@ fn current_desktop_settings(app: &AppHandle<crate::BrowserEngine>) -> DesktopSet
         close_to_background_on_close: state.close_to_background_on_close.load(Ordering::Relaxed),
         show_system_tray_icon: state.show_system_tray_icon.load(Ordering::Relaxed),
         use_custom_title_bar: state.use_custom_title_bar.load(Ordering::Relaxed),
+        spellcheck: state.spellcheck.load(Ordering::Relaxed),
     }
 }
 
@@ -171,6 +177,9 @@ fn apply_desktop_settings(
     state
         .use_custom_title_bar
         .store(settings.use_custom_title_bar, Ordering::Relaxed);
+    state
+        .spellcheck
+        .store(settings.spellcheck, Ordering::Relaxed);
 
     apply_main_window_title_bar_settings(app, settings)?;
 
@@ -395,6 +404,7 @@ mod tests {
             close_to_background_on_close: true,
             show_system_tray_icon: true,
             use_custom_title_bar: false,
+            spellcheck: true,
         };
 
         assert_eq!(
@@ -409,6 +419,7 @@ mod tests {
             show_system_tray_icon: true,
             close_to_background_on_close: false,
             use_custom_title_bar: false,
+            spellcheck: true,
         };
 
         assert_eq!(
@@ -423,6 +434,7 @@ mod tests {
             close_to_background_on_close: true,
             show_system_tray_icon: true,
             use_custom_title_bar: false,
+            spellcheck: true,
         };
 
         assert!(!tray_available_for_session(settings, false));
@@ -451,6 +463,7 @@ mod tests {
             close_to_background_on_close: true,
             show_system_tray_icon: true,
             use_custom_title_bar: false,
+            spellcheck: true,
         };
 
         assert_eq!(
@@ -462,11 +475,12 @@ mod tests {
     #[test]
     fn missing_store_values_default_to_enabled() {
         assert_eq!(
-            desktop_settings_from_values(None, None, None, None),
+            desktop_settings_from_values(None, None, None, None, None),
             DesktopSettings {
                 close_to_background_on_close: true,
                 show_system_tray_icon: true,
                 use_custom_title_bar: use_custom_title_bar_default(),
+                spellcheck: true,
             }
         );
     }
@@ -474,11 +488,12 @@ mod tests {
     #[test]
     fn legacy_background_store_value_migrates_to_close_behavior() {
         assert_eq!(
-            desktop_settings_from_values(Some(false), Some(false), Some(false), Some(true)),
+            desktop_settings_from_values(Some(false), Some(false), Some(false), None, Some(true)),
             DesktopSettings {
                 close_to_background_on_close: true,
                 show_system_tray_icon: false,
                 use_custom_title_bar: false,
+                spellcheck: true,
             }
         );
     }
@@ -486,11 +501,12 @@ mod tests {
     #[test]
     fn explicit_store_values_are_preserved_when_legacy_background_is_off() {
         assert_eq!(
-            desktop_settings_from_values(Some(false), Some(false), Some(true), Some(false)),
+            desktop_settings_from_values(Some(false), Some(false), Some(true), None, Some(false)),
             DesktopSettings {
                 show_system_tray_icon: false,
                 close_to_background_on_close: false,
                 use_custom_title_bar: true,
+                spellcheck: true,
             }
         );
     }

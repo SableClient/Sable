@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { atom, useAtomValue } from 'jotai';
-import { matchPath, useLocation, useParams } from 'react-router-dom';
+import { matchPath, useLocation, useParams } from 'react-router';
 import { getCanonicalAliasRoomId, isRoomAlias } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { resolveSection } from '$pages/pathUtils';

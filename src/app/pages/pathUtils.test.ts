@@ -1,9 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import {
   getAppPathFromHref,
+  getDirectForumPath,
+  getHomeForumPath,
   getLoginPath,
   getRegisterPath,
+  getSpaceForumPath,
   getSettingsPath,
+  resolveSection,
   withSearchParam,
 } from './pathUtils';
 
@@ -47,6 +51,29 @@ describe('getSettingsPath', () => {
     expect(getSettingsPath('appearance', 'message-link-preview')).toBe(
       '/settings/appearance?focus=message-link-preview'
     );
+  });
+});
+
+describe('forum paths', () => {
+  it('builds forum routes with optional event links', () => {
+    expect(getHomeForumPath('!room:example.org')).toBe('/home/!room%3Aexample.org/forum');
+    expect(getDirectForumPath('!room:example.org', '$event:example.org')).toBe(
+      '/direct/!room%3Aexample.org/forum/%24event%3Aexample.org'
+    );
+    expect(getSpaceForumPath('!space:example.org', '!room:example.org')).toBe(
+      '/!space%3Aexample.org/!room%3Aexample.org/forum'
+    );
+  });
+
+  it('preserves the forum route when resolving the active section', () => {
+    expect(
+      resolveSection('/home/!room:example.org/forum/')?.getRoomPath?.('!room:example.org')
+    ).toBe('/home/!room%3Aexample.org/forum');
+    expect(
+      resolveSection('/!space:example.org/!room:example.org/forum/')?.getRoomPath?.(
+        '!room:example.org'
+      )
+    ).toBe('/!space%3Aexample.org/!room%3Aexample.org/forum');
   });
 });
 

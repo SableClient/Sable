@@ -1,11 +1,10 @@
-import { useCallback } from 'react';
-import { useAtom } from 'jotai';
+import { useAtomValue, useSetAtom } from 'jotai';
 import { OverlayBackdrop, OverlayCenter, Box, Modal } from 'folds';
 import { Overlay } from '$components/overlay-stack';
 import FocusTrap from 'focus-trap-react';
 import { stopPropagation } from '$utils/keyboard';
 import { useDismissOnBack } from '$utils/androidBack';
-import { modalAtom, ModalType } from '$state/modal';
+import { modalAtom, ModalType, popModalAtom } from '$state/modal';
 import { MessageReportInternal } from './MessageReport';
 import { MessageDeleteInternal } from './MessageDelete';
 import { MessageEditHistoryInternal } from './MessageEditHistory';
@@ -14,22 +13,43 @@ import { MessageForwardInternal } from './MessageForward';
 import { MessageAllReactionInternal } from './MessageReactions';
 import { MessageReadReceiptInternal } from './MessageReadRecipts';
 import { MobileOptionsInternal } from './Options';
+import { MessageReactionPickerInternal } from './MessageReactionPicker';
+import { MessageReproxyPickerInternal } from './MessageReproxyPicker';
+
+const OWNS_BACK_HANDLER: ReadonlySet<ModalType> = new Set([
+  ModalType.Forward,
+  ModalType.MobileOptions,
+  ModalType.ReactionPicker,
+  ModalType.ReproxyPicker,
+]);
 
 export function GlobalModalManager() {
-  const [modal, setModal] = useAtom(modalAtom);
+  const modal = useAtomValue(modalAtom);
+  const close = useSetAtom(popModalAtom);
 
-  // stable so modals memoizing on it don't rebuild on every room view render
-  const close = useCallback(() => {
-    setModal(null);
-  }, [setModal]);
-
-  // Forward and MobileOptions render their own back handlers via their children.
-  useDismissOnBack(
-    close,
-    !!modal && modal.type !== ModalType.Forward && modal.type !== ModalType.MobileOptions
-  );
+  useDismissOnBack(close, !!modal && !OWNS_BACK_HANDLER.has(modal.type));
 
   if (!modal) return null;
+
+  if (modal.type === ModalType.ReactionPicker) {
+    return (
+      <MessageReactionPickerInternal
+        mEvent={modal.mEvent}
+        imagePackRooms={modal.imagePackRooms}
+        onReactionToggle={modal.onReactionToggle}
+        closeMenu={modal.closeMenu}
+      />
+    );
+  }
+  if (modal.type === ModalType.ReproxyPicker) {
+    return (
+      <MessageReproxyPickerInternal
+        room={modal.room}
+        mEvent={modal.mEvent}
+        closeMenu={modal.closeMenu}
+      />
+    );
+  }
 
   if (modal.type === ModalType.Forward) {
     return <MessageForwardInternal room={modal.room} mEvent={modal.mEvent} onClose={close} />;

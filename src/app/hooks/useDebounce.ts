@@ -13,7 +13,7 @@ export function useDebounce<T extends unknown[]>(
   callback: DebounceCallback<T>,
   options?: DebounceOptions
 ): DebouncedCallback<T> {
-  const timeoutIdRef = useRef<number>();
+  const timeoutIdRef = useRef<number | undefined>(undefined);
   const { wait, immediate } = options ?? {};
 
   const cancel = useCallback(() => {

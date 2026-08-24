@@ -99,7 +99,7 @@ let notificationsApiPromise: Promise<TauriNotificationsApi> | null = null;
 
 export async function getTauriNotificationsApi(): Promise<TauriNotificationsApi> {
   if (!notificationsApiPromise) {
-    notificationsApiPromise = import('@choochmeque/tauri-plugin-notifications-api').then(
+    notificationsApiPromise = import('@sableclient/tauri-plugin-notifications-api').then(
       (api) =>
         ({
           ...api,

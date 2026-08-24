@@ -30,7 +30,7 @@ import {
   sizedIcon,
   menuIcon,
 } from '$components/icons/phosphor';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router';
 import FocusTrap from 'focus-trap-react';
 import { useAtomValue } from 'jotai';
 import { useQuery } from '@tanstack/react-query';
@@ -90,7 +90,7 @@ const FALLBACK_ROOMS_LIMIT = 24;
 type SearchProps = {
   active?: boolean;
   loading?: boolean;
-  searchInputRef: RefObject<HTMLInputElement>;
+  searchInputRef: RefObject<HTMLInputElement | null>;
   onSearch: (term: string) => void;
   onReset: () => void;
 };

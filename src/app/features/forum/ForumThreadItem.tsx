@@ -62,66 +62,67 @@ export function ForumThreadItem({ thread, onClick, ...rootProps }: ForumThreadIt
       <Box direction="Column" grow="Yes" style={{ minWidth: 0 }}>
         <ThreadRootItem {...rootProps} thread={thread} hideReplyButton />
 
-        {/* Thread reply chip */}
-        <Box style={{ paddingLeft: config.space.S700, paddingTop: config.space.S100 }}>
-          <Chip
-            as="button"
-            style={{ alignSelf: 'flex-start' }}
-            size="400"
-            variant="SurfaceVariant"
-            radii="300"
-            onClick={(evt: React.MouseEvent) => {
-              evt.stopPropagation();
-              onClick(mEventId);
-            }}
-            before={
-              uniqueSenders.length > 0 ? (
-                <Box alignItems="Center" style={{ gap: 0 }}>
-                  {uniqueSenders.slice(0, 3).map((sid, index) => {
-                    const avatarMxc = getMemberAvatarMxc(room, sid);
-                    const avatarUrl = avatarMxc
-                      ? (mxcUrlToHttp(mx, avatarMxc, useAuthentication, 20, 20, 'crop') ??
-                        undefined)
-                      : undefined;
-                    const dn =
-                      getMemberDisplayName(room, sid, nicknames) ?? getMxIdLocalPart(sid) ?? sid;
-                    return (
-                      <Avatar key={sid} size="200" style={{ marginLeft: index > 0 ? '-4px' : 0 }}>
-                        <UserAvatar
-                          userId={sid}
-                          src={avatarUrl}
-                          alt={dn}
-                          renderFallback={() => (
-                            <span style={{ fontSize: '10px', fontWeight: 'bold', lineHeight: 1 }}>
-                              {dn[0]?.toUpperCase() ?? '?'}
-                            </span>
-                          )}
-                        />
-                      </Avatar>
-                    );
-                  })}
-                </Box>
-              ) : undefined
-            }
-          >
-            <Text size="T300" style={{ whiteSpace: 'nowrap' }}>
-              {replyCount}&nbsp;{replyCount === 1 ? 'reply' : 'replies'}
-            </Text>
-            {lastBody && (
-              <Text
-                size="T300"
-                style={{
-                  opacity: 0.7,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
-              >
-                &nbsp;·&nbsp;{lastDisplayName}:&nbsp;{lastBody.slice(0, 60)}
+        {replyCount > 0 && (
+          <Box style={{ paddingLeft: config.space.S700, paddingTop: config.space.S100 }}>
+            <Chip
+              as="button"
+              style={{ alignSelf: 'flex-start' }}
+              size="400"
+              variant="SurfaceVariant"
+              radii="300"
+              onClick={(evt: React.MouseEvent) => {
+                evt.stopPropagation();
+                onClick(mEventId);
+              }}
+              before={
+                uniqueSenders.length > 0 ? (
+                  <Box alignItems="Center" style={{ gap: 0 }}>
+                    {uniqueSenders.slice(0, 3).map((sid, index) => {
+                      const avatarMxc = getMemberAvatarMxc(room, sid);
+                      const avatarUrl = avatarMxc
+                        ? (mxcUrlToHttp(mx, avatarMxc, useAuthentication, 20, 20, 'crop') ??
+                          undefined)
+                        : undefined;
+                      const dn =
+                        getMemberDisplayName(room, sid, nicknames) ?? getMxIdLocalPart(sid) ?? sid;
+                      return (
+                        <Avatar key={sid} size="200" style={{ marginLeft: index > 0 ? '-4px' : 0 }}>
+                          <UserAvatar
+                            userId={sid}
+                            src={avatarUrl}
+                            alt={dn}
+                            renderFallback={() => (
+                              <span style={{ fontSize: '10px', fontWeight: 'bold', lineHeight: 1 }}>
+                                {dn[0]?.toUpperCase() ?? '?'}
+                              </span>
+                            )}
+                          />
+                        </Avatar>
+                      );
+                    })}
+                  </Box>
+                ) : undefined
+              }
+            >
+              <Text size="T300" style={{ whiteSpace: 'nowrap' }}>
+                {replyCount}&nbsp;{replyCount === 1 ? 'reply' : 'replies'}
               </Text>
-            )}
-          </Chip>
-        </Box>
+              {lastBody && (
+                <Text
+                  size="T300"
+                  style={{
+                    opacity: 0.7,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  &nbsp;·&nbsp;{lastDisplayName}:&nbsp;{lastBody.slice(0, 60)}
+                </Text>
+              )}
+            </Chip>
+          </Box>
+        )}
       </Box>
     </Box>
   );

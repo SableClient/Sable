@@ -75,6 +75,7 @@ type TemporaryPersonaPickerProps = {
   onPersonaSelect: (persona: PerMessageProfileMsc4461 | undefined) => void | Promise<void>;
   requestClose: () => void;
   anchor?: RectCords;
+  open?: boolean;
 };
 
 export function useProfiles(
@@ -118,13 +119,13 @@ export function useProfiles(
 }
 
 function useFilteredProfiles(
-  profiles: Persona[],
+  profiles: Persona[] | undefined,
   mountedRef: MutableRefObject<boolean>,
-  searchInputRef: RefObject<HTMLInputElement>,
+  searchInputRef: RefObject<HTMLInputElement | null>,
   profileFetchGenerationRef: MutableRefObject<number>
 ) {
   const [filteredProfiles, setFilteredProfiles] = useState<PerMessageProfileMsc4461[] | undefined>(
-    profiles ?? undefined
+    profiles
   );
   //
   useEffect(() => {
@@ -285,7 +286,7 @@ export function PersonaPicker({
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { filteredProfiles, filter, clearFilter } = useFilteredProfiles(
-    profiles ?? [],
+    profiles,
     mountedRef,
     searchInputRef,
     profileFetchGenerationRef
@@ -453,6 +454,10 @@ export function PersonaPicker({
       <IconButton
         aria-pressed={!!AddPersonaMenuAnchor}
         onClick={(evt) => {
+          if (isMobileOrTablet()) {
+            const activeElement = document.activeElement;
+            if (activeElement instanceof HTMLElement) activeElement.blur();
+          }
           setAddPersonaMenuAnchor(evt.currentTarget.getBoundingClientRect());
         }}
         onPointerDown={suppressEditorRefocus}
@@ -497,6 +502,7 @@ export function TemporaryPersonaPicker({
   mx,
   onPersonaSelect,
   anchor,
+  open,
   requestClose,
 }: TemporaryPersonaPickerProps) {
   const [AddPersonaMenuAnchor, setAddPersonaMenuAnchor] = useState<RectCords | undefined>(anchor);
@@ -512,7 +518,7 @@ export function TemporaryPersonaPicker({
 
   const searchInputRef = useRef<HTMLInputElement>(null);
   const { filteredProfiles, filter, clearFilter } = useFilteredProfiles(
-    profiles ?? [],
+    profiles,
     mountedRef,
     searchInputRef,
     profileFetchGenerationRef
@@ -525,6 +531,7 @@ export function TemporaryPersonaPicker({
   return (
     <ResponsiveMenu
       anchor={AddPersonaMenuAnchor}
+      open={open}
       position={'Left'}
       align="Start"
       offset={16}

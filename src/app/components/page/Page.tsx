@@ -20,7 +20,7 @@ export function PageRoot({ nav, rail, bottomNav, children, mobileDrawer = true }
 
   if (isMobile && mobileDrawer) {
     return (
-      <Box grow="Yes" className={ContainerColor({ variant: 'Background' })}>
+      <Box grow="Yes" className={ContainerColor({ variant: 'Background' })} style={{ minWidth: 0 }}>
         <MobileNavDrawer nav={nav} rail={rail} bottomNav={bottomNav}>
           {children}
         </MobileNavDrawer>
@@ -29,7 +29,7 @@ export function PageRoot({ nav, rail, bottomNav, children, mobileDrawer = true }
   }
 
   return (
-    <Box grow="Yes" className={ContainerColor({ variant: 'Background' })}>
+    <Box grow="Yes" className={ContainerColor({ variant: 'Background' })} style={{ minWidth: 0 }}>
       {nav}
       {!isMobile && <Line variant="Background" size="300" direction="Vertical" />}
       {children}

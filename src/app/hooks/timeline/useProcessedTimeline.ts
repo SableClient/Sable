@@ -676,7 +676,7 @@ export function useProcessedTimeline({
     hiddenEventReactionRedactionTimeline,
     hiddenEventOther,
   } = hiddenEvents;
-  const cacheRef = useRef<ProcessingCache>();
+  const cacheRef = useRef<ProcessingCache | undefined>(undefined);
 
   return useMemo(() => {
     const timelineEvents = flattenTimelineEvents(linkedTimelines);

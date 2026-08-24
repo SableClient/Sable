@@ -44,6 +44,7 @@ export function AutocompleteMenu({ headerContent, requestClose, children }: Auto
         active={isActive}
         focusTrapOptions={{
           initialFocus: false,
+          fallbackFocus: () => itemsRef.current!,
           onPostDeactivate: handleDeactivate,
           returnFocusOnDeactivate: false,
           clickOutsideDeactivates: true,
@@ -61,7 +62,7 @@ export function AutocompleteMenu({ headerContent, requestClose, children }: Auto
             {headerContent}
           </Header>
           <Scroll style={{ flexGrow: 1 }} onKeyDown={preventScrollWithArrowKey}>
-            <div ref={itemsRef} style={{ padding: config.space.S200 }}>
+            <div ref={itemsRef} tabIndex={-1} style={{ padding: config.space.S200 }}>
               {children}
             </div>
           </Scroll>

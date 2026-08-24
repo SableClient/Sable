@@ -64,22 +64,28 @@ export const useImageGestures = (
   const activePointers = useRef(new Map<number, Vector2>());
   const pendingPan = useRef({ x: 0, y: 0 });
   const gestureFrame = useRef(0);
-  const pinchRef = useRef<{
-    startDist: number;
-    startZoom: number;
-    startPan: Vector2;
-    startCenter: Vector2;
-    origin: Vector2;
-  }>();
+  const pinchRef = useRef<
+    | {
+        startDist: number;
+        startZoom: number;
+        startPan: Vector2;
+        startCenter: Vector2;
+        origin: Vector2;
+      }
+    | undefined
+  >(undefined);
   const didPinchRef = useRef(false);
   const transformsRef = useRef(transforms);
   transformsRef.current = transforms;
   const lastTapRef = useRef(0);
-  const fittedSwipeRef = useRef<{
-    startX: number;
-    startY: number;
-    direction?: 'horizontal' | 'vertical';
-  }>();
+  const fittedSwipeRef = useRef<
+    | {
+        startX: number;
+        startY: number;
+        direction?: 'horizontal' | 'vertical';
+      }
+    | undefined
+  >(undefined);
   const fittedSwipeOptionsRef = useRef(fittedSwipeOptions);
   fittedSwipeOptionsRef.current = fittedSwipeOptions;
 

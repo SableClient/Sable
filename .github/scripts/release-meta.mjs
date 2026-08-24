@@ -38,7 +38,15 @@ export function nightlyVersion() {
     }
   } catch {}
 
-  return computeNightlyVersion(version, timestamp);
+  let sha = 'local';
+  try {
+    sha = execSync('git rev-parse --short=12 HEAD', {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    }).trim();
+  } catch {}
+
+  return `${computeNightlyVersion(version, timestamp)}.${sha}`;
 }
 
 export async function writeOutputs(outputPath, entries) {

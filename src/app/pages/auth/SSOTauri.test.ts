@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { type as osType } from '@tauri-apps/plugin-os';
 import {
   buildTauriSsoRedirectUrl,
+  isTauriSsoCallbackTarget,
   parseTauriOidcCallback,
   parseTauriSsoCallback,
   rememberTauriSsoNonce,
@@ -48,6 +49,10 @@ describe('buildTauriSsoRedirectUrl', () => {
     expect(url.searchParams.get('server')).toBeNull();
     expect(url.searchParams.get('sso_nonce')).toBeTruthy();
   });
+
+  it('builds the url without resolving against a non-special base', () => {
+    expect(buildTauriSsoRedirectUrl()).toMatch(/^sable:\/\/login\/lp\/sso-callback\?/);
+  });
 });
 
 describe('takeTauriSsoNonce', () => {
@@ -75,6 +80,21 @@ describe('parseTauriSsoCallback', () => {
 
   it('rejects a missing loginToken', () => {
     expect(parseTauriSsoCallback('sable://login/lp/sso-callback?server=x')).toBeUndefined();
+  });
+});
+
+describe('isTauriSsoCallbackTarget', () => {
+  it('accepts the authority shape', () => {
+    expect(isTauriSsoCallbackTarget('login', '/lp/sso-callback')).toBe(true);
+  });
+
+  it('accepts the opaque-path shape Chromium below 130 produces', () => {
+    expect(isTauriSsoCallbackTarget('', '//login/lp/sso-callback')).toBe(true);
+  });
+
+  it('rejects another host and another opaque path', () => {
+    expect(isTauriSsoCallbackTarget('evil', '/lp/sso-callback')).toBe(false);
+    expect(isTauriSsoCallbackTarget('', '//evil/lp/sso-callback')).toBe(false);
   });
 });
 

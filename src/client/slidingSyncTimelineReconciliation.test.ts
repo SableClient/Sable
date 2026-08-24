@@ -8,8 +8,14 @@ import {
   EventTimeline,
   MatrixEvent,
   RoomEvent,
+  SlidingSyncEvent,
+  SlidingSyncState,
 } from '$types/matrix-sdk';
-import { prepareSlidingSyncTimelines } from './slidingSync';
+import {
+  prepareSlidingSyncTimelines,
+  reconcileLocalEchoes,
+  SlidingSyncManager,
+} from './slidingSync';
 
 const userId = '@me:example.com';
 const roomId = '!dm:example.com';
@@ -51,12 +57,12 @@ const makeSdk = (): { mx: MatrixClient; sdk: SlidingSyncSdk; deliver: RoomDataHa
   return { mx, sdk, deliver: roomDataHandler };
 };
 
-const message = (id: string, ts: number) => ({
+const message = (id: string, ts: number, body: string = id) => ({
   type: 'm.room.message',
   event_id: id,
   sender: '@them:example.com',
   origin_server_ts: ts,
-  content: { msgtype: 'm.text', body: id },
+  content: { msgtype: 'm.text', body },
 });
 
 const initialRoomData = (newest: ReturnType<typeof message>): MSC3575RoomData =>
@@ -105,6 +111,9 @@ const linkedTimelineIds = (timeline: EventTimeline): string[] => {
 
 const history = [message('$e1', 100), message('$e2', 200), message('$e3', 300)];
 const newest = history[history.length - 1]!;
+
+const ECHO_BODY = 'duplicate me';
+const ECHO_TS = 1_700_000_000_000;
 
 describe('timeline reconciliation in matrix-js-sdk', () => {
   it('appends the expanded history out of order when only Synapse flags it', async () => {
@@ -708,5 +717,212 @@ describe('a window from a room we just subscribed to', () => {
     const liveTimeline = mx.getRoom(roomId)!.getLiveTimeline();
     expect(linkedTimelineIds(liveTimeline)).toEqual(['$e8', '$e9']);
     expect(liveTimeline.getPaginationToken(EventTimeline.BACKWARDS)).toBe('t1-9');
+  });
+});
+
+describe('reconcileLocalEchoes', () => {
+  const addPendingEcho = (
+    mx: MatrixClient,
+    txnId: string,
+    body = ECHO_BODY,
+    ts = ECHO_TS
+  ): MatrixEvent => {
+    const room = mx.getRoom(roomId)!;
+    const echo = new MatrixEvent({
+      type: 'm.room.message',
+      event_id: `~${roomId}:${txnId}`,
+      sender: userId,
+      room_id: roomId,
+      origin_server_ts: ts,
+      content: { msgtype: 'm.text', body },
+    });
+    echo.setTxnId(txnId);
+    echo.setStatus(EventStatus.SENDING);
+    room.addPendingEvent(echo, txnId);
+    return echo;
+  };
+
+  const confirmedCopy = (id: string, body = ECHO_BODY, ts = ECHO_TS): Record<string, unknown> => ({
+    ...message(id, ts, body),
+    sender: userId,
+  });
+
+  it('merges a pending echo with an unlinked remote copy after a gapped reset', async () => {
+    const { mx, deliver } = makeSdk();
+    await deliver(roomId, initialRoomData(newest));
+    const room = mx.getRoom(roomId)!;
+    const echo = addPendingEcho(mx, 'm1700000000000000001');
+    room.updatePendingEvent(echo, EventStatus.NOT_SENT);
+    room.updatePendingEvent(echo, EventStatus.SENDING);
+
+    const resp = {
+      pos: 'p3',
+      rooms: {
+        [roomId]: {
+          required_state: [],
+          timeline: [confirmedCopy('$mine')],
+          limited: true,
+          num_live: 1,
+          prev_batch: 'gap-token',
+        },
+      },
+    } as unknown as MSC3575SlidingSyncResponse;
+    const completeTimelineReset = prepareSlidingSyncTimelines(resp, mx);
+    await deliver(roomId, resp.rooms[roomId]!);
+    completeTimelineReset?.();
+
+    expect(timelineIds(mx)).toContain('$mine');
+    expect(timelineIds(mx)).toContain(echo.getId());
+
+    reconcileLocalEchoes(room);
+
+    expect(timelineIds(mx).filter((id) => id === '$mine')).toHaveLength(1);
+    expect(timelineIds(mx)).not.toContain('~' + roomId + ':m1700000000000000001');
+    expect(echo.getId()).toBe('$mine');
+    expect(echo.status).toBeNull();
+  });
+
+  it('merges an echo delivered incrementally alongside the pending local echo', async () => {
+    const { mx, deliver } = makeSdk();
+    await deliver(roomId, initialRoomData(newest));
+    const room = mx.getRoom(roomId)!;
+    const echo = addPendingEcho(mx, 'm1700000000000000002');
+
+    await deliver(roomId, {
+      required_state: [],
+      timeline: [confirmedCopy('$mine')],
+      num_live: 1,
+    } as unknown as MSC3575RoomData);
+
+    expect(timelineIds(mx)).toContain('$mine');
+    expect(timelineIds(mx)).toContain(echo.getId());
+
+    reconcileLocalEchoes(room);
+
+    expect(timelineIds(mx).filter((id) => id === '$mine')).toHaveLength(1);
+    expect(timelineIds(mx)).not.toContain('~' + roomId + ':m1700000000000000002');
+    expect(echo.getId()).toBe('$mine');
+    expect(echo.status).toBeNull();
+  });
+
+  it('prefers the transaction id over a same-body decoy', async () => {
+    const { mx, deliver } = makeSdk();
+    await deliver(roomId, initialRoomData(newest));
+    const room = mx.getRoom(roomId)!;
+    const echo = addPendingEcho(mx, 'm1700000000000000003');
+
+    const mapEvent = mx.getEventMapper();
+    room.addEventsToTimeline(
+      [
+        mapEvent({ ...message('$decoy', ECHO_TS, ECHO_BODY), sender: userId } as never),
+        mapEvent({
+          ...message('$mine', ECHO_TS, 'something else entirely'),
+          sender: userId,
+          unsigned: { transaction_id: 'm1700000000000000003' },
+        } as never),
+      ],
+      true,
+      false,
+      room.getLiveTimeline()
+    );
+
+    reconcileLocalEchoes(room);
+
+    expect(timelineIds(mx)).toContain('$mine');
+    expect(timelineIds(mx)).toContain('$decoy');
+    expect(echo.getId()).toBe('$mine');
+    expect(echo.status).toBeNull();
+  });
+
+  it('does not steal an older identical message for a pending echo', async () => {
+    const { mx, deliver } = makeSdk();
+    await deliver(roomId, initialRoomData(newest));
+    const room = mx.getRoom(roomId)!;
+
+    await deliver(roomId, {
+      required_state: [],
+      timeline: [confirmedCopy('$old', ECHO_BODY, ECHO_TS - 120_000)],
+      num_live: 1,
+    } as unknown as MSC3575RoomData);
+
+    const echo = addPendingEcho(mx, 'm1700000000000000004');
+    reconcileLocalEchoes(room);
+
+    expect(timelineIds(mx)).toContain('$old');
+    expect(timelineIds(mx)).toContain(echo.getId());
+    expect(echo.status).toBe(EventStatus.SENDING);
+  });
+
+  it('leaves a pending echo alone when no confirmation was delivered', async () => {
+    const { mx, deliver } = makeSdk();
+    await deliver(roomId, initialRoomData(newest));
+    const room = mx.getRoom(roomId)!;
+    const echo = addPendingEcho(mx, 'm1700000000000000005');
+
+    reconcileLocalEchoes(room);
+
+    expect(timelineIds(mx)).toContain(echo.getId());
+    expect(echo.status).toBe(EventStatus.SENDING);
+  });
+
+  it('does not merge an echo into an identical message from a different send', async () => {
+    const { mx, deliver } = makeSdk();
+    await deliver(roomId, initialRoomData(newest));
+    const room = mx.getRoom(roomId)!;
+
+    await deliver(roomId, {
+      required_state: [],
+      timeline: [
+        {
+          ...message('$earlier', ECHO_TS, ECHO_BODY),
+          sender: userId,
+          unsigned: { transaction_id: 'mOTHER' },
+        },
+      ],
+      num_live: 1,
+    } as unknown as MSC3575RoomData);
+
+    const echo = addPendingEcho(mx, 'm1700000000000000006');
+    reconcileLocalEchoes(room);
+
+    expect(timelineIds(mx)).toContain('$earlier');
+    expect(timelineIds(mx)).toContain(echo.getId());
+    expect(echo.status).toBe(EventStatus.SENDING);
+  });
+});
+
+describe('sync-complete reconciliation wiring', () => {
+  it('reconciles local echoes for every room in a completed response', async () => {
+    const { mx, deliver } = makeSdk();
+    await deliver(roomId, initialRoomData(newest));
+    const room = mx.getRoom(roomId)!;
+    const echo = new MatrixEvent({
+      type: 'm.room.message',
+      event_id: `~${roomId}:m1700000000000000006`,
+      sender: userId,
+      room_id: roomId,
+      origin_server_ts: ECHO_TS,
+      content: { msgtype: 'm.text', body: 'wired' },
+    });
+    echo.setTxnId('m1700000000000000006');
+    echo.setStatus(EventStatus.SENDING);
+    room.addPendingEvent(echo, 'm1700000000000000006');
+
+    await deliver(roomId, {
+      required_state: [],
+      timeline: [{ ...message('$mine', ECHO_TS, 'wired'), sender: userId }],
+      num_live: 1,
+    } as unknown as MSC3575RoomData);
+    expect(timelineIds(mx)).toContain('~' + roomId + ':m1700000000000000006');
+
+    const manager = new SlidingSyncManager(mx, 'https://sliding.example.com');
+    manager.attach();
+    const resp = { pos: 'p9', rooms: { [roomId]: {} } } as unknown as MSC3575SlidingSyncResponse;
+    manager.slidingSync.emit(SlidingSyncEvent.Lifecycle, SlidingSyncState.Complete, resp);
+
+    expect(timelineIds(mx)).toContain('$mine');
+    expect(timelineIds(mx)).not.toContain('~' + roomId + ':m1700000000000000006');
+    expect(echo.getId()).toBe('$mine');
+    manager.dispose();
   });
 });

@@ -68,10 +68,10 @@ jobs:
             type=raw,value=dev,enable=${{ steps.release_meta.outputs.version != '' && steps.release_meta.outputs.nightly == 'true' }}
 
             # git tags (push or manual dispatch with a tag): semver breakdown + latest
-            type=raw,value=latest,enable=${{ steps.release_meta.outputs.version != '' }}
-            type=semver,pattern={{version}},value=${{ steps.release_meta.outputs.version }},enable=${{ steps.release_meta.outputs.version != '' }}
-            type=semver,pattern={{major}}.{{minor}},value=${{ steps.release_meta.outputs.version }},enable=${{ steps.release_meta.outputs.version != '' }}
-            type=semver,pattern={{major}},value=${{ steps.release_meta.outputs.version }},enable=${{ steps.release_meta.outputs.version != '' && !startsWith(steps.release_meta.outputs.version, 'v0.') }}
+            type=raw,value=latest,enable=${{ steps.release_meta.outputs.version != '' && steps.release_meta.outputs.nightly != 'true' }}
+            type=semver,pattern={{version}},value=${{ steps.release_meta.outputs.version }},enable=${{ steps.release_meta.outputs.version != '' && steps.release_meta.outputs.nightly != 'true' }}
+            type=semver,pattern={{major}}.{{minor}},value=${{ steps.release_meta.outputs.version }},enable=${{ steps.release_meta.outputs.version != '' && steps.release_meta.outputs.nightly != 'true' }}
+            type=semver,pattern={{major}},value=${{ steps.release_meta.outputs.version }},enable=${{ steps.release_meta.outputs.version != '' && steps.release_meta.outputs.nightly != 'true' && !startsWith(steps.release_meta.outputs.version, 'v0.') }}
 
       - name: Compute short SHA
         id: vars

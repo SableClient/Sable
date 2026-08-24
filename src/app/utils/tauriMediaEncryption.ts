@@ -5,11 +5,11 @@ export const setMediaEncryption = async (
   url: string,
   encInfo: EncryptedAttachmentInfo,
   mimeType: string
-): Promise<void> => {
-  if (!isTauri()) return;
+): Promise<boolean> => {
+  if (!isTauri()) return false;
 
   const jwkKey = encInfo.key as JsonWebKey;
-  if (!jwkKey.k) return;
+  if (!jwkKey.k) return false;
 
   await invoke('set_media_encryption', {
     url,
@@ -19,4 +19,5 @@ export const setMediaEncryption = async (
     version: encInfo.v ?? '',
     mimeType,
   });
+  return true;
 };

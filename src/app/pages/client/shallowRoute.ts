@@ -1,4 +1,4 @@
-import { matchPath, type To } from 'react-router-dom';
+import { matchPath, type To } from 'react-router';
 import { ScreenSize } from '$hooks/useScreenSize';
 import { getHomePath } from '$pages/pathUtils';
 import {

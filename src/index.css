@@ -1,215 +1,220 @@
 @import '@sableclient/twemoji-font';
+@import 'folds/dist/style.css' layer(folds);
 
-:root {
-  --tc-link: hsl(213deg 100% 45%);
+@layer sable-reset, folds;
 
-  /* user mxid colors */
-  --mx-uc-1: hsl(208, 100%, 45%);
-  --mx-uc-2: hsl(302, 100%, 30%);
-  --mx-uc-3: hsl(163, 100%, 30%);
-  --mx-uc-4: hsl(343, 100%, 45%);
-  --mx-uc-5: hsl(24, 100%, 45%);
-  --mx-uc-6: hsl(181, 100%, 30%);
-  --mx-uc-7: hsl(242, 100%, 45%);
-  --mx-uc-8: hsl(94, 100%, 35%);
+@layer sable-reset {
+  :root {
+    --tc-link: hsl(213deg 100% 45%);
 
-  --font-emoji: 'Twemoji_DISABLED';
-  --font-secondary: 'Nunito Variable', var(--font-emoji), sans-serif;
-  --font-monospace: 'Space Mono', monospace;
-}
+    /* user mxid colors */
+    --mx-uc-1: hsl(208, 100%, 45%);
+    --mx-uc-2: hsl(302, 100%, 30%);
+    --mx-uc-3: hsl(163, 100%, 30%);
+    --mx-uc-4: hsl(343, 100%, 45%);
+    --mx-uc-5: hsl(24, 100%, 45%);
+    --mx-uc-6: hsl(181, 100%, 30%);
+    --mx-uc-7: hsl(242, 100%, 45%);
+    --mx-uc-8: hsl(94, 100%, 35%);
 
-.dark-theme,
-.sable-remote-kind-dark {
-  --tc-link: hsl(213deg 100% 80%);
+    --font-emoji: 'Twemoji_DISABLED';
+    --font-secondary: 'Nunito Variable', var(--font-emoji), sans-serif;
+    --font-monospace: 'Space Mono', monospace;
+  }
 
-  --mx-uc-1: hsl(260, 100%, 75%);
-  --mx-uc-2: hsl(320, 100%, 75%);
-  --mx-uc-3: hsl(180, 100%, 65%);
-  --mx-uc-4: hsl(150, 100%, 70%);
-  --mx-uc-5: hsl(200, 100%, 75%);
-  --mx-uc-6: hsl(280, 80%, 70%);
-  --mx-uc-7: hsl(40, 100%, 75%);
-  --mx-uc-8: hsl(0, 100%, 75%);
+  .dark-theme,
+  .sable-remote-kind-dark {
+    --tc-link: hsl(213deg 100% 80%);
 
-  --font-secondary: 'Nunito Variable', var(--font-emoji), sans-serif;
-  --font-monospace: 'Space Mono', monospace;
-}
+    --mx-uc-1: hsl(260, 100%, 75%);
+    --mx-uc-2: hsl(320, 100%, 75%);
+    --mx-uc-3: hsl(180, 100%, 65%);
+    --mx-uc-4: hsl(150, 100%, 70%);
+    --mx-uc-5: hsl(200, 100%, 75%);
+    --mx-uc-6: hsl(280, 80%, 70%);
+    --mx-uc-7: hsl(40, 100%, 75%);
+    --mx-uc-8: hsl(0, 100%, 75%);
 
-html {
-  height: 100%;
-  overflow: hidden;
-  overscroll-behavior: none;
-}
+    --font-secondary: 'Nunito Variable', var(--font-emoji), sans-serif;
+    --font-monospace: 'Space Mono', monospace;
+  }
 
-body {
-  margin: 0;
-  padding: 0;
-  height: 100%;
-  font-family: var(--font-secondary);
-  font-size: 16px;
-  font-weight: 400;
-  /* eslint-disable-next-line css/no-invalid-properties */
-  background-color: var(--sable-bg-container);
-}
-#root {
-  width: 100%;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
+  html {
+    height: 100%;
+    overflow: hidden;
+    overscroll-behavior: none;
+  }
 
-@media (display-mode: standalone) {
-  @supports (-webkit-touch-callout: none) {
-    html,
-    body,
-    #root {
-      height: var(--sable-ios-pwa-viewport-height, 100dvh);
+  body {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    font-family: var(--font-secondary);
+    font-size: 16px;
+    font-weight: 400;
+    /* eslint-disable-next-line css/no-invalid-properties */
+    background-color: var(--sable-bg-container);
+  }
+  #root {
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  @media (display-mode: standalone) {
+    @supports (-webkit-touch-callout: none) {
+      html,
+      body,
+      #root {
+        height: var(--sable-ios-pwa-viewport-height, 100dvh);
+      }
     }
   }
-}
 
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
-  -webkit-tap-highlight-color: transparent;
-}
-a {
-  color: var(--tc-link);
-  text-decoration: none;
-}
-a:hover {
-  text-decoration: underline;
-}
+  *,
+  *::before,
+  *::after {
+    box-sizing: border-box;
+    -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
+    -webkit-tap-highlight-color: transparent;
+  }
+  a {
+    color: var(--tc-link);
+    text-decoration: none;
+  }
+  a:hover {
+    text-decoration: underline;
+  }
 
-[data-mx-spoiler][aria-pressed='true'] a {
-  color: transparent;
-  pointer-events: none;
-}
+  [data-mx-spoiler][aria-pressed='true'] a {
+    color: transparent;
+    pointer-events: none;
+  }
 
-b {
-  font-weight: 500;
-}
-label {
-  margin: 0;
-  padding: 0;
-}
-button,
-textarea {
-  margin: 0;
-  padding: 0;
-  background-color: transparent;
-  color: inherit;
-  /* eslint-disable-next-line css/font-family-fallbacks */
-  font-family: inherit;
-  font-size: inherit;
-  font-weight: inherit;
-  line-height: inherit;
-  letter-spacing: inherit;
-  border: none;
-}
-button {
-  max-width: 100%;
-  text-transform: none;
-  text-align: inherit;
-  overflow: visible;
-  -webkit-appearance: button;
-}
-textarea,
-input,
-input[type],
-input[type='text'],
-input[type='username'],
-input[type='password'],
-input[type='email'],
-input[type='checkbox'] {
-  -webkit-appearance: none;
-  -moz-appearance: none;
-  appearance: none;
-}
+  b {
+    font-weight: 500;
+  }
+  label {
+    margin: 0;
+    padding: 0;
+  }
+  button,
+  textarea {
+    margin: 0;
+    padding: 0;
+    background-color: transparent;
+    color: inherit;
+    /* eslint-disable-next-line css/font-family-fallbacks */
+    font-family: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: inherit;
+    letter-spacing: inherit;
+    border: none;
+  }
+  button {
+    max-width: 100%;
+    text-transform: none;
+    text-align: inherit;
+    overflow: visible;
+    -webkit-appearance: button;
+  }
+  textarea,
+  input,
+  input[type],
+  input[type='text'],
+  input[type='username'],
+  input[type='password'],
+  input[type='email'],
+  input[type='checkbox'] {
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+  }
 
-textarea {
-  color: inherit;
-  word-spacing: inherit;
-}
+  textarea {
+    color: inherit;
+    word-spacing: inherit;
+  }
 
-audio:not([controls]) {
-  /* eslint-disable-next-line css/no-important */
-  display: none !important;
-}
+  audio:not([controls]) {
+    /* eslint-disable-next-line css/no-important */
+    display: none !important;
+  }
 
-code,
-pre {
-  font-family: var(--font-monospace);
-  font-size: 0.9em;
-  line-height: 1.3;
-  letter-spacing: -0.01em;
-  font-variant-ligatures: contextual;
-}
+  code,
+  pre {
+    font-family: var(--font-monospace);
+    font-size: 0.9em;
+    line-height: 1.3;
+    letter-spacing: -0.01em;
+    font-variant-ligatures: contextual;
+  }
 
-/* Accessibility Overrides :D */
+  /* Accessibility Overrides :D */
 
-.force-underline-links [data-message-id] a:not([data-mention-id]),
-.force-underline-links [data-profile-bio] a,
-.force-underline-links [data-room-topic] a {
-  text-decoration: underline !important;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 2px;
-}
+  .force-underline-links [data-message-id] a:not([data-mention-id]),
+  .force-underline-links [data-profile-bio] a,
+  .force-underline-links [data-room-topic] a {
+    text-decoration: underline !important;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+  }
 
-.force-underline-links [data-markdown-preview-link] {
-  text-decoration: underline !important;
-  text-underline-offset: 2px;
-}
+  .force-underline-links [data-markdown-preview-link] {
+    text-decoration: underline !important;
+    text-underline-offset: 2px;
+  }
 
-body.reduced-motion * {
-  animation-duration: 0.001ms !important;
-  animation-iteration-count: 1 !important;
-  transition-duration: 0.001ms !important;
-}
+  body.reduced-motion * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
 
-body.reduced-motion button:hover,
-body.reduced-motion a:hover,
-body.reduced-motion [role='button']:hover {
-  transform: none !important;
-  scale: 1 !important;
-}
+  body.reduced-motion button:hover,
+  body.reduced-motion a:hover,
+  body.reduced-motion [role='button']:hover {
+    transform: none !important;
+    scale: 1 !important;
+  }
 
-body.reduced-motion div[class*='Sidebar_SidebarItem']:hover,
-body.reduced-motion div[class*='Sidebar_SidebarItem']:hover button,
-body.reduced-motion div[class*='Sidebar_SidebarItem']:hover img {
-  transform: none !important;
-  scale: 1 !important;
-  translate: none !important;
-  margin: 0 !important;
-  padding: 0 !important;
-}
+  body.reduced-motion div[class*='Sidebar_SidebarItem']:hover,
+  body.reduced-motion div[class*='Sidebar_SidebarItem']:hover button,
+  body.reduced-motion div[class*='Sidebar_SidebarItem']:hover img {
+    transform: none !important;
+    scale: 1 !important;
+    translate: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
 
-body.reduced-motion div[class*='Sidebar_SidebarStack']:hover {
-  width: revert !important;
-  translate: none !important;
-  transform: none !important;
-}
+  body.reduced-motion div[class*='Sidebar_SidebarStack']:hover {
+    width: revert !important;
+    translate: none !important;
+    transform: none !important;
+  }
 
-body.reduced-motion div[class*='layout_MessageBase'] {
-  animation: none !important;
-  transition: none !important;
-  transform: none !important;
-}
+  body.reduced-motion div[class*='layout_MessageBase'] {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
 
-body.reduced-motion div[class*='RoomTimeline_messageList'],
-body.reduced-motion div[class*='RoomTimeline_messageList'] > * {
-  scroll-behavior: auto !important;
-}
+  body.reduced-motion div[class*='RoomTimeline_messageList'],
+  body.reduced-motion div[class*='RoomTimeline_messageList'] > * {
+    scroll-behavior: auto !important;
+  }
 
-body.reduced-motion span[class*='layout_AvatarBase']:hover,
-body.reduced-motion span[class*='layout_AvatarBase']:hover *,
-body.reduced-motion button[class*='styles_MessageAvatar']:hover,
-body.reduced-motion button[class*='styles_MessageAvatar']:hover * {
-  transform: none !important;
-  scale: 1 !important;
-  translate: none !important;
-  animation: none !important;
-  margin: 0 !important;
+  body.reduced-motion span[class*='layout_AvatarBase']:hover,
+  body.reduced-motion span[class*='layout_AvatarBase']:hover *,
+  body.reduced-motion button[class*='styles_MessageAvatar']:hover,
+  body.reduced-motion button[class*='styles_MessageAvatar']:hover * {
+    transform: none !important;
+    scale: 1 !important;
+    translate: none !important;
+    animation: none !important;
+    margin: 0 !important;
+  }
 }

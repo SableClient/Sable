@@ -11,7 +11,7 @@ import { LocalRoomSummaryLoader } from '$components/RoomSummaryLoader';
 import { getRoomAvatarUrl } from '$utils/room/display';
 import { RoomAvatar } from '$components/room-avatar';
 import { nameInitials } from '$utils/common';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { getSpaceLobbyPath } from '$pages/pathUtils';
 import { InaccessibleSpaceProfile, UnjoinedSpaceProfile } from './SpaceItem';
 import * as css from './SpaceNavItem.css';

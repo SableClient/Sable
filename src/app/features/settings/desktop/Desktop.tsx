@@ -26,6 +26,7 @@ export function Desktop({ requestBack, requestClose }: DesktopProps) {
   );
   const [showSystemTrayIcon, setShowSystemTrayIcon] = useDesktopSetting('showSystemTrayIcon');
   const [useCustomTitleBar, setUseCustomTitleBar] = useDesktopSetting('useCustomTitleBar');
+  const [spellcheck, setSpellcheck] = useDesktopSetting('spellcheck');
   const [autoUpdateCheck, setAutoUpdateCheck] = useAtom(autoUpdateCheckAtom);
 
   if (!isTauri() || !ready) return null;
@@ -83,6 +84,17 @@ export function Desktop({ requestBack, requestClose }: DesktopProps) {
                     ariaLabel="show-system-tray-icon"
                   />
                 )}
+              </Box>
+              <Box direction="Column" gap="100">
+                <Text size="L400">Text input</Text>
+                <SettingToggle
+                  title="Spellcheck"
+                  focusId="spellcheck"
+                  description="Underline misspelled words and offer corrections in text fields."
+                  value={spellcheck}
+                  onChange={setSpellcheck}
+                  ariaLabel="spellcheck"
+                />
               </Box>
               <Box direction="Column" gap="100">
                 <Text size="L400">Updates</Text>

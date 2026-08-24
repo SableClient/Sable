@@ -25,9 +25,15 @@ const log = createLogger('NotificationTransportRuntimeFeature');
 async function checkPushPermission(
   provider: NotificationTransportProvider | null
 ): Promise<boolean | null> {
-  if (provider === 'unifiedpush') return isUnifiedPushPermissionGranted();
-  if (provider === 'native') return isNativePushPermissionGranted();
-  return null;
+  try {
+    if (provider === 'unifiedpush') return await isUnifiedPushPermissionGranted();
+    if (provider === 'native') return await isNativePushPermissionGranted();
+    return null;
+  } catch (error) {
+    // An unavailable native plugin must not fail the entire application startup.
+    log.warn('Unable to check push notification permission', error);
+    return null;
+  }
 }
 
 function currentPlatform(): NotificationTransportPlatform {
@@ -61,7 +67,7 @@ export function NotificationTransportRuntimeFeature() {
   const [useRichPushPayloads] = useSetting(settingsAtom, 'useRichPushPayloads');
   const [pushNotifyUrlOverride] = useSetting(settingsAtom, 'pushNotifyUrlOverride');
 
-  const runtimeRef = useRef<NotificationTransportRuntime>();
+  const runtimeRef = useRef<NotificationTransportRuntime | undefined>(undefined);
   if (!runtimeRef.current) runtimeRef.current = new NotificationTransportRuntime();
 
   // Read fresh by the listener for each incoming push, so toggling display

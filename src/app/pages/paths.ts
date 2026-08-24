@@ -52,9 +52,12 @@ export const SEARCH_PATH_SEGMENT = 'search/';
 export type RoomSearchParams = {
   /* comma separated string of servers */
   viaServers?: string;
+  /* "true" keeps a forum room on the timeline route instead of the forum view */
+  timeline?: string;
 };
+export const ROOM_TIMELINE_SEARCH_PARAM = 'timeline';
 export const ROOM_PATH_SEGMENT = ':roomIdOrAlias/:eventId?/';
-export const ROOM_FORUM_PATH_SEGMENT = ':roomIdOrAlias/forum/';
+export const ROOM_FORUM_PATH_SEGMENT = ':roomIdOrAlias/forum/:eventId?/';
 
 export const HOME_PATH = '/home/';
 export const HOME_JOIN_PATH = `/home/${JOIN_PATH_SEGMENT}`;

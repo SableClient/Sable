@@ -112,6 +112,25 @@ describe('getWindowOrigin', () => {
   });
 });
 
+describe('webviewStripsCustomProtocolCache', () => {
+  it.each([
+    ['android', androidWebviewUa, true],
+    ['linux', cefLinuxUa, true],
+    ['linux', wryLinuxUa, false],
+    ['ios', macWebviewUa, false],
+    ['macos', macWebviewUa, false],
+    ['windows', cefLinuxUa, false],
+  ])('is %s (%#) -> %s', async (os, userAgent, expected) => {
+    const { webviewStripsCustomProtocolCache } = await loadPlatform(os, userAgent);
+    expect(webviewStripsCustomProtocolCache()).toBe(expected);
+  });
+
+  it('is false outside Tauri, where no custom protocol is involved', async () => {
+    const { webviewStripsCustomProtocolCache } = await loadPlatform(undefined, cefLinuxUa);
+    expect(webviewStripsCustomProtocolCache()).toBe(false);
+  });
+});
+
 describe('isWebKitGtk', () => {
   afterEach(() => {
     vi.unstubAllGlobals();

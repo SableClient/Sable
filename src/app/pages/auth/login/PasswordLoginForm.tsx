@@ -17,7 +17,7 @@ import {
 import { Overlay, PopOut } from '$components/overlay-stack';
 import { sizedIcon, Info } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { getMxIdLocalPart, isUserId } from '$utils/matrix';
 import type { MatrixError } from '$types/matrix-sdk';
 import { EMAIL_REGEX } from '$utils/regex';

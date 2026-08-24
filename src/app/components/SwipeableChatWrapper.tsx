@@ -30,7 +30,7 @@ export function SwipeableChatWrapper({
   const contentRef = useRef<HTMLDivElement>(null);
   const xRef = useRef(0);
   const gestureActiveRef = useRef(false);
-  const settleRef = useRef<{ cancel: () => void }>();
+  const settleRef = useRef<{ cancel: () => void } | undefined>(undefined);
   const drawer = useMobileNavDrawer();
 
   const setOffset = useCallback((value: number) => {

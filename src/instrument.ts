@@ -7,6 +7,7 @@
  * - VITE_APP_VERSION: Release version for tracking
  */
 /* oxlint-disable no-console */
+import './promiseCompat';
 import * as Sentry from '@sentry/react';
 import React from 'react';
 import {
@@ -14,7 +15,7 @@ import {
   useNavigationType,
   createRoutesFromChildren,
   matchRoutes,
-} from 'react-router-dom';
+} from 'react-router';
 import { scrubMatrixIds, sanitizeSentryPayload, scrubMatrixUrl } from './app/utils/sentryScrubbers';
 import { isTauri } from '@tauri-apps/api/core';
 import { setNativeSentryEnabled } from './app/generated/tauri/commands';

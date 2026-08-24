@@ -93,7 +93,7 @@ describe('Image', () => {
 
     await waitFor(() => expect(screen.getByLabelText('emoticon').tagName).toBe('CANVAS'));
     const canvas = screen.getByLabelText('emoticon');
-    expect(canvas.parentElement).toHaveStyle({ width: '1em', height: '1em' });
+    expect(canvas.parentElement).toHaveStyle({ width: '16px', height: '16px' });
   });
 
   it('forwards the canvas ref and pointer events for lottie images', async () => {

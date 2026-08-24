@@ -1,7 +1,7 @@
 import type { MouseEventHandler } from 'react';
 import type { Room } from '$types/matrix-sdk';
 import { Box, Text, config, Avatar } from 'folds';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { NavButton, NavItem, NavItemContent } from '$components/nav';
 import { useRoomName } from '$hooks/useRoomMeta';
 import { menuIcon, SquaresFour } from '$components/icons/phosphor';

@@ -1,7 +1,7 @@
 import { SidebarAvatar, SidebarItem, SidebarItemTooltip } from '$components/sidebar';
 import { GearSix, getPhosphorIconSize } from '$components/icons/phosphor';
 import { useOpenSettings } from '$features/settings';
-import { matchPath } from 'react-router-dom';
+import { matchPath } from 'react-router';
 import { SETTINGS_PATH } from '$pages/paths';
 import { color } from 'folds';
 

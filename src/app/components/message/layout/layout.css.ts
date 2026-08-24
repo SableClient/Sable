@@ -118,7 +118,7 @@ export const MessageBase = recipe({
       minHeight: toRem(16),
       contain: 'layout',
       flexGrow: '1',
-      width: '100',
+      width: '100%',
     },
   ],
   variants: {

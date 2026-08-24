@@ -8,7 +8,7 @@
  *   Ctrl+Down / Ctrl+Up: cycle through messages to reply to
  */
 import { useCallback, useRef } from 'react';
-import { useNavigate, useLocation, matchPath } from 'react-router-dom';
+import { useNavigate, useLocation, matchPath } from 'react-router';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { roomToParentsAtom } from '$state/room/roomToParents';
@@ -17,17 +17,27 @@ import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { useKeyDown } from '$hooks/useKeyDown';
 import {
   getDirectRoomPath,
+  getDirectForumPath,
   getCreateRoomPath,
+  getHomeForumPath,
   getHomeRoomPath,
   getHomeSearchPath,
   getInboxBookmarksPath,
   getNavigatePath,
   getSpaceRoomPath,
+  getSpaceForumPath,
   getSpaceSearchPath,
   withSearchParam,
 } from '$pages/pathUtils';
 import type { SearchPathSearchParams } from '$pages/paths';
-import { HOME_ROOM_PATH, DIRECT_ROOM_PATH, SPACE_ROOM_PATH } from '$pages/paths';
+import {
+  DIRECT_ROOM_FORUM_PATH,
+  DIRECT_ROOM_PATH,
+  HOME_ROOM_FORUM_PATH,
+  HOME_ROOM_PATH,
+  SPACE_ROOM_FORUM_PATH,
+  SPACE_ROOM_PATH,
+} from '$pages/paths';
 import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import { announce } from '$utils/announce';
 import { roomIdToReplyDraftAtomFamily } from '$state/room/roomInputDrafts';
@@ -35,6 +45,7 @@ import type { Room } from '$types/matrix-sdk';
 import { useSelectedSpace } from '$hooks/router/useSelectedSpace';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
+import { CustomRoomType } from '$types/matrix/room';
 import { useOpenShallowRoute } from '$pages/client/useShallowRoute';
 import { matchesShortcut } from '../keyboard/shortcuts';
 
@@ -51,6 +62,9 @@ export function GlobalKeyboardShortcuts() {
 
   // Derive the current room ID from the URL so we know which room is active.
   const roomMatch =
+    matchPath(HOME_ROOM_FORUM_PATH, location.pathname) ??
+    matchPath(DIRECT_ROOM_FORUM_PATH, location.pathname) ??
+    matchPath(SPACE_ROOM_FORUM_PATH, location.pathname) ??
     matchPath(HOME_ROOM_PATH, location.pathname) ??
     matchPath(DIRECT_ROOM_PATH, location.pathname) ??
     matchPath(SPACE_ROOM_PATH, location.pathname);
@@ -76,20 +90,31 @@ export function GlobalKeyboardShortcuts() {
     (roomId: string, remaining: number) => {
       const roomIdOrAliasToNav = getCanonicalAliasOrRoomId(mx, roomId);
       const isDirect = mDirects.has(roomId);
+      const isForum = mx.getRoom(roomId)?.getType() === CustomRoomType.Forum;
       if (isDirect) {
-        navigate(getDirectRoomPath(roomIdOrAliasToNav));
+        navigate(
+          isForum ? getDirectForumPath(roomIdOrAliasToNav) : getDirectRoomPath(roomIdOrAliasToNav)
+        );
       } else {
         const parents = roomToParents.get(roomId);
         if (parents && parents.size > 0) {
           const spaceId = Array.from(parents)[0];
           if (!spaceId) {
-            navigate(getHomeRoomPath(roomIdOrAliasToNav));
+            navigate(
+              isForum ? getHomeForumPath(roomIdOrAliasToNav) : getHomeRoomPath(roomIdOrAliasToNav)
+            );
             return;
           }
           const spaceIdOrAlias = getCanonicalAliasOrRoomId(mx, spaceId);
-          navigate(getSpaceRoomPath(spaceIdOrAlias, roomIdOrAliasToNav));
+          navigate(
+            isForum
+              ? getSpaceForumPath(spaceIdOrAlias, roomIdOrAliasToNav)
+              : getSpaceRoomPath(spaceIdOrAlias, roomIdOrAliasToNav)
+          );
         } else {
-          navigate(getHomeRoomPath(roomIdOrAliasToNav));
+          navigate(
+            isForum ? getHomeForumPath(roomIdOrAliasToNav) : getHomeRoomPath(roomIdOrAliasToNav)
+          );
         }
       }
       const roomName = mx.getRoom(roomId)?.name ?? 'Room';

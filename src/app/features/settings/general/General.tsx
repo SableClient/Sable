@@ -66,6 +66,8 @@ import { sanitizeDiagnosticsLogs } from '$utils/sentryScrubbers';
 import { diagnosticCaptureActiveAtom } from '$state/debugLogger';
 import { exportSettingsAsJson, importSettingsFromJson } from '$utils/settingsSync';
 import { downloadJsonFile, saveFileToDevice } from '$utils/download';
+import { useClientConfig } from '$hooks/useClientConfig';
+import { getGifProvider, getGifProviderOptions } from '$utils/gifProviders';
 import { CallSoundSettings } from './CallSoundSettings';
 
 type DateHintProps = {
@@ -445,10 +447,17 @@ function EditorButtonOrderRow({
 function Editor() {
   const [enterForNewline, setEnterForNewline] = useSetting(settingsAtom, 'enterForNewline');
   const [editorToolbar, setEditorToolbar] = useSetting(settingsAtom, 'editorToolbar');
+  const [alwaysInlineEditor, setAlwaysInlineEditor] = useSetting(
+    settingsAtom,
+    'alwaysInlineEditor'
+  );
   const [editorOldAddFile, setEditorOldAddFile] = useSetting(settingsAtom, 'editorOldAddFile');
   const [editorMicButton, setEditorMicButton] = useSetting(settingsAtom, 'editorMicButton');
   const [editorEmojiButton, setEditorEmojiButton] = useSetting(settingsAtom, 'editorEmojiButton');
   const [editorGifButton, setEditorGifButton] = useSetting(settingsAtom, 'editorGifButton');
+  const gifs = useClientConfig().gifs;
+  const [gifProviderSetting] = useSetting(settingsAtom, 'gifProvider');
+  const gifProvider = getGifProvider(gifs, gifProviderSetting);
   const [editorStickerButton, setEditorStickerButton] = useSetting(
     settingsAtom,
     'editorStickerButton'
@@ -535,16 +544,31 @@ function Editor() {
       <SettingToggle
         title="Show Gif Button"
         focusId="show-gif-button"
-        description="Show the gif button inline with the message composer. This makes requests to klipy.com whenever you search for a gif."
+        description={`Show the gif button inline with the message composer. This makes requests to ${gifProvider.searchHost} whenever you search for a gif.`}
         value={editorGifButton}
         onChange={setEditorGifButton}
       />
+      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
+        <SettingTile
+          title="Gif Provider"
+          focusId="gif-provider"
+          description="Which service the gif picker searches."
+          after={<SelectGifProvider />}
+        />
+      </SequenceCard>
       <SettingToggle
         title="Show Sticker Button"
         focusId="show-sticker-button"
         description="Show the sticker button inline with the message composer."
         value={editorStickerButton}
         onChange={setEditorStickerButton}
+      />
+      <SettingToggle
+        title="Always Inline Editor"
+        focusId="always-inline-editor"
+        description="Always keep the last line of the text editor inline with UI buttons."
+        value={alwaysInlineEditor}
+        onChange={setAlwaysInlineEditor}
       />
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
@@ -614,6 +638,19 @@ function Editor() {
         onChange={setSendIndividualAttachmentAsCaption}
       />
     </Box>
+  );
+}
+
+function SelectGifProvider() {
+  const gifs = useClientConfig().gifs;
+  const [gifProvider, setGifProvider] = useSetting(settingsAtom, 'gifProvider');
+
+  return (
+    <SettingMenuSelector
+      value={gifProvider}
+      options={getGifProviderOptions(gifs)}
+      onSelect={setGifProvider}
+    />
   );
 }
 
@@ -1046,6 +1083,8 @@ function Embeds() {
     'externalGifAutoLoadEncrypted'
   );
   const [enableGifPicker, setEnableGifPicker] = useSetting(settingsAtom, 'enableGifPicker');
+  const [gifPickerProvider] = useSetting(settingsAtom, 'gifProvider');
+  const gifPickerHost = getGifProvider(useClientConfig().gifs, gifPickerProvider).searchHost;
   return (
     <Box direction="Column" gap="100">
       <Text size="L400">Embeds</Text>
@@ -1128,7 +1167,7 @@ function Embeds() {
       <SettingToggle
         title="Enable Gif Picker"
         focusId="enable-gif-picker"
-        description="Enables the gif picker in the emoji board. This reduces Privacy because it makes requests to klipy.com whenever you search for a gif."
+        description={`Enables the gif picker in the emoji board. This reduces Privacy because it makes requests to ${gifPickerHost} whenever you search for a gif.`}
         value={enableGifPicker}
         onChange={setEnableGifPicker}
         switchTitle={enableGifPicker ? 'Disable Gif Picker' : 'Enable Gif Picker'}

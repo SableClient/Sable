@@ -22,26 +22,28 @@ export function useDeviceDisplayName(mx: MatrixClient | undefined) {
   const updatedRef = useRef(false);
 
   useEffect(() => {
-    if (!mx || updatedRef.current) return;
+    if (!mx || updatedRef.current) return undefined;
+
+    let cleanup: (() => void) | undefined;
 
     const state = mx.getSyncState();
     if (state && SYNC_READY.has(state)) {
       updatedRef.current = true;
       updateDeviceName(mx).catch(() => {});
-      return;
+    } else {
+      const onSync = (syncState: SyncState) => {
+        if (SYNC_READY.has(syncState)) {
+          mx.removeListener(ClientEvent.Sync, onSync);
+          updatedRef.current = true;
+          updateDeviceName(mx).catch(() => {});
+        }
+      };
+      mx.on(ClientEvent.Sync, onSync);
+      cleanup = () => {
+        mx.removeListener(ClientEvent.Sync, onSync);
+      };
     }
 
-    const onSync = (syncState: SyncState) => {
-      if (SYNC_READY.has(syncState)) {
-        mx.removeListener(ClientEvent.Sync, onSync);
-        updatedRef.current = true;
-        updateDeviceName(mx).catch(() => {});
-      }
-    };
-    mx.on(ClientEvent.Sync, onSync);
-
-    return () => {
-      mx.removeListener(ClientEvent.Sync, onSync);
-    };
+    return cleanup;
   }, [mx]);
 }

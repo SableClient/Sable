@@ -1,4 +1,4 @@
-import { renderHook, act } from '@testing-library/react';
+import { act, renderHook, waitFor } from '@testing-library/react';
 import { createStore, Provider } from 'jotai';
 import { createElement, type ReactNode } from 'react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -76,11 +76,10 @@ describe('useDesktopSetting', () => {
       wrapper: makeWrapper(store),
     });
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(store.get(desktopSettingsReadyAtom)).toBe(true);
+      expect(result.current[0]).toBe(false);
     });
-
-    expect(result.current[0]).toBe(false);
 
     await act(async () => {
       await result.current[1](true);
@@ -94,6 +93,7 @@ describe('useDesktopSetting', () => {
         closeToBackgroundOnClose: true,
         showSystemTrayIcon: false,
         useCustomTitleBar: true,
+        spellcheck: true,
       },
     });
 
@@ -113,7 +113,7 @@ describe('useDesktopSetting', () => {
       wrapper: makeWrapper(store),
     });
 
-    await vi.waitFor(() => {
+    await waitFor(() => {
       expect(store.get(desktopSettingsReadyAtom)).toBe(true);
     });
 
@@ -128,6 +128,7 @@ describe('useDesktopSetting', () => {
         closeToBackgroundOnClose: false,
         showSystemTrayIcon: true,
         useCustomTitleBar: true,
+        spellcheck: true,
       },
     });
 

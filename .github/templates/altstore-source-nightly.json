@@ -6,11 +6,11 @@
   "iconURL": "https://raw.githubusercontent.com/SableClient/Sable/dev/src-tauri/icons/icon.png",
   "website": "https://github.com/SableClient/Sable",
   "tintColor": "#5CA399",
-  "featuredApps": ["moe.sable.client"],
+  "featuredApps": ["moe.sable.client.nightly"],
   "apps": [
     {
-      "name": "Sable",
-      "bundleIdentifier": "moe.sable.client",
+      "name": "Sable Nightly",
+      "bundleIdentifier": "moe.sable.client.nightly",
       "developerName": "SableClient",
       "subtitle": "Sable iOS (nightly)",
       "localizedDescription": "Sable for iOS. Nightly builds from dev; unsigned, resigned at install by AltStore/SideStore.",

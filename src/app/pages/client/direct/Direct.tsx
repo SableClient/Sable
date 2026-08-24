@@ -10,7 +10,7 @@ import {
   User,
 } from '$components/icons/phosphor';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { RoomEvent } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { factoryRoomIdByActivity } from '$utils/sort';
@@ -23,7 +23,7 @@ import {
   NavItem,
   NavItemContent,
 } from '$components/nav';
-import { getDirectCreatePath, getDirectRoomPath } from '$pages/pathUtils';
+import { getDirectCreatePath, getDirectForumPath, getDirectRoomPath } from '$pages/pathUtils';
 import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import { useSelectedOrLastRoom } from '$hooks/router/useSelectedRoom';
 import { VirtualTile } from '$components/virtualizer';
@@ -46,6 +46,7 @@ import { useDirectRooms } from './useDirectRooms';
 import { useSidebarWidth } from '$hooks/useSidebarWidth';
 import { useMenuAnchor } from '$hooks/useMenuAnchor';
 import { NavMenu } from '$components/nav/NavMenu';
+import { CustomRoomType } from '$types/matrix/room';
 
 type DirectMenuProps = {
   requestClose: () => void;
@@ -273,7 +274,11 @@ export function Direct() {
                           direct
                           customDMCards={customDMCards}
                           hideText={hideText}
-                          linkPath={getDirectRoomPath(getCanonicalAliasOrRoomId(mx, roomId))}
+                          linkPath={
+                            room.getType() === CustomRoomType.Forum
+                              ? getDirectForumPath(getCanonicalAliasOrRoomId(mx, roomId))
+                              : getDirectRoomPath(getCanonicalAliasOrRoomId(mx, roomId))
+                          }
                           notificationMode={getRoomNotificationMode(
                             notificationPreferences,
                             room.roomId

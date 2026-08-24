@@ -2,7 +2,7 @@ import to from 'await-to-js';
 import type { LoginRequest, LoginResponse } from '$types/matrix-sdk';
 import { createClient, MatrixError } from '$types/matrix-sdk';
 import { useCallback, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
 import type { ClientConfig } from '$hooks/useClientConfig';

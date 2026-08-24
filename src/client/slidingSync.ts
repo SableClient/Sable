@@ -49,6 +49,9 @@ const DEFAULT_POLL_TIMEOUT_MS = 45000;
 const SDK_CLIENT_TIMEOUT_BUFFER_MS = 10_000;
 const POLL_DEADLINE_MARGIN_MS = 20_000;
 
+// The SDK's to_device extension takes 100 events per response, so a backlog needs several.
+const MAX_PUSH_DRAIN_POLLS = 5;
+
 const ACTIVE_ROOM_SUBSCRIPTION_KEY = 'active_room';
 const CALL_ROOM_SUBSCRIPTION_KEY = 'call_room';
 const SIDEBAR_ROOM_SUBSCRIPTION_KEY = 'sidebar_room';
@@ -475,6 +478,80 @@ export const prepareSlidingSyncTimelines = (
   };
 };
 
+const LOCAL_ECHO_MATCH_MAX_CLOCK_SKEW_MS = 60_000;
+
+const canonicalJson = (value: unknown): string => {
+  if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+  if (value !== null && typeof value === 'object') {
+    const entries = Object.keys(value as Record<string, unknown>)
+      .toSorted()
+      .map(
+        (key) => `${JSON.stringify(key)}:${canonicalJson((value as Record<string, unknown>)[key])}`
+      );
+    return `{${entries.join(',')}}`;
+  }
+  return JSON.stringify(value);
+};
+
+export const reconcileLocalEchoes = (room: Room | null | undefined): void => {
+  if (!room) return;
+  const liveEvents = room.getLiveTimeline().getEvents();
+  const pendingEchoes = liveEvents.filter(
+    (event) =>
+      event.status !== null &&
+      event.status !== EventStatus.CANCELLED &&
+      event.status !== EventStatus.SENT
+  );
+  if (pendingEchoes.length === 0) return;
+
+  const claimedEventIds = new Set<string>();
+  const isMergeCandidate = (candidate: MatrixEvent, echo: MatrixEvent): boolean => {
+    const candidateId = candidate.getId();
+    if (!candidateId || candidate === echo || claimedEventIds.has(candidateId)) return false;
+    if (candidate.status !== null) return false;
+    if (candidate.getSender() !== echo.getSender()) return false;
+    return !candidate.isRedacted();
+  };
+
+  for (const echo of pendingEchoes) {
+    const txnId = echo.getTxnId();
+    let match = txnId
+      ? liveEvents.find(
+          (candidate) =>
+            isMergeCandidate(candidate, echo) && candidate.getUnsigned()?.transaction_id === txnId
+        )
+      : undefined;
+    if (!match) {
+      const wireType = echo.getWireType();
+      const wireContent = canonicalJson(echo.getWireContent());
+      match = liveEvents.find((candidate) => {
+        if (!isMergeCandidate(candidate, echo)) return false;
+        if (candidate.getWireType() !== wireType) return false;
+        const candidateTxn = candidate.getUnsigned()?.transaction_id;
+        if (typeof candidateTxn === 'string' && candidateTxn !== txnId) return false;
+        if (candidate.getTs() < echo.getTs() - LOCAL_ECHO_MATCH_MAX_CLOCK_SKEW_MS) return false;
+        return canonicalJson(candidate.getWireContent()) === wireContent;
+      });
+    }
+    const matchId = match?.getId();
+    if (!match || !matchId) continue;
+    claimedEventIds.add(matchId);
+
+    const unsigned = match.getUnsigned();
+    if (txnId && typeof unsigned.transaction_id !== 'string') {
+      unsigned.transaction_id = txnId;
+      match.setUnsigned(unsigned);
+    }
+    room.removeEvent(matchId);
+    room.handleRemoteEcho(match, echo);
+    debugLog.info('sync', 'Reconciled unlinked local echo', {
+      roomId: room.roomId,
+      localEchoId: echo.getId(),
+      remoteEventId: matchId,
+    });
+  }
+};
+
 export class SlidingSyncManager {
   private disposed = false;
 
@@ -628,6 +705,8 @@ export class SlidingSyncManager {
 
   private paused = false;
 
+  private pushDrainPollsLeft = 0;
+
   private readonly resumeWaiters = new Set<() => void>();
 
   /** Span covering the period from attach() to the first successful complete cycle. */
@@ -717,6 +796,9 @@ export class SlidingSyncManager {
 
       this.timelineResetCompletions.get(resp)?.();
       this.timelineResetCompletions.delete(resp);
+      for (const roomId of Object.keys(resp.rooms ?? {})) {
+        reconcileLocalEchoes(this.mx.getRoom(roomId));
+      }
       this.recordServerMembershipRooms(resp);
       this.reassertOptimisticJoins();
 
@@ -726,6 +808,7 @@ export class SlidingSyncManager {
       this.roomDataAwaitingSyncCompletion.clear();
 
       this.syncCount += 1;
+      this.settlePushDrain(resp);
 
       // A subscription that saw no room data is settled once a full cycle has
       // completed after the one it was requested in: the server had nothing to
@@ -927,6 +1010,7 @@ export class SlidingSyncManager {
    * instead.
    */
   public pause(): void {
+    this.pushDrainPollsLeft = 0;
     if (this.paused || this.disposed) return;
     this.paused = true;
     globalThis.clearTimeout(this.pollWatchdogTimer);
@@ -935,12 +1019,35 @@ export class SlidingSyncManager {
     debugLog.info('sync', 'Sliding sync paused');
   }
 
-  public resume(): void {
-    if (!this.paused) return;
+  private liftPause(): void {
     this.paused = false;
     this.releaseResumeWaiters();
     this.armPollWatchdog();
+  }
+
+  public resume(): void {
+    this.pushDrainPollsLeft = 0;
+    if (!this.paused) return;
+    this.liftPause();
     debugLog.info('sync', 'Sliding sync resumed');
+  }
+
+  /** Poll on while backgrounded, then park: to-device only arrives over a live `/sync`. */
+  public resumeForPush(): boolean {
+    if (this.disposed || !this.paused) return false;
+    this.pushDrainPollsLeft = MAX_PUSH_DRAIN_POLLS;
+    this.liftPause();
+    debugLog.info('sync', 'Sliding sync resumed to drain to-device after a push');
+    return true;
+  }
+
+  private settlePushDrain(resp: MSC3575SlidingSyncResponse): void {
+    if (this.pushDrainPollsLeft === 0) return;
+    const toDevice = resp.extensions?.to_device as { events?: unknown[] } | undefined;
+    const drained = (toDevice?.events?.length ?? 0) === 0;
+    this.pushDrainPollsLeft -= 1;
+    if (!drained && this.pushDrainPollsLeft > 0) return;
+    this.pause();
   }
 
   public isPaused(): boolean {
@@ -990,6 +1097,7 @@ export class SlidingSyncManager {
 
     this.disposed = true;
     this.paused = false;
+    this.pushDrainPollsLeft = 0;
     this.releaseResumeWaiters();
     globalThis.clearTimeout(this.pollWatchdogTimer);
     this.pollWatchdogTimer = undefined;

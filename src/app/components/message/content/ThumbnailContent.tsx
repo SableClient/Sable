@@ -10,6 +10,7 @@ import {
   mxcUrlToHttp,
   rewriteAuthenticatedMediaUrl,
 } from '$utils/matrix';
+import { prepareLoopbackImageSource } from '$utils/mediaUrl';
 import { setMediaEncryption } from '$utils/tauriMediaEncryption';
 import { isTauri } from '@tauri-apps/api/core';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
@@ -33,7 +34,9 @@ export function ThumbnailContent({ info, renderImage }: ThumbnailContentProps) {
     return mxcUrlToHttp(mx, thumbMxcUrl, useAuthentication) ?? undefined;
   }, [mx, thumbMxcUrl, useAuthentication]);
 
-  const resolvedMediaUrl = useRenderableMediaUrl(encInfo ? undefined : rawMediaUrl);
+  const tauri = isTauri();
+  // Tauri resolves the source inside `loadThumbSrc` instead.
+  const resolvedMediaUrl = useRenderableMediaUrl(encInfo || tauri ? undefined : rawMediaUrl);
 
   const createObjectURL = useCreateObjectURL();
 
@@ -47,7 +50,7 @@ export function ThumbnailContent({ info, renderImage }: ThumbnailContentProps) {
       }
       if (encInfo) {
         if (!rawMediaUrl) throw new Error('Invalid media URL');
-        if (isTauri()) {
+        if (tauri) {
           await setMediaEncryption(rawMediaUrl, encInfo, thumbInfo?.mimetype ?? FALLBACK_MIMETYPE);
           return rewriteAuthenticatedMediaUrl(rawMediaUrl)!;
         }
@@ -57,8 +60,9 @@ export function ThumbnailContent({ info, renderImage }: ThumbnailContentProps) {
           )
         );
       }
+      if (tauri && rawMediaUrl) return prepareLoopbackImageSource(rawMediaUrl);
       return resolvedMediaUrl ?? rawMediaUrl ?? thumbMxcUrl;
-    }, [info, thumbMxcUrl, rawMediaUrl, resolvedMediaUrl, encInfo, createObjectURL])
+    }, [info, thumbMxcUrl, rawMediaUrl, resolvedMediaUrl, tauri, encInfo, createObjectURL])
   );
 
   useEffect(() => {

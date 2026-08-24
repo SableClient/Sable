@@ -1,4 +1,4 @@
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router';
 import { RouteSurface } from '$components/page/RouteSurface';
 import { CreateSpaceForm } from '$features/create-space';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';

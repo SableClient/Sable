@@ -189,12 +189,21 @@ export const fetch: AppFetch = async (input, init) => {
   }
 
   const tauriFetch = await getTauriFetch();
+  // plugin-http's abort listener rejects unhandled once the body's rid is freed.
+  const callerSignal = getAbortSignal(input, init);
+  const controller = new AbortController();
+  const forwardAbort = () => controller.abort(callerSignal?.reason);
+  callerSignal?.addEventListener('abort', forwardAbort, { once: true });
+
   try {
-    return await drainBody(await tauriFetch(request, init));
+    throwIfAborted(callerSignal);
+    return await drainBody(await tauriFetch(request, { ...init, signal: controller.signal }));
   } catch (e) {
     if (e instanceof SyntaxError) {
       return new Response(null, { status: 502, statusText: 'Bad Gateway' });
     }
     throw e;
+  } finally {
+    callerSignal?.removeEventListener('abort', forwardAbort);
   }
 };

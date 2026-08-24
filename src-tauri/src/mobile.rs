@@ -53,6 +53,12 @@ pub fn set_navigation_bar_color(color: u32) -> Result<(), String> {
     call_bar_color("setNavigationBarColorNative", color)
 }
 
+/// `color` is a packed ARGB int (as produced by Android's `Color`).
+#[tauri::command]
+pub fn set_window_background_color(color: u32) -> Result<(), String> {
+    call_bar_color("setWindowBackgroundColorNative", color)
+}
+
 #[tauri::command]
 pub fn set_immersive_mode(enabled: bool) -> Result<(), String> {
     let vm = JAVA_VM.get().ok_or("java vm not initialized")?;

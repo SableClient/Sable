@@ -42,9 +42,9 @@ export function SwipeableOverlayWrapper({
 }: SwipeableOverlayWrapperProps) {
   const contentRef = useRef<HTMLDivElement>(null);
   const xRef = useRef(0);
-  const gestureRef = useRef<ActiveGesture>();
+  const gestureRef = useRef<ActiveGesture | undefined>(undefined);
   const closeCommittedRef = useRef(false);
-  const settleRef = useRef<{ cancel: () => void }>();
+  const settleRef = useRef<{ cancel: () => void } | undefined>(undefined);
   const reduceMotion = usePrefersReducedMotion();
 
   const acceptsLeft = direction !== 'right';

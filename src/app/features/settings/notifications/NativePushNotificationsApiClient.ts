@@ -18,7 +18,7 @@ let nativePushNotificationsApiPromise: Promise<NativePushNotificationsApi> | nul
 
 export async function getNativePushNotificationsApi(): Promise<NativePushNotificationsApi> {
   if (!nativePushNotificationsApiPromise) {
-    nativePushNotificationsApiPromise = import('@choochmeque/tauri-plugin-notifications-api').then(
+    nativePushNotificationsApiPromise = import('@sableclient/tauri-plugin-notifications-api').then(
       (notificationsApi) => ({
         isPermissionGranted: notificationsApi.isPermissionGranted,
         requestPermission: notificationsApi.requestPermission,

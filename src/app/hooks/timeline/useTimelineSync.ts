@@ -48,7 +48,7 @@ const EVENT_TIMELINE_LOAD_TIMEOUT_MS = 12000;
 
 const JUMP_CONTEXT_LIMIT = 20;
 
-type PaginationStatus = 'idle' | 'loading' | 'error';
+type PaginationStatus = 'idle' | 'loading';
 
 type TimelineState = {
   linkedTimelines: EventTimeline[];
@@ -193,6 +193,11 @@ const useTimelinePagination = (
   const alive = useAlive();
   const [backwardStatus, setBackwardStatus] = useState<PaginationStatus>('idle');
   const [forwardStatus, setForwardStatus] = useState<PaginationStatus>('idle');
+  // Kept apart from the status so a failure surfaces without latching the gate: both
+  // retry paths only fire from 'idle', so folding failure into the status strands the
+  // timeline behind Retry for the rest of the room visit.
+  const [backwardError, setBackwardError] = useState(false);
+  const [forwardError, setForwardError] = useState(false);
 
   const fetchingRef = useRef({ backward: false, forward: false });
   const paginate = useMemo(() => {
@@ -226,9 +231,13 @@ const useTimelinePagination = (
 
       fetchingRef.current[directionKey] = true;
       const setStatus = backwards ? setBackwardStatus : setForwardStatus;
-      if (alive()) setStatus('loading');
+      const setFailed = backwards ? setBackwardError : setForwardError;
+      if (alive()) {
+        setStatus('loading');
+        setFailed(false);
+      }
 
-      let settledStatus: PaginationStatus = 'idle';
+      let failed = false;
 
       try {
         const maxAttempts = autoContinue ? MAX_AUTO_CONTINUATIONS : 0;
@@ -245,7 +254,7 @@ const useTimelinePagination = (
           );
 
           if (err) {
-            settledStatus = 'error';
+            failed = true;
             return;
           }
           if (!alive()) return;
@@ -271,7 +280,10 @@ const useTimelinePagination = (
         }
       } finally {
         fetchingRef.current[directionKey] = false;
-        if (alive()) setStatus(settledStatus);
+        if (alive()) {
+          setStatus('idle');
+          if (failed) setFailed(true);
+        }
       }
     };
   }, [
@@ -286,7 +298,7 @@ const useTimelinePagination = (
     onFocusedForwardExhausted,
   ]);
 
-  return { paginate, backwardStatus, forwardStatus };
+  return { paginate, backwardStatus, forwardStatus, backwardError, forwardError };
 };
 
 const useLiveEventArrive = (
@@ -591,6 +603,8 @@ export function useTimelineSync({
     paginate: handleTimelinePagination,
     backwardStatus,
     forwardStatus,
+    backwardError,
+    forwardError,
   } = useTimelinePagination(
     mx,
     room,
@@ -698,7 +712,7 @@ export function useTimelineSync({
 
   useMatrixEvent(room, RoomEvent.LocalEchoUpdated, handleLocalEchoUpdated);
 
-  const decryptedFrameRef = useRef<number>();
+  const decryptedFrameRef = useRef<number | undefined>(undefined);
   const handleDecrypted = useCallback(
     (mEvent: MatrixEvent) => {
       if (mEvent.getRoomId() !== room.roomId) return;
@@ -800,6 +814,8 @@ export function useTimelineSync({
     canPaginateForward,
     backwardStatus,
     forwardStatus,
+    backwardError,
+    forwardError,
     handleTimelinePagination,
     loadEventTimeline,
     cancelEventTimelineLoad,

@@ -1,5 +1,5 @@
+import type { JSX, ReactEventHandler } from 'react';
 import { fireEvent, render, screen } from '@testing-library/react';
-import type { ReactEventHandler } from 'react';
 import parse from 'html-react-parser';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import * as customHtmlCss from '$styles/CustomHtml.css';
@@ -96,7 +96,7 @@ describe('getReactCustomHtmlParser code blocks', () => {
         language: 'rust',
         allowDetect: false,
       }),
-      expect.anything()
+      undefined
     );
   });
 
@@ -150,7 +150,7 @@ describe('react custom html parser', () => {
     const img = container.querySelector('img');
     expect(img).toBeInTheDocument();
     expect(img).toHaveAttribute('height', '32');
-    expect(img).toHaveStyle({ width: 'auto', height: '1em' });
+    expect(img).toHaveStyle({ width: 'auto', height: '16px' });
   });
 
   it('clamps incoming inline image height to the configured max', () => {

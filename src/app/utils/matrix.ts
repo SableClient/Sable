@@ -46,6 +46,8 @@ export const isRoomId = (id: string): boolean => id.startsWith('!');
 
 export const isRoomAlias = (id: string): boolean => validMxId(id) && id.startsWith('#');
 
+export const isEventId = (id: string): boolean => id.startsWith('$');
+
 export const getCanonicalAliasRoomId = (mx: MatrixClient, alias: string): string | undefined =>
   mx
     .getRooms()

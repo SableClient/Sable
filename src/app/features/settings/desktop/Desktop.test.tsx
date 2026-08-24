@@ -13,20 +13,24 @@ const {
   mockUseDesktopRuntimeState,
   mockUseDesktopSettingsSyncing,
   mockSetUseCustomTitleBar,
+  mockSetSpellcheck,
 } = vi.hoisted(() => {
   const setUseCustomTitleBarMock = vi.fn<(value: boolean) => void>();
+  const setSpellcheckMock = vi.fn<(value: boolean) => void>();
 
   return {
     mockUseDesktopSetting: vi.fn<
       (
-        key: 'closeToBackgroundOnClose' | 'showSystemTrayIcon' | 'useCustomTitleBar'
+        key: 'closeToBackgroundOnClose' | 'showSystemTrayIcon' | 'useCustomTitleBar' | 'spellcheck'
       ) => readonly [boolean, (value: boolean) => void]
     >((key) => {
       if (key === 'useCustomTitleBar') return [true, setUseCustomTitleBarMock] as const;
+      if (key === 'spellcheck') return [true, setSpellcheckMock] as const;
       if (key === 'closeToBackgroundOnClose') return [true, vi.fn<() => void>()] as const;
       return [true, vi.fn<() => void>()] as const;
     }),
     mockSetUseCustomTitleBar: setUseCustomTitleBarMock,
+    mockSetSpellcheck: setSpellcheckMock,
     mockUseDesktopSettingsReady: vi.fn<() => boolean>(() => true),
     mockUseDesktopSettingsSyncing: vi.fn<() => boolean>(() => false),
     mockUseDesktopRuntimeState: vi.fn<() => { trayAvailable: boolean }>(() => ({
@@ -115,7 +119,19 @@ describe('Desktop', () => {
         'Show a system tray icon while Sable is running. Disable this if you want Sable to stay available without a tray icon.'
       )
     ).toBeInTheDocument();
-    expect(container.getElementsByClassName(SequenceCardStyle)).toHaveLength(4);
+    expect(screen.getByText('Spellcheck')).toBeInTheDocument();
+    expect(
+      screen.getByText('Underline misspelled words and offer corrections in text fields.')
+    ).toBeInTheDocument();
+    expect(container.getElementsByClassName(SequenceCardStyle)).toHaveLength(5);
+  });
+
+  it('updates the spellcheck setting from the Text input switch', () => {
+    renderDesktop();
+
+    fireEvent.click(screen.getByRole('switch', { name: 'spellcheck' }));
+
+    expect(mockSetSpellcheck).toHaveBeenCalledWith(false);
   });
 
   it('updates the custom title bar setting from the Window switch', () => {

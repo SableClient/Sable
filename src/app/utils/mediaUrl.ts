@@ -1,6 +1,8 @@
 import { convertFileSrc, invoke, isTauri } from '@tauri-apps/api/core';
 import type { MatrixClient } from '$types/matrix-sdk';
+import { webviewStripsCustomProtocolCache } from './platform';
 import { getCurrentMediaSessionScope } from './mediaTransport';
+import { getTauriMediaSourceUrl } from './mediaSourceUrl';
 
 const TAURI_MEDIA_CACHE_VERSION = '__sable_media_cache=3';
 const TAURI_MEDIA_PATH_PREFIXES = [
@@ -40,43 +42,9 @@ export const rewriteAuthenticatedMediaUrl = (httpUrl: string | null): string | n
   return `${mediaUrl}${separator}${TAURI_MEDIA_CACHE_VERSION}&__sable_media_session=${sessionScope}`;
 };
 
-const TAURI_MEDIA_RETRY_FRAGMENT = '__sable_media_retry';
+// Kept in step with MEDIA_RETRY_MARKER in mediaTransport.ts, which strips it from cache keys.
+const MEDIA_RETRY_MARKER = '__sable_media_retry';
 const TAURI_MEDIA_OUTER_QUERY_PARAMS = ['__sable_media_cache', '__sable_media_session'];
-const TAURI_MEDIA_PROTOCOL = 'sable-media://';
-const TAURI_MEDIA_LOCALHOST = 'localhost';
-const TAURI_MEDIA_LOCALHOST_HOST = 'sable-media.localhost';
-
-export const getTauriMediaSourceUrl = (mediaUrl: string): string | undefined => {
-  if (mediaUrl.startsWith(TAURI_MEDIA_PROTOCOL)) {
-    const wrappedUrl = mediaUrl.slice(TAURI_MEDIA_PROTOCOL.length);
-
-    if (wrappedUrl.startsWith(`${TAURI_MEDIA_LOCALHOST}/`)) {
-      try {
-        const parsedUrl = new URL(mediaUrl);
-        if (parsedUrl.hostname !== TAURI_MEDIA_LOCALHOST) return undefined;
-        return decodeURIComponent(parsedUrl.pathname.slice(1));
-      } catch {
-        return undefined;
-      }
-    }
-
-    return wrappedUrl;
-  }
-
-  try {
-    const parsedUrl = new URL(mediaUrl);
-    if (
-      (parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:') &&
-      parsedUrl.hostname === TAURI_MEDIA_LOCALHOST_HOST
-    ) {
-      return decodeURIComponent(parsedUrl.pathname.slice(1));
-    }
-  } catch {
-    return undefined;
-  }
-
-  return mediaUrl;
-};
 
 // Embeds a retry revision as a fragment on the inner http(s) target (stripping the
 // outer cache/session markers, which the rewrite re-adds). The fragment makes Rust's
@@ -98,7 +66,7 @@ export const getTauriMediaRetryTarget = (
   }
   if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') return undefined;
   TAURI_MEDIA_OUTER_QUERY_PARAMS.forEach((param) => parsedUrl.searchParams.delete(param));
-  parsedUrl.hash = `${TAURI_MEDIA_RETRY_FRAGMENT}=${revision}`;
+  parsedUrl.hash = `${MEDIA_RETRY_MARKER}=${revision}`;
   return parsedUrl.toString();
 };
 
@@ -108,11 +76,43 @@ export const addTauriMediaRetryRevision = (mediaUrl: string, revision: number): 
   return rewriteAuthenticatedMediaUrl(target) ?? mediaUrl;
 };
 
+// Without it the retried `src` is identical, so the browser never re-requests.
+const addWebMediaRetryRevision = (mediaUrl: string, revision: number): string => {
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(mediaUrl);
+  } catch {
+    return mediaUrl;
+  }
+  if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') return mediaUrl;
+  parsedUrl.searchParams.set(MEDIA_RETRY_MARKER, String(revision));
+  return parsedUrl.toString();
+};
+
+export const addMediaRetryRevision = (mediaUrl: string, revision: number): string => {
+  if (revision <= 0) return mediaUrl;
+  return isTauri()
+    ? addTauriMediaRetryRevision(mediaUrl, revision)
+    : addWebMediaRetryRevision(mediaUrl, revision);
+};
+
 // A media element cannot play from the `sable-media` scheme (MEDIA_ERR_SRC_NOT_SUPPORTED),
 // so video/audio sources go through the loopback HTTP origin.
 export const prepareLoopbackMedia = async (source: string): Promise<string> => {
   if (!isTauri()) return source;
   return invoke<string>('prepare_loopback_media', { url: source });
+};
+
+// Awaited by the caller's own load so an element's src never changes mid-flight. An image
+// renders from the custom protocol too, so a loopback failure costs caching, not the image.
+export const prepareLoopbackImageSource = async (source: string): Promise<string> => {
+  if (!isTauri()) return source;
+  if (!webviewStripsCustomProtocolCache()) return rewriteAuthenticatedMediaUrl(source) ?? source;
+  try {
+    return await prepareLoopbackMedia(source);
+  } catch {
+    return source;
+  }
 };
 
 export const mxcUrlToHttp = (

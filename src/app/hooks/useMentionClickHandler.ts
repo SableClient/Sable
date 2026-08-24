@@ -1,6 +1,6 @@
 import type { ReactEventHandler } from 'react';
 import { useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import type { Position, RectCords } from 'folds';
 import { isRoomId, isUserId } from '$utils/matrix';
 import { getHomeRoomPath, withSearchParam } from '$pages/pathUtils';

@@ -1,4 +1,4 @@
-// Test stub — the git dep has no built dist-js/ so tests resolve here.
+// Test stub — vitest resolves the Tauri notifications plugin here instead of node_modules.
 
 export const Importance = { None: 0, Min: 1, Low: 2, Default: 3, High: 4 } as const;
 export const Visibility = { Secret: -1, Private: 0, Public: 1 } as const;

@@ -46,6 +46,8 @@ describe('SlidingSyncSidebarCache', () => {
       name: 'Cached Room',
       initial: true,
       bump_stamp: 42,
+      notification_count: 3,
+      highlight_count: 1,
       required_state: [
         stateEvent(EventType.RoomName, '', { name: 'Cached Room' }),
         stateEvent(EventType.SpaceChild, '!child:example.com', { via: ['example.com'] }),
@@ -95,6 +97,8 @@ describe('SlidingSyncSidebarCache', () => {
         timeline: [],
         initial: true,
         bump_stamp: 42,
+        notification_count: 3,
+        highlight_count: 1,
       })
     );
     const hydratedRoom = emitPromised.mock.calls[0]?.[2] as MSC3575RoomData;

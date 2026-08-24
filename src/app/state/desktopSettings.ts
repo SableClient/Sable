@@ -29,6 +29,7 @@ export function desktopSettingsDefaultsForPlatform(platform: DesktopPlatform): D
     closeToBackgroundOnClose: true,
     showSystemTrayIcon: true,
     useCustomTitleBar: platform === 'windows',
+    spellcheck: true,
   };
 }
 export type DesktopSettingKey = keyof DesktopSettings;
@@ -75,6 +76,7 @@ export function desktopSettingsFromStoreValues(
   showSystemTrayIcon: boolean | undefined,
   legacyKeepBackgroundRunning: boolean | undefined,
   useCustomTitleBar: boolean | undefined,
+  spellcheck: boolean | undefined,
   platform = getDesktopTauriPlatform()
 ): DesktopSettings {
   const defaults = desktopSettingsDefaultsForPlatform(platform);
@@ -85,6 +87,7 @@ export function desktopSettingsFromStoreValues(
       readBoolean(legacyKeepBackgroundRunning, false),
     showSystemTrayIcon: readBoolean(showSystemTrayIcon, defaults.showSystemTrayIcon),
     useCustomTitleBar: readBoolean(useCustomTitleBar, defaults.useCustomTitleBar),
+    spellcheck: readBoolean(spellcheck, defaults.spellcheck),
   };
 }
 
@@ -113,18 +116,21 @@ export async function getDesktopSettings(): Promise<DesktopSettings> {
     showSystemTrayIcon,
     legacyKeepBackgroundRunning,
     useCustomTitleBar,
+    spellcheck,
   ] = await Promise.all([
     desktopSettingsStore.get<boolean>('closeToBackgroundOnClose'),
     desktopSettingsStore.get<boolean>('showSystemTrayIcon'),
     desktopSettingsStore.get<boolean>(LEGACY_KEEP_BACKGROUND_RUNNING_KEY),
     desktopSettingsStore.get<boolean>('useCustomTitleBar'),
+    desktopSettingsStore.get<boolean>('spellcheck'),
   ]);
 
   currentDesktopSettings = desktopSettingsFromStoreValues(
     closeToBackgroundOnClose,
     showSystemTrayIcon,
     legacyKeepBackgroundRunning,
-    useCustomTitleBar
+    useCustomTitleBar,
+    spellcheck
   );
 
   return currentDesktopSettings;

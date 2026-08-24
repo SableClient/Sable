@@ -225,6 +225,7 @@ export function ForumHeader({ room, showProfile, powerLevels }: ForumHeaderProps
                   fill="None"
                   onClick={menu.triggerProps.onClick}
                   ref={triggerRef}
+                  aria-label="More Options"
                   aria-pressed={!!menu.anchor}
                 >
                   {composerIcon(DotsThreeOutlineVerticalIcon, {

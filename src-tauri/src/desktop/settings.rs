@@ -8,12 +8,14 @@ pub struct DesktopSettings {
     pub close_to_background_on_close: bool,
     pub show_system_tray_icon: bool,
     pub use_custom_title_bar: bool,
+    pub spellcheck: bool,
 }
 
 pub(crate) const DESKTOP_SETTINGS_PATH: &str = "desktop-preferences.json";
 pub(crate) const CLOSE_TO_BACKGROUND_ON_CLOSE_KEY: &str = "closeToBackgroundOnClose";
 pub(crate) const SHOW_SYSTEM_TRAY_ICON_KEY: &str = "showSystemTrayIcon";
 pub(crate) const USE_CUSTOM_TITLE_BAR_KEY: &str = "useCustomTitleBar";
+pub(crate) const SPELLCHECK_KEY: &str = "spellcheck";
 pub(crate) const LEGACY_KEEP_BACKGROUND_RUNNING_KEY: &str = "keepBackgroundRunning";
 
 pub(crate) const fn use_custom_title_bar_default() -> bool {
@@ -28,6 +30,7 @@ pub(crate) fn desktop_settings_from_values(
     close_to_background_on_close: Option<bool>,
     show_system_tray_icon: Option<bool>,
     use_custom_title_bar: Option<bool>,
+    spellcheck: Option<bool>,
     keep_background_running: Option<bool>,
 ) -> DesktopSettings {
     DesktopSettings {
@@ -35,6 +38,7 @@ pub(crate) fn desktop_settings_from_values(
             || keep_background_running.unwrap_or(false),
         show_system_tray_icon: show_system_tray_icon.unwrap_or(true),
         use_custom_title_bar: use_custom_title_bar.unwrap_or(use_custom_title_bar_default()),
+        spellcheck: spellcheck.unwrap_or(true),
     }
 }
 
@@ -50,6 +54,7 @@ mod tests {
             close_to_background_on_close: true,
             show_system_tray_icon: false,
             use_custom_title_bar: true,
+            spellcheck: false,
         };
 
         assert_eq!(
@@ -58,6 +63,7 @@ mod tests {
                 "closeToBackgroundOnClose": true,
                 "showSystemTrayIcon": false,
                 "useCustomTitleBar": true,
+                "spellcheck": false,
             })
         );
     }
@@ -69,12 +75,14 @@ mod tests {
                 "closeToBackgroundOnClose": true,
                 "showSystemTrayIcon": false,
                 "useCustomTitleBar": true,
+                "spellcheck": false,
             }))
             .unwrap(),
             DesktopSettings {
                 close_to_background_on_close: true,
                 show_system_tray_icon: false,
                 use_custom_title_bar: true,
+                spellcheck: false,
             }
         );
     }
@@ -87,17 +95,19 @@ mod tests {
         assert!(output.contains("closeToBackgroundOnClose: boolean"));
         assert!(output.contains("showSystemTrayIcon: boolean"));
         assert!(output.contains("useCustomTitleBar: boolean"));
+        assert!(output.contains("spellcheck: boolean"));
         assert!(!output.contains("keepBackgroundRunning: boolean"));
     }
 
     #[test]
     fn legacy_background_setting_keeps_close_behavior_enabled() {
         assert_eq!(
-            desktop_settings_from_values(Some(false), Some(false), Some(false), Some(true)),
+            desktop_settings_from_values(Some(false), Some(false), Some(false), None, Some(true)),
             DesktopSettings {
                 close_to_background_on_close: true,
                 show_system_tray_icon: false,
                 use_custom_title_bar: false,
+                spellcheck: true,
             }
         );
     }
@@ -105,11 +115,12 @@ mod tests {
     #[test]
     fn explicit_close_setting_stays_disabled_when_legacy_background_is_off() {
         assert_eq!(
-            desktop_settings_from_values(Some(false), Some(true), Some(true), Some(false)),
+            desktop_settings_from_values(Some(false), Some(true), Some(true), None, Some(false)),
             DesktopSettings {
                 close_to_background_on_close: false,
                 show_system_tray_icon: true,
                 use_custom_title_bar: true,
+                spellcheck: true,
             }
         );
     }
@@ -117,8 +128,15 @@ mod tests {
     #[test]
     fn missing_custom_title_bar_setting_uses_platform_default() {
         assert_eq!(
-            desktop_settings_from_values(Some(true), Some(true), None, None).use_custom_title_bar,
+            desktop_settings_from_values(Some(true), Some(true), None, None, None)
+                .use_custom_title_bar,
             cfg!(target_os = "windows")
         );
+    }
+
+    #[test]
+    fn missing_spellcheck_setting_defaults_to_enabled() {
+        assert!(desktop_settings_from_values(None, None, None, None, None).spellcheck);
+        assert!(!desktop_settings_from_values(None, None, None, Some(false), None).spellcheck);
     }
 }

@@ -46,6 +46,7 @@ import { RoomViewFollowing, RoomViewFollowingPlaceholder } from './RoomViewFollo
 import * as css from './ThreadDrawer.css';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { isMobileOrTablet } from '$utils/platform';
+import { useDismissOnBack } from '$utils/androidBack';
 import type { Persona } from '$app/persona';
 
 type ThreadDrawerProps = {
@@ -77,6 +78,7 @@ export function ThreadDrawer({ room, threadRootId, onClose, overlay }: ThreadDra
     [jotaiStore]
   );
   const pushProcessor = mx.pushProcessor;
+  useDismissOnBack(onClose);
   const isInactivePanel = useIsInactivePanel();
 
   // Shared renderer context — replaces 17+ inline useSetting calls,

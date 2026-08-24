@@ -23,14 +23,13 @@ on:
       - 'tsconfig.json'
       - '.github/workflows/cloudflare-web-preview.yml'
       - '.github/actions/setup/**'
-
 concurrency:
   group: cloudflare-worker-preview-${{ github.event.pull_request.number || github.ref_name }}
   cancel-in-progress: true
 
 jobs:
   deploy:
-    if: (github.event.pull_request.head.repo.full_name == github.repository && github.head_ref != 'release') || github.event_name == 'push'
+    if: (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.head_ref != 'release') || github.event_name == 'push'
     runs-on: ubuntu-latest
     permissions:
       contents: read

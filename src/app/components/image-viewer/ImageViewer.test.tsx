@@ -102,7 +102,7 @@ describe('ImageViewer', () => {
     expect(FileSaver.saveAs).toHaveBeenCalledWith(expect.any(Blob), 'kitten.png');
   });
 
-  it("downloads the Matrix source behind Android's sable-media URL", async () => {
+  it("forwards Android's sable-media URL to the media transport unchanged", async () => {
     const source = 'https://matrix.example.org/_matrix/client/v1/media/download/example.org/kitten';
     const src = `https://sable-media.localhost/${encodeURIComponent(source)}?__sable_media_cache=3`;
     downloadMedia.mockResolvedValue(new Blob(['image']));
@@ -111,7 +111,7 @@ describe('ImageViewer', () => {
     fireEvent.click(screen.getByText('Download'));
 
     await waitFor(() => {
-      expect(downloadMedia).toHaveBeenCalledWith(source);
+      expect(downloadMedia).toHaveBeenCalledWith(src);
     });
   });
 
@@ -250,7 +250,7 @@ describe('ImageViewer', () => {
     expect(screen.getByText('Save to Gallery')).toBeInTheDocument();
   });
 
-  it("saves the Matrix source behind Android's sable-media URL to the gallery", async () => {
+  it("saves media behind Android's sable-media URL to the gallery", async () => {
     mockPlatform('android');
     const source = 'https://matrix.example.org/_matrix/client/v1/media/download/example.org/kitten';
     const src = `https://sable-media.localhost/${encodeURIComponent(source)}?__sable_media_cache=3`;
@@ -266,7 +266,7 @@ describe('ImageViewer', () => {
     await waitFor(() =>
       expect(saveMediaToGallery).toHaveBeenCalledWith(blob, 'kitten.png', 'image/png')
     );
-    expect(downloadMedia).toHaveBeenCalledWith(source);
+    expect(downloadMedia).toHaveBeenCalledWith(src);
   });
 
   it('labels the primary action Save to Photos on iOS without duplicating it in the overflow menu', () => {

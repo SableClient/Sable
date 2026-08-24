@@ -59,7 +59,7 @@ export const Reactions = as<'div', ReactionsProps>(
     const useAuthentication = useMediaAuthentication();
     const [viewer, setViewer] = useState<boolean | string>(false);
     const [emojiBoardAnchor, setEmojiBoardAnchor] = useState<RectCords>();
-    const pressedReactionKey = useRef<string>();
+    const pressedReactionKey = useRef<string | undefined>(undefined);
     const reactionLongPress = useMobileLongPress(() => {
       if (pressedReactionKey.current) setViewer(pressedReactionKey.current);
     });

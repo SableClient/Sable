@@ -1,7 +1,7 @@
 import type { MouseEventHandler } from 'react';
 import { useCallback, useState } from 'react';
 import { useAtom, useAtomValue } from 'jotai';
-import type { CryptoApi, KeyBackupInfo } from '$types/matrix-sdk';
+import type { CryptoApi, CryptoBackend, KeyBackupInfo } from '$types/matrix-sdk';
 import type { RectCords } from 'folds';
 import {
   Badge,
@@ -38,6 +38,7 @@ import {
 import { SecretStorageKeyMethod, SecretStorageKeyPrompt } from './SecretStorage';
 import { stopPropagation } from '$utils/keyboard';
 import { useRestoreBackupOnVerification } from '$hooks/useRestoreBackupOnVerification';
+import { useMatrixClient } from '$hooks/useMatrixClient';
 import {
   Download,
   DotsThreeOutlineVerticalIcon,
@@ -56,6 +57,8 @@ function BackupKeyRecovery({
   secretStorageKeyId,
   secretStorageKeyContent,
 }: BackupKeyRecoveryProps) {
+  const mx = useMatrixClient();
+  const cryptoBackend = crypto as CryptoBackend;
   const hasPassphrase = !!secretStorageKeyContent.passphrase;
   const [method, setMethod] = useState(
     hasPassphrase ? SecretStorageKeyMethod.RecoveryPassphrase : SecretStorageKeyMethod.RecoveryKey
@@ -65,10 +68,21 @@ function BackupKeyRecovery({
     useCallback(
       async (recoveryKey: Uint8Array) => {
         storePrivateKey(secretStorageKeyId, recoveryKey);
+
+        await cryptoBackend.processDeviceLists({ changed: [mx.getSafeUserId()] });
+        await cryptoBackend.bootstrapCrossSigning({});
+        await cryptoBackend.bootstrapSecretStorage({});
+
+        const deviceId = mx.getDeviceId();
+        if (!deviceId) {
+          throw new Error('Unexpected Error! Current device ID not found.');
+        }
+        await cryptoBackend.setDeviceVerified(mx.getSafeUserId(), deviceId);
+
         // Emits KeyBackupDecryptionKeyCached, which drives the restore.
         await crypto.loadSessionBackupPrivateKeyFromSecretStorage();
       },
-      [crypto, secretStorageKeyId]
+      [crypto, cryptoBackend, mx, secretStorageKeyId]
     )
   );
 
@@ -80,8 +94,8 @@ function BackupKeyRecovery({
   return (
     <Box direction="Column" gap="200">
       <Text size="T200">
-        This device does not hold the backup decryption key. Provide your recovery details to unlock
-        the backup and restore your message history.
+        This device does not hold the backup decryption key. Provide your recovery details to
+        restore device verification and unlock the backup.
       </Text>
       <SecretStorageKeyPrompt
         method={method}

@@ -18,14 +18,14 @@ vi.mock('$utils/debugLogger', () => ({
   }),
 }));
 
-import { nudgeReconnect } from './reconnect';
+import { abortClassicSyncPoll, nudgeReconnect } from './reconnect';
 
 function stubMx(
   overrides: Partial<{ clientRunning: boolean; retryImmediately: ReturnType<typeof vi.fn> }> = {}
 ) {
   return {
     clientRunning: overrides.clientRunning ?? true,
-    retryImmediately: overrides.retryImmediately ?? vi.fn<() => boolean>(),
+    retryImmediately: overrides.retryImmediately ?? vi.fn<() => boolean>().mockReturnValue(true),
   };
 }
 
@@ -57,6 +57,14 @@ describe('nudgeReconnect', () => {
     expect(result).toBe(true);
     expect(mx.retryImmediately).toHaveBeenCalledOnce();
     expect(slidingSyncResend).not.toHaveBeenCalled();
+  });
+
+  it('reports false when classic retryImmediately() could not bite', () => {
+    getSlidingSyncManager.mockReturnValue(undefined);
+    const mx = stubMx({ retryImmediately: vi.fn<() => boolean>().mockReturnValue(false) });
+
+    expect(nudgeReconnect(mx as never, 'resumed')).toBe(false);
+    expect(mx.retryImmediately).toHaveBeenCalledOnce();
   });
 
   it('returns false and does nothing when client is not running', () => {
@@ -107,5 +115,22 @@ describe('nudgeReconnect', () => {
     expect(r1).toBe(true);
     expect(r2).toBe(true);
     expect(slidingSyncResend).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('abortClassicSyncPoll', () => {
+  it('aborts the in-flight poll and swaps in a usable controller', () => {
+    const first = new AbortController();
+    const mx = { syncApi: { abortController: first } };
+
+    expect(abortClassicSyncPoll(mx as never)).toBe(true);
+    expect(first.signal.aborted).toBe(true);
+    expect(mx.syncApi.abortController).not.toBe(first);
+    expect(mx.syncApi.abortController.signal.aborted).toBe(false);
+  });
+
+  it('reports false when the transport holds no abort controller', () => {
+    expect(abortClassicSyncPoll({ syncApi: {} } as never)).toBe(false);
+    expect(abortClassicSyncPoll({} as never)).toBe(false);
   });
 });

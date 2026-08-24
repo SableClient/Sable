@@ -715,6 +715,45 @@ const syncOpts = (
 });
 
 describe('back-pagination', () => {
+  describe('a failed backfill leaves the gate open', () => {
+    it('keeps the status idle so a later attempt is not blocked', async () => {
+      const { room } = createPaginableRoom();
+      const paginate = vi.fn<() => Promise<boolean>>(async () => {
+        throw new Error('net::ERR_INTERNET_DISCONNECTED');
+      });
+      const { result } = renderHook(() => useTimelineSync(syncOpts(room, paginate, () => false)));
+
+      await act(async () => {
+        await result.current.handleTimelinePagination(true, true);
+      });
+
+      expect(result.current.backwardError).toBe(true);
+      expect(result.current.backwardStatus).toBe('idle');
+    });
+
+    it('clears the error as soon as the next attempt starts', async () => {
+      const { room, events } = createPaginableRoom();
+      const paginate = vi
+        .fn<() => Promise<boolean>>()
+        .mockRejectedValueOnce(new Error('net::ERR_INTERNET_DISCONNECTED'))
+        .mockImplementation(async () => {
+          events.push({}, {}, {}, {}, {});
+          return true;
+        });
+      const { result } = renderHook(() => useTimelineSync(syncOpts(room, paginate, () => true)));
+
+      await act(async () => {
+        await result.current.handleTimelinePagination(true);
+      });
+      expect(result.current.backwardError).toBe(true);
+
+      await act(async () => {
+        await result.current.handleTimelinePagination(true);
+      });
+      expect(result.current.backwardError).toBe(false);
+    });
+  });
+
   describe('normal sync', () => {
     it('auto-continues over hidden-only pages, then settles back to idle', async () => {
       const { room, events } = createPaginableRoom();
@@ -873,11 +912,14 @@ describe('back-pagination', () => {
       await act(async () => {
         await result.current.handleTimelinePagination(true);
       });
-      expect(result.current.backwardStatus).toBe('error');
+      expect(result.current.backwardError).toBe(true);
+      // The gate must not latch, or neither retry path can ever fire again.
+      expect(result.current.backwardStatus).toBe('idle');
 
       await act(async () => {
         await result.current.handleTimelinePagination(true);
       });
+      expect(result.current.backwardError).toBe(false);
       expect(result.current.backwardStatus).toBe('idle');
       expect(paginateEventTimeline).toHaveBeenCalledTimes(2);
     });

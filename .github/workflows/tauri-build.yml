@@ -295,6 +295,24 @@ jobs:
         shell: bash
         run: node .github/scripts/set-tauri-version.mjs "$VERSION"
 
+      - name: Generate nightly Android project
+        if: ${{ needs.setup-release.outputs.nightly == 'true' }}
+        shell: bash
+        run: |
+          # Tauri requires source files at the configured package path. Overlay the
+          # nightly package rather than regenerating and losing tracked customizations.
+          APP_DIR=src-tauri/gen/android/app
+          NIGHTLY_PACKAGE_DIR="$APP_DIR/src/main/java/moe/sable/client/nightly"
+          NIGHTLY_SOURCE_DIR="$RUNNER_TEMP/android-nightly-package"
+          cp -a "$APP_DIR/src/main/java/moe/sable/client" "$NIGHTLY_SOURCE_DIR"
+          find "$NIGHTLY_SOURCE_DIR" -type f -exec sed -i \
+            's/moe\.sable\.client/moe.sable.client.nightly/g' {} +
+          find "$APP_DIR/src/main/java/moe/sable/client" -mindepth 1 -maxdepth 1 \
+            ! -name nightly -exec rm -rf {} +
+          mv "$NIGHTLY_SOURCE_DIR" "$NIGHTLY_PACKAGE_DIR"
+          sed -i 's/moe\.sable\.client/moe.sable.client.nightly/g' \
+            "$APP_DIR/build.gradle.kts" "$APP_DIR/src/main/AndroidManifest.xml"
+
       - name: Setup Android signing
         if: ${{ env.ANDROID_KEY_BASE64 != '' }}
         shell: bash
@@ -312,8 +330,11 @@ jobs:
         run: |
           if [ "$IS_NIGHTLY" = "true" ]; then
             export SABLE_BUILD_FLAVOR=dev
+            export SABLE_LAUNCHER_ICON=nightly
           fi
-          pnpm tauri android build --apk --aab --target aarch64 armv7
+          CONFIG_ARGS=""
+          [ "$IS_NIGHTLY" = "true" ] && CONFIG_ARGS="--config src-tauri/tauri.nightly.conf.json"
+          pnpm tauri android build $CONFIG_ARGS --apk --aab --target aarch64 armv7
           OUT='src-tauri/gen/android/app/build/outputs'
           APK=$(find "$OUT/apk/universal/release" -name '*.apk' -type f | head -1)
           AAB=$(find "$OUT/bundle/universalRelease" -name '*.aab' -type f | head -1)
@@ -424,7 +445,16 @@ jobs:
 
       - name: Set up iOS
         shell: bash
-        run: mise -y run tauri:setup:ios
+        env:
+          IS_NIGHTLY: ${{ needs.setup-release.outputs.nightly }}
+        run: |
+          if [ "$IS_NIGHTLY" = "true" ]; then
+            rm -rf src-tauri/gen/apple
+            command -v pod >/dev/null 2>&1 || brew install cocoapods
+            pnpm tauri ios init --ci --config src-tauri/tauri.nightly.conf.json
+          else
+            mise -y run tauri:setup:ios
+          fi
 
       - name: Download iOS frameworks
         shell: bash
@@ -442,8 +472,11 @@ jobs:
         run: |
           if [ "$IS_NIGHTLY" = "true" ]; then
             export SABLE_BUILD_FLAVOR=dev
+            export SABLE_LAUNCHER_ICON=nightly
           fi
-          pnpm tauri ios build --no-sign --ci
+          CONFIG_ARGS=""
+          [ "$IS_NIGHTLY" = "true" ] && CONFIG_ARGS="--config src-tauri/tauri.nightly.conf.json"
+          pnpm tauri ios build $CONFIG_ARGS --no-sign --ci
           IPA=$(find src-tauri/gen/apple/build -name '*.ipa' -type f | head -1)
           [ -n "$IPA" ] || { echo "IPA not found"; ls -R src-tauri/gen/apple/build 2>/dev/null || true; exit 1; }
           NORMALIZED_IPA="$(dirname "$IPA")/Sable-${VERSION}-ios-arm64.ipa"
@@ -527,7 +560,8 @@ jobs:
 
   updater-manifest:
     name: Publish updater manifest
-    needs: [setup-release, build, linux]
+    needs: [setup-release, build, linux, android, ios, obtainium]
+    if: ${{ always() && needs.setup-release.result == 'success' && needs.build.result == 'success' && needs.linux.result == 'success' && needs.android.result == 'success' && needs.ios.result == 'success' && needs.obtainium.result == 'success' }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
@@ -554,18 +588,8 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          NEEDS_SETUP_RELEASE_OUTPUTS_NIGHTLY: ${{ needs.setup-release.outputs.nightly }}
+          IS_NIGHTLY: ${{ needs.setup-release.outputs.nightly }}
         run: |
-          if [ "${NEEDS_SETUP_RELEASE_OUTPUTS_NIGHTLY}" = "true" ]; then
-            gh release view "$TAG" --json assets \
-              | jq -r --arg cutoff "$STARTED_AT" \
-                  '.assets[] | select(.updatedAt <= $cutoff and (.name | endswith(".sig"))) | .name' \
-              | while read -r name; do
-                  [ -n "$name" ] || continue
-                  echo "Removing superseded nightly signature: $name"
-                  gh release delete-asset "$TAG" "$name" --yes
-                done
-          fi
           node .github/scripts/build-updater-manifest.mjs
           if [ -f latest.json ]; then
             echo "produced=true" >> "$GITHUB_OUTPUT"
@@ -579,13 +603,6 @@ jobs:
         uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
           subject-path: latest.json
-
-      - name: Upload updater manifest
-        if: steps.manifest.outputs.produced == 'true'
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release upload "$TAG" latest.json --clobber
 
       - name: Finalize nightly release
         if: ${{ needs.setup-release.outputs.nightly == 'true' && steps.manifest.outputs.produced == 'true' }}
@@ -602,6 +619,19 @@ jobs:
             --title "Nightly (dev)" \
             --notes "Rolling nightly build $VERSION from dev — $GIT_SHA"
 
+      - name: Upload updater manifest
+        if: steps.manifest.outputs.produced == 'true'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$TAG" latest.json --clobber
+
+      - name: Remove superseded nightly assets
+        if: ${{ needs.setup-release.outputs.nightly == 'true' && steps.manifest.outputs.produced == 'true' }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
           # .json manifests are overwritten in place, not accumulated.
           gh release view nightly --json assets \
             | jq -r --arg cutoff "$STARTED_AT" \

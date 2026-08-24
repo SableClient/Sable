@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Spinner } from 'folds';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { useAtom, useAtomValue } from 'jotai';
 import { useResolvedRoomIdOrAlias } from '$hooks/router/useResolvedRoomId';
 import { IsDirectRoomProvider, DisplayedEventIdProvider, RoomProvider } from '$hooks/useRoom';

@@ -5,7 +5,7 @@ import { CaretUp, ChatCircle, dropzoneIcon, sizedIcon, Info } from '$components/
 import { useAtomValue } from 'jotai';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router';
 import { SearchOrderBy } from '$types/matrix-sdk';
 import { PageHero, PageHeroEmpty, PageHeroSection } from '$components/page';
 import { useMatrixClient } from '$hooks/useMatrixClient';

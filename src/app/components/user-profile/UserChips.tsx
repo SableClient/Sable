@@ -1,7 +1,7 @@
 import type { KeyboardEventHandler } from 'react';
 import type { CSSProperties } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { isTauri } from '@tauri-apps/api/core';
 import type { Room } from '$types/matrix-sdk';
 import {

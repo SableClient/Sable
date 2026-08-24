@@ -1,47 +1,25 @@
 import type { ReactNode } from 'react';
-import { matchPath, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router';
 import { useAtomValue } from 'jotai';
 import { Room } from '$features/room';
 import { IsInactivePanelProvider } from '$hooks/useRoom';
 import { HomeRouteRoomProvider } from '$pages/client/home';
 import { DirectRouteRoomProvider } from '$pages/client/direct';
 import { SpaceRouteRoomProvider } from '$pages/client/space';
+import { RoomGate, type RoomRouteSection } from '$pages/client/RoomRoute';
 import { lastVisitedRoomAtom } from '$state/room/lastRoom';
 import { resolveSection, type SectionNav } from '$pages/pathUtils';
-import { HOME_ROOM_PATH, DIRECT_ROOM_PATH, SPACE_ROOM_PATH } from '$pages/paths';
-import { isRoomAlias, isRoomId } from '$utils/matrix';
+import { matchRoomRoute, type RoomRouteMatch } from '$pages/roomRouteMatch';
 
-type DisplayedRoom = {
-  roomIdOrAlias: string;
-  eventId?: string;
-};
-
-function useDisplayedRoom(section: SectionNav | null): DisplayedRoom | undefined {
-  const location = useLocation();
+function useDisplayedRoom(
+  section: SectionNav | null,
+  roomRoute: RoomRouteMatch | undefined
+): RoomRouteMatch | undefined {
   const lastRoom = useAtomValue(lastVisitedRoomAtom);
 
   if (!section || !section.getRoomPath) return undefined;
 
-  const roomMatch =
-    matchPath({ path: HOME_ROOM_PATH, end: false }, location.pathname) ??
-    matchPath({ path: DIRECT_ROOM_PATH, end: false }, location.pathname) ??
-    matchPath({ path: SPACE_ROOM_PATH, end: false }, location.pathname);
-
-  if (roomMatch) {
-    const encodedId = roomMatch.params.roomIdOrAlias;
-    const encodedEvent = roomMatch.params.eventId;
-    if (encodedId) {
-      const decodedId = decodeURIComponent(encodedId);
-      // `:roomIdOrAlias` also matches non-room segments like `create`, `search`, `lobby`.
-      // Only treat it as a room when it's a real Matrix id/alias.
-      if (isRoomId(decodedId) || isRoomAlias(decodedId)) {
-        return {
-          roomIdOrAlias: decodedId,
-          eventId: encodedEvent ? decodeURIComponent(encodedEvent) : undefined,
-        };
-      }
-    }
-  }
+  if (roomRoute) return roomRoute;
 
   const lastRoomId = lastRoom?.[section.key];
   if (lastRoomId) {
@@ -51,14 +29,39 @@ function useDisplayedRoom(section: SectionNav | null): DisplayedRoom | undefined
   return undefined;
 }
 
+function sectionRoute(
+  sectionKey: string
+): { kind: RoomRouteSection; spaceIdOrAlias?: string } | undefined {
+  if (sectionKey === 'home') return { kind: 'home' };
+  if (sectionKey === 'direct') return { kind: 'direct' };
+  if (sectionKey.startsWith('space:')) {
+    return { kind: 'space', spaceIdOrAlias: sectionKey.slice('space:'.length) };
+  }
+  return undefined;
+}
+
 export function PersistentRoomHost({ inactive }: { inactive: boolean }) {
   const location = useLocation();
   const section = resolveSection(location.pathname);
-  const displayed = useDisplayedRoom(section);
+  const roomRoute = matchRoomRoute(location.pathname);
+  const displayed = useDisplayedRoom(section, roomRoute);
 
   if (!displayed) return null;
 
-  const roomNode = <Room />;
+  // The gate redirects forum rooms opened on a timeline route; list preloads keep the plain timeline.
+  const hostedSection = section ? sectionRoute(section.key) : undefined;
+  const roomNode =
+    roomRoute && hostedSection ? (
+      <RoomGate
+        section={hostedSection.kind}
+        forum={false}
+        roomIdOrAlias={displayed.roomIdOrAlias}
+        spaceIdOrAlias={hostedSection.spaceIdOrAlias}
+        eventId={displayed.eventId}
+      />
+    ) : (
+      <Room />
+    );
 
   let hosted: ReactNode = null;
   if (section?.key === 'home') {

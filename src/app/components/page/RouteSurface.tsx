@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { FormModal } from '$components/modal-overlay/FormModal';
 import { getBackgroundLocation } from '$pages/client/shallowRoute';

@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.media.AudioAttributes
 import android.media.MediaPlayer
 import android.net.Uri
@@ -33,9 +34,11 @@ class MainActivity : TauriActivity() {
 
   override fun onCreate(savedInstanceState: Bundle?) {
     enableEdgeToEdge()
+    // Load app_lib before calling our JNI bridge, but before Tauri creates the WebView.
+    Rust.javaClass
+    runCatching { nativeInitStatusBar() }
     super.onCreate(savedInstanceState)
     instance = this
-    runCatching { nativeInitStatusBar() }
     stageShareIntent(intent)
   }
 
@@ -156,6 +159,7 @@ class MainActivity : TauriActivity() {
 
   companion object {
     private var instance: MainActivity? = null
+    private var notificationPlayer: MediaPlayer? = null
     private var immersiveSystemBarsBehavior: Int? = null
     private var immersiveDepth = 0
 
@@ -179,6 +183,14 @@ class MainActivity : TauriActivity() {
         val window = activity.window
         WindowCompat.getInsetsController(window, window.decorView).isAppearanceLightNavigationBars =
           isLight(color)
+      }
+    }
+
+    @JvmStatic
+    fun setWindowBackgroundColorNative(color: Int) {
+      val activity = instance ?: return
+      activity.runOnUiThread {
+        activity.window.setBackgroundDrawable(ColorDrawable(color))
       }
     }
 
@@ -233,6 +245,9 @@ class MainActivity : TauriActivity() {
       val activity = instance ?: return
       val resId = if (code == 1) R.raw.invite else R.raw.notification
       activity.runOnUiThread {
+        // A message burst should produce one alert, not overlapping players.
+        if (notificationPlayer != null) return@runOnUiThread
+
         val mp = MediaPlayer()
         try {
           val attrs = AudioAttributes.Builder()
@@ -243,14 +258,20 @@ class MainActivity : TauriActivity() {
           activity.resources.openRawResourceFd(resId).use { afd ->
             mp.setDataSource(afd.fileDescriptor, afd.startOffset, afd.length)
           }
-          mp.setOnCompletionListener { it.release() }
+          notificationPlayer = mp
+          mp.setOnCompletionListener {
+            if (notificationPlayer === it) notificationPlayer = null
+            it.release()
+          }
           mp.setOnErrorListener { player, _, _ ->
+            if (notificationPlayer === player) notificationPlayer = null
             player.release()
             true
           }
           mp.prepare()
           mp.start()
         } catch (e: Exception) {
+          if (notificationPlayer === mp) notificationPlayer = null
           mp.release()
           android.util.Log.w("NotificationSound", "play failed: ${e.message}")
         }

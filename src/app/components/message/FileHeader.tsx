@@ -8,7 +8,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { decryptFile, downloadEncryptedMedia, downloadMedia, mxcUrlToHttp } from '$utils/matrix';
-import { getDownloadFilename, saveFileToDevice } from '$utils/download';
+import { getDownloadFilename, saveMediaToDevice } from '$utils/download';
 
 const badgeStyles = { maxWidth: toRem(100) };
 
@@ -26,11 +26,16 @@ export function FileDownloadButton({ filename, url, mimeType, encInfo }: FileDow
     useCallback(async () => {
       const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
       if (!mediaUrl) throw new Error('Invalid media URL');
-      const fileContent = encInfo
-        ? await downloadEncryptedMedia(mediaUrl, (encBuf) => decryptFile(encBuf, mimeType, encInfo))
-        : await downloadMedia(mediaUrl);
-
-      await saveFileToDevice(fileContent, getDownloadFilename(filename), mimeType);
+      await saveMediaToDevice({
+        mediaUrl,
+        filename: getDownloadFilename(filename),
+        mimeType,
+        encInfo,
+        loadBlob: () =>
+          encInfo
+            ? downloadEncryptedMedia(mediaUrl, (encBuf) => decryptFile(encBuf, mimeType, encInfo))
+            : downloadMedia(mediaUrl),
+      });
     }, [mx, url, useAuthentication, mimeType, encInfo, filename])
   );
 

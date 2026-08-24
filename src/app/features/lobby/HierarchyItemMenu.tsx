@@ -18,7 +18,7 @@ import { getRoomCreatorsForRoomId } from '$hooks/useRoomCreators';
 import { getRoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { getCanonicalAliasOrRoomId } from '$utils/matrix';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { getSpaceLobbyPath } from '$pages/pathUtils';
 import { EventType } from '$types/matrix-sdk';
 import {

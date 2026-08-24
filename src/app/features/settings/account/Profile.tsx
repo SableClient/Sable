@@ -9,7 +9,7 @@ import { SettingMenuSelector } from '$components/setting-menu-selector';
 import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import type { UserProfile, MSC4440Bio, ColorSet } from '$hooks/useUserProfile';
-import { useUserProfile } from '$hooks/useUserProfile';
+import { invalidateUserProfileCache, useUserProfile } from '$hooks/useUserProfile';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { UserAvatar } from '$components/user-avatar';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
@@ -38,6 +38,7 @@ import { NameColorEditor } from './NameColorEditor';
 import { StatusEditor } from './StatusEditor';
 import { AnimalCosmetics } from './AnimalCosmetics';
 import * as prefix from '$unstable/prefixes';
+import { showToast } from '$state/toast';
 import { confirm } from '$components/confirm/confirm';
 import { AvatarUploadTile } from '$components/avatar-upload-tile/AvatarUploadTile';
 import { accessibleColor } from '$plugins/color';
@@ -107,8 +108,9 @@ function ProfileAvatar({ profile, userId, propagateTo }: Readonly<ProfileProps>)
   );
 }
 
-function ProfileBanner({ profile }: Readonly<Pick<ProfileProps, 'profile'>>) {
+function ProfileBanner({ profile, userId }: Readonly<Pick<ProfileProps, 'profile' | 'userId'>>) {
   const mx = useMatrixClient();
+  const setGlobalProfiles = useSetAtom(profilesCacheAtom);
   const useAuthentication = useMediaAuthentication();
   const [stagedUrl, setStagedUrl] = useState<string>();
   const [isRemoving, setIsRemoving] = useState(false);
@@ -144,15 +146,27 @@ function ProfileBanner({ profile }: Readonly<Pick<ProfileProps, 'profile'>>) {
   }, []);
 
   const handleUploaded = useCallback(
-    (upload: UploadSuccess) => {
+    async (upload: UploadSuccess) => {
       const { mxc } = upload;
 
       if (imageFileURL) setStagedUrl(imageFileURL);
-
-      mx.setExtendedProfileProperty?.(prefix.MATRIX_UNSTABLE_PROFILE_BANNER_PROPERTY_NAME, mxc);
       setImageFile(undefined);
+
+      try {
+        await mx.setExtendedProfileProperty?.(
+          prefix.MATRIX_UNSTABLE_PROFILE_BANNER_PROPERTY_NAME,
+          mxc
+        );
+      } catch (error) {
+        showToast(
+          `Failed to save profile field: ${error instanceof Error ? error.message : String(error)}`
+        );
+        setStagedUrl(undefined);
+        return;
+      }
+      invalidateUserProfileCache(mx, userId, setGlobalProfiles);
     },
-    [mx, imageFileURL]
+    [mx, userId, imageFileURL, setGlobalProfiles]
   );
 
   const handleRemoveBanner = async () => {
@@ -166,10 +180,19 @@ function ProfileBanner({ profile }: Readonly<Pick<ProfileProps, 'profile'>>) {
       setIsRemoving(true);
       setStagedUrl(undefined);
       setImageFile(undefined);
-      await mx.setExtendedProfileProperty?.(
-        prefix.MATRIX_UNSTABLE_PROFILE_BANNER_PROPERTY_NAME,
-        null
-      );
+      try {
+        await mx.setExtendedProfileProperty?.(
+          prefix.MATRIX_UNSTABLE_PROFILE_BANNER_PROPERTY_NAME,
+          null
+        );
+      } catch (error) {
+        showToast(
+          `Failed to save profile field: ${error instanceof Error ? error.message : String(error)}`
+        );
+        setIsRemoving(false);
+        return;
+      }
+      invalidateUserProfileCache(mx, userId, setGlobalProfiles);
     }
   };
 
@@ -406,12 +429,15 @@ function ProfileExtended({ profile, userId }: Readonly<ProfileProps>) {
 
   const handleSaveField = useCallback(
     async (key: string, value: unknown) => {
-      await mx.setExtendedProfileProperty?.(key, value);
-      setGlobalProfiles((prev) => {
-        const newCache = { ...prev };
-        delete newCache[userId];
-        return newCache;
-      });
+      try {
+        await mx.setExtendedProfileProperty?.(key, value);
+      } catch (error) {
+        showToast(
+          `Failed to save profile field: ${error instanceof Error ? error.message : String(error)}`
+        );
+        return;
+      }
+      invalidateUserProfileCache(mx, userId, setGlobalProfiles);
     },
     [mx, userId, setGlobalProfiles]
   );
@@ -715,7 +741,7 @@ export function Profile() {
           direction="Column"
           gap="400"
         >
-          <ProfileBanner profile={profile} />
+          <ProfileBanner profile={profile} userId={userId} />
         </SequenceCard>
         <SequenceCard
           className={SequenceCardStyle}

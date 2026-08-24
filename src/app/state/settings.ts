@@ -8,6 +8,7 @@ import type {
   PushTransportOverrides,
 } from '$features/settings/notifications/NotificationTransport';
 import type { IImageInfo } from '$types/matrix/common';
+import type { GifProviderSetting } from '$utils/gifProviders';
 import { isLocalImportTweakUrl } from '../theme/localImportUrls';
 import { sanitizeShortcutOverrides, type ShortcutOverrides } from '../keyboard/shortcuts';
 
@@ -129,10 +130,13 @@ export interface Settings {
   editorMicButton: boolean;
   editorEmojiButton: boolean;
   editorGifButton: boolean;
+  gifProvider: GifProviderSetting;
   editorStickerButton: boolean;
+  editorTriggerButtonsMigrated: boolean;
   editorButtonOrder: EditorButtonId[];
   composerToolbarOpen: boolean;
   showMarkdownPreview: boolean;
+  alwaysInlineEditor: boolean;
   messageLayout: MessageLayout;
   messageSpacing: MessageSpacing;
   hideMembershipEvents: boolean;
@@ -316,11 +320,14 @@ export const defaultSettings: Settings = {
   editorOldAddFile: false,
   editorMicButton: true,
   editorEmojiButton: true,
-  editorGifButton: false,
-  editorStickerButton: false,
+  editorGifButton: true,
+  gifProvider: 'default',
+  editorStickerButton: true,
+  editorTriggerButtonsMigrated: true,
   editorButtonOrder: [...EDITOR_BUTTON_ORDER_DEFAULT],
   composerToolbarOpen: false,
   showMarkdownPreview: false,
+  alwaysInlineEditor: false,
   messageLayout: 0,
   messageSpacing: '400',
   hideMembershipEvents: false,
@@ -521,6 +528,12 @@ function migrateParsedLocalStorage(parsed: Record<string, unknown>): void {
     parsed.saturationLevel = 100;
   }
   delete parsed.monochromeMode;
+
+  if (parsed.editorTriggerButtonsMigrated !== true) {
+    delete parsed.editorGifButton;
+    delete parsed.editorStickerButton;
+    parsed.editorTriggerButtonsMigrated = true;
+  }
 
   if (parsed.nameColorLightnessCorrectionMigrated !== true) {
     delete parsed.nameColorLightnessCorrection;

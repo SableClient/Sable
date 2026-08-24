@@ -4,7 +4,7 @@ import { useAccountDataCallback } from './useAccountDataCallback';
 
 export const useCrossSigningResetDetect = (mx: MatrixClient | undefined) => {
   const refreshScheduled = useRef(false);
-  const refreshTimer = useRef<ReturnType<typeof globalThis.setTimeout>>();
+  const refreshTimer = useRef<ReturnType<typeof globalThis.setTimeout> | undefined>(undefined);
 
   useEffect(
     () => () => {

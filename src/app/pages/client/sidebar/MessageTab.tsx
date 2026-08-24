@@ -5,7 +5,7 @@ import {
   SidebarUnreadBadge,
 } from '$components/sidebar';
 import { getPhosphorIconSize } from '$components/icons/phosphor';
-import { matchPath, useNavigate } from 'react-router-dom';
+import { matchPath, useNavigate } from 'react-router';
 import { HOME_PATH, SETTINGS_PATH } from '$pages/paths';
 import { ChatTextIcon } from '@phosphor-icons/react';
 import { useAtomValue } from 'jotai';

@@ -2,7 +2,7 @@ import type { ReactNode } from 'react';
 import { useCallback, useEffect } from 'react';
 import { Box, Chip, Header, IconButton, Scroll, Spinner, Text, color } from 'folds';
 import { ArrowClockwiseIcon } from '@phosphor-icons/react';
-import { Outlet, matchPath, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
+import { Outlet, matchPath, useLocation, useNavigate, useSearchParams } from 'react-router';
 import classNames from 'classnames';
 
 import * as PatternsCss from '$styles/Patterns.css';

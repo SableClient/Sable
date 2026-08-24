@@ -4,7 +4,10 @@ use std::{
     io::{BufRead, BufReader, Read, Seek, SeekFrom, Write},
     net::{TcpListener, TcpStream},
     path::PathBuf,
-    sync::{Arc, RwLock},
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc, RwLock,
+    },
     thread,
 };
 
@@ -14,9 +17,19 @@ use tauri::http::{header, Response, StatusCode};
 use super::response::is_webview_origin;
 use super::session::MediaSession;
 
+type Routes = Arc<RwLock<HashMap<String, CachedMedia>>>;
+
 pub(super) struct LoopbackMediaServer {
+    routes: Routes,
+    active: RwLock<ActiveListener>,
+}
+
+struct ActiveListener {
     origin: String,
-    routes: Arc<RwLock<HashMap<String, CachedMedia>>>,
+    port: u16,
+    /// Deliberate retirement, as opposed to `dead`.
+    shutdown: Arc<AtomicBool>,
+    dead: Arc<AtomicBool>,
 }
 
 #[derive(Clone)]
@@ -25,29 +38,108 @@ struct CachedMedia {
     content_type: String,
 }
 
+// iOS reclaims a listening socket while suspended: the descriptor still looks valid but every
+// accept() fails with ECONNABORTED (Apple TN2277). `ensure_live` rebinds, so failing fast here
+// beats guessing whether an error was transient.
+fn accept_loop(
+    listener: TcpListener,
+    routes: Routes,
+    shutdown: Arc<AtomicBool>,
+    dead: Arc<AtomicBool>,
+) {
+    for stream in listener.incoming() {
+        if shutdown.load(Ordering::Acquire) {
+            return;
+        }
+        let Ok(stream) = stream else {
+            dead.store(true, Ordering::Release);
+            return;
+        };
+        let routes = Arc::clone(&routes);
+        let _ = thread::Builder::new()
+            .name("sable-media-request".into())
+            .spawn(move || serve(stream, routes));
+    }
+    dead.store(true, Ordering::Release);
+}
+
+fn spawn_listener(routes: &Routes) -> std::io::Result<ActiveListener> {
+    let listener = TcpListener::bind(("127.0.0.1", 0))?;
+    let port = listener.local_addr()?.port();
+    let shutdown = Arc::new(AtomicBool::new(false));
+    let dead = Arc::new(AtomicBool::new(false));
+    let thread_routes = Arc::clone(routes);
+    let thread_shutdown = Arc::clone(&shutdown);
+    let thread_dead = Arc::clone(&dead);
+    thread::Builder::new()
+        .name("sable-media-loopback".into())
+        .spawn(move || accept_loop(listener, thread_routes, thread_shutdown, thread_dead))?;
+
+    Ok(ActiveListener {
+        origin: format!("http://127.0.0.1:{port}"),
+        port,
+        shutdown,
+        dead,
+    })
+}
+
+// A retired thread is parked in accept() and needs a connection before it can see the flag.
+fn retire(listener: &ActiveListener) {
+    listener.shutdown.store(true, Ordering::Release);
+    let _ = TcpStream::connect(("127.0.0.1", listener.port));
+}
+
 impl LoopbackMediaServer {
     pub(super) fn start() -> std::io::Result<Self> {
-        let listener = TcpListener::bind(("127.0.0.1", 0))?;
-        let origin = format!("http://127.0.0.1:{}", listener.local_addr()?.port());
         let routes = Arc::new(RwLock::new(HashMap::<String, CachedMedia>::new()));
-        let server_routes = Arc::clone(&routes);
-        thread::Builder::new()
-            .name("sable-media-loopback".into())
-            .spawn(move || {
-                for stream in listener.incoming().flatten() {
-                    let routes = Arc::clone(&server_routes);
-                    let _ = thread::Builder::new()
-                        .name("sable-media-request".into())
-                        .spawn(move || serve(stream, routes));
-                }
-            })?;
+        let active = spawn_listener(&routes)?;
 
-        Ok(Self { origin, routes })
+        Ok(Self {
+            routes,
+            active: RwLock::new(active),
+        })
     }
 
     pub(super) fn clear(&self) {
         if let Ok(mut routes) = self.routes.write() {
             routes.clear();
+        }
+    }
+
+    fn origin(&self) -> Option<String> {
+        self.active.read().ok().map(|active| active.origin.clone())
+    }
+
+    /// `true` means the origin moved, so a caller must drop urls held elsewhere.
+    pub(super) fn ensure_live(&self) -> std::io::Result<bool> {
+        {
+            let Ok(active) = self.active.read() else {
+                return Err(std::io::Error::other("loopback listener lock poisoned"));
+            };
+            if !active.dead.load(Ordering::Acquire) {
+                return Ok(false);
+            }
+        }
+
+        let Ok(mut active) = self.active.write() else {
+            return Err(std::io::Error::other("loopback listener lock poisoned"));
+        };
+        // Rebinding twice would orphan the origin a concurrent caller just handed out.
+        if !active.dead.load(Ordering::Acquire) {
+            return Ok(false);
+        }
+
+        let previous = std::mem::replace(&mut *active, spawn_listener(&self.routes)?);
+        drop(active);
+        retire(&previous);
+
+        Ok(true)
+    }
+
+    #[cfg(test)]
+    fn mark_dead(&self) {
+        if let Ok(active) = self.active.read() {
+            active.dead.store(true, Ordering::Release);
         }
     }
 
@@ -59,6 +151,9 @@ impl LoopbackMediaServer {
         content_type: &str,
     ) -> Response<Vec<u8>> {
         let capability = capability(session, cache_key);
+        let Some(origin) = self.origin() else {
+            return Response::new(Vec::new());
+        };
         if let Ok(mut routes) = self.routes.write() {
             routes.insert(
                 capability.clone(),
@@ -70,7 +165,7 @@ impl LoopbackMediaServer {
         }
         Response::builder()
             .status(StatusCode::FOUND)
-            .header(header::LOCATION, format!("{}/{}", self.origin, capability))
+            .header(header::LOCATION, format!("{origin}/{capability}"))
             .header(header::CACHE_CONTROL, "no-store")
             .body(Vec::new())
             .unwrap_or_else(|_| Response::new(Vec::new()))
@@ -262,6 +357,60 @@ mod tests {
         let parsed = parse_request(&stream);
         client.join().expect("loopback test client");
         parsed
+    }
+
+    #[test]
+    fn ensure_live_is_a_no_op_while_the_listener_is_healthy() {
+        let server = LoopbackMediaServer::start().expect("loopback test server");
+        let origin = server.origin().expect("origin");
+
+        assert!(!server.ensure_live().expect("ensure_live"));
+        assert_eq!(server.origin().as_deref(), Some(origin.as_str()));
+    }
+
+    #[test]
+    fn ensure_live_rebinds_a_dead_listener_and_keeps_the_route_table() {
+        let server = LoopbackMediaServer::start().expect("loopback test server");
+        let session = MediaSession {
+            origin: "https://matrix.example.org".into(),
+            token: "token".into(),
+            scope: "@alice:example.org".into(),
+            generation: 0,
+        };
+        let file = std::env::temp_dir().join("sable-loopback-rebind-test.bin");
+        std::fs::write(&file, b"media").expect("loopback test fixture");
+
+        let before = server.redirect_response(&session, "key", file.clone(), "image/png");
+        let first_location = before
+            .headers()
+            .get(header::LOCATION)
+            .and_then(|value| value.to_str().ok())
+            .expect("first location")
+            .to_owned();
+
+        server.mark_dead();
+        assert!(server.ensure_live().expect("ensure_live"));
+        let next_origin = server.origin().expect("origin after rebind");
+        assert!(!server.ensure_live().expect("ensure_live"));
+
+        let after = server.redirect_response(&session, "key", file, "image/png");
+        let second_location = after
+            .headers()
+            .get(header::LOCATION)
+            .and_then(|value| value.to_str().ok())
+            .expect("second location")
+            .to_owned();
+
+        assert_ne!(first_location, second_location);
+        assert!(second_location.starts_with(&next_origin));
+        let capability = capability(&session, "key");
+        assert!(first_location.ends_with(&capability));
+        assert!(second_location.ends_with(&capability));
+        assert!(server
+            .routes
+            .read()
+            .expect("routes")
+            .contains_key(&capability));
     }
 
     #[test]

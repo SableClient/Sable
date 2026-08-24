@@ -2,7 +2,7 @@ import to from 'await-to-js';
 import type { IAuthData, MatrixClient, RegisterRequest, RegisterResponse } from '$types/matrix-sdk';
 import { MatrixError } from '$types/matrix-sdk';
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useSetAtom } from 'jotai';
 import {
   deleteAfterLoginRedirectPath,

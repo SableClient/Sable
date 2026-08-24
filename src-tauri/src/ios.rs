@@ -4,17 +4,19 @@
 // the same approach as Capacitor's hideFormAccessoryBar.
 
 use std::ffi::CString;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::OnceLock;
+use std::time::Duration;
 
 use objc2::rc::{Allocated, Retained};
 use objc2::runtime::{
     AnyClass, AnyObject, ClassBuilder, NSObject, NSObjectProtocol, ProtocolObject, Sel,
 };
-use objc2::{define_class, msg_send, sel, AnyThread, ClassType};
+use objc2::{define_class, msg_send, sel, AnyThread};
 use objc2_avf_audio::AVAudioSession;
 use objc2_call_kit::{
-    CXCallController, CXCallUpdate, CXEndCallAction, CXHandle, CXHandleType, CXProvider,
-    CXProviderConfiguration, CXProviderDelegate, CXStartCallAction, CXTransaction,
+    CXCallController, CXEndCallAction, CXHandle, CXHandleType, CXProvider, CXProviderConfiguration,
+    CXProviderDelegate, CXStartCallAction,
 };
 use objc2_foundation::{NSString, NSUUID};
 use tauri::webview::WebviewWindow;
@@ -205,11 +207,6 @@ mod callkit {
                 let allocated = CXStartCallAction::alloc();
                 CXStartCallAction::initWithCallUUID_handle(allocated, &uuid, &handle)
             };
-            let transaction = unsafe {
-                let allocated = CXTransaction::alloc();
-                CXTransaction::initWithAction(allocated, &action)
-            };
-
             let completion: RcBlock<dyn Fn(*mut objc2_foundation::NSError)> =
                 RcBlock::new(move |_error: *mut objc2_foundation::NSError| {});
             unsafe {
@@ -332,9 +329,17 @@ fn load_system_sound(caf_bytes: &[u8], temp_name: &str) -> Result<u32, String> {
     }
 }
 
+static NOTIFICATION_SOUND_PLAYING: AtomicBool = AtomicBool::new(false);
+
 pub(crate) fn play_notification_sound(kind: String) -> Result<(), String> {
     static NOTIFICATION_SOUND: OnceLock<u32> = OnceLock::new();
     static INVITE_SOUND: OnceLock<u32> = OnceLock::new();
+
+    // AudioServices plays asynchronously and cannot stop an active sound. Drop
+    // bursts until this clip finishes instead of overlapping notification audio.
+    if NOTIFICATION_SOUND_PLAYING.swap(true, Ordering::Relaxed) {
+        return Ok(());
+    }
 
     let cache = if kind == "invite" {
         &INVITE_SOUND
@@ -356,12 +361,27 @@ pub(crate) fn play_notification_sound(kind: String) -> Result<(), String> {
     let sound_id = match cache.get() {
         Some(id) => *id,
         None => {
-            let id = load_system_sound(caf, name)?;
+            let id = match load_system_sound(caf, name) {
+                Ok(id) => id,
+                Err(error) => {
+                    NOTIFICATION_SOUND_PLAYING.store(false, Ordering::Relaxed);
+                    return Err(error);
+                }
+            };
             let _ = cache.set(id);
             id
         }
     };
     unsafe { AudioServicesPlaySystemSound(sound_id) };
+    let duration = if kind == "invite" {
+        Duration::from_millis(1905)
+    } else {
+        Duration::from_millis(817)
+    };
+    std::thread::spawn(move || {
+        std::thread::sleep(duration);
+        NOTIFICATION_SOUND_PLAYING.store(false, Ordering::Relaxed);
+    });
     Ok(())
 }
 
@@ -373,7 +393,6 @@ pub(crate) fn play_notification_sound(kind: String) -> Result<(), String> {
 extern "C" {}
 
 use std::ffi::OsStr;
-use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 
 use block2::RcBlock;

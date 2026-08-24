@@ -104,30 +104,38 @@ describe('desktop settings state', () => {
   });
 
   it('migrates the legacy background-running flag into close behavior', () => {
-    expect(desktopSettingsFromStoreValues(false, false, true, undefined)).toEqual({
+    expect(desktopSettingsFromStoreValues(false, false, true, undefined, undefined)).toEqual({
       closeToBackgroundOnClose: true,
       showSystemTrayIcon: false,
       useCustomTitleBar: true,
+      spellcheck: true,
     });
   });
 
   it('preserves an explicit close-off setting when the legacy flag is off', () => {
-    expect(desktopSettingsFromStoreValues(false, true, false, undefined)).toEqual({
+    expect(desktopSettingsFromStoreValues(false, true, false, undefined, undefined)).toEqual({
       closeToBackgroundOnClose: false,
       showSystemTrayIcon: true,
       useCustomTitleBar: true,
+      spellcheck: true,
     });
   });
 
   it('preserves an explicit custom title bar value over platform defaults', () => {
     expect(
-      desktopSettingsFromStoreValues(undefined, undefined, undefined, false, 'windows')
+      desktopSettingsFromStoreValues(undefined, undefined, undefined, false, undefined, 'windows')
     ).toMatchObject({ useCustomTitleBar: false });
     expect(
-      desktopSettingsFromStoreValues(undefined, undefined, undefined, true, 'macos')
+      desktopSettingsFromStoreValues(undefined, undefined, undefined, true, undefined, 'macos')
     ).toMatchObject({
       useCustomTitleBar: true,
     });
+  });
+
+  it('loads an explicit persisted spellcheck value', async () => {
+    mockEntries.mockResolvedValue([['spellcheck', false]]);
+
+    await expect(getDesktopSetting('spellcheck')).resolves.toBe(false);
   });
 
   it('writes through the desktop settings atom and syncs runtime state', async () => {
@@ -142,6 +150,7 @@ describe('desktop settings state', () => {
       closeToBackgroundOnClose: true,
       showSystemTrayIcon: true,
       useCustomTitleBar: true,
+      spellcheck: true,
     });
 
     expect(mockSet).not.toHaveBeenCalled();
@@ -150,6 +159,7 @@ describe('desktop settings state', () => {
         closeToBackgroundOnClose: true,
         showSystemTrayIcon: true,
         useCustomTitleBar: true,
+        spellcheck: true,
       },
     });
     expect(store.get(desktopRuntimeStateAtom)).toEqual({ trayAvailable: false });
@@ -176,6 +186,7 @@ describe('desktop settings state', () => {
       closeToBackgroundOnClose: true,
       showSystemTrayIcon: true,
       useCustomTitleBar: true,
+      spellcheck: true,
     });
 
     await vi.waitFor(() => {
@@ -196,19 +207,22 @@ describe('desktop settings state', () => {
         closeToBackgroundOnClose: false,
         showSystemTrayIcon: false,
         useCustomTitleBar: false,
+        spellcheck: false,
       })
     ).resolves.toEqual({ trayAvailable: false });
 
-    expect(mockSet).toHaveBeenCalledTimes(4);
+    expect(mockSet).toHaveBeenCalledTimes(5);
     expect(mockSet).toHaveBeenCalledWith('closeToBackgroundOnClose', false);
     expect(mockSet).toHaveBeenCalledWith('showSystemTrayIcon', false);
     expect(mockSet).toHaveBeenCalledWith('keepBackgroundRunning', false);
     expect(mockSet).toHaveBeenCalledWith('useCustomTitleBar', false);
+    expect(mockSet).toHaveBeenCalledWith('spellcheck', false);
     expect(mockSyncDesktopSettings).toHaveBeenCalledWith({
       settings: {
         closeToBackgroundOnClose: false,
         showSystemTrayIcon: false,
         useCustomTitleBar: false,
+        spellcheck: false,
       },
     });
   });
@@ -231,6 +245,7 @@ describe('desktop settings state', () => {
         closeToBackgroundOnClose: true,
         showSystemTrayIcon: false,
         useCustomTitleBar: true,
+        spellcheck: true,
       },
     });
   });
@@ -253,6 +268,7 @@ describe('desktop settings state', () => {
         closeToBackgroundOnClose: false,
         showSystemTrayIcon: true,
         useCustomTitleBar: true,
+        spellcheck: true,
       },
     });
   });
@@ -275,6 +291,7 @@ describe('desktop settings state', () => {
         closeToBackgroundOnClose: true,
         showSystemTrayIcon: false,
         useCustomTitleBar: true,
+        spellcheck: true,
       },
     });
   });

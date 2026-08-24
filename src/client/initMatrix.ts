@@ -361,7 +361,7 @@ export const initClient = async (session: Session): Promise<MatrixClient> => {
   const initStartTime = performance.now();
   let initOutcome = 'success';
   try {
-    let result = await initializeClient(session, storeName.rustCryptoPrefix);
+    const result = await initializeClient(session, storeName.rustCryptoPrefix);
     if (!result.ok) {
       if (!isMismatch(result.error)) {
         debugLog.error('sync', 'Failed to initialize client', {
@@ -371,20 +371,14 @@ export const initClient = async (session: Session): Promise<MatrixClient> => {
         throw result.error;
       }
 
-      log.warn(`initClient: mismatch during ${result.phase} — wiping and retrying:`, result.error);
-      debugLog.warn('sync', 'Client initialization mismatch - wiping stores and retrying', {
+      log.warn(`initClient: mismatch during ${result.phase} — wiping and reloading:`, result.error);
+      debugLog.warn('sync', 'Client initialization mismatch - wiping stores and reloading', {
         phase: result.phase,
         error: result.error,
       });
       await wipeAllStores();
-      result = await initializeClient(session, storeName.rustCryptoPrefix);
-      if (!result.ok) {
-        debugLog.error('sync', 'Failed to initialize client after store reset', {
-          phase: result.phase,
-          error: result.error,
-        });
-        throw result.error;
-      }
+      window.location.reload();
+      throw result.error;
     }
 
     result.mx.setMaxListeners(50);

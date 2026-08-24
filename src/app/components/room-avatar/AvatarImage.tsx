@@ -4,7 +4,6 @@ import { useState } from 'react';
 import bgColorImg from '$utils/bgColorImg';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
-import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
 import * as css from './RoomAvatar.css';
 
 type AvatarImageProps = {
@@ -17,8 +16,6 @@ type AvatarImageProps = {
 export function AvatarImage({ src, alt, uniformIcons, onError }: AvatarImageProps) {
   const [uniformIconsSetting] = useSetting(settingsAtom, 'uniformIcons');
   const [image, setImage] = useState<HTMLImageElement | undefined>(undefined);
-  const resolvedSrc = useRenderableMediaUrl(src);
-  const mediaSrc = resolvedSrc ?? src;
 
   const useUniformIcons = uniformIconsSetting && uniformIcons === true;
   const normalizedBg = useUniformIcons && image ? bgColorImg(image) : undefined;
@@ -28,13 +25,13 @@ export function AvatarImage({ src, alt, uniformIcons, onError }: AvatarImageProp
     setImage(evt.currentTarget);
   };
 
-  const isBlobUrl = mediaSrc.startsWith('blob:');
+  const isBlobUrl = src.startsWith('blob:');
 
   return (
     <FoldsAvatarImage
       className={css.RoomAvatar}
       style={{ backgroundColor: useUniformIcons ? normalizedBg : undefined }}
-      src={mediaSrc}
+      src={src}
       crossOrigin={isBlobUrl ? undefined : 'anonymous'}
       alt={alt}
       loading="lazy"

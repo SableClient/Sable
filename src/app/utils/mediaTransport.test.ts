@@ -546,4 +546,161 @@ describe('fetchMediaBlob', () => {
     expect(await blob.text()).toBe('ok');
     expect(headersSeen).toEqual(['Bearer token-1']);
   });
+
+  it(
+    'ignores the retry marker when keying the cache so a retried success is reused',
+    async () => {
+      const { fetchMediaBlob } = await import('./mediaTransport');
+      const canonical =
+        'https://matrix.example.org/_matrix/client/v1/media/thumbnail/example.org/abc123?width=96';
+      const retried = `${canonical}&__sable_media_retry=2`;
+
+      localStorage.setItem(
+        'matrixSessions',
+        JSON.stringify([
+          {
+            baseUrl: 'https://matrix.example.org',
+            userId: '@alice:example.org',
+            deviceId: 'DEVICE',
+            accessToken: 'token-1',
+          },
+        ])
+      );
+      localStorage.setItem('matrixActiveSession', '@alice:example.org');
+
+      const media = new Blob(['avatar'], { type: 'image/png' });
+      vi.mocked(fetch).mockResolvedValueOnce(new Response(media, { status: 200 }));
+
+      await expect(fetchMediaBlob(retried)).resolves.toEqual(media);
+      expect(fetch).toHaveBeenCalledOnce();
+      expect(mediaCache.putInMediaCache).toHaveBeenCalledWith(
+        '@alice:example.org:mxc://example.org/abc123:thumbnail?width=96',
+        expect.any(Blob)
+      );
+
+      await expect(fetchMediaBlob(canonical)).resolves.toEqual(media);
+      expect(fetch).toHaveBeenCalledOnce();
+    },
+    TEST_TIMEOUT
+  );
+});
+
+describe('getStableMediaCacheKeyFragment', () => {
+  const CANONICAL =
+    'https://matrix.example.org/_matrix/client/v1/media/thumbnail/example.org/abc123?width=96';
+
+  beforeEach(() => {
+    vi.resetModules();
+  });
+
+  it('drops the retry marker in both its query and fragment forms', async () => {
+    const { getStableMediaCacheKeyFragment } = await import('./mediaTransport');
+
+    const expected = getStableMediaCacheKeyFragment(CANONICAL);
+    expect(getStableMediaCacheKeyFragment(`${CANONICAL}&__sable_media_retry=2`)).toBe(expected);
+    expect(getStableMediaCacheKeyFragment(`${CANONICAL}#__sable_media_retry=2`)).toBe(expected);
+  });
+
+  it('still separates different media and different thumbnail sizes', async () => {
+    const { getStableMediaCacheKeyFragment } = await import('./mediaTransport');
+
+    expect(getStableMediaCacheKeyFragment(CANONICAL)).not.toBe(
+      getStableMediaCacheKeyFragment(CANONICAL.replace('abc123', 'def456'))
+    );
+    expect(getStableMediaCacheKeyFragment(CANONICAL)).not.toBe(
+      getStableMediaCacheKeyFragment(CANONICAL.replace('width=96', 'width=32'))
+    );
+  });
+});
+
+describe('fetchMediaBlob with Tauri protocol URLs', () => {
+  const INNER = 'https://matrix.example.org/_matrix/client/v1/media/download/example.org/abc123';
+  const WRAPPED = `sable-media://localhost/${encodeURIComponent(INNER)}?__sable_media_cache=3&__sable_media_session=%40alice%3Aexample.org`;
+  const WRAPPED_WINDOWS = `http://sable-media.localhost/${encodeURIComponent(INNER)}?__sable_media_cache=3`;
+
+  beforeEach(() => {
+    vi.resetModules();
+    swMediaAuth.getCachedSWMediaAuthSupport.mockReset();
+    swMediaAuth.getCachedSWMediaAuthSupport.mockReturnValue(false);
+    mediaCache.cache.clear();
+    localStorage.clear();
+    vi.stubGlobal('fetch', vi.fn<typeof globalThis.fetch>());
+  });
+
+  it.each([
+    ['the Linux and macOS form', WRAPPED],
+    ['the Windows and Android form', WRAPPED_WINDOWS],
+  ])('fetches the inner http target for %s', async (_label, wrapped) => {
+    const { fetchMediaBlob } = await import('./mediaTransport');
+    const media = new Blob(['ciphertext'], { type: 'application/octet-stream' });
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(media, { status: 200 }));
+
+    await expect(fetchMediaBlob(wrapped)).resolves.toEqual(media);
+    expect(fetch).toHaveBeenCalledWith(INNER, expect.anything());
+  });
+
+  it('attaches the access token, which the wrapped form cannot be trusted with', async () => {
+    const { fetchMediaBlob } = await import('./mediaTransport');
+    localStorage.setItem(
+      'matrixSessions',
+      JSON.stringify([
+        {
+          baseUrl: 'https://matrix.example.org',
+          userId: '@alice:example.org',
+          accessToken: 'alice-token',
+        },
+      ])
+    );
+    localStorage.setItem('matrixActiveSession', JSON.stringify('@alice:example.org'));
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(new Blob(['x']), { status: 200 }));
+
+    await fetchMediaBlob(WRAPPED);
+
+    expect(fetch).toHaveBeenCalledWith(
+      INNER,
+      expect.objectContaining({ headers: { Authorization: 'Bearer alice-token' } })
+    );
+  });
+
+  it('shares one cache entry between the wrapped and unwrapped forms', async () => {
+    const { fetchMediaBlob } = await import('./mediaTransport');
+    const media = new Blob(['ciphertext'], { type: 'application/octet-stream' });
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(media, { status: 200 }));
+
+    await expect(fetchMediaBlob(WRAPPED)).resolves.toEqual(media);
+    await expect(fetchMediaBlob(INNER)).resolves.toEqual(media);
+
+    expect(fetch).toHaveBeenCalledOnce();
+  });
+});
+
+describe('fetchMediaBlob for encrypted attachments', () => {
+  const INNER =
+    'https://matrix.example.org/_matrix/client/v1/media/download/example.org/encrypted01';
+  const WRAPPED = `sable-media://localhost/${encodeURIComponent(INNER)}?__sable_media_cache=3`;
+
+  beforeEach(() => {
+    vi.resetModules();
+    swMediaAuth.getCachedSWMediaAuthSupport.mockReset();
+    swMediaAuth.getCachedSWMediaAuthSupport.mockReturnValue(false);
+    mediaCache.cache.clear();
+    localStorage.clear();
+    vi.stubGlobal('fetch', vi.fn<typeof globalThis.fetch>());
+  });
+
+  it('round-trips a real encrypted attachment through the wrapped URL', async () => {
+    const { encryptAttachment, decryptAttachment } = await import('browser-encrypt-attachment');
+    const { fetchMediaBlob } = await import('./mediaTransport');
+
+    const contents = 'e2ee attachment contents';
+    const plaintext = new TextEncoder().encode(contents);
+    const { data: ciphertext, info } = await encryptAttachment(plaintext.buffer as ArrayBuffer);
+    vi.mocked(fetch).mockResolvedValueOnce(new Response(ciphertext, { status: 200 }));
+
+    const fetched = await fetchMediaBlob(WRAPPED);
+    expect(fetch).toHaveBeenCalledWith(INNER, expect.anything());
+
+    const decrypted = await decryptAttachment(await fetched.arrayBuffer(), info);
+    expect(new TextDecoder().decode(decrypted)).toBe(contents);
+  });
 });

@@ -1,5 +1,6 @@
 import { useCallback, useEffect } from 'react';
 import { useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
+import * as Sentry from '@sentry/react';
 import { type CryptoApi, type CryptoEventHandlerMap, CryptoEvent } from '$types/matrix-sdk';
 import { verifiedDevice } from '$utils/matrix-crypto';
 import { useMatrixClient } from './useMatrixClient';
@@ -41,6 +42,7 @@ const DEVICE_VERIFICATION_QUERY_KEY = 'device-verification';
 
 const cryptoIds = new WeakMap<CryptoApi, string>();
 let cryptoIdCounter = 0;
+const verificationStatuses = new WeakMap<CryptoApi, Map<string, VerificationStatus>>();
 
 const getCryptoId = (crypto: CryptoApi | undefined): string => {
   if (!crypto) return 'none';
@@ -89,16 +91,38 @@ const useInvalidateDeviceVerification = (crypto: CryptoApi | undefined): void =>
     let sub = clientSubscriptions.get(mx);
     if (!sub) {
       const onDevicesUpdated: CryptoEventHandlerMap[CryptoEvent.DevicesUpdated] = (userIds) => {
+        if (userIds.includes(mx.getSafeUserId())) {
+          Sentry.addBreadcrumb({
+            category: 'crypto',
+            message: 'Device verification refreshed',
+            level: 'info',
+            data: { trigger: 'devices_updated' },
+          });
+        }
         for (const uid of userIds) {
           queryClient.invalidateQueries({ queryKey: [DEVICE_VERIFICATION_QUERY_KEY, uid] });
         }
       };
       const onKeysChanged: CryptoEventHandlerMap[CryptoEvent.KeysChanged] = () => {
+        Sentry.addBreadcrumb({
+          category: 'crypto',
+          message: 'Device verification refreshed',
+          level: 'info',
+          data: { trigger: 'keys_changed' },
+        });
         queryClient.invalidateQueries({ queryKey: [DEVICE_VERIFICATION_QUERY_KEY] });
       };
       const onUserTrustStatusChanged: CryptoEventHandlerMap[CryptoEvent.UserTrustStatusChanged] = (
         changedUserId
       ) => {
+        if (changedUserId === mx.getSafeUserId()) {
+          Sentry.addBreadcrumb({
+            category: 'crypto',
+            message: 'Device verification refreshed',
+            level: 'info',
+            data: { trigger: 'user_trust_changed' },
+          });
+        }
         queryClient.invalidateQueries({
           queryKey: [DEVICE_VERIFICATION_QUERY_KEY, changedUserId],
         });
@@ -152,11 +176,36 @@ export const useDeviceVerificationStatus = (
   userId: string,
   deviceId: string | undefined
 ): VerificationStatus => {
+  const mx = useMatrixClient();
   useInvalidateDeviceVerification(crypto);
 
   const { data } = useQuery(deviceVerificationQuery(crypto, userId, deviceId));
 
-  return toVerificationStatus(data);
+  const status = toVerificationStatus(data);
+
+  useEffect(() => {
+    if (!crypto || !deviceId) return;
+
+    const deviceKey = `${userId}\x00${deviceId}`;
+    const statuses = verificationStatuses.get(crypto) ?? new Map<string, VerificationStatus>();
+    const previous = statuses.get(deviceKey);
+    statuses.set(deviceKey, status);
+    verificationStatuses.set(crypto, statuses);
+
+    if (previous === VerificationStatus.Verified && status === VerificationStatus.Unverified) {
+      Sentry.addBreadcrumb({
+        category: 'crypto',
+        message: 'Device verification changed to unverified',
+        level: 'warning',
+        data: { own_device: userId === mx.getSafeUserId() },
+      });
+      Sentry.metrics.count('sable.crypto.device_verification_lost', 1, {
+        attributes: { own_device: userId === mx.getSafeUserId() },
+      });
+    }
+  }, [crypto, deviceId, mx, status, userId]);
+
+  return status;
 };
 
 export const useUnverifiedDeviceCount = (

@@ -2,7 +2,7 @@ import { Box, Scroll, Text, color } from 'folds';
 import { Page, PageContent, PageContentCenter, PageNavHeader } from '$components/page';
 import { SidebarPanel } from '$components/page/SidebarPanel';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router';
 import { RoomSearchModal, SearchWrapper } from '$features/navigate';
 import { getBackgroundLocation } from '../shallowRoute';
 import { useCloseShallowRoute } from '../useShallowRoute';

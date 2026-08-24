@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router';
 import { getRoomSearchParams } from '$pages/pathSearchParam';
 import { decodeSearchParamValueArray } from '$pages/pathUtils';
 

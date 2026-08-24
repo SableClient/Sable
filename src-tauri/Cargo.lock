@@ -5459,7 +5459,7 @@ checksum = "9774ba4a74de5f7b1c1451ed6cd5285a32eddb5cccb8cc655a4e50009e06477f"
 
 [[package]]
 name = "sable"
-version = "1.20.0"
+version = "1.21.0"
 dependencies = [
  "aes",
  "async-stream",
@@ -7070,7 +7070,7 @@ dependencies = [
 [[package]]
 name = "tauri-runtime-cef"
 version = "0.1.0"
-source = "git+https://github.com/SableClient/tauri-runtime-cef?rev=6fb4fabcc759c1f5407def192540ce149f666fe8#6fb4fabcc759c1f5407def192540ce149f666fe8"
+source = "git+https://github.com/SableClient/tauri-runtime-cef?rev=4e9d7a4fbdf8f246c06a141a87618d8557381c27#4e9d7a4fbdf8f246c06a141a87618d8557381c27"
 dependencies = [
  "base64 0.22.1",
  "cef",

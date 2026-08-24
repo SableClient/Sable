@@ -1,7 +1,7 @@
 import { useAtomValue } from 'jotai';
 import * as Sentry from '@sentry/react';
 import { useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router';
 import { resolveSection } from '$pages/pathUtils';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mDirectAtom } from '$state/mDirectList';

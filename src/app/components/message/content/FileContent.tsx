@@ -19,8 +19,17 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useCreateObjectURL } from '$hooks/useObjectURL';
 import { useDismissOnBack } from '$utils/androidBack';
 import { ModalWide } from '$styles/Modal.css';
-import { getDownloadFilename, saveFileToDevice } from '$utils/download';
+import { getDownloadFilename, reportDownloadFailure, saveMediaToDevice } from '$utils/download';
 import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
+
+const loadFileContent = (
+  mediaUrl: string,
+  mimeType: string,
+  encInfo?: EncryptedAttachmentInfo
+): Promise<Blob> =>
+  encInfo
+    ? downloadEncryptedMedia(mediaUrl, (encBuf) => decryptFile(encBuf, mimeType, encInfo))
+    : downloadMedia(mediaUrl);
 
 const renderErrorButton = (retry: () => void, text: string) => (
   <TooltipProvider
@@ -76,14 +85,15 @@ export function ReadTextFile({ body, mimeType, url, encInfo, renderViewer }: Rea
     useCallback(async () => {
       const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
       if (!mediaUrl) throw new Error('Invalid media URL');
-      const fileContent = encInfo
-        ? await downloadEncryptedMedia(mediaUrl, (encBuf) => decryptFile(encBuf, mimeType, encInfo))
-        : await downloadMedia(mediaUrl);
+      const fileContent = await loadFileContent(mediaUrl, mimeType, encInfo).catch((error) => {
+        reportDownloadFailure(error, 'fetch', getDownloadFilename(body), mimeType);
+        throw error;
+      });
 
       const text = fileContent.text();
       setTextViewer(true);
       return text;
-    }, [mx, useAuthentication, mimeType, encInfo, url])
+    }, [mx, useAuthentication, mimeType, encInfo, url, body])
   );
 
   return (
@@ -161,13 +171,15 @@ export function ReadPdfFile({ body, mimeType, url, encInfo, renderViewer }: Read
     useCallback(async () => {
       const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
       if (!mediaUrl) throw new Error('Invalid media URL');
-      const fileContent = encInfo
-        ? downloadEncryptedMedia(mediaUrl, (encBuf) => decryptFile(encBuf, mimeType, encInfo))
-        : downloadMedia(mediaUrl);
-      const fileURL = await createObjectURL(fileContent);
+      const fileURL = await createObjectURL(loadFileContent(mediaUrl, mimeType, encInfo)).catch(
+        (error) => {
+          reportDownloadFailure(error, 'fetch', getDownloadFilename(body), mimeType);
+          throw error;
+        }
+      );
       setPdfViewer(true);
       return fileURL;
-    }, [mx, url, useAuthentication, mimeType, encInfo, createObjectURL])
+    }, [mx, url, useAuthentication, mimeType, encInfo, createObjectURL, body])
   );
 
   return (
@@ -225,21 +237,18 @@ export function DownloadFile({ body, mimeType, url, info, encInfo }: DownloadFil
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
 
-  const createObjectURL = useCreateObjectURL();
-
   const [downloadState, download] = useAsyncCallback(
     useCallback(async () => {
       const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
       if (!mediaUrl) throw new Error('Invalid media URL');
-      const fileContentPromise = encInfo
-        ? downloadEncryptedMedia(mediaUrl, (encBuf) => decryptFile(encBuf, mimeType, encInfo))
-        : downloadMedia(mediaUrl);
-      const fileURL = await createObjectURL(fileContentPromise);
-      const fileContent = await fileContentPromise;
-
-      await saveFileToDevice(fileContent, getDownloadFilename(body), mimeType);
-      return fileURL;
-    }, [mx, url, useAuthentication, mimeType, encInfo, body, createObjectURL])
+      return saveMediaToDevice({
+        mediaUrl,
+        filename: getDownloadFilename(body),
+        mimeType,
+        encInfo,
+        loadBlob: () => loadFileContent(mediaUrl, mimeType, encInfo),
+      });
+    }, [mx, url, useAuthentication, mimeType, encInfo, body])
   );
 
   return downloadState.status === AsyncStatus.Error ? (
@@ -250,11 +259,7 @@ export function DownloadFile({ body, mimeType, url, info, encInfo }: DownloadFil
       fill="Soft"
       radii="300"
       size="400"
-      onClick={() =>
-        downloadState.status === AsyncStatus.Success
-          ? void saveFileToDevice(downloadState.data, getDownloadFilename(body), mimeType)
-          : download()
-      }
+      onClick={() => download()}
       disabled={downloadState.status === AsyncStatus.Loading}
       before={
         downloadState.status === AsyncStatus.Loading ? (

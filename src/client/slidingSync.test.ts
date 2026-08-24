@@ -459,6 +459,7 @@ describe('SlidingSyncManager initial request', () => {
     const room = {
       getMember: vi.fn<() => undefined>(),
       currentState: { setStateEvents: vi.fn<() => void>() },
+      getLiveTimeline: () => ({ getEvents: () => [] }),
     };
     const manager = makeManager(
       makeMockMx({
@@ -1791,6 +1792,72 @@ describe('SlidingSyncManager pause/resume', () => {
     manager.attach();
 
     await expect(manager.waitForResume()).resolves.toBeUndefined();
+  });
+
+  it('resumeForPush() lifts the pause and parks once to-device comes back empty', () => {
+    const manager = makeManager(makeMockMx());
+    manager.attach();
+    manager.pause();
+
+    expect(manager.resumeForPush()).toBe(true);
+    expect(manager.isPaused()).toBe(false);
+
+    fireLifecycle(SlidingSyncState.Complete, { extensions: { to_device: { events: [] } } });
+
+    expect(manager.isPaused()).toBe(true);
+  });
+
+  it('keeps draining while to-device still carries events', () => {
+    const manager = makeManager(makeMockMx());
+    manager.attach();
+    manager.pause();
+    manager.resumeForPush();
+
+    const withKeys = { extensions: { to_device: { events: [{ type: 'm.room.key' }] } } };
+    fireLifecycle(SlidingSyncState.Complete, withKeys);
+    expect(manager.isPaused()).toBe(false);
+
+    fireLifecycle(SlidingSyncState.Complete, { extensions: { to_device: { events: [] } } });
+    expect(manager.isPaused()).toBe(true);
+  });
+
+  it('parks a never-draining queue once the poll budget runs out', () => {
+    const MAX_PUSH_DRAIN_POLLS = 5;
+    const manager = makeManager(makeMockMx());
+    manager.attach();
+    manager.pause();
+    manager.resumeForPush();
+
+    const withKeys = { extensions: { to_device: { events: [{ type: 'm.room.key' }] } } };
+    for (let i = 0; i < MAX_PUSH_DRAIN_POLLS; i += 1) {
+      expect(manager.isPaused()).toBe(false);
+      fireLifecycle(SlidingSyncState.Complete, withKeys);
+    }
+
+    expect(manager.isPaused()).toBe(true);
+  });
+
+  it('lets a real resume outrank an in-flight drain', () => {
+    const manager = makeManager(makeMockMx());
+    manager.attach();
+    manager.pause();
+    manager.resumeForPush();
+
+    manager.resume();
+    fireLifecycle(SlidingSyncState.Complete, { extensions: { to_device: { events: [] } } });
+
+    expect(manager.isPaused()).toBe(false);
+  });
+
+  it('resumeForPush() is a no-op when sync is already running', () => {
+    const manager = makeManager(makeMockMx());
+    manager.attach();
+
+    expect(manager.resumeForPush()).toBe(false);
+
+    fireLifecycle(SlidingSyncState.Complete, { extensions: { to_device: { events: [] } } });
+
+    expect(manager.isPaused()).toBe(false);
   });
 
   it('silences the poll watchdog while paused', () => {

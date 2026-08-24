@@ -9,7 +9,6 @@ import { RoomSummaryLoader } from '$components/RoomSummaryLoader';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { allRoomsAtom } from '$state/room-list/roomList';
-import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { BackRouteHandler } from '$components/BackRouteHandler';
 
 type JoinBeforeNavigateProps = { roomIdOrAlias: string; eventId?: string; viaServers?: string[] };
@@ -21,7 +20,6 @@ export function JoinBeforeNavigate({
   const mx = useMatrixClient();
   const allRooms = useAtomValue(allRoomsAtom);
   const { navigateRoom, navigateSpace } = useRoomNavigate();
-  const screenSize = useScreenSizeContext();
 
   const handleView = (roomId: string, roomType?: string) => {
     if (mx.getRoom(roomId)?.isSpaceRoom() || roomType === RoomType.Space) {
@@ -36,11 +34,13 @@ export function JoinBeforeNavigate({
       <PageHeader balance>
         <Box grow="Yes" gap="200">
           <Box shrink="No">
-            {screenSize === ScreenSize.Mobile && (
-              <BackRouteHandler>
-                {(onBack) => <IconButton onClick={onBack}>{composerIcon(ArrowLeft)}</IconButton>}
-              </BackRouteHandler>
-            )}
+            <BackRouteHandler>
+              {(onBack) => (
+                <IconButton aria-label="Back" onClick={onBack}>
+                  {composerIcon(ArrowLeft)}
+                </IconButton>
+              )}
+            </BackRouteHandler>
           </Box>
           <Box grow="Yes" justifyContent="Center" alignItems="Center" gap="200">
             <Text size="H3" truncate>

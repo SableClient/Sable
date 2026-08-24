@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { isTauri } from '@tauri-apps/api/core';
 import { createLogger } from '$utils/debug';
 import {

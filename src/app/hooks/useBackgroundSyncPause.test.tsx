@@ -100,6 +100,27 @@ describe('useBackgroundSyncPause', () => {
     expect(resume).toHaveBeenCalled();
   });
 
+  it('resumes on window focus when visibilitychange was missed', () => {
+    setVisibility('hidden');
+    renderHook(() => useBackgroundSyncPause({ clientRunning: true } as never));
+    resume.mockClear();
+
+    setVisibility('visible');
+    window.dispatchEvent(new Event('focus'));
+
+    expect(resume).toHaveBeenCalled();
+  });
+
+  it('does not resume on a focus event while still hidden', () => {
+    setVisibility('hidden');
+    renderHook(() => useBackgroundSyncPause({ clientRunning: true } as never));
+    resume.mockClear();
+
+    window.dispatchEvent(new Event('focus'));
+
+    expect(resume).not.toHaveBeenCalled();
+  });
+
   it('keeps polling when a browser tab is hidden', () => {
     mockIsMobileTauri.value = false;
     setVisibility('visible');

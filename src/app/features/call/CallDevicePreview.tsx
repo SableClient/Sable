@@ -10,11 +10,12 @@ type DeviceSelectProps = {
   kind: MediaDeviceKind;
   deviceId?: string;
   onChange: (deviceId: string) => void;
-  permissionsGranted: boolean;
+  hasTrack: boolean;
 };
 
-function DeviceSelect({ label, kind, deviceId, onChange, permissionsGranted }: DeviceSelectProps) {
-  const { devices } = useMediaDeviceSelect({ kind, requestPermissions: permissionsGranted });
+function DeviceSelect({ label, kind, deviceId, onChange, hasTrack }: DeviceSelectProps) {
+  const { devices } = useMediaDeviceSelect({ kind, requestPermissions: hasTrack });
+  const namedDevices = devices.filter((device) => device.deviceId !== '');
 
   return (
     <Box direction="Column" gap="100" grow="Yes" style={{ minWidth: 0 }}>
@@ -26,7 +27,7 @@ function DeviceSelect({ label, kind, deviceId, onChange, permissionsGranted }: D
         onChange={(event) => onChange(event.target.value)}
       >
         <option value="">System default</option>
-        {devices.map((device, index) => (
+        {namedDevices.map((device, index) => (
           <option key={device.deviceId} value={device.deviceId}>
             {device.label || `${label} ${index + 1}`}
           </option>
@@ -126,14 +127,14 @@ export function CallDevicePreview({
           kind="audioinput"
           deviceId={audioDeviceId}
           onChange={onAudioDeviceChange}
-          permissionsGranted={microphone}
+          hasTrack={!!audioTrack}
         />
         <DeviceSelect
           label="Camera"
           kind="videoinput"
           deviceId={videoDeviceId}
           onChange={onVideoDeviceChange}
-          permissionsGranted={video}
+          hasTrack={!!videoTrack}
         />
       </Box>
     </Box>

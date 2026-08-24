@@ -9,21 +9,12 @@ import {
   useState,
 } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
-import { matchPath, useLocation, useNavigate } from 'react-router-dom';
+import { matchPath, useLocation, useNavigate } from 'react-router';
 import { lastVisitedRoomAtom } from '$state/room/lastRoom';
 import { usePrefersReducedMotion } from '$hooks/usePrefersReducedMotion';
-import {
-  DIRECT_PATH,
-  DIRECT_ROOM_PATH,
-  EXPLORE_PATH,
-  HOME_PATH,
-  HOME_ROOM_PATH,
-  INBOX_PATH,
-  SPACE_PATH,
-  SPACE_ROOM_PATH,
-} from '$pages/paths';
+import { DIRECT_PATH, EXPLORE_PATH, HOME_PATH, INBOX_PATH, SPACE_PATH } from '$pages/paths';
 import { resolveSection } from '$pages/pathUtils';
-import { isRoomAlias, isRoomId } from '$utils/matrix';
+import { matchRoomRoute } from '$pages/roomRouteMatch';
 import { PersistentRoomHost } from './PersistentRoomHost';
 import { MobileNavDrawerContext, type MobileSwipeTarget } from './MobileNavDrawerContext';
 import {
@@ -66,16 +57,9 @@ export function MobileNavDrawer({ nav, rail, bottomNav, children }: MobileNavDra
     openableSection && openableSection.getRoomPath && lastRoom?.[openableSection.key]
   );
 
-  const roomMatch =
-    matchPath({ path: HOME_ROOM_PATH, end: false }, location.pathname) ??
-    matchPath({ path: DIRECT_ROOM_PATH, end: false }, location.pathname) ??
-    matchPath({ path: SPACE_ROOM_PATH, end: false }, location.pathname);
-  const matchedRoomId = roomMatch?.params.roomIdOrAlias
-    ? decodeURIComponent(roomMatch.params.roomIdOrAlias)
-    : undefined;
-  // `:roomIdOrAlias` also matches non-room segments like `create`, `search`, and `lobby`.
-  // Only treat it as a room when it is a real Matrix ID or alias.
-  const isRoomRoute = !!matchedRoomId && (isRoomId(matchedRoomId) || isRoomAlias(matchedRoomId));
+  const roomRoute = matchRoomRoute(location.pathname);
+  const matchedRoomId = roomRoute?.roomIdOrAlias;
+  const isRoomRoute = roomRoute !== undefined;
 
   const listView =
     matchPath({ path: HOME_PATH, end: true }, location.pathname) !== null ||
@@ -94,11 +78,11 @@ export function MobileNavDrawer({ nav, rail, bottomNav, children }: MobileNavDra
   const positionRef = useRef(0);
 
   const [panelIntent, setPanelIntent] = useState(contentOpen ? 1 : 0);
-  const gestureRef = useRef<ActiveTouchGesture>();
+  const gestureRef = useRef<ActiveTouchGesture | undefined>(undefined);
   const messageTargetsRef = useRef(new WeakMap<HTMLElement, MobileSwipeTarget>());
   const chatTargetsRef = useRef(new WeakMap<HTMLElement, MobileSwipeTarget>());
-  const settleAnimationRef = useRef<number>();
-  const programmaticTargetRef = useRef<number>();
+  const settleAnimationRef = useRef<number | undefined>(undefined);
+  const programmaticTargetRef = useRef<number | undefined>(undefined);
 
   const setTrackPosition = useCallback((position: number) => {
     positionRef.current = position;
@@ -230,6 +214,12 @@ export function MobileNavDrawer({ nav, rail, bottomNav, children }: MobileNavDra
   useLayoutEffect(() => {
     navPanelRef.current?.toggleAttribute('inert', panelIntent === 1);
     contentPanelRef.current?.toggleAttribute('inert', panelIntent === 0);
+    // `inert` alone does not drop a mobile keyboard.
+    const hiddenPanel = panelIntent === 0 ? contentPanelRef.current : navPanelRef.current;
+    const focused = document.activeElement;
+    if (hiddenPanel && focused instanceof HTMLElement && hiddenPanel.contains(focused)) {
+      focused.blur();
+    }
   }, [panelIntent]);
 
   useLayoutEffect(() => {

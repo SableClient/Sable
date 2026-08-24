@@ -27,7 +27,7 @@ export function NotificationRecorder() {
     storeContent,
     storeEncryptedContent: storeContent && storeEncryptedContent,
   };
-  const startedFor = useRef<MatrixClient>();
+  const startedFor = useRef<MatrixClient | undefined>(undefined);
 
   useEffect(() => {
     const start = () => {

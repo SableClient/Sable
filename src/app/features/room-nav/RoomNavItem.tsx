@@ -18,7 +18,7 @@ import {
 import { TooltipProvider } from '$components/overlay-stack';
 import { useFocusWithin, useHover } from 'react-aria';
 import { useAtom, useAtomValue } from 'jotai';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { NavButton, NavItem, NavItemContent, NavItemOptions } from '$components/nav';
 import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
@@ -124,8 +124,8 @@ const RoomNavItemMenu = forwardRef<HTMLDivElement, RoomNavItemMenuProps>(
       invitePrompt,
       setInvitePrompt,
       directInvitePrompt,
-      setDirectInvitePrompt,
       handleInviteDirect,
+      handleDirectInviteCancel,
       handleConvertAndInvite,
       convertState,
     } = useRoomMenuActions(room);
@@ -173,10 +173,7 @@ const RoomNavItemMenu = forwardRef<HTMLDivElement, RoomNavItemMenuProps>(
         )}
         {directInvitePrompt && (
           <DirectInvitePrompt
-            onCancel={() => {
-              setDirectInvitePrompt(false);
-              requestClose();
-            }}
+            onCancel={() => handleDirectInviteCancel(requestClose)}
             onInviteDirect={handleInviteDirect}
             onConvertAndInvite={handleConvertAndInvite}
             converting={convertState.status === AsyncStatus.Loading}

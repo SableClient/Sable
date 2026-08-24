@@ -4,7 +4,7 @@ import { Box, Chip, IconButton, Line, Scroll, Spinner, Text, color, config } fro
 import type { VirtualItem } from '@tanstack/react-virtual';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useAtom, useAtomValue } from 'jotai';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import type {
   Room,
   RoomJoinRulesEventContent,

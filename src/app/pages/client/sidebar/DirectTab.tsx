@@ -1,5 +1,5 @@
 import { forwardRef, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useAtomValue } from 'jotai';
 import { useDirects } from '$state/hooks/roomList';
 import { useMatrixClient } from '$hooks/useMatrixClient';

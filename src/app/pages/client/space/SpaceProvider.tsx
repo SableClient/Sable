@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Spinner } from 'folds';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { useAtomValue } from 'jotai';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { allRoomsAtom } from '$state/room-list/roomList';

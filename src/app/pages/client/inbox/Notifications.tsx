@@ -1,7 +1,7 @@
 import type { MouseEventHandler } from 'react';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { Avatar, Badge, Box, Chip, Header, IconButton, Scroll, Spinner, Text, config } from 'folds';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router';
 import { Virtualizer } from 'virtua';
 import {
   ArrowLeft,

@@ -39,10 +39,10 @@ export const messageList = style({
   overflowAnchor: 'none',
 
   '@supports': {
-    'not selector(::-webkit-scrollbar)': {
+    '(-moz-appearance: none)': {
       scrollbarWidth: 'auto',
       selectors: {
-        '&:hover, &:has(*:hover)': {
+        '&:hover': {
           scrollbarColor: `${color.SurfaceVariant.ContainerLine} ${color.SurfaceVariant.ContainerActive}`,
         },
       },

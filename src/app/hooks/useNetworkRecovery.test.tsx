@@ -1,16 +1,19 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import { renderHook } from '@testing-library/react';
 
-const { nudgeReconnect, setOnline, listenOff, listen, mockIsTauri } = vi.hoisted(() => ({
-  nudgeReconnect: vi.fn<(mx: unknown, reason: string, opts?: { force?: boolean }) => boolean>(),
-  setOnline: vi.fn<() => void>(),
-  listenOff: vi.fn<() => void>(),
-  listen: vi.fn<(_event: string, _cb: () => void) => Promise<() => void>>(),
-  mockIsTauri: { value: false },
-}));
+const { nudgeReconnect, abortClassicSyncPoll, setOnline, listenOff, listen, mockIsTauri } =
+  vi.hoisted(() => ({
+    nudgeReconnect: vi.fn<(mx: unknown, reason: string, opts?: { force?: boolean }) => boolean>(),
+    abortClassicSyncPoll: vi.fn<(mx: unknown) => boolean>(),
+    setOnline: vi.fn<() => void>(),
+    listenOff: vi.fn<() => void>(),
+    listen: vi.fn<(_event: string, _cb: () => void) => Promise<() => void>>(),
+    mockIsTauri: { value: false },
+  }));
 
 vi.mock('$client/reconnect', () => ({
   nudgeReconnect,
+  abortClassicSyncPoll,
 }));
 
 vi.mock('@tanstack/react-query', () => ({
@@ -43,6 +46,7 @@ describe('useNetworkRecovery', () => {
     vi.useFakeTimers();
     vi.setSystemTime(0);
     nudgeReconnect.mockReset().mockReturnValue(true);
+    abortClassicSyncPoll.mockReset().mockReturnValue(true);
     setOnline.mockReset();
     listenOff.mockReset();
     listen.mockReset().mockResolvedValue(listenOff);
@@ -170,6 +174,56 @@ describe('useNetworkRecovery', () => {
 
     vi.advanceTimersByTime(10_000);
     expect(nudgeReconnect).toHaveBeenCalledTimes(2);
+  });
+
+  describe('wedged classic sync escalation', () => {
+    it('aborts the poll after three consecutive nudges that could not bite', () => {
+      nudgeReconnect.mockReturnValue(false);
+      renderHook(() => useNetworkRecovery({ clientRunning: true } as never));
+
+      vi.advanceTimersByTime(80_000);
+      vi.advanceTimersByTime(10_000);
+      expect(abortClassicSyncPoll).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(10_000);
+      expect(abortClassicSyncPoll).toHaveBeenCalledOnce();
+    });
+
+    it('never escalates while nudges keep biting', () => {
+      renderHook(() => useNetworkRecovery({ clientRunning: true } as never));
+
+      vi.advanceTimersByTime(200_000);
+
+      expect(nudgeReconnect).toHaveBeenCalled();
+      expect(abortClassicSyncPoll).not.toHaveBeenCalled();
+    });
+
+    it('forgets dead nudges once a Sync arrives', () => {
+      nudgeReconnect.mockReturnValue(false);
+      renderHook(() => useNetworkRecovery({ clientRunning: true } as never));
+
+      vi.advanceTimersByTime(80_000);
+      vi.advanceTimersByTime(10_000);
+      if (syncCallback) syncCallback();
+
+      vi.advanceTimersByTime(80_000);
+      vi.advanceTimersByTime(10_000);
+      expect(abortClassicSyncPoll).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(10_000);
+      expect(abortClassicSyncPoll).toHaveBeenCalledOnce();
+    });
+
+    it('resets the stall clock so one wedge escalates once', () => {
+      nudgeReconnect.mockReturnValue(false);
+      renderHook(() => useNetworkRecovery({ clientRunning: true } as never));
+
+      vi.advanceTimersByTime(100_000);
+      expect(abortClassicSyncPoll).toHaveBeenCalledOnce();
+
+      vi.advanceTimersByTime(10_000);
+      expect(abortClassicSyncPoll).toHaveBeenCalledOnce();
+    });
   });
 
   describe('foreground nudge verification', () => {

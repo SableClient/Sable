@@ -17,7 +17,7 @@ export type UnifiedPushTransportApi = {
 };
 
 export async function getUnifiedPushTransportApi(): Promise<UnifiedPushTransportApi> {
-  const notificationsApi = await import('@choochmeque/tauri-plugin-notifications-api');
+  const notificationsApi = await import('@sableclient/tauri-plugin-notifications-api');
   return {
     isPermissionGranted: notificationsApi.isPermissionGranted,
     requestPermission: notificationsApi.requestPermission,

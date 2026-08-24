@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { Avatar, Box, Button, MenuItem, Text, toRem } from 'folds';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useAtom, useAtomValue } from 'jotai';
@@ -20,10 +20,12 @@ import {
   getExplorePath,
   getExploreServerPath,
   getCreateRoomPath,
+  getHomeForumPath,
   getHomeRoomPath,
   getHomeSearchPath,
   withSearchParam,
 } from '$pages/pathUtils';
+import { CustomRoomType } from '$types/matrix/room';
 import { useOpenShallowRoute } from '$pages/client/useShallowRoute';
 import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import { useSelectedOrLastRoom } from '$hooks/router/useSelectedRoom';
@@ -435,7 +437,11 @@ export function Home() {
                           selected={selected}
                           showAvatar={showIcons()}
                           hideText={hideText}
-                          linkPath={getHomeRoomPath(canonicalName)}
+                          linkPath={
+                            room.getType() === CustomRoomType.Forum
+                              ? getHomeForumPath(canonicalName)
+                              : getHomeRoomPath(canonicalName)
+                          }
                           notificationMode={getRoomNotificationMode(
                             notificationPreferences,
                             room.roomId

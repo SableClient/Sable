@@ -4,7 +4,7 @@ import { TauriEvent, listen } from '@tauri-apps/api/event';
 import { isTauri } from '@tauri-apps/api/core';
 import type { MatrixClient } from '$types/matrix-sdk';
 import type { NudgeReason } from '$client/reconnect';
-import { nudgeReconnect } from '$client/reconnect';
+import { abortClassicSyncPoll, nudgeReconnect } from '$client/reconnect';
 import { useSyncState } from './useSyncState';
 
 // Sync fires on every poll response: at most 45s apart on sliding, 30s classic.
@@ -14,10 +14,13 @@ const STALL_CHECK_INTERVAL_MS = 10_000;
 const VISIBLE_STALE_MS = 30_000;
 // After a foreground nudge, verify a Sync arrived within this window; retry once otherwise.
 const VERIFY_AFTER_NUDGE_MS = 3_000;
+// Dead stalled nudges before aborting; spares a warm resume whose poll survived.
+const WEDGED_NUDGE_ATTEMPTS = 3;
 
 export const useNetworkRecovery = (mx: MatrixClient | undefined): void => {
   const lastSyncAtRef = useRef(Date.now());
   const verifyTimerRef = useRef<number | undefined>(undefined);
+  const deadNudgesRef = useRef(0);
 
   const cancelVerify = useCallback(() => {
     if (verifyTimerRef.current === undefined) return;
@@ -38,6 +41,7 @@ export const useNetworkRecovery = (mx: MatrixClient | undefined): void => {
     mx,
     useCallback(() => {
       lastSyncAtRef.current = Date.now();
+      deadNudgesRef.current = 0;
       cancelVerify();
     }, [cancelVerify])
   );
@@ -78,8 +82,22 @@ export const useNetworkRecovery = (mx: MatrixClient | undefined): void => {
     document.addEventListener('visibilitychange', onVisible);
 
     const stallCheck = window.setInterval(() => {
-      if (Date.now() - lastSyncAtRef.current < SYNC_STALL_MS) return;
-      if (nudge('stalled')) lastSyncAtRef.current = Date.now();
+      if (Date.now() - lastSyncAtRef.current < SYNC_STALL_MS) {
+        deadNudgesRef.current = 0;
+        return;
+      }
+      if (nudge('stalled')) {
+        lastSyncAtRef.current = Date.now();
+        deadNudgesRef.current = 0;
+        return;
+      }
+      // Throttled counts too: no request went out, and the 10s tick clears the 3s throttle.
+      deadNudgesRef.current += 1;
+      if (deadNudgesRef.current < WEDGED_NUDGE_ATTEMPTS) return;
+      deadNudgesRef.current = 0;
+      // Give the keepalive poke its own stall window before escalating again.
+      lastSyncAtRef.current = Date.now();
+      abortClassicSyncPoll(mx);
     }, STALL_CHECK_INTERVAL_MS);
 
     const unlisten = isTauri()

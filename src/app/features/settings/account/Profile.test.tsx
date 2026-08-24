@@ -1,8 +1,17 @@
-import { render, within } from '@testing-library/react';
+import { act, render, within } from '@testing-library/react';
 import { describe, expect, it, vi } from 'vitest';
 import { ScreenSize, ScreenSizeProvider } from '$hooks/useScreenSize';
 import { SettingsLinkProvider } from '$features/settings/SettingsLinkContext';
+import { showToast } from '$state/toast';
 import { Profile } from './Profile';
+
+vi.mock('$state/toast', () => ({
+  showToast: vi.fn<(text: string) => void>(),
+}));
+
+const timezoneEditorMock = vi.hoisted(() => ({
+  props: undefined as { current?: string; onSave: (tz: string) => void } | undefined,
+}));
 
 const mockMatrixClient = {
   getUserId: () => '@alice:example.org',
@@ -72,7 +81,10 @@ vi.mock('jotai', async () => {
 });
 
 vi.mock('./TimezoneEditor', () => ({
-  TimezoneEditor: () => <div>Timezone</div>,
+  TimezoneEditor: (props: { current?: string; onSave: (tz: string) => void }) => {
+    timezoneEditorMock.props = props;
+    return <div>Timezone</div>;
+  },
 }));
 
 vi.mock('./PronounEditor', () => ({
@@ -118,5 +130,26 @@ describe('Profile', () => {
     expect(
       within(customFieldTile as HTMLElement).queryByRole('button', { name: /copy settings link/i })
     ).not.toBeInTheDocument();
+  });
+
+  it('surfaces a toast when saving the timezone fails', async () => {
+    mockMatrixClient.setExtendedProfileProperty.mockRejectedValue(
+      new Error('Server does not support extended profiles')
+    );
+
+    render(
+      <ScreenSizeProvider value={ScreenSize.Desktop}>
+        <SettingsLinkProvider value={{ section: 'account', baseUrl: 'https://app.example' }}>
+          <Profile />
+        </SettingsLinkProvider>
+      </ScreenSizeProvider>
+    );
+
+    expect(timezoneEditorMock.props).toBeDefined();
+    await act(async () => {
+      timezoneEditorMock.props?.onSave('Europe/Paris');
+    });
+
+    expect(showToast).toHaveBeenCalledWith(expect.stringContaining('Failed to save profile field'));
   });
 });

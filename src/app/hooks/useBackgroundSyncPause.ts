@@ -28,13 +28,21 @@ export const useBackgroundSyncPause = (mx: MatrixClient | undefined): void => {
       else manager.resume();
     };
 
+    // Nothing re-arms a paused transport, so a missed `visible` event strands it until a
+    // restart. `focus` also fires in the Android webview.
+    const resumeIfVisible = () => {
+      if (document.visibilityState !== 'hidden') resume();
+    };
+
     document.addEventListener('visibilitychange', applyVisibility);
+    window.addEventListener('focus', resumeIfVisible);
     const unlisten = isTauri() ? listen(TauriEvent.WINDOW_RESUMED, resume) : undefined;
 
     applyVisibility();
 
     return () => {
       document.removeEventListener('visibilitychange', applyVisibility);
+      window.removeEventListener('focus', resumeIfVisible);
       unlisten?.then((off) => off());
       resume();
     };

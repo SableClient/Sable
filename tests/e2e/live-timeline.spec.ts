@@ -130,6 +130,7 @@ test.describe('live timeline', () => {
     await app.openRoom(`${tag} Room`);
     await expect(app.messageByEventId(readyEventId)).toBeVisible({ timeout: 120_000 });
 
+    /* eslint-disable no-await-in-loop */
     for (let i = 1; i <= BURST_SIZE; i += 1) {
       await sendText(hsBaseUrl, remote.accessToken, room, `${tag}-b${i}`, i);
     }
@@ -144,6 +145,7 @@ test.describe('live timeline', () => {
         timeout: 120_000,
       });
     }
+    /* eslint-enable no-await-in-loop */
 
     const domOrder = await page.getByText(new RegExp(`^${tag}-b\\d+$`)).allTextContents();
     expect(domOrder).toEqual(expected);

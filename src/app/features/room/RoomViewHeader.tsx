@@ -4,7 +4,7 @@ import { useAtom } from 'jotai';
 import classNames from 'classnames';
 import { Box, Avatar, Text, IconButton, Tooltip, toRem, Badge } from 'folds';
 import { TooltipProvider } from '$components/overlay-stack';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import type { MatrixEvent } from '$types/matrix-sdk';
 import {
   Direction,

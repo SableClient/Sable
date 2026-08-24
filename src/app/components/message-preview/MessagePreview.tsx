@@ -63,6 +63,7 @@ import * as customHtmlCss from '$styles/CustomHtml.css';
 type MessagePreviewRendererOptions = {
   room: Room;
   mediaAutoLoad?: boolean;
+  bundledPreview?: boolean;
   urlPreview?: boolean;
   htmlReactParserOptions: HTMLReactParserOptions;
   linkifyOpts: LinkifyOpts;
@@ -131,6 +132,7 @@ function renderRoomMessage(
       getContent={resolvedGetContent}
       edited={resolved.edited}
       mediaAutoLoad={ctx.mediaAutoLoad}
+      bundledPreview={ctx.bundledPreview}
       urlPreview={ctx.urlPreview}
       htmlReactParserOptions={ctx.htmlReactParserOptions}
       linkifyOpts={ctx.linkifyOpts}
@@ -284,7 +286,9 @@ export function useRoomMessagePreviewRenderer(
   const mentionClickHandler = useMentionClickHandler(room.roomId);
   const spoilerClickHandler = useSpoilerClickHandler();
   const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
+  const [bundledPreview] = useSetting(settingsAtom, 'bundledPreview');
   const [urlPreview] = useSetting(settingsAtom, 'urlPreview');
+  const [encUrlPreview] = useSetting(settingsAtom, 'encUrlPreview');
   const [autoplayEmojis] = useSetting(settingsAtom, 'autoplayEmojis');
   const [incomingInlineImagesDefaultHeight] = useSetting(
     settingsAtom,
@@ -343,11 +347,20 @@ export function useRoomMessagePreviewRenderer(
     () => ({
       room,
       mediaAutoLoad,
-      urlPreview,
+      bundledPreview,
+      urlPreview: room.hasEncryptionStateEvent() ? encUrlPreview : urlPreview,
       htmlReactParserOptions,
       linkifyOpts,
     }),
-    [room, mediaAutoLoad, urlPreview, htmlReactParserOptions, linkifyOpts]
+    [
+      room,
+      mediaAutoLoad,
+      bundledPreview,
+      urlPreview,
+      encUrlPreview,
+      htmlReactParserOptions,
+      linkifyOpts,
+    ]
   );
 
   return useMessagePreviewRenderer(rendererOptions);

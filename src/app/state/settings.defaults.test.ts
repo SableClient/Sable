@@ -72,6 +72,34 @@ describe('mergePersistedSettings', () => {
     expect(merged.saturationLevel).toBe(0);
   });
 
+  it('turns the gif and sticker triggers on once for clients persisted before the migration', () => {
+    expect(defaultSettings.editorGifButton).toBe(true);
+    expect(defaultSettings.editorStickerButton).toBe(true);
+
+    localStorage.setItem(
+      'settings',
+      JSON.stringify({ editorGifButton: false, editorStickerButton: false })
+    );
+    const merged = mergePersistedSettings(localStorage.getItem('settings'), {});
+    expect(merged.editorGifButton).toBe(true);
+    expect(merged.editorStickerButton).toBe(true);
+    expect(merged.editorTriggerButtonsMigrated).toBe(true);
+  });
+
+  it('keeps the trigger buttons off once the migration has run', () => {
+    localStorage.setItem(
+      'settings',
+      JSON.stringify({
+        editorGifButton: false,
+        editorStickerButton: false,
+        editorTriggerButtonsMigrated: true,
+      })
+    );
+    const merged = mergePersistedSettings(localStorage.getItem('settings'), {});
+    expect(merged.editorGifButton).toBe(false);
+    expect(merged.editorStickerButton).toBe(false);
+  });
+
   it('seeds the name color correction once for clients persisted before the migration', () => {
     localStorage.setItem('settings', JSON.stringify({ nameColorLightnessCorrection: 'off' }));
     const merged = mergePersistedSettings(localStorage.getItem('settings'), {});

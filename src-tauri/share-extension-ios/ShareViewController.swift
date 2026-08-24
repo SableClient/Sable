@@ -80,6 +80,21 @@ final class ShareViewController: UIViewController {
             lock.unlock()
 
             group.enter()
+            if type == .image || type == .movie {
+                provider.loadFileRepresentation(forTypeIdentifier: type.identifier) { url, error in
+                    defer { group.leave() }
+                    if let error {
+                        NSLog("[share-extension] load file failed for \(type.identifier): \(error)")
+                        return
+                    }
+                    guard let url else {
+                        NSLog("[share-extension] no file returned for \(type.identifier)")
+                        return
+                    }
+                    self.stageFile(at: url, index: index, into: batchDir, append: append)
+                }
+                continue
+            }
             provider.loadItem(forTypeIdentifier: type.identifier, options: nil) { item, error in
                 defer { group.leave() }
                 if let error {
@@ -112,7 +127,6 @@ final class ShareViewController: UIViewController {
         }
     }
 
-    // Source apps deliver payloads as a file URL, raw Data, or UIImage.
     private func stagePayload(
         _ item: NSSecureCoding?, provider: NSItemProvider, type: UTType, index: Int,
         into batchDir: URL, append: (StagedItem) -> Void
@@ -127,12 +141,6 @@ final class ShareViewController: UIViewController {
             let ext = resolved.preferredFilenameExtension ?? "bin"
             let name = "shared-\(index).\(ext)"
             writeData(data, name: name, mime: mimeType(for: resolved), into: batchDir, append: append)
-        } else if let image = item as? UIImage {
-            if let data = image.jpegData(compressionQuality: 0.9) {
-                writeData(
-                    data, name: "shared-\(index).jpg", mime: "image/jpeg", into: batchDir,
-                    append: append)
-            }
         } else {
             NSLog("[share-extension] unsupported payload \(String(describing: item))")
         }

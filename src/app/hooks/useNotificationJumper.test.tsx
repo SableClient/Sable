@@ -1,6 +1,6 @@
 import { act, render, waitFor } from '@testing-library/react';
 import { Provider, createStore } from 'jotai';
-import type * as ReactRouterDom from 'react-router-dom';
+import type * as ReactRouterDom from 'react-router';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { ClientEvent, SyncState } from '$types/matrix-sdk';
 import { activeSessionIdAtom, pendingNotificationAtom } from '$state/sessions';
@@ -13,7 +13,7 @@ const mocks = vi.hoisted(() => ({
   mx: undefined as unknown,
 }));
 
-vi.mock('react-router-dom', async (importOriginal) => ({
+vi.mock('react-router', async (importOriginal) => ({
   ...(await importOriginal<typeof ReactRouterDom>()),
   useNavigate: () => mocks.navigate,
 }));
@@ -145,7 +145,9 @@ describe('NotificationJumper', () => {
 
     await waitFor(() => expect(mocks.navigate).toHaveBeenCalledOnce());
     expect(unsubscribeFromRoom).not.toHaveBeenCalled();
-    expect(releaseRoomSubscriptionUnlessRouted).toHaveBeenCalledWith('!room:example.org');
+    await waitFor(() =>
+      expect(releaseRoomSubscriptionUnlessRouted).toHaveBeenCalledWith('!room:example.org')
+    );
   });
 
   it('jumps anyway when the subscription is never confirmed', async () => {

@@ -15,6 +15,8 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { AddExistingModal } from '$features/add-existing';
+import { BetaNoticeBadge } from '$components/BetaNoticeBadge';
+import { CreateRoomType } from '$components/create-room/types';
 import { useOpenShallowRoute } from '$pages/client/useShallowRoute';
 import { getCreateRoomPath, getCreateSpacePath } from '$pages/pathUtils';
 import { stopPropagation } from '$utils/keyboard';
@@ -234,8 +236,8 @@ function AddRoomButton({ item }: { item: HierarchyItem }) {
     setCords(evt.currentTarget.getBoundingClientRect());
   };
 
-  const handleCreateRoom = () => {
-    openShallowRoute(getCreateRoomPath(item.roomId));
+  const handleCreateRoom = (type?: CreateRoomType) => {
+    openShallowRoute(getCreateRoomPath(item.roomId, type));
     setCords(undefined);
   };
 
@@ -266,9 +268,19 @@ function AddRoomButton({ item }: { item: HierarchyItem }) {
               radii="300"
               variant="Primary"
               fill="None"
-              onClick={handleCreateRoom}
+              onClick={() => handleCreateRoom()}
             >
               <Text size="T300">New Room</Text>
+            </MenuItem>
+            <MenuItem
+              size="300"
+              radii="300"
+              variant="Primary"
+              fill="None"
+              onClick={() => handleCreateRoom(CreateRoomType.ForumRoom)}
+              after={<BetaNoticeBadge />}
+            >
+              <Text size="T300">Forum Room</Text>
             </MenuItem>
             <MenuItem size="300" radii="300" fill="None" onClick={handleAddExisting}>
               <Text size="T300">Existing Room</Text>

@@ -5,6 +5,13 @@ import type { CryptoApi } from '$types/matrix-sdk';
 import { CryptoEvent } from '$types/matrix-sdk';
 import { useSessionBackupKeyUsable } from './useKeyBackup';
 
+const sentry = vi.hoisted(() => ({
+  addBreadcrumb: vi.fn<() => void>(),
+  metrics: { count: vi.fn<() => void>() },
+}));
+
+vi.mock('@sentry/react', () => sentry);
+
 const emitter = new TypedEventEmitter<string, Record<string, (...args: never[]) => void>>();
 
 vi.mock('$hooks/useMatrixClient', () => ({
@@ -28,6 +35,8 @@ const createCrypto = ({ key, version }: CryptoParts) =>
 describe('useSessionBackupKeyUsable', () => {
   beforeEach(() => {
     emitter.removeAllListeners();
+    sentry.addBreadcrumb.mockClear();
+    sentry.metrics.count.mockClear();
   });
 
   it('reports true when both the key and the backup version are in the store', async () => {
@@ -85,5 +94,38 @@ describe('useSessionBackupKeyUsable', () => {
     emitter.emit(CryptoEvent.KeyBackupDecryptionKeyCached as never);
 
     await waitFor(() => expect(result.current).toBe(true));
+  });
+
+  it('records when an available session backup key is lost', async () => {
+    const key = vi
+      .fn<CryptoApi['getSessionBackupPrivateKey']>()
+      .mockResolvedValueOnce(new Uint8Array([1]))
+      .mockResolvedValue(null);
+    const crypto = createCrypto({ key });
+    const { result } = renderHook(() => useSessionBackupKeyUsable(crypto));
+
+    await waitFor(() => expect(result.current).toBe(true));
+    emitter.emit(CryptoEvent.KeyBackupDecryptionKeyCached as never);
+
+    await waitFor(() => expect(result.current).toBe(false));
+    expect(sentry.metrics.count).toHaveBeenCalledWith('sable.crypto.session_backup_key_lost', 1);
+  });
+
+  it('records when a lookup fails after the backup key was available', async () => {
+    const key = vi
+      .fn<CryptoApi['getSessionBackupPrivateKey']>()
+      .mockResolvedValueOnce(new Uint8Array([1]))
+      .mockRejectedValue(new Error('store closed'));
+    const crypto = createCrypto({ key });
+    const { result } = renderHook(() => useSessionBackupKeyUsable(crypto));
+
+    await waitFor(() => expect(result.current).toBe(true));
+    emitter.emit(CryptoEvent.KeyBackupDecryptionKeyCached as never);
+
+    await waitFor(() => expect(result.current).toBeUndefined());
+    expect(sentry.metrics.count).toHaveBeenCalledWith(
+      'sable.crypto.session_backup_key_lookup_failed',
+      1
+    );
   });
 });

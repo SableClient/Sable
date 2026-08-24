@@ -100,16 +100,21 @@ impl SessionStore {
     pub(super) fn set(
         &self,
         mut session: MediaSession,
-        before_notify: impl FnOnce(),
+        before_notify: impl FnOnce(bool),
     ) -> Result<(), String> {
         let mut current = self
             .current
             .write()
             .map_err(|_| "media session lock poisoned".to_owned())?;
+        let changed = current.as_ref().is_none_or(|existing| {
+            existing.origin != session.origin
+                || existing.token != session.token
+                || existing.scope != session.scope
+        });
         session.generation = self.generation.fetch_add(1, Ordering::AcqRel) + 1;
         *current = Some(session);
         drop(current);
-        before_notify();
+        before_notify(changed);
         self.ever_set.store(true, Ordering::Release);
         self.ready.notify_waiters();
         Ok(())

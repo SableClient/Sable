@@ -133,6 +133,12 @@ export function ManualVerificationTile({
       await crypto.bootstrapCrossSigning({});
       await crypto.bootstrapSecretStorage({});
 
+      const deviceId = mx.getDeviceId();
+      if (!deviceId) {
+        throw new Error('Unexpected Error! Current device ID not found.');
+      }
+      await crypto.setDeviceVerified(mx.getSafeUserId(), deviceId);
+
       await crypto.loadSessionBackupPrivateKeyFromSecretStorage();
 
       refreshVerificationStatus();

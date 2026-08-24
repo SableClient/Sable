@@ -62,9 +62,11 @@ describe('VideoContent', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Watch' }));
 
     const video = await screen.findByTestId('video');
-    expect(srcs[srcs.length - 1]).toMatch(/^http:\/\/127\.0\.0\.1:45678\//);
+    await waitFor(() => {
+      expect(srcs[srcs.length - 1]).toMatch(/^http:\/\/127\.0\.0\.1:45678\//);
+      expect(mocks.loopbackTargets[mocks.loopbackTargets.length - 1]).toBe(SABLE_MEDIA_URL);
+    });
     const initialSrc = mocks.loopbackTargets[mocks.loopbackTargets.length - 1];
-    expect(initialSrc).toBe(SABLE_MEDIA_URL);
 
     fireEvent.error(video);
     fireEvent.click(await screen.findByRole('button', { name: 'Retry' }));

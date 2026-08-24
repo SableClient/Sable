@@ -74,7 +74,7 @@ const shouldFocusMessageField = (evt: KeyboardEvent): boolean => {
 export function RoomView({ eventId }: { eventId?: string }) {
   const roomInputRef = useRef<HTMLDivElement>(null);
   const roomViewRef = useRef<HTMLDivElement>(null);
-  const editLastMessageRef = useRef<(() => void) | undefined>();
+  const editLastMessageRef = useRef<(() => void) | undefined>(undefined);
 
   const [hideReads] = useSetting(settingsAtom, 'hideReads');
   const screenSize = useScreenSizeContext();
@@ -149,7 +149,14 @@ export function RoomView({ eventId }: { eventId?: string }) {
   return (
     <Page
       ref={roomViewRef}
-      style={{ position: 'relative', overflow: 'hidden', isolation: 'isolate', minWidth: 0 }}
+      style={{
+        position: 'relative',
+        overflow: 'hidden',
+        isolation: 'isolate',
+        minWidth: 0,
+        minHeight: 0,
+        width: '100%',
+      }}
     >
       <SwipeableChatWrapper onOpenMembers={handleOpenMembers}>
         <Box grow="Yes" direction="Column">

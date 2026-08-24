@@ -39,18 +39,19 @@ export const takeTauriSsoNonce = (): string | undefined => {
   }
 };
 
+// Built as a string: resolving a relative path against a non-special base throws on Chromium < 130.
 export const buildTauriSsoRedirectUrl = (server?: string): string => {
-  const redirectUrl = new URL(SSO_CALLBACK_PATH, getAppBaseUrl());
+  const params = new URLSearchParams();
 
   if (server) {
-    redirectUrl.searchParams.set('server', server);
+    params.set('server', server);
   }
 
   const nonce = crypto.randomUUID();
   rememberTauriSsoNonce(nonce);
-  redirectUrl.searchParams.set('sso_nonce', nonce);
+  params.set('sso_nonce', nonce);
 
-  return redirectUrl.toString();
+  return `${getAppBaseUrl()}${SSO_CALLBACK_PATH}?${params}`;
 };
 
 export const TAURI_OIDC_CLIENT_URI = 'https://app.sable.moe';
@@ -103,11 +104,15 @@ export const parseTauriOidcCallback = (
   }
 };
 
+// Chromium < 130 gives a non-special scheme an opaque path, leaving the authority in the pathname.
+export const isTauriSsoCallbackTarget = (hostname: string, pathname: string): boolean =>
+  hostname === TAURI_SSO_HOST || pathname === `//${TAURI_SSO_HOST}${SSO_CALLBACK_PATH}`;
+
 export const parseTauriSsoCallback = (rawUrl: string): TauriSsoCallback | undefined => {
   try {
     const callbackUrl = new URL(rawUrl);
     if (callbackUrl.protocol !== TAURI_SSO_PROTOCOL) return undefined;
-    if (callbackUrl.hostname !== TAURI_SSO_HOST) return undefined;
+    if (!isTauriSsoCallbackTarget(callbackUrl.hostname, callbackUrl.pathname)) return undefined;
 
     const loginToken = callbackUrl.searchParams.get('loginToken');
     if (!loginToken) return undefined;

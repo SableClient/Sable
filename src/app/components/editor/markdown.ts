@@ -416,42 +416,33 @@ export const setMarkdownPreviewDispatch = (dispatch: (() => void) | null): void 
 
 const highlightKey = (lang: string | null, line: string): string => `${lang ?? ''}\u0000${line}`;
 
-const decodeHtmlText = (text: string): string =>
-  text
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#39;/g, "'")
-    .replace(/&nbsp;/g, ' ');
-
-const HIGHLIGHT_SPAN_RE = /<a-([a-z]{1,2})>|<\/a-[a-z]{1,2}>|([^<]+)/g;
+const TOKEN_ELEMENT_RE = /^a-[a-z]{1,2}$/;
 
 // Arborium returns a line highlighted as flat token elements (e.g.
-// `<a-k>const</a-k>`); turn them into line-relative text ranges carrying the
-// token's element name so the decoration pass can render the real elements the
-// CDN arborium CSS styles.
+// `<a-k>const</a-k>`); parse it with the platform HTML parser so entity
+// decoding is native, then turn each token's text into a line-relative range
+// carrying the token's element name so the decoration pass can render the
+// real elements the CDN arborium CSS styles.
 const parseHighlightHtml = (
   html: string
 ): ReadonlyArray<{ start: number; end: number; cls: string }> => {
   const segments: { start: number; end: number; cls: string }[] = [];
-  const openTags: string[] = [];
   let offset = 0;
-  for (const match of html.matchAll(HIGHLIGHT_SPAN_RE)) {
-    const openTag = match[1];
-    const text = match[2];
-    if (openTag !== undefined) {
-      openTags.push(`a-${openTag}`);
-    } else if (text !== undefined) {
-      const decoded = decodeHtmlText(text);
-      const deepest = openTags[openTags.length - 1];
-      if (decoded && deepest)
-        segments.push({ start: offset, end: offset + decoded.length, cls: deepest });
-      offset += decoded.length;
-    } else {
-      openTags.pop();
+  const visit = (node: Node, cls: string | undefined): void => {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent ?? '';
+      if (text && cls !== undefined)
+        segments.push({ start: offset, end: offset + text.length, cls });
+      offset += text.length;
+      return;
     }
-  }
+    const childCls =
+      node instanceof Element && TOKEN_ELEMENT_RE.test(node.tagName.toLowerCase())
+        ? node.tagName.toLowerCase()
+        : cls;
+    for (const child of node.childNodes) visit(child, childCls);
+  };
+  visit(new DOMParser().parseFromString(html, 'text/html').body, undefined);
   return segments;
 };
 

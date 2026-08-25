@@ -620,6 +620,37 @@ describe('markdownPreviewPlugin decorations', () => {
     setMarkdownPreviewDispatch(null);
   });
 
+  it('decodes escaped entities exactly once when mapping highlight html', async () => {
+    // The line literally contains `&amp;<`; arborium escapes it to
+    // `x &amp;amp;&lt; y`, which must map back onto those same literal chars.
+    vi.mocked(highlightCode).mockResolvedValue({
+      mode: 'highlighted',
+      html: '<a-s>x &amp;amp;&lt;</a-s> y',
+      language: 'js',
+    });
+    const editorDocument: EditorDocument = [
+      { type: BlockType.Paragraph, children: [{ text: '```js' }] },
+      { type: BlockType.Paragraph, children: [{ text: 'x &amp;< y' }] },
+      { type: BlockType.Paragraph, children: [{ text: '```' }] },
+    ];
+    const doc = toProseMirrorDocument(editorDocument);
+    const state = EditorState.create({ doc, plugins: [markdownPreviewPlugin] });
+    const container = document.createElement('div');
+    let view: EditorView;
+    setMarkdownPreviewDispatch(() => {
+      view.dispatch(view.state.tr);
+    });
+    view = new EditorView(container, { state });
+    await vi.waitFor(() => {
+      expect(container.querySelector('a-s')).toBeTruthy();
+    });
+    const token = container.querySelector('a-s') as HTMLElement;
+    expect(token.textContent).toBe('x &amp;<');
+    expect(token.className.includes(editorCss.EditorMarkdownCodeBlock)).toBe(true);
+    view.destroy();
+    setMarkdownPreviewDispatch(null);
+  });
+
   describe('thematic breaks', () => {
     it('turns a standalone --- line into a divider block decoration', () => {
       expect(decorationFinder(['---'])).toHaveLength(1);

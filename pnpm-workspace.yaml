@@ -21,6 +21,8 @@ minimumReleaseAgeExclude:
   - '@sableclient/twemoji-font'
 
 overrides:
+  # Temporary: matrix-js-sdk#5501
+  '@matrix-org/matrix-sdk-crypto-wasm': '18.4.0'
   brace-expansion: '>=5.0.9'
   esbuild: '>=0.28.1'
   fast-uri: '>=3.1.5'

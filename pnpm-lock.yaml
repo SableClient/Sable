@@ -5,6 +5,7 @@ settings:
   excludeLinksFromLockfile: false
 
 overrides:
+  '@matrix-org/matrix-sdk-crypto-wasm': 18.4.0
   brace-expansion: '>=5.0.9'
   esbuild: '>=0.28.1'
   fast-uri: '>=3.1.5'
@@ -1289,8 +1290,8 @@ packages:
     resolution: {integrity: sha512-UKk+DmY2yurQs2T02AekNGVLD+fSGlygHKnf9485LCWF+CUvMSUXizAgR2qDGFUH2APj2i58nk21QhfVi9EG6g==}
     engines: {node: '>=18.17.0', npm: '>=9.5.0'}
 
-  '@matrix-org/matrix-sdk-crypto-wasm@18.5.0':
-    resolution: {integrity: sha512-E826Hy1rG26LanPjtSsOiVRcVoHfSgPgj2r2Xsb5RPScpaKi9XJADQ0u3dNjRCitZPX4oyLNl1FDd5AfDlmIwQ==}
+  '@matrix-org/matrix-sdk-crypto-wasm@18.4.0':
+    resolution: {integrity: sha512-osxkU1DQ+05+anGHapjWyvZqdHUb94Id37gy54mCKn1Cq/D7iGT5oEUEhjp4oTnCLo4TOtI6ULJ/LHsapaIptQ==}
     engines: {node: '>= 18'}
 
   '@napi-rs/canvas-android-arm64@1.0.3':
@@ -6419,7 +6420,7 @@ snapshots:
 
   '@lottiefiles/dotlottie-web@0.79.1': {}
 
-  '@matrix-org/matrix-sdk-crypto-wasm@18.5.0': {}
+  '@matrix-org/matrix-sdk-crypto-wasm@18.4.0': {}
 
   '@napi-rs/canvas-android-arm64@1.0.3':
     optional: true
@@ -8961,7 +8962,7 @@ snapshots:
   matrix-js-sdk@42.1.0:
     dependencies:
       '@babel/runtime': 8.0.0
-      '@matrix-org/matrix-sdk-crypto-wasm': 18.5.0
+      '@matrix-org/matrix-sdk-crypto-wasm': 18.4.0
       another-json: 0.2.0
       bs58: 6.0.0
       content-type: 2.1.0

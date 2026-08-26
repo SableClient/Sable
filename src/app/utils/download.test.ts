@@ -6,6 +6,7 @@ import { showToast } from '$state/toast';
 import { setMediaEncryption } from '$utils/tauriMediaEncryption';
 import {
   downloadJsonFile,
+  getDownloadFilename,
   saveFileToDevice,
   saveMediaToDevice,
   saveMediaToGallery,
@@ -72,6 +73,28 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.clearAllMocks();
+});
+
+describe('getDownloadFilename', () => {
+  it('appends the MIME extension when the filename has none', () => {
+    expect(
+      getDownloadFilename('Six Moments musicaux op. 16', undefined, 'image', 'image/jpeg')
+    ).toBe('Six Moments musicaux op. 16.jpg');
+  });
+
+  it('keeps the existing extension when present', () => {
+    expect(getDownloadFilename('photo.png', undefined, 'image', 'image/jpeg')).toBe('photo.png');
+  });
+
+  it('applies the fallback name with the MIME extension when no filename exists', () => {
+    expect(getDownloadFilename(undefined, undefined, 'image', 'image/png')).toBe('image.png');
+  });
+
+  it('does not append an extension for an unknown MIME type', () => {
+    expect(getDownloadFilename('cover', undefined, 'image', 'application/octet-stream')).toBe(
+      'cover'
+    );
+  });
 });
 
 describe('saveFileToDevice', () => {

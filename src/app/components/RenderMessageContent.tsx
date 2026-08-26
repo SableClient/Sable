@@ -60,6 +60,7 @@ import {
   MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME,
   MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME,
 } from '$unstable/prefixes';
+import { getEventEdits } from '$utils/room/relations';
 import {
   convertBeeperFormatToOurPerMessageProfile,
   type PerMessageProfileBeeperFormat,
@@ -129,6 +130,22 @@ function RenderMessageContentInternal({
   onOpenMedia,
 }: RenderMessageContentProps) {
   const content = useMemo(() => getContent() as Record<string, unknown>, [getContent]);
+
+  // Edit timestamps for the "(edited)" hover tooltip, newest last.
+  const editTimestamps = useMemo(() => {
+    if (!mEvent || !room || typeof mEvent.getId !== 'function') return undefined;
+    const evtId = mEvent.getId();
+    const evtTimeline = evtId ? room.getTimelineForEvent(evtId) : undefined;
+    const edits =
+      evtTimeline && evtId
+        ? getEventEdits(evtTimeline.getTimelineSet(), evtId, mEvent.getType())?.getRelations()
+        : undefined;
+    return edits
+      ? Array.from(edits)
+          .map((evt) => evt.getTs())
+          .toSorted((a, b) => a - b)
+      : undefined;
+  }, [mEvent, room]);
 
   const [autoplayGifs] = useSetting(settingsAtom, 'autoplayGifs');
   const [captionPosition] = useSetting(settingsAtom, 'captionPosition');
@@ -263,6 +280,9 @@ function RenderMessageContentInternal({
           <MText
             style={CAPTION_STYLE}
             edited={edited}
+            editTimestamps={editTimestamps}
+            room={room}
+            mEvent={mEvent}
             content={content}
             renderBody={renderBody}
             renderUrlsPreview={messageUrlsPreview}
@@ -284,6 +304,9 @@ function RenderMessageContentInternal({
         >
           <MText
             edited={edited}
+            editTimestamps={editTimestamps}
+            room={room}
+            mEvent={mEvent}
             content={content}
             renderBody={renderBody}
             renderUrlsPreview={messageUrlsPreview}
@@ -312,7 +335,14 @@ function RenderMessageContentInternal({
               wordBreak: 'break-word',
             }}
           >
-            <MText edited={edited} content={content} renderBody={renderBody} style={TEXT_STYLE} />
+            <MText
+              edited={edited}
+              room={room}
+              mEvent={mEvent}
+              content={content}
+              renderBody={renderBody}
+              style={TEXT_STYLE}
+            />
           </Box>
         )}
         <ImageContent
@@ -429,6 +459,9 @@ function RenderMessageContentInternal({
     return (
       <MText
         edited={edited}
+        editTimestamps={editTimestamps}
+        room={room}
+        mEvent={mEvent}
         content={content}
         renderBody={renderBody}
         renderUrlsPreview={messageUrlsPreview}
@@ -469,6 +502,9 @@ function RenderMessageContentInternal({
       <MEmote
         displayName={pmp?.displayname ?? displayName}
         edited={edited}
+        editTimestamps={editTimestamps}
+        room={room}
+        mEvent={mEvent}
         content={strippedContent}
         renderBody={renderBody}
         renderUrlsPreview={messageUrlsPreview}
@@ -481,6 +517,9 @@ function RenderMessageContentInternal({
     return (
       <MNotice
         edited={edited}
+        editTimestamps={editTimestamps}
+        room={room}
+        mEvent={mEvent}
         content={content}
         renderBody={renderBody}
         renderUrlsPreview={messageUrlsPreview}

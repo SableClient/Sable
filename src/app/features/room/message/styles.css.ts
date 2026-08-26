@@ -9,6 +9,22 @@ export const MessageBaseBubbleCollapsed = style({
   paddingTop: 0,
 });
 
+export const MessageCollapsedTimeWrap = style({
+  position: 'relative',
+  minWidth: toRem(36),
+});
+
+export const MessageCollapsedTime = style({
+  whiteSpace: 'nowrap',
+  userSelect: 'none',
+  pointerEvents: 'none',
+  position: 'absolute',
+  top: toRem(4),
+  right: 0,
+  fontSize: toRem(10),
+  lineHeight: toRem(14),
+});
+
 export const MessageForceHover = style({
   backgroundColor: `${color.Surface.ContainerHover} !important`,
 });

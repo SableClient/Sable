@@ -1,7 +1,13 @@
 import { lazy, Suspense, type CSSProperties, type ReactNode, useMemo } from 'react';
 import { ArrowSquareOut, sizedIcon, Link } from '$components/icons/phosphor';
 import { Box, Chip, Text, toRem } from 'folds';
-import { type IContent, type IPreviewUrlResponse, type MatrixClient } from '$types/matrix-sdk';
+import {
+  type IContent,
+  type IPreviewUrlResponse,
+  type MatrixClient,
+  type MatrixEvent,
+  type Room,
+} from '$types/matrix-sdk';
 import { isJumboEmojiText } from '$utils/emojiDetection';
 import { trimReplyFromBody } from '$utils/room/display';
 import type {
@@ -130,6 +136,9 @@ type RenderBodyProps = {
 };
 type MTextProps = {
   edited?: boolean;
+  editTimestamps?: number[];
+  room?: Room;
+  mEvent?: MatrixEvent;
   content: Record<string, unknown>;
   renderBody: (props: RenderBodyProps) => ReactNode;
   renderUrlsPreview?: (urls: string[]) => ReactNode;
@@ -191,6 +200,9 @@ const getUrlsFromContent = (
 
 export function MText({
   edited,
+  editTimestamps,
+  room,
+  mEvent,
   content,
   renderBody,
   renderUrlsPreview,
@@ -288,7 +300,9 @@ export function MText({
             body: trimmedBody,
             customBody: unwrappedPmpCustomBody,
           })}
-          {edited && <MessageEditedContent />}
+          {edited && (
+            <MessageEditedContent editTimestamps={editTimestamps} room={room} mEvent={mEvent} />
+          )}
         </MessageTextBody>
         {(renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls)) ||
           (renderBundledPreviews &&
@@ -306,7 +320,9 @@ export function MText({
           body: trimmedBody,
           customBody: unwrappedForwardedContent,
         })}
-        {edited && <MessageEditedContent />}
+        {edited && (
+          <MessageEditedContent editTimestamps={editTimestamps} room={room} mEvent={mEvent} />
+        )}
         {(renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls)) ||
           (renderBundledPreviews &&
             bundleContent &&
@@ -327,7 +343,9 @@ export function MText({
           body: trimmedBody,
           customBody: typeof cleanedMessage === 'string' ? cleanedMessage : undefined,
         })}
-        {edited && <MessageEditedContent />}
+        {edited && (
+          <MessageEditedContent editTimestamps={editTimestamps} room={room} mEvent={mEvent} />
+        )}
       </MessageTextBody>
       {(renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls)) ||
         (renderBundledPreviews &&
@@ -341,6 +359,9 @@ export function MText({
 type MEmoteProps = {
   displayName: string;
   edited?: boolean;
+  editTimestamps?: number[];
+  room?: Room;
+  mEvent?: MatrixEvent;
   content: Record<string, unknown>;
   renderBody: (props: RenderBodyProps) => ReactNode;
   renderUrlsPreview?: (urls: string[]) => ReactNode;
@@ -349,6 +370,9 @@ type MEmoteProps = {
 export function MEmote({
   displayName,
   edited,
+  editTimestamps,
+  room,
+  mEvent,
   content,
   renderBody,
   renderUrlsPreview,
@@ -384,7 +408,9 @@ export function MEmote({
           body: trimmedBody,
           customBody: typeof cleanedMessage === 'string' ? cleanedMessage : undefined,
         })}
-        {edited && <MessageEditedContent />}
+        {edited && (
+          <MessageEditedContent editTimestamps={editTimestamps} room={room} mEvent={mEvent} />
+        )}
       </MessageTextBody>
       {(renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls)) ||
         (renderBundledPreviews &&
@@ -397,6 +423,9 @@ export function MEmote({
 
 type MNoticeProps = {
   edited?: boolean;
+  editTimestamps?: number[];
+  room?: Room;
+  mEvent?: MatrixEvent;
   content: Record<string, unknown>;
   renderBody: (props: RenderBodyProps) => ReactNode;
   renderUrlsPreview?: (urls: string[]) => ReactNode;
@@ -404,6 +433,9 @@ type MNoticeProps = {
 };
 export function MNotice({
   edited,
+  editTimestamps,
+  room,
+  mEvent,
   content,
   renderBody,
   renderUrlsPreview,
@@ -438,7 +470,9 @@ export function MNotice({
           body: trimmedBody,
           customBody: typeof cleanedMessage === 'string' ? cleanedMessage : undefined,
         })}
-        {edited && <MessageEditedContent />}
+        {edited && (
+          <MessageEditedContent editTimestamps={editTimestamps} room={room} mEvent={mEvent} />
+        )}
       </MessageTextBody>
       {(renderUrlsPreview && urls && urls.length > 0 && renderUrlsPreview(urls)) ||
         (renderBundledPreviews &&

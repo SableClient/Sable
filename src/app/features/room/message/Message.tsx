@@ -59,6 +59,7 @@ import type { PerMessageProfileBeeperFormat } from '$hooks/usePerMessageProfile'
 import { convertBeeperFormatToOurPerMessageProfile } from '$hooks/usePerMessageProfile';
 import { MessageEditor } from './MessageEditor';
 import * as css from './styles.css';
+import { timeHourMinute } from '$utils/time';
 import { modalAtom, ModalType } from '$state/modal';
 import { OptionQuickMenu } from '$components/message/modals/Options';
 
@@ -255,6 +256,12 @@ export const Pronouns = as<
     </AsPronouns>
   );
 });
+const CollapsedMessageTime = ({ ts, hour24Clock }: { ts: number; hour24Clock: boolean }) => (
+  <Text as="span" priority="300" className={css.MessageCollapsedTime}>
+    {timeHourMinute(ts, hour24Clock)}
+  </Text>
+);
+
 type WrappedMessageProps = {
   headerJSX: JSX.Element;
   avatarJSX: JSX.Element;
@@ -557,112 +564,121 @@ function MessageInternal(
     return existing;
   }, [pronouns, inlinePronoun]);
 
+  const collapsedTimeJSX =
+    collapse && isDesktopHover ? (
+      <Box className={css.MessageCollapsedTimeWrap}>
+        <CollapsedMessageTime ts={mEvent.getTs()} hour24Clock={hour24Clock} />
+      </Box>
+    ) : undefined;
+
   const headerJSX = (collapsed?: boolean) => {
-    if (!collapsed)
-      return (
+    if (collapsed) {
+      if (messageLayout === MessageLayout.Compact) return collapsedTimeJSX ?? <></>;
+      return <></>;
+    }
+    return (
+      <Box
+        gap="300"
+        direction={
+          messageLayout === MessageLayout.Compact ||
+          (messageLayout === MessageLayout.Bubble && useRightBubbles && senderId === mx.getUserId())
+            ? 'RowReverse'
+            : 'Row'
+        }
+        justifyContent="SpaceBetween"
+        alignItems="Baseline"
+        grow="Yes"
+      >
         <Box
-          gap="300"
-          direction={
-            messageLayout === MessageLayout.Compact ||
-            (messageLayout === MessageLayout.Bubble &&
-              useRightBubbles &&
-              senderId === mx.getUserId())
-              ? 'RowReverse'
-              : 'Row'
-          }
-          justifyContent="SpaceBetween"
-          alignItems="Baseline"
+          alignItems="Center"
+          gap="100"
           grow="Yes"
+          style={{ minWidth: 0 }}
+          direction={
+            messageLayout === MessageLayout.Bubble && useRightBubbles && senderId === mx.getUserId()
+              ? 'RowReverse'
+              : undefined
+          }
         >
-          <Box
-            alignItems="Center"
-            gap="100"
-            grow="Yes"
-            style={{ minWidth: 0 }}
-            direction={
-              messageLayout === MessageLayout.Bubble &&
-              useRightBubbles &&
-              senderId === mx.getUserId()
-                ? 'RowReverse'
-                : undefined
-            }
+          <Username
+            as="button"
+            style={{
+              color: accessibleNameColor(pmpNameColor) ?? usernameColor,
+              fontFamily: usernameFont,
+            }}
+            data-user-id={senderId}
+            onContextMenu={onUserClick}
+            onClick={onUsernameClick}
           >
-            <Username
-              as="button"
-              style={{
-                color: accessibleNameColor(pmpNameColor) ?? usernameColor,
-                fontFamily: usernameFont,
-              }}
-              data-user-id={senderId}
-              onContextMenu={onUserClick}
-              onClick={onUsernameClick}
+            <Text
+              as="span"
+              size={messageLayout === MessageLayout.Bubble ? 'T300' : 'T400'}
+              truncate
             >
-              <Text
-                as="span"
-                size={messageLayout === MessageLayout.Bubble ? 'T300' : 'T400'}
-                truncate
-              >
-                <UsernameBold>{cleanedDisplayName}</UsernameBold>
-              </Text>
-            </Username>
-            {showPronouns && (
-              <Pronouns
-                pronouns={mergedPronouns}
-                tagColor={accessibleNameColor(pmpNameColor) ?? usernameColor ?? 'currentColor'}
-              />
-            )}
-            {showPmPInfo && (
-              <Box>
-                <Text as="span">
-                  <Text
-                    as="span"
-                    style={{
-                      paddingLeft: 0,
-                      paddingRight: 5,
-                      fontWeight: 100,
-                      fontSize: 11,
-                    }}
-                  >
-                    via
-                  </Text>
-                  <Text
-                    as="span"
-                    size={messageLayout === MessageLayout.Bubble ? 'T300' : 'T400'}
-                    style={{ fontSize: 11 }}
-                    truncate
-                  >
-                    <UsernameBold>{resolvedSenderDisplayName}</UsernameBold>
-                  </Text>
-                </Text>
-              </Box>
-            )}
-            {tagIconSrc && <PowerIcon size="100" iconSrc={tagIconSrc} />}
-          </Box>
-          <Box shrink="No" gap="100">
-            {messageLayout === MessageLayout.Modern && isDesktopHover && (
-              <>
-                <Text as="span" size="T200" priority="300">
-                  {senderId}
-                </Text>
-                <Text as="span" size="T200" priority="300">
-                  |
-                </Text>
-              </>
-            )}
-            <Time
-              ts={mEvent.getTs()}
-              compact={messageLayout === MessageLayout.Compact}
-              hour24Clock={hour24Clock}
-              dateFormatString={dateFormatString}
+              <UsernameBold>{cleanedDisplayName}</UsernameBold>
+            </Text>
+          </Username>
+          {showPronouns && (
+            <Pronouns
+              pronouns={mergedPronouns}
+              tagColor={accessibleNameColor(pmpNameColor) ?? usernameColor ?? 'currentColor'}
             />
-          </Box>
+          )}
+          {showPmPInfo && (
+            <Box>
+              <Text as="span">
+                <Text
+                  as="span"
+                  style={{
+                    paddingLeft: 0,
+                    paddingRight: 5,
+                    fontWeight: 100,
+                    fontSize: 11,
+                  }}
+                >
+                  via
+                </Text>
+                <Text
+                  as="span"
+                  size={messageLayout === MessageLayout.Bubble ? 'T300' : 'T400'}
+                  style={{ fontSize: 11 }}
+                  truncate
+                >
+                  <UsernameBold>{resolvedSenderDisplayName}</UsernameBold>
+                </Text>
+              </Text>
+            </Box>
+          )}
+          {tagIconSrc && <PowerIcon size="100" iconSrc={tagIconSrc} />}
         </Box>
-      );
-    return <></>;
+        <Box shrink="No" gap="100">
+          {messageLayout === MessageLayout.Modern && isDesktopHover && (
+            <>
+              <Text as="span" size="T200" priority="300">
+                {senderId}
+              </Text>
+              <Text as="span" size="T200" priority="300">
+                |
+              </Text>
+            </>
+          )}
+          <Time
+            ts={mEvent.getTs()}
+            compact={messageLayout === MessageLayout.Compact}
+            hour24Clock={hour24Clock}
+            dateFormatString={dateFormatString}
+          />
+        </Box>
+      </Box>
+    );
   };
 
   const avatarJSX = (collapsed?: boolean) => {
-    if (!collapsed && messageLayout !== MessageLayout.Compact)
+    if (collapsed) {
+      if (messageLayout === MessageLayout.Compact) return <></>;
+      return collapsedTimeJSX ?? <></>;
+    }
+    if (messageLayout !== MessageLayout.Compact)
       return (
         <AvatarBase
           className={messageLayout === MessageLayout.Bubble ? css.BubbleAvatarBase : undefined}

@@ -819,6 +819,10 @@ function Messages() {
     settingsAtom,
     'hideMembershipInReadOnly'
   );
+  const [hideSingleReactionCount, setHideSingleReactionCount] = useSetting(
+    settingsAtom,
+    'hideSingleReactionCount'
+  );
 
   const [messageLayout] = useSetting(settingsAtom, 'messageLayout');
   const [rightBubbles, setRightBubbles] = useSetting(settingsAtom, 'useRightBubbles');
@@ -887,6 +891,13 @@ function Messages() {
         description="Hide membership changes, reactions, and reaction redactions in read-only rooms such as announcement channels."
         value={hideMembershipInReadOnly}
         onChange={setHideMembershipInReadOnly}
+      />
+      <SettingToggle
+        title="Hide Single Reaction Counts"
+        focusId="hide-single-reaction-count"
+        description="Hide the count numeral on reactions with only one participant."
+        value={hideSingleReactionCount}
+        onChange={setHideSingleReactionCount}
       />
       <SettingToggle
         title="Show Hidden Events"

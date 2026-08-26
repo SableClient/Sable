@@ -138,6 +138,7 @@ export interface Settings {
   alwaysInlineEditor: boolean;
   messageLayout: MessageLayout;
   messageSpacing: MessageSpacing;
+  hideSingleReactionCount: boolean;
   hideMembershipEvents: boolean;
   hideNickAvatarEvents: boolean;
   showHiddenEvents: boolean;
@@ -328,6 +329,7 @@ export const defaultSettings: Settings = {
   alwaysInlineEditor: false,
   messageLayout: 0,
   messageSpacing: '400',
+  hideSingleReactionCount: false,
   hideMembershipEvents: false,
   hideNickAvatarEvents: true,
   mediaAutoLoad: true,

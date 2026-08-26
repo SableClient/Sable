@@ -9,6 +9,8 @@ export const MessageBaseBubbleCollapsed = style({
   paddingTop: 0,
 });
 
+
+
 export const MessageForceHover = style({
   backgroundColor: `${color.Surface.ContainerHover} !important`,
 });

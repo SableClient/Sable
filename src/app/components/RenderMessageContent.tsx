@@ -34,6 +34,7 @@ import {
   UploadedSableCssContent,
   VideoContent,
 } from './message';
+import { LongMessageCollapse } from './message/LongMessageCollapse';
 import {
   UrlPreviewCard,
   UrlPreviewHolder,
@@ -162,13 +163,15 @@ function RenderMessageContentInternal({
 
   const renderBody = useCallback(
     (props: Record<string, unknown>) => (
-      <RenderBody
-        {...props}
-        body={props.body as string}
-        highlightRegex={highlightRegex}
-        htmlReactParserOptions={htmlReactParserOptions}
-        linkifyOpts={linkifyOpts}
-      />
+      <LongMessageCollapse>
+        <RenderBody
+          {...props}
+          body={props.body as string}
+          highlightRegex={highlightRegex}
+          htmlReactParserOptions={htmlReactParserOptions}
+          linkifyOpts={linkifyOpts}
+        />
+      </LongMessageCollapse>
     ),
     [highlightRegex, htmlReactParserOptions, linkifyOpts]
   );

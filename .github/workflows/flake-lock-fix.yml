@@ -30,7 +30,7 @@ jobs:
           token: ${{ steps.app-token.outputs.token }}
 
       - name: Install Determinate Nix
-        uses: DeterminateSystems/determinate-nix-action@61cbfe2efc2d4e7a8a6d56967c3c1058e846c858 # v3.21.9
+        uses: DeterminateSystems/determinate-nix-action@668647a33843b1f280cb2ef4c41736f86b29f826 # v3.22.1
 
       - id: check
         run: nix flake check -L --keep-going

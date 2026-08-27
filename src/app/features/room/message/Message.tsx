@@ -535,6 +535,7 @@ function MessageInternal(
   const [parsePronouns] = useSetting(settingsAtom, 'parsePronouns');
 
   const [useRightBubbles] = useSetting(settingsAtom, 'useRightBubbles');
+  const [showAllTimestamps] = useSetting(settingsAtom, 'showAllTimestamps');
   const { cleanedDisplayName, inlinePronoun } = useMemo(() => {
     const rawName = pmp?.displayname || resolvedSenderDisplayName || '';
     return getParsedPronouns(rawName, parsePronouns);
@@ -658,7 +659,32 @@ function MessageInternal(
           </Box>
         </Box>
       );
-    return <></>;
+    return showAllTimestamps ? (
+      <Box
+        gap="300"
+        direction={
+          messageLayout === MessageLayout.Compact ||
+          (messageLayout === MessageLayout.Bubble && useRightBubbles && senderId === mx.getUserId())
+            ? 'RowReverse'
+            : 'Row'
+        }
+        justifyContent="SpaceBetween"
+        alignItems="Baseline"
+        grow="Yes"
+      >
+        <Box grow="Yes" style={{ minWidth: 0 }} />
+        <Box shrink="No" gap="100">
+          <Time
+            ts={mEvent.getTs()}
+            compact={messageLayout === MessageLayout.Compact}
+            hour24Clock={hour24Clock}
+            dateFormatString={dateFormatString}
+          />
+        </Box>
+      </Box>
+    ) : (
+      <></>
+    );
   };
 
   const avatarJSX = (collapsed?: boolean) => {

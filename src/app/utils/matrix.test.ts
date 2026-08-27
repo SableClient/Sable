@@ -21,8 +21,13 @@ vi.mock('@tauri-apps/api/core', () => tauriApi);
 vi.mock('./mediaTransport', () => mediaTransport);
 vi.mock('./room/relations', () => reactions);
 
-const { getDMRoomFor, mxcUrlToHttp, rewriteAuthenticatedMediaUrl, toggleReaction } =
-  await import('./matrix');
+const {
+  getDMRoomFor,
+  mxcUrlToHttp,
+  rewriteAuthenticatedMediaUrl,
+  toggleReaction,
+  optimisticallyRedactEvent,
+} = await import('./matrix');
 
 describe('rewriteAuthenticatedMediaUrl', () => {
   beforeEach(() => {
@@ -109,27 +114,65 @@ describe('rewriteAuthenticatedMediaUrl', () => {
 
 describe('toggleReaction', () => {
   it('redacts the existing reaction from the current user', () => {
+    const redaction = {};
     const reaction = {
       getId: () => '$reaction',
       getSender: () => '@me:example.org',
+      getRelation: () => ({ event_id: '$message' }),
+      isRedacted: () => false,
+      markLocallyRedacted: vi.fn<(event: unknown) => void>(),
+      unmarkLocallyRedacted: vi.fn<() => void>(),
     };
     reactions.getEventReactions.mockReturnValue({
       getSortedAnnotationsByKey: () => [['👍', new Set([reaction])]],
     });
     const mx = {
       getUserId: () => '@me:example.org',
-      redactEvent: vi.fn<(roomId: string, eventId: string) => void>(),
+      makeTxnId: () => 'txn',
+      redactEvent: vi.fn<(...args: unknown[]) => Promise<object>>(() => Promise.resolve({})),
       sendEvent: vi.fn<(...args: unknown[]) => void>(),
     } as unknown as MatrixClient;
     const room = {
       roomId: '!room:example.org',
       getUnfilteredTimelineSet: vi.fn<() => unknown>(),
+      findEventById: () => redaction,
     };
 
     toggleReaction(mx, room as never, '$message', '👍');
 
-    expect(mx.redactEvent).toHaveBeenCalledWith('!room:example.org', '$reaction');
+    expect(mx.redactEvent).toHaveBeenCalledWith('!room:example.org', '$reaction', 'txn', undefined);
+    expect(reaction.markLocallyRedacted).toHaveBeenCalledWith(redaction);
     expect(mx.sendEvent).not.toHaveBeenCalled();
+  });
+
+  it('rolls back an optimistic redaction when sending fails', async () => {
+    const relation = {
+      addEvent: vi.fn<(event: unknown) => Promise<void>>(() => Promise.resolve()),
+    };
+    reactions.getEventReactions.mockReturnValue(relation);
+    const target = {
+      getId: () => '$reaction',
+      getRelation: () => ({ event_id: '$message' }),
+      isRedacted: () => false,
+      markLocallyRedacted: vi.fn<(event: unknown) => void>(),
+      unmarkLocallyRedacted: vi.fn<() => void>(),
+    };
+    const error = new Error('failed');
+    const mx = {
+      makeTxnId: () => 'txn',
+      redactEvent: () => Promise.reject(error),
+    } as unknown as MatrixClient;
+    const timelineSet = {};
+    const room = {
+      roomId: '!room:example.org',
+      getUnfilteredTimelineSet: () => timelineSet,
+      findEventById: () => ({}),
+    };
+
+    await expect(optimisticallyRedactEvent(mx, room as never, target as never)).rejects.toBe(error);
+
+    expect(target.unmarkLocallyRedacted).toHaveBeenCalledOnce();
+    expect(relation.addEvent).toHaveBeenCalledWith(target);
   });
 });
 

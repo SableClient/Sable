@@ -116,7 +116,7 @@ describe('CustomEditor layout', () => {
     act(() => editor.insertText('two'));
 
     await waitFor(() => expect(editor.getText()).toBe('one\ntwo'));
-    expect(row(container)).toHaveClass(css.EditorRowMultiline);
+    await waitFor(() => expect(row(container)).toHaveClass(css.EditorRowMultiline));
   });
 
   it('installs a hidden measurer for text layout', () => {

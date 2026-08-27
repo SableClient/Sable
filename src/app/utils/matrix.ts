@@ -571,8 +571,9 @@ export const toggleReaction = (
   const myReaction = reactions.find(factoryEventSentBy(mx.getUserId()!));
 
   if (myReaction) {
-    const eventId = myReaction.getId();
-    if (eventId) mx.redactEvent(room.roomId, eventId);
+    void optimisticallyRedactEvent(mx, room, myReaction, undefined, timelineSet).catch(
+      () => undefined
+    );
     return;
   }
   const rShortcode =
@@ -589,4 +590,30 @@ export const toggleReaction = (
       rShortcode
     ) as TimelineEvents[keyof TimelineEvents]
   );
+};
+
+export const optimisticallyRedactEvent = (
+  mx: MatrixClient,
+  room: Room,
+  target: MatrixEvent,
+  opts?: { reason?: string },
+  timelineSet = room.getUnfilteredTimelineSet()
+) => {
+  const eventId = target.getId();
+  if (!eventId) return Promise.reject(new Error('Cannot redact an event without an ID'));
+
+  const txnId = mx.makeTxnId();
+  const request = mx.redactEvent(room.roomId, eventId, txnId, opts);
+  const redaction = room.findEventById(`~${room.roomId}:${txnId}`);
+  if (!redaction || target.isRedacted()) return request;
+
+  target.markLocallyRedacted(redaction);
+  return request.catch(async (error) => {
+    target.unmarkLocallyRedacted();
+    const relation = target.getRelation();
+    if (relation?.event_id) {
+      await getEventReactions(timelineSet, relation.event_id)?.addEvent(target);
+    }
+    throw error;
+  });
 };

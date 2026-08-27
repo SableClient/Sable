@@ -773,11 +773,9 @@ export function RoomTimeline({
   );
 
   useLayoutEffect(() => {
-    if (!isReady) return;
     if (timelineSync.eventsLength > 0) return;
-    setIsReady(false);
     hasInitialScrolledRef.current = false;
-  }, [isReady, timelineSync.eventsLength]);
+  }, [timelineSync.eventsLength]);
 
   const recalcTopSpacer = useCallback(() => {
     const v = vListRef.current;
@@ -886,7 +884,6 @@ export function RoomTimeline({
 
   useEffect(() => {
     if (!eventId) return;
-    if (!timelineSyncRef.current.jumpFailed) setIsReady(false);
     jumpToEvent(eventId);
   }, [eventId, room, jumpToEvent]);
 
@@ -1471,11 +1468,7 @@ export function RoomTimeline({
           width: '100%',
           overflow: 'hidden',
           position: 'relative',
-          opacity:
-            !hideTimelineForRoomState &&
-            (isReady || showLoadingPlaceholders || showEmptyPaginationError)
-              ? 1
-              : 0,
+          opacity: hideTimelineForRoomState ? 0 : 1,
         }}
       >
         <TimelineScrollingProvider value={isTimelineScrolling}>
@@ -1552,7 +1545,7 @@ export function RoomTimeline({
         </TimelineFloat>
       )}
 
-      {(!atBottomState || !timelineSync.liveTimelineLinked) && isReady && (
+      {(!atBottomState || !timelineSync.liveTimelineLinked) && (
         <TimelineFloat position="Bottom">
           <Chip
             variant="SurfaceVariant"

@@ -93,8 +93,8 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
     const measurerRef = useRef<HTMLDivElement | null>(null);
     const latestTextRef = useRef(editor.getText());
     const focusScrollTimerRef = useRef<number | undefined>(undefined);
+    const layoutFrameRef = useRef<number | undefined>(undefined);
     const [isMultiline, setIsMultiline] = useState(false);
-    const [measurementVersion, setMeasurementVersion] = useState(0);
 
     const hasBefore = Boolean(before);
     const hasAfter = Boolean(after);
@@ -134,8 +134,18 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
           nextMultiline = measurer.scrollHeight > singleLineHeight + MULTILINE_HEIGHT_EPSILON;
         }
       }
-      setIsMultiline(nextMultiline);
+      setIsMultiline((isMultiline) =>
+        isMultiline === nextMultiline ? isMultiline : nextMultiline
+      );
     }, []);
+
+    const scheduleMultilineLayout = useCallback(() => {
+      if (layoutFrameRef.current !== undefined) return;
+      layoutFrameRef.current = requestAnimationFrame(() => {
+        layoutFrameRef.current = undefined;
+        updateMultilineLayout();
+      });
+    }, [updateMultilineLayout]);
 
     useEffect(() => {
       const root = rootRef.current;
@@ -170,17 +180,23 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
     }, [editableName]);
 
     useLayoutEffect(() => {
-      updateMultilineLayout();
-    }, [measurementVersion, updateMultilineLayout]);
+      scheduleMultilineLayout();
+      return () => {
+        if (layoutFrameRef.current !== undefined) {
+          cancelAnimationFrame(layoutFrameRef.current);
+          layoutFrameRef.current = undefined;
+        }
+      };
+    }, [scheduleMultilineLayout]);
 
     useEffect(() => {
       if (typeof ResizeObserver === 'undefined') return undefined;
-      const observer = new ResizeObserver(updateMultilineLayout);
+      const observer = new ResizeObserver(scheduleMultilineLayout);
       [rowRef.current, beforeRef.current, afterRef.current].forEach((element) => {
         if (element) observer.observe(element);
       });
       return () => observer.disconnect();
-    }, [updateMultilineLayout, hasBefore, hasAfter]);
+    }, [scheduleMultilineLayout, hasBefore, hasAfter]);
 
     useEffect(() => () => window.clearTimeout(focusScrollTimerRef.current), []);
     const handleKeyDown: KeyboardEventHandler = useCallback(
@@ -248,10 +264,10 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
     const handleDocumentChange = useCallback(
       (document: EditorDocument) => {
         latestTextRef.current = editor.getText();
-        setMeasurementVersion((version) => version + 1);
+        scheduleMultilineLayout();
         onChange?.(document);
       },
-      [editor, onChange]
+      [editor, onChange, scheduleMultilineLayout]
     );
 
     return (

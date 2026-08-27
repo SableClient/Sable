@@ -35,8 +35,6 @@ export interface UseProcessedTimelineOptions {
    * where every reply legitimately has `threadRootId` set to the root.
    */
   skipThreadFilter?: boolean;
-  /** Bumped when displayed timeline events mutate in place (redactions, decrypt, reactions). */
-  timelineVersion?: number;
 }
 
 export interface ProcessedEvent {
@@ -667,7 +665,6 @@ export function useProcessedTimeline({
   isReadOnly,
   hideMemberInReadOnly,
   skipThreadFilter,
-  timelineVersion = 0,
 }: UseProcessedTimelineOptions): ProcessedEvent[] {
   const {
     showHiddenEvents,
@@ -682,7 +679,6 @@ export function useProcessedTimeline({
   const cacheRef = useRef<ProcessingCache | undefined>(undefined);
 
   return useMemo(() => {
-    void timelineVersion;
     const timelineEvents = flattenTimelineEvents(linkedTimelines);
     const processingOptions: TimelineProcessingOptions = {
       ignoredUsersSet,
@@ -818,6 +814,5 @@ export function useProcessedTimeline({
     isReadOnly,
     hideMemberInReadOnly,
     skipThreadFilter,
-    timelineVersion,
   ]);
 }

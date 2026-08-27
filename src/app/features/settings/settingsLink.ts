@@ -47,6 +47,7 @@ export const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly s
     'markdown-formatting',
     'message-layout',
     'message-spacing',
+    'show-all-timestamps',
     'presence-status',
     'reply-notifications',
     'right-aligned-bubbles',

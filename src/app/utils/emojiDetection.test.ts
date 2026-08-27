@@ -12,6 +12,14 @@ describe('isEmojiGrapheme', () => {
 });
 
 describe('splitEmojiText', () => {
+  it('returns single text part for text without emojis', () => {
+    expect(splitEmojiText('hello world')).toEqual([{ type: 'text', value: 'hello world' }]);
+    expect(splitEmojiText('')).toEqual([{ type: 'text', value: '' }]);
+    expect(splitEmojiText('123 abc !@#$%^&*()')).toEqual([
+      { type: 'text', value: '123 abc !@#$%^&*()' },
+    ]);
+  });
+
   it('preserves newer emoji as standalone parts', () => {
     expect(splitEmojiText('a🫪b')).toEqual([
       { type: 'text', value: 'a' },

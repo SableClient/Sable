@@ -33,6 +33,10 @@ export const isEmojiGrapheme = (segment: string): boolean => {
 };
 
 export const splitEmojiText = (text: string): EmojiTextPart[] => {
+  if (!EMOJI_GRAPHEME_REG.test(text)) {
+    return [{ type: 'text', value: text }];
+  }
+
   const parts: EmojiTextPart[] = [];
   let buffer = '';
   let foundEmoji = false;

@@ -9,6 +9,5 @@ export const verifiedDevice = async (
 
   if (!status) return null;
 
-  const verified = status.crossSigningVerified || status.localVerified || status.signedByOwner;
-  return verified;
+  return !!(status.crossSigningVerified || status.localVerified || status.signedByOwner);
 };

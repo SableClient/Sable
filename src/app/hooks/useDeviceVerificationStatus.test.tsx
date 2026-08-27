@@ -50,13 +50,22 @@ vi.mock('@sentry/react', () => sentry);
 const USER_ID = '@me:example.org';
 const DEVICE_ID = 'DEVICEONE';
 
-const getDeviceVerificationStatus =
-  vi.fn<
-    (
-      userId: string,
-      deviceId: string
-    ) => Promise<{ crossSigningVerified: boolean; localVerified: boolean } | null>
-  >();
+const deviceVerificationStatus = (status: {
+  crossSigningVerified: boolean;
+  localVerified: boolean;
+  signedByOwner?: boolean;
+}) => ({ signedByOwner: false, ...status });
+
+const getDeviceVerificationStatus = vi.fn<
+  (
+    userId: string,
+    deviceId: string
+  ) => Promise<{
+    crossSigningVerified: boolean;
+    localVerified: boolean;
+    signedByOwner: boolean;
+  } | null>
+>();
 const crypto = { getDeviceVerificationStatus } as unknown as CryptoApi;
 
 const createWrapper = () => {
@@ -71,10 +80,9 @@ const createWrapper = () => {
 describe('useDeviceVerificationStatus', () => {
   beforeEach(() => {
     getDeviceVerificationStatus.mockReset();
-    getDeviceVerificationStatus.mockResolvedValue({
-      crossSigningVerified: true,
-      localVerified: false,
-    });
+    getDeviceVerificationStatus.mockResolvedValue(
+      deviceVerificationStatus({ crossSigningVerified: true, localVerified: false })
+    );
     sentry.addBreadcrumb.mockClear();
     sentry.metrics.count.mockClear();
   });
@@ -89,10 +97,25 @@ describe('useDeviceVerificationStatus', () => {
   });
 
   it('reports a locally verified device as verified', async () => {
-    getDeviceVerificationStatus.mockResolvedValue({
-      crossSigningVerified: false,
-      localVerified: true,
+    getDeviceVerificationStatus.mockResolvedValue(
+      deviceVerificationStatus({ crossSigningVerified: false, localVerified: true })
+    );
+
+    const { result } = renderHook(() => useDeviceVerificationStatus(crypto, USER_ID, DEVICE_ID), {
+      wrapper: createWrapper(),
     });
+
+    await waitFor(() => expect(result.current).toBe(VerificationStatus.Verified));
+  });
+
+  it('reports an owner-signed device as verified', async () => {
+    getDeviceVerificationStatus.mockResolvedValue(
+      deviceVerificationStatus({
+        crossSigningVerified: false,
+        localVerified: false,
+        signedByOwner: true,
+      })
+    );
 
     const { result } = renderHook(() => useDeviceVerificationStatus(crypto, USER_ID, DEVICE_ID), {
       wrapper: createWrapper(),
@@ -194,10 +217,9 @@ describe('useDeviceVerificationStatus', () => {
     await waitFor(() => expect(result.current).toBe(VerificationStatus.Verified));
     expect(getDeviceVerificationStatus).toHaveBeenCalledTimes(1);
 
-    getDeviceVerificationStatus.mockResolvedValue({
-      crossSigningVerified: false,
-      localVerified: false,
-    });
+    getDeviceVerificationStatus.mockResolvedValue(
+      deviceVerificationStatus({ crossSigningVerified: false, localVerified: false })
+    );
     await act(async () => {
       mockMx.emit(event, ...(args as never[]));
     });
@@ -212,10 +234,9 @@ describe('useDeviceVerificationStatus', () => {
     });
 
     await waitFor(() => expect(result.current).toBe(VerificationStatus.Verified));
-    getDeviceVerificationStatus.mockResolvedValue({
-      crossSigningVerified: false,
-      localVerified: false,
-    });
+    getDeviceVerificationStatus.mockResolvedValue(
+      deviceVerificationStatus({ crossSigningVerified: false, localVerified: false })
+    );
 
     await act(async () => {
       mockMx.emit(CryptoEvent.KeysChanged, ...([{}] as never[]));
@@ -249,9 +270,15 @@ describe('useDeviceVerificationStatus', () => {
         (
           userId: string,
           deviceId: string
-        ) => Promise<{ crossSigningVerified: boolean; localVerified: boolean } | null>
+        ) => Promise<{
+          crossSigningVerified: boolean;
+          localVerified: boolean;
+          signedByOwner: boolean;
+        } | null>
       >()
-      .mockResolvedValue({ crossSigningVerified: true, localVerified: false });
+      .mockResolvedValue(
+        deviceVerificationStatus({ crossSigningVerified: true, localVerified: false })
+      );
     const crypto2 = {
       getDeviceVerificationStatus: getDeviceVerificationStatus2,
     } as unknown as CryptoApi;
@@ -290,10 +317,9 @@ describe('useDeviceVerificationStatus', () => {
     await waitFor(() => expect(resultB.current).toBe(VerificationStatus.Verified));
     expect(getDeviceVerificationStatus).toHaveBeenCalledTimes(2);
 
-    getDeviceVerificationStatus.mockResolvedValue({
-      crossSigningVerified: false,
-      localVerified: false,
-    });
+    getDeviceVerificationStatus.mockResolvedValue(
+      deviceVerificationStatus({ crossSigningVerified: false, localVerified: false })
+    );
 
     await act(async () => {
       mockMx.emit(CryptoEvent.UserTrustStatusChanged, ...([USER_B, {}] as never[]));
@@ -335,7 +361,12 @@ describe('useUnverifiedDeviceCount', () => {
 
   it('counts only devices that are not cross-signing verified', async () => {
     getDeviceVerificationStatus.mockImplementation((_userId: string, deviceId: string) =>
-      Promise.resolve({ crossSigningVerified: deviceId === 'VERIFIED', localVerified: false })
+      Promise.resolve(
+        deviceVerificationStatus({
+          crossSigningVerified: deviceId === 'VERIFIED',
+          localVerified: false,
+        })
+      )
     );
 
     const { result } = renderHook(

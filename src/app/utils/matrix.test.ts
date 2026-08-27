@@ -146,7 +146,9 @@ describe('toggleReaction', () => {
   });
 
   it('rolls back an optimistic redaction when sending fails', async () => {
-    const relation = { addEvent: vi.fn<(event: unknown) => Promise<void>>(() => Promise.resolve()) };
+    const relation = {
+      addEvent: vi.fn<(event: unknown) => Promise<void>>(() => Promise.resolve()),
+    };
     reactions.getEventReactions.mockReturnValue(relation);
     const target = {
       getId: () => '$reaction',
@@ -167,9 +169,7 @@ describe('toggleReaction', () => {
       findEventById: () => ({}),
     };
 
-    await expect(
-      optimisticallyRedactEvent(mx, room as never, target as never)
-    ).rejects.toBe(error);
+    await expect(optimisticallyRedactEvent(mx, room as never, target as never)).rejects.toBe(error);
 
     expect(target.unmarkLocallyRedacted).toHaveBeenCalledOnce();
     expect(relation.addEvent).toHaveBeenCalledWith(target);

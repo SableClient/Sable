@@ -443,6 +443,8 @@ export function useTimelineSync({
   const [focusItem, setFocusItem] = useState<TimelineFocusItem>();
   const [jumpFailedFor, setJumpFailedFor] = useState<string | undefined>();
   const jumpFailed = jumpFailedFor !== undefined && jumpFailedFor === eventId;
+  const [timelineVersion, setTimelineVersion] = useState(0);
+  const bumpTimeline = useCallback(() => setTimelineVersion((version) => version + 1), []);
 
   const resetAutoScrollPendingRef = useRef(false);
   const pendingAutoScrollBehaviorRef = useRef<'instant' | 'smooth' | undefined>(undefined);
@@ -613,6 +615,22 @@ export function useTimelineSync({
     [room]
   );
 
+  const refreshFrameRef = useRef<number | undefined>(undefined);
+  const scheduleTimelineRefresh = useCallback(() => {
+    if (refreshFrameRef.current !== undefined) return;
+    refreshFrameRef.current = requestAnimationFrame(() => {
+      refreshFrameRef.current = undefined;
+      if (!alive()) return;
+      bumpTimeline();
+    });
+  }, [alive, bumpTimeline]);
+  useEffect(
+    () => () => {
+      if (refreshFrameRef.current !== undefined) cancelAnimationFrame(refreshFrameRef.current);
+    },
+    []
+  );
+
   useLiveEventArrive(
     room,
     useCallback(
@@ -621,9 +639,7 @@ export function useTimelineSync({
 
         const isDisplayedTimeline =
           evtTimeline === undefined || linkedTimelinesRef.current.includes(evtTimeline);
-        if (isDisplayedTimeline) {
-          setActiveTimeline((ct) => ({ ...ct }));
-        }
+        if (isDisplayedTimeline) scheduleTimelineRefresh();
 
         if (!isLive) return;
 
@@ -675,10 +691,10 @@ export function useTimelineSync({
         setUnreadInfo,
         hideReadsRef,
         isInactivePanelRef,
-        setActiveTimeline,
         focusLiveTimeline,
         redactInFocusedWindow,
         onReturnToLive,
+        scheduleTimelineRefresh,
       ]
     )
   );
@@ -686,34 +702,19 @@ export function useTimelineSync({
   const handleLocalEchoUpdated = useCallback(
     (_mEvent: MatrixEvent, eventRoom: Room | undefined) => {
       if (eventRoom?.roomId !== room.roomId) return;
-      setActiveTimeline((ct) => ({ ...ct }));
+      scheduleTimelineRefresh();
     },
-    [room, setActiveTimeline]
+    [room, scheduleTimelineRefresh]
   );
 
   useMatrixEvent(room, RoomEvent.LocalEchoUpdated, handleLocalEchoUpdated);
 
-  const decryptedFrameRef = useRef<number | undefined>(undefined);
   const handleDecrypted = useCallback(
     (mEvent: MatrixEvent) => {
       if (mEvent.getRoomId() !== room.roomId) return;
-      if (decryptedFrameRef.current !== undefined) return;
-      decryptedFrameRef.current = requestAnimationFrame(() => {
-        decryptedFrameRef.current = undefined;
-        if (!alive()) return;
-        setActiveTimeline((ct) => ({ ...ct }));
-      });
+      scheduleTimelineRefresh();
     },
-    [alive, room, setActiveTimeline]
-  );
-
-  useEffect(
-    () => () => {
-      if (decryptedFrameRef.current !== undefined) {
-        cancelAnimationFrame(decryptedFrameRef.current);
-      }
-    },
-    []
+    [room, scheduleTimelineRefresh]
   );
 
   useMatrixEvent(mx, MatrixEventEvent.Decrypted, handleDecrypted);
@@ -746,12 +747,7 @@ export function useTimelineSync({
     )
   );
 
-  useThreadUpdate(
-    room,
-    useCallback(() => {
-      setActiveTimeline((ct) => ({ ...ct }));
-    }, [setActiveTimeline])
-  );
+  useThreadUpdate(room, scheduleTimelineRefresh);
 
   useEffect(() => {
     const resetAutoScrollPending = resetAutoScrollPendingRef.current;
@@ -773,7 +769,7 @@ export function useTimelineSync({
 
     lastScrolledAtEventsLengthRef.current = eventsLength;
     scrollToBottom(behavior);
-  }, [isAtBottom, liveTimelineLinked, eventsLength, scrollToBottom]);
+  }, [isAtBottom, liveTimelineLinked, eventsLength, timelineVersion, scrollToBottom]);
 
   useEffect(() => {
     if (eventId) return;
@@ -793,6 +789,7 @@ export function useTimelineSync({
 
   return {
     timeline,
+    timelineVersion,
     eventsLength,
     liveTimelineLinked,
     canPaginateBack,

@@ -47,6 +47,7 @@ const {
   },
   timelineSync: {
     eventsLength: 1,
+    timelineVersion: 0,
     timeline: { linkedTimelines: [] },
     liveTimelineLinked: true,
     backwardStatus: 'idle',

@@ -28,6 +28,13 @@ const {
   toggleReaction,
   optimisticallyRedactEvent,
 } = await import('./matrix');
+const {
+  getDMRoomFor,
+  mxcUrlToHttp,
+  rewriteAuthenticatedMediaUrl,
+  toggleReaction,
+  optimisticallyRedactEvent,
+} = await import('./matrix');
 
 describe('rewriteAuthenticatedMediaUrl', () => {
   beforeEach(() => {
@@ -115,9 +122,14 @@ describe('rewriteAuthenticatedMediaUrl', () => {
 describe('toggleReaction', () => {
   it('redacts the existing reaction from the current user', () => {
     const redaction = {};
+    const redaction = {};
     const reaction = {
       getId: () => '$reaction',
       getSender: () => '@me:example.org',
+      getRelation: () => ({ event_id: '$message' }),
+      isRedacted: () => false,
+      markLocallyRedacted: vi.fn<(event: unknown) => void>(),
+      unmarkLocallyRedacted: vi.fn<() => void>(),
       getRelation: () => ({ event_id: '$message' }),
       isRedacted: () => false,
       markLocallyRedacted: vi.fn<(event: unknown) => void>(),
@@ -130,16 +142,21 @@ describe('toggleReaction', () => {
       getUserId: () => '@me:example.org',
       makeTxnId: () => 'txn',
       redactEvent: vi.fn<(...args: unknown[]) => Promise<object>>(() => Promise.resolve({})),
+      makeTxnId: () => 'txn',
+      redactEvent: vi.fn<(...args: unknown[]) => Promise<object>>(() => Promise.resolve({})),
       sendEvent: vi.fn<(...args: unknown[]) => void>(),
     } as unknown as MatrixClient;
     const room = {
       roomId: '!room:example.org',
       getUnfilteredTimelineSet: vi.fn<() => unknown>(),
       findEventById: () => redaction,
+      findEventById: () => redaction,
     };
 
     toggleReaction(mx, room as never, '$message', '👍');
 
+    expect(mx.redactEvent).toHaveBeenCalledWith('!room:example.org', '$reaction', 'txn', undefined);
+    expect(reaction.markLocallyRedacted).toHaveBeenCalledWith(redaction);
     expect(mx.redactEvent).toHaveBeenCalledWith('!room:example.org', '$reaction', 'txn', undefined);
     expect(reaction.markLocallyRedacted).toHaveBeenCalledWith(redaction);
     expect(mx.sendEvent).not.toHaveBeenCalled();

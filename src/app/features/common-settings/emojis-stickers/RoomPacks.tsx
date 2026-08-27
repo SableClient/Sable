@@ -17,7 +17,7 @@ import { composerIcon, menuIcon, Plus, Sticker, X } from '$components/icons/phos
 import type { MatrixError } from '$types/matrix-sdk';
 import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import type { ImagePack, PackAddress, PackContent } from '$plugins/custom-emoji';
-import { ImageUsage, packAddressEqual } from '$plugins/custom-emoji';
+import { getImagePackStateEventTypes, ImageUsage, packAddressEqual } from '$plugins/custom-emoji';
 import { useRoom } from '$hooks/useRoom';
 import { useRoomImagePacks } from '$hooks/useImagePacks';
 import { LineClamp2 } from '$styles/Text.css';
@@ -152,7 +152,7 @@ export function RoomPacks({ onViewPack }: Readonly<RoomPacksProps>) {
   const creators = useRoomCreators(room);
 
   const permissions = useRoomPermissions(creators, powerLevels);
-  const canEdit = permissions.stateEvent(CustomStateEvent.ImagePack, mx.getSafeUserId());
+  const canCreate = permissions.stateEvent(CustomStateEvent.ImagePack, mx.getSafeUserId());
 
   const unfilteredPacks = useRoomImagePacks(room);
   const packs = useMemo(() => unfilteredPacks.filter((pack) => !pack.deleted), [unfilteredPacks]);
@@ -162,12 +162,13 @@ export function RoomPacks({ onViewPack }: Readonly<RoomPacksProps>) {
 
   const [applyState, applyChanges] = useAsyncCallback(
     useCallback(async () => {
-      for (let i = 0; i < removedPacks.length; i += 1) {
-        const addr = removedPacks[i];
-        if (!addr) continue;
-        // oxlint-disable-next-line no-await-in-loop
-        await mx.sendStateEvent(room.roomId, CustomStateEvent.ImagePack, {}, addr.stateKey);
-      }
+      await Promise.all(
+        removedPacks.flatMap((addr) =>
+          getImagePackStateEventTypes(room, addr.stateKey).map((eventType) =>
+            mx.sendStateEvent(room.roomId, eventType, {}, addr.stateKey)
+          )
+        )
+      );
     }, [mx, room, removedPacks])
   );
   const applyingChanges = applyState.status === AsyncStatus.Loading;
@@ -195,6 +196,9 @@ export function RoomPacks({ onViewPack }: Readonly<RoomPacksProps>) {
     const avatarUrl = avatarMxc ? mxcUrlToHttp(mx, avatarMxc, useAuthentication) : undefined;
     const { address } = pack;
     if (!address) return null;
+    const canEdit = getImagePackStateEventTypes(room, address.stateKey).every((eventType) =>
+      permissions.stateEvent(eventType, mx.getSafeUserId())
+    );
     const removed = removedPacks.some((addr) => packAddressEqual(addr, address));
 
     return (
@@ -268,7 +272,7 @@ export function RoomPacks({ onViewPack }: Readonly<RoomPacksProps>) {
     <>
       <Box direction="Column" gap="100">
         <Text size="L400">Packs</Text>
-        {canEdit && <CreatePackTile roomId={room.roomId} packs={packs} />}
+        {canCreate && <CreatePackTile roomId={room.roomId} packs={packs} />}
         {packs.map(renderPack)}
         {packs.length === 0 && (
           <SequenceCard

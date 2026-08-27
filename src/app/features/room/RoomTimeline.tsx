@@ -773,11 +773,9 @@ export function RoomTimeline({
   );
 
   useLayoutEffect(() => {
-    if (!isReady) return;
     if (timelineSync.eventsLength > 0) return;
-    setIsReady(false);
     hasInitialScrolledRef.current = false;
-  }, [isReady, timelineSync.eventsLength]);
+  }, [timelineSync.eventsLength]);
 
   const recalcTopSpacer = useCallback(() => {
     const v = vListRef.current;
@@ -886,7 +884,6 @@ export function RoomTimeline({
 
   useEffect(() => {
     if (!eventId) return;
-    if (!timelineSyncRef.current.jumpFailed) setIsReady(false);
     jumpToEvent(eventId);
   }, [eventId, room, jumpToEvent]);
 
@@ -1324,15 +1321,15 @@ export function RoomTimeline({
   if (showLoadingPlaceholders) vListItemCount = 3;
   // One row so the error and its Retry have somewhere to render.
   else if (showEmptyPaginationError) vListItemCount = 1;
-  const vListIndices = useMemo(() => {
-    // Keep the cache-busting timeline identity explicit for exhaustive-deps.
-    void timelineSync.timeline;
-    return Array.from({ length: vListItemCount }, (_, i) => i);
-  }, [vListItemCount, timelineSync.timeline]);
+  const vListIndices = useMemo(
+    () => Array.from({ length: vListItemCount }, (_, i) => i),
+    [vListItemCount]
+  );
 
   const processedEvents = useProcessedTimeline({
     items: vListIndices,
     linkedTimelines: timelineSync.timeline.linkedTimelines,
+    timelineVersion: timelineSync.timelineVersion,
     ignoredUsersSet,
     hiddenEvents,
     mxUserId: mx.getUserId(),
@@ -1471,16 +1468,12 @@ export function RoomTimeline({
           width: '100%',
           overflow: 'hidden',
           position: 'relative',
-          opacity:
-            !hideTimelineForRoomState &&
-            (isReady || showLoadingPlaceholders || showEmptyPaginationError)
-              ? 1
-              : 0,
+          opacity: hideTimelineForRoomState ? 0 : 1,
         }}
       >
         <TimelineScrollingProvider value={isTimelineScrolling}>
           <VList<ProcessedEvent>
-            key={`${room.roomId}:${timelineSync.liveTimelineLinked ? 'live' : (timelineSync.focusItem?.eventId ?? scrollAnchorRef.current)}`}
+            key={room.roomId}
             ref={vListRef}
             data={processedEvents}
             shift={shouldShift}
@@ -1552,7 +1545,7 @@ export function RoomTimeline({
         </TimelineFloat>
       )}
 
-      {(!atBottomState || !timelineSync.liveTimelineLinked) && isReady && (
+      {(!atBottomState || !timelineSync.liveTimelineLinked) && (
         <TimelineFloat position="Bottom">
           <Chip
             variant="SurfaceVariant"

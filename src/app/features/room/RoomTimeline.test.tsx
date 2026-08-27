@@ -46,6 +46,7 @@ const {
   },
   timelineSync: {
     eventsLength: 1,
+    timelineVersion: 0,
     timeline: { linkedTimelines: [] },
     liveTimelineLinked: true,
     backwardStatus: 'idle',
@@ -940,13 +941,13 @@ describe('MemoizedTimelineItem', () => {
 });
 
 describe('jump reveal and focus-regain read receipts', () => {
-  it('keeps the timeline hidden while a jump is still pending', () => {
+  it('keeps rendering the timeline while a jump is still pending', () => {
     timelineSync.jumpFailed = false;
     const { getByText } = render(
       <RoomTimeline room={room} editor={{} as Editor} eventId="$jump:example.org" />
     );
 
-    expect(getByText('canRedact:false hideReads:false')).not.toBeVisible();
+    expect(getByText('canRedact:false hideReads:false')).toBeVisible();
   });
 
   it('restarts a route jump when the Room instance is replaced with the same id', () => {
@@ -963,12 +964,12 @@ describe('jump reveal and focus-regain read receipts', () => {
     expect(timelineSync.loadEventTimeline).toHaveBeenCalledTimes(2);
   });
 
-  it('reveals the timeline when the jump fails instead of leaving a blank room', () => {
+  it('keeps the timeline visible when the jump fails', () => {
     timelineSync.jumpFailed = false;
     const { getByText, rerender } = render(
       <RoomTimeline room={room} editor={{} as Editor} eventId="$jump:example.org" />
     );
-    expect(getByText('canRedact:false hideReads:false')).not.toBeVisible();
+    expect(getByText('canRedact:false hideReads:false')).toBeVisible();
 
     timelineSync.jumpFailed = true;
     act(() => {

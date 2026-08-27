@@ -21,6 +21,7 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { modalAtom, ModalType } from '$state/modal';
 import * as css from '$features/room/message/styles.css';
 import { createDebugLogger } from '$utils/debugLogger';
+import { optimisticallyRedactEvent } from '$utils/matrix';
 import * as Sentry from '@sentry/react';
 
 const debugLog = createDebugLogger('MessageDelete');
@@ -72,9 +73,9 @@ export function MessageDeleteInternal({ room, mEvent, onClose }: MessageDeleteIn
 
   const [deleteState, deleteMessage] = useAsyncCallback(
     useCallback(
-      (eventId: string, reason?: string) =>
-        mx.redactEvent(room.roomId, eventId, undefined, reason ? { reason } : undefined),
-      [mx, room]
+      (reason?: string) =>
+        optimisticallyRedactEvent(mx, room, mEvent, reason ? { reason } : undefined),
+      [mx, room, mEvent]
     )
   );
 
@@ -106,7 +107,7 @@ export function MessageDeleteInternal({ room, mEvent, onClose }: MessageDeleteIn
 
     debugLog.info('ui', 'Deleting message', { eventId, hasReason: !!reason });
     Sentry.metrics.count('sable.message.delete.attempt', 1);
-    deleteMessage(eventId, reason);
+    deleteMessage(reason);
   };
 
   return (

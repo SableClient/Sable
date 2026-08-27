@@ -134,8 +134,8 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
           nextMultiline = measurer.scrollHeight > singleLineHeight + MULTILINE_HEIGHT_EPSILON;
         }
       }
-      setIsMultiline((isMultiline) =>
-        isMultiline === nextMultiline ? isMultiline : nextMultiline
+      setIsMultiline((currentMultiline) =>
+        currentMultiline === nextMultiline ? currentMultiline : nextMultiline
       );
     }, []);
 

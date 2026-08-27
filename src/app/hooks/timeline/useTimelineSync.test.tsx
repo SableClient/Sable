@@ -532,7 +532,7 @@ describe('useTimelineSync', () => {
 
       await act(async () => {
         emitLiveTimelineEvent(room, timeline, events, '@bob:test');
-        await flushRaf();
+        await Promise.resolve();
       });
 
       expect(scrollToBottom).toHaveBeenCalledWith('smooth');
@@ -560,7 +560,7 @@ describe('useTimelineSync', () => {
 
       await act(async () => {
         emitLiveTimelineEvent(room, timeline, events, '@alice:test');
-        await flushRaf();
+        await Promise.resolve();
       });
 
       expect(scrollToBottom).toHaveBeenCalledWith('instant');
@@ -591,7 +591,7 @@ describe('useTimelineSync', () => {
 
       await act(async () => {
         emitLiveTimelineEvent(room, timeline, events, '@bob:test');
-        await flushRaf();
+        await Promise.resolve();
       });
 
       expect(setUnreadInfo).toHaveBeenCalledWith(unread);
@@ -1273,7 +1273,7 @@ describe('live-arrive edge cases', () => {
   it('renders a stale non-live event appended to the live timeline', async () => {
     const { room, timeline, events } = createRoom();
     const { result } = renderSyncHook(room);
-    const before = result.current.timelineVersion;
+    const before = result.current.timeline;
     vi.mocked(isWindowFocused).mockReturnValue(true);
     await act(async () => {
       await flushRaf();
@@ -1293,7 +1293,7 @@ describe('live-arrive edge cases', () => {
       await flushRaf();
     });
 
-    expect(result.current.timelineVersion).toBeGreaterThan(before);
+    expect(result.current.timeline).not.toBe(before);
     expect(markAsRead).not.toHaveBeenCalled();
     vi.mocked(isWindowFocused).mockReturnValue(false);
   });
@@ -1301,7 +1301,7 @@ describe('live-arrive edge cases', () => {
   it('renders a removal', async () => {
     const { room, timeline, events } = createRoom();
     const { result } = renderSyncHook(room);
-    const before = result.current.timelineVersion;
+    const before = result.current.timeline;
 
     await act(async () => {
       events.pop();
@@ -1309,10 +1309,10 @@ describe('live-arrive edge cases', () => {
         liveEvent: false,
         timeline,
       });
-      await flushRaf();
+      await Promise.resolve();
     });
 
-    expect(result.current.timelineVersion).toBeGreaterThan(before);
+    expect(result.current.timeline).not.toBe(before);
   });
 
   it('ignores events emitted for a thread timeline set', async () => {
@@ -1320,7 +1320,7 @@ describe('live-arrive edge cases', () => {
     const otherSet = new EventEmitter() as FakeTimelineSet;
     const threadTimeline = { ...createTimeline(events), getTimelineSet: () => otherSet };
     const { result, scrollToBottom } = renderSyncHook(room);
-    const before = result.current.timelineVersion;
+    const before = result.current.timeline;
 
     await act(async () => {
       room.emit(RoomEvent.Timeline, makeLiveEvent(room.roomId, Date.now()), room, false, false, {
@@ -1330,14 +1330,14 @@ describe('live-arrive edge cases', () => {
       await Promise.resolve();
     });
 
-    expect(result.current.timelineVersion).toBe(before);
+    expect(result.current.timeline).toBe(before);
     expect(scrollToBottom).not.toHaveBeenCalled();
   });
 
   it('does not treat a threaded reply as an arrival when it lands on the main set', async () => {
     const { room, timeline, events } = createRoom();
     const { result } = renderSyncHook(room);
-    const before = result.current.timelineVersion;
+    const before = result.current.timeline;
     vi.mocked(isWindowFocused).mockReturnValue(true);
     await act(async () => {
       await flushRaf();
@@ -1363,7 +1363,7 @@ describe('live-arrive edge cases', () => {
       await flushRaf();
     });
 
-    expect(result.current.timelineVersion).toBeGreaterThan(before);
+    expect(result.current.timeline).not.toBe(before);
     expect(markAsRead).not.toHaveBeenCalled();
     vi.mocked(isWindowFocused).mockReturnValue(false);
   });
@@ -1378,7 +1378,7 @@ describe('live-arrive edge cases', () => {
         liveEvent: true,
         timeline,
       });
-      await flushRaf();
+      await Promise.resolve();
     });
 
     expect(scrollToBottom).toHaveBeenCalledWith('instant');
@@ -1461,7 +1461,7 @@ describe('live-arrive edge cases', () => {
         liveEvent: false,
         timeline: freshTimeline,
       });
-      await flushRaf();
+      await Promise.resolve();
     });
     expect(scrollToBottom).toHaveBeenCalledWith('instant');
   });
@@ -1504,7 +1504,7 @@ describe('live-arrive edge cases', () => {
   it('re-renders when an event finishes decrypting', async () => {
     const { room } = createRoom();
     const { result } = renderSyncHook(room);
-    const before = result.current.timelineVersion;
+    const before = result.current.timeline;
 
     await act(async () => {
       mxEmitter.emit(MatrixEventEvent.Decrypted, { getRoomId: () => room.roomId });
@@ -1513,13 +1513,13 @@ describe('live-arrive edge cases', () => {
       });
     });
 
-    expect(result.current.timelineVersion).toBeGreaterThan(before);
+    expect(result.current.timeline).not.toBe(before);
   });
 
   it('ignores decryption of an event in another room', async () => {
     const { room } = createRoom();
     const { result } = renderSyncHook(room);
-    const before = result.current.timelineVersion;
+    const before = result.current.timeline;
 
     await act(async () => {
       mxEmitter.emit(MatrixEventEvent.Decrypted, { getRoomId: () => '!other:test' });
@@ -1528,20 +1528,20 @@ describe('live-arrive edge cases', () => {
       });
     });
 
-    expect(result.current.timelineVersion).toBe(before);
+    expect(result.current.timeline).toBe(before);
   });
 
   it('re-renders when a late local echo updates (slow send acknowledgement)', async () => {
     const { room } = createRoom();
     const { result } = renderSyncHook(room);
-    const before = result.current.timelineVersion;
+    const before = result.current.timeline;
 
     await act(async () => {
       room.emit(RoomEvent.LocalEchoUpdated, {}, room);
-      await flushRaf();
+      await Promise.resolve();
     });
 
-    expect(result.current.timelineVersion).toBeGreaterThan(before);
+    expect(result.current.timeline).not.toBe(before);
   });
 });
 
@@ -2409,8 +2409,9 @@ const flushFrame = async () => {
 };
 
 describe('decryption refresh coalescing', () => {
+  // Counts distinct timeline objects, not renders: unrelated re-renders reuse the object.
   const renderTrackingHook = (room: FakeRoom) => {
-    const seen: number[] = [];
+    const seen: unknown[] = [];
     renderHook(() => {
       const sync = useTimelineSync({
         room: room as Room,
@@ -2424,7 +2425,7 @@ describe('decryption refresh coalescing', () => {
         readUptoEventIdRef: { current: undefined },
         isInactivePanelRef: { current: false },
       });
-      if (!seen.includes(sync.timelineVersion)) seen.push(sync.timelineVersion);
+      if (!seen.includes(sync.timeline)) seen.push(sync.timeline);
       return sync;
     });
     return seen;

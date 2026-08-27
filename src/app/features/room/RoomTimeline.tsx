@@ -1321,15 +1321,15 @@ export function RoomTimeline({
   if (showLoadingPlaceholders) vListItemCount = 3;
   // One row so the error and its Retry have somewhere to render.
   else if (showEmptyPaginationError) vListItemCount = 1;
-  const vListIndices = useMemo(
-    () => Array.from({ length: vListItemCount }, (_, i) => i),
-    [vListItemCount]
-  );
+  const vListIndices = useMemo(() => {
+    // Keep the cache-busting timeline identity explicit for exhaustive-deps.
+    void timelineSync.timeline;
+    return Array.from({ length: vListItemCount }, (_, i) => i);
+  }, [vListItemCount, timelineSync.timeline]);
 
   const processedEvents = useProcessedTimeline({
     items: vListIndices,
     linkedTimelines: timelineSync.timeline.linkedTimelines,
-    timelineVersion: timelineSync.timelineVersion,
     ignoredUsersSet,
     hiddenEvents,
     mxUserId: mx.getUserId(),
@@ -1473,7 +1473,7 @@ export function RoomTimeline({
       >
         <TimelineScrollingProvider value={isTimelineScrolling}>
           <VList<ProcessedEvent>
-            key={room.roomId}
+            key={`${room.roomId}:${timelineSync.liveTimelineLinked ? 'live' : (timelineSync.focusItem?.eventId ?? scrollAnchorRef.current)}`}
             ref={vListRef}
             data={processedEvents}
             shift={shouldShift}

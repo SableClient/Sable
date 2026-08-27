@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { forwardRef, useImperativeHandle, type ReactNode } from 'react';
+import { forwardRef, useEffect, useImperativeHandle, type ReactNode } from 'react';
 import { act, render, waitFor } from '@testing-library/react';
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest';
 import type { ProseMirrorEditorController as Editor } from '$components/editor/prosemirrorController';
@@ -22,6 +22,7 @@ const {
   windowFocused,
   rowItemIndex,
   rowRenders,
+  vListMounts,
   eventRedacted,
   unrenderedJumpTarget,
   liveTimeline,
@@ -46,7 +47,6 @@ const {
   },
   timelineSync: {
     eventsLength: 1,
-    timelineVersion: 0,
     timeline: { linkedTimelines: [] },
     liveTimelineLinked: true,
     backwardStatus: 'idle',
@@ -77,6 +77,7 @@ const {
   windowFocused: { current: false },
   rowItemIndex: { current: 0 },
   rowRenders: { count: 0 },
+  vListMounts: { count: 0 },
   eventRedacted: { current: false },
   unrenderedJumpTarget: {
     current: undefined as { eventId: string; rawIndex: number } | undefined,
@@ -115,6 +116,9 @@ vi.mock('virtua', () => ({
     },
     ref
   ) {
+    useEffect(() => {
+      vListMounts.count += 1;
+    }, []);
     lastOnScroll = onScroll;
     lastOnScrollEnd = onScrollEnd;
     vListProps.shift = shift ?? false;
@@ -394,6 +398,7 @@ beforeEach(() => {
   windowFocused.current = false;
   rowItemIndex.current = 0;
   rowRenders.count = 0;
+  vListMounts.count = 0;
   eventRedacted.current = false;
   unrenderedJumpTarget.current = undefined;
   eventTimeline.current = liveTimeline;
@@ -603,6 +608,17 @@ describe('RoomTimeline content ResizeObserver', () => {
     );
     expect(navigateRoomMock).not.toHaveBeenCalled();
     expect(getByText('Jump to Latest')).toBeTruthy();
+  });
+
+  it('remounts the virtualizer when switching to a focused timeline window', () => {
+    const { rerender } = renderTimeline();
+    const mounts = vListMounts.count;
+
+    timelineSync.liveTimelineLinked = false;
+    timelineSync.focusItem = { eventId: '$evt1', scrollTo: true, highlight: true };
+    rerender(<RoomTimeline room={room} editor={{} as Editor} />);
+
+    expect(vListMounts.count).toBe(mounts + 1);
   });
 
   it('shifts the virtual list when rendered history prepends', async () => {

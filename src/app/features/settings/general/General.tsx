@@ -819,6 +819,7 @@ function Messages() {
     settingsAtom,
     'hideMembershipInReadOnly'
   );
+  const [showAllTimestamps, setShowAllTimestamps] = useSetting(settingsAtom, 'showAllTimestamps');
 
   const [messageLayout] = useSetting(settingsAtom, 'messageLayout');
   const [rightBubbles, setRightBubbles] = useSetting(settingsAtom, 'useRightBubbles');
@@ -839,6 +840,13 @@ function Messages() {
           after={<SelectMessageSpacing />}
         />
       </SequenceCard>
+      <SettingToggle
+        title="Show All Timestamps"
+        focusId="show-all-timestamps"
+        description="Display a timestamp on every message, including consecutive messages from the same sender that are normally grouped."
+        value={showAllTimestamps}
+        onChange={setShowAllTimestamps}
+      />
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="File description placement"

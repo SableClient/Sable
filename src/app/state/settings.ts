@@ -181,6 +181,7 @@ export interface Settings {
 
   hour24Clock: boolean;
   dateFormatString: string;
+  showAllTimestamps: boolean;
 
   developerTools: boolean;
   enableMSC4268CMD: boolean;
@@ -377,6 +378,7 @@ export const defaultSettings: Settings = {
 
   hour24Clock: false,
   dateFormatString: 'D MMM YYYY',
+  showAllTimestamps: false,
 
   developerTools: false,
   settingsSyncEnabled: false,

@@ -4,6 +4,15 @@ import { testMatrixTo } from '$plugins/matrix-to';
 const LINK_URL = `(https?:\\/\\/.[A-Za-z0-9-._~:/?#[\\()@!$&'*+,;%=]+)`;
 const LINKINPUTREGEX = new RegExp(`\\(?(${LINK_URL})\\)?`, 'g');
 
+const WRAPPED_ESCAPED_URL_REG = new RegExp(String.raw`\\<(${LINK_URL})\\>`, 'g');
+const OPEN_ONLY_ESCAPED_URL_REG = new RegExp(String.raw`\\<(${LINK_URL})`, 'g');
+const CLOSE_ONLY_ESCAPED_URL_REG = new RegExp(String.raw`(${LINK_URL})\\>`, 'g');
+const ESCAPED_SUPPRESSED_MD_LINK_REG = new RegExp(
+  String.raw`\\<\[([^\]]*)\]\((<https?:\/\/[^>\s]+>)\)\\>`,
+  'g'
+);
+const WRONG_OUTER_ESCAPED_AUTOLINK_REG = /\\<\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)(?:>|\\>)/g;
+
 /**
  * `htmlToMarkdown()` escapes `<` and `>` into `\<` and `\>` in text nodes.
  *
@@ -15,22 +24,16 @@ const LINKINPUTREGEX = new RegExp(`\\(?(${LINK_URL})\\)?`, 'g');
 export function stripMarkdownEscapesForHiddenPreviews(markdown: string): string {
   // Handle: \<https://example.com\>
   // Also handle common surrounding parens: (\<url\>), (\<url), \<url\>)
-  const WRAPPED = new RegExp(String.raw`\\<(${LINK_URL})\\>`, 'g');
-  const OPEN_ONLY = new RegExp(String.raw`\\<(${LINK_URL})`, 'g');
-  const CLOSE_ONLY = new RegExp(String.raw`(${LINK_URL})\\>`, 'g');
-
-  let s = markdown.replace(WRAPPED, '<$1>').replace(OPEN_ONLY, '<$1').replace(CLOSE_ONLY, '$1>');
+  let s = markdown
+    .replace(WRAPPED_ESCAPED_URL_REG, '<$1>')
+    .replace(OPEN_ONLY_ESCAPED_URL_REG, '<$1')
+    .replace(CLOSE_ONLY_ESCAPED_URL_REG, '$1>');
 
   // Restore [label](<url>) after htmlToMarkdown escaped a surrounding "\<...\>".
-  const ESCAPED_SUPPRESSED_MD_LINK = new RegExp(
-    String.raw`\\<\[([^\]]*)\]\((<https?:\/\/[^>\s]+>)\)\\>`,
-    'g'
-  );
-  s = s.replace(ESCAPED_SUPPRESSED_MD_LINK, '[$1]($2)');
+  s = s.replace(ESCAPED_SUPPRESSED_MD_LINK_REG, '[$1]($2)');
 
   // Same for "\<[label](bare-url)>" when angle brackets were lost on the destination.
-  const WRONG_OUTER_ESCAPED_AUTOLINK = /\\<\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)(?:>|\\>)/g;
-  s = s.replace(WRONG_OUTER_ESCAPED_AUTOLINK, '[$1](<$2>)');
+  s = s.replace(WRONG_OUTER_ESCAPED_AUTOLINK_REG, '[$1](<$2>)');
 
   return s;
 }

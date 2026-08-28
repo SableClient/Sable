@@ -32,14 +32,23 @@ export type TextSegment = {
   termKey?: string;
 };
 
-export const splitByAbbreviations = (text: string, abbrMap: Map<string, string>): TextSegment[] => {
-  if (abbrMap.size === 0) return [{ id: 'txt-0', text }];
+const abbrPatternCache = new WeakMap<Map<string, string>, RegExp>();
 
-  // Build a regex that matches any of the terms at word boundaries.
-  // Sort longest first so "HTTP/2" matches before "HTTP".
+const getAbbrPattern = (abbrMap: Map<string, string>): RegExp => {
+  const cached = abbrPatternCache.get(abbrMap);
+  if (cached) return cached;
+
   const terms = [...abbrMap.keys()].toSorted((a, b) => b.length - a.length);
   const escaped = terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
   const pattern = new RegExp(`\\b(${escaped.join('|')})\\b`, 'gi');
+  abbrPatternCache.set(abbrMap, pattern);
+  return pattern;
+};
+
+export const splitByAbbreviations = (text: string, abbrMap: Map<string, string>): TextSegment[] => {
+  if (abbrMap.size === 0) return [{ id: 'txt-0', text }];
+
+  const pattern = getAbbrPattern(abbrMap);
 
   const segments: TextSegment[] = [];
   let lastIndex = 0;

@@ -4,6 +4,7 @@ import { testMatrixUri } from '../plugins/matrix-uri';
 
 const MAX_TAG_NESTING = 100;
 const INTERNAL_IMG_SRC_ATTR = 'data-sable-img-src';
+const RESTORE_PROTECTED_SRC_REG = new RegExp(`\\s${INTERNAL_IMG_SRC_ATTR}="([^"]+)"`, 'g');
 
 const permittedHtmlTags = [
   'del',
@@ -254,15 +255,12 @@ function restoreProtectedImageSources(
   sanitizedHtml: string,
   protectedSources: Map<string, string>
 ): string {
-  return sanitizedHtml.replace(
-    new RegExp(`\\s${INTERNAL_IMG_SRC_ATTR}="([^"]+)"`, 'g'),
-    (_match, sourceId: string) => {
-      const validatedSrc = getValidatedProtectedImageSource(sourceId, protectedSources);
-      if (!validatedSrc) return '';
+  return sanitizedHtml.replace(RESTORE_PROTECTED_SRC_REG, (_match, sourceId: string) => {
+    const validatedSrc = getValidatedProtectedImageSource(sourceId, protectedSources);
+    if (!validatedSrc) return '';
 
-      return ` src="${sanitizeText(validatedSrc)}"`;
-    }
-  );
+    return ` src="${sanitizeText(validatedSrc)}"`;
+  });
 }
 
 const enforceNestingLimit = (fragment: DocumentFragment): void => {

@@ -90,11 +90,14 @@ type RenderMessageContentProps = {
   onOpenMedia?: (mEvent: MatrixEvent) => boolean;
 };
 
+const VIDEO_MEDIA_TYPE_REG = /\.(mp4|webm|ogg)$/i;
+const IMAGE_MEDIA_TYPE_REG = /\.(png|jpg|jpeg|gif|webp)$/i;
+const IMAGE_MEDIA_TYPE_AT_REG = /@(jpeg|webp|png|jpg)$/i;
+
 const getMediaType = (url: string) => {
   const cleanUrl = url.toLowerCase();
-  if (cleanUrl.match(/\.(mp4|webm|ogg)$/i)) return 'video';
-  if (cleanUrl.match(/\.(png|jpg|jpeg|gif|webp)$/i) || cleanUrl.match(/@(jpeg|webp|png|jpg)$/i))
-    return 'image';
+  if (VIDEO_MEDIA_TYPE_REG.test(cleanUrl)) return 'video';
+  if (IMAGE_MEDIA_TYPE_REG.test(cleanUrl) || IMAGE_MEDIA_TYPE_AT_REG.test(cleanUrl)) return 'image';
   return null;
 };
 

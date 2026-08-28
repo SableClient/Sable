@@ -50,6 +50,136 @@ import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUr
 import * as css from './EventHistory.css';
 import { EventType, RelationType } from '$types/matrix-sdk';
 
+type MenuOptionsProps = {
+  mEvent: MatrixEvent;
+  room: Room;
+  canDelete: boolean;
+  triggerReply: (replyId: string, startThread?: boolean) => void;
+  requestClose: () => void;
+};
+
+function MenuOptions({
+  mEvent,
+  room,
+  canDelete,
+  triggerReply,
+  requestClose,
+}: Readonly<MenuOptionsProps>) {
+  const setModal = useSetAtom(modalAtom);
+  return (
+    <Menu className={css.MenuOptions}>
+      <MenuItem
+        size="300"
+        after={menuIcon(ArrowBendUpLeftIcon)}
+        radii="300"
+        fill="None"
+        variant="Secondary"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (mEvent.event.event_id) {
+            triggerReply(mEvent.event.event_id, false);
+            requestClose();
+          }
+        }}
+      />
+      <MenuItem
+        size="300"
+        after={menuIcon(ChatTeardropDots)}
+        radii="300"
+        fill="None"
+        variant="Secondary"
+        onClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (mEvent.event.event_id) {
+            triggerReply(mEvent.event.event_id, true);
+            requestClose();
+          }
+        }}
+      />
+      {canDelete && (
+        <MenuItem
+          size="300"
+          after={menuIcon(Trash)}
+          radii="300"
+          fill="None"
+          variant="Critical"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            setModal({
+              type: ModalType.Delete,
+              room,
+              mEvent,
+            });
+          }}
+        />
+      )}
+    </Menu>
+  );
+}
+
+type EventItemProps = {
+  mEvent: MatrixEvent;
+  EventContent: IContent;
+  hour24Clock: boolean;
+  dateFormatString: string;
+  htmlReactParserOptions: HTMLReactParserOptions;
+  linkifyOpts: LinkifyOpts;
+  room: Room;
+  canDelete: boolean;
+  triggerReply: (replyId: string, startThread?: boolean) => void;
+  requestClose: () => void;
+};
+
+function EventItem({
+  mEvent,
+  EventContent,
+  hour24Clock,
+  dateFormatString,
+  htmlReactParserOptions,
+  linkifyOpts,
+  room,
+  canDelete,
+  triggerReply,
+  requestClose,
+}: Readonly<EventItemProps>) {
+  const [isHovered, setIsHovered] = useState(false);
+  return (
+    <Box
+      style={{ position: 'relative', width: '100%' }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
+      onClick={() => setIsHovered(!isHovered)}
+    >
+      <Box className={css.EventItem}>
+        <Time ts={mEvent.getTs()} hour24Clock={hour24Clock} dateFormatString={dateFormatString} />
+
+        <Text size="T400" style={{ paddingLeft: '10px', wordBreak: 'break-word' }}>
+          <RenderBody
+            body={EventContent?.['m.new_content']?.body ?? EventContent?.body ?? ''}
+            customBody={
+              EventContent?.['m.new_content']?.formatted_body ?? EventContent?.formatted_body ?? ''
+            }
+            htmlReactParserOptions={htmlReactParserOptions}
+            linkifyOpts={linkifyOpts}
+          />
+        </Text>
+      </Box>
+      {isHovered && (
+        <MenuOptions
+          mEvent={mEvent}
+          room={room}
+          canDelete={canDelete}
+          triggerReply={triggerReply}
+          requestClose={requestClose}
+        />
+      )}
+    </Box>
+  );
+}
+
 type EventHistoryProps = {
   room: Room;
   mEvents: MatrixEvent[];
@@ -130,99 +260,6 @@ export const EventHistory = as<'div', EventHistoryProps>(
       [room, setReplyDraft]
     );
 
-    function MenuOptions({ mEvent }: Readonly<{ mEvent: MatrixEvent }>) {
-      const setModal = useSetAtom(modalAtom);
-      return (
-        <Menu className={css.MenuOptions}>
-          <MenuItem
-            size="300"
-            after={menuIcon(ArrowBendUpLeftIcon)}
-            radii="300"
-            fill="None"
-            variant="Secondary"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (mEvent.event.event_id) {
-                triggerReply(mEvent.event.event_id, false);
-                requestClose();
-              }
-            }}
-          />
-          <MenuItem
-            size="300"
-            after={menuIcon(ChatTeardropDots)}
-            radii="300"
-            fill="None"
-            variant="Secondary"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              if (mEvent.event.event_id) {
-                triggerReply(mEvent.event.event_id, true);
-                requestClose();
-              }
-            }}
-          />
-          {canDelete && (
-            <MenuItem
-              size="300"
-              after={menuIcon(Trash)}
-              radii="300"
-              fill="None"
-              variant="Critical"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setModal({
-                  type: ModalType.Delete,
-                  room,
-                  mEvent,
-                });
-              }}
-            />
-          )}
-        </Menu>
-      );
-    }
-
-    function EventItem({
-      mEvent,
-      EventContent,
-    }: Readonly<{ mEvent: MatrixEvent; EventContent: IContent }>) {
-      const [isHovered, setIsHovered] = useState(false);
-      return (
-        <Box
-          style={{ position: 'relative', width: '100%' }}
-          onMouseEnter={() => setIsHovered(true)}
-          onMouseLeave={() => setIsHovered(false)}
-          onClick={() => setIsHovered(!isHovered)}
-        >
-          <Box className={css.EventItem}>
-            <Time
-              ts={mEvent.getTs()}
-              hour24Clock={hour24Clock}
-              dateFormatString={dateFormatString}
-            />
-
-            <Text size="T400" style={{ paddingLeft: '10px', wordBreak: 'break-word' }}>
-              <RenderBody
-                body={EventContent?.['m.new_content']?.body ?? EventContent?.body ?? ''}
-                customBody={
-                  EventContent?.['m.new_content']?.formatted_body ??
-                  EventContent?.formatted_body ??
-                  ''
-                }
-                htmlReactParserOptions={htmlReactParserOptions}
-                linkifyOpts={linkifyOpts}
-              />
-            </Text>
-          </Box>
-          {isHovered && <MenuOptions mEvent={mEvent} />}
-        </Box>
-      );
-    }
-
     return (
       <Box
         className={classNames(css.EventHistory, className)}
@@ -286,7 +323,18 @@ export const EventHistory = as<'div', EventHistoryProps>(
                         color: color.Surface.ContainerLine,
                       }}
                     />
-                    <EventItem mEvent={mEvent} EventContent={EventContent} />
+                    <EventItem
+                      mEvent={mEvent}
+                      EventContent={EventContent}
+                      hour24Clock={hour24Clock}
+                      dateFormatString={dateFormatString}
+                      htmlReactParserOptions={htmlReactParserOptions}
+                      linkifyOpts={linkifyOpts}
+                      room={room}
+                      canDelete={canDelete}
+                      triggerReply={triggerReply}
+                      requestClose={requestClose}
+                    />
                   </>
                 );
               })}

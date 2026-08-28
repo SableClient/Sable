@@ -59,6 +59,7 @@ import type { PerMessageProfileBeeperFormat } from '$hooks/usePerMessageProfile'
 import { convertBeeperFormatToOurPerMessageProfile } from '$hooks/usePerMessageProfile';
 import { MessageEditor } from './MessageEditor';
 import * as css from './styles.css';
+import { timeHourMinute } from '$utils/time';
 import { modalAtom, ModalType } from '$state/modal';
 import { OptionQuickMenu } from '$components/message/modals/Options';
 
@@ -255,6 +256,12 @@ export const Pronouns = as<
     </AsPronouns>
   );
 });
+const CollapsedMessageTime = ({ ts, hour24Clock }: { ts: number; hour24Clock: boolean }) => (
+  <Text as="span" priority="300" className={css.MessageCollapsedTime}>
+    {timeHourMinute(ts, hour24Clock)}
+  </Text>
+);
+
 type WrappedMessageProps = {
   headerJSX: JSX.Element;
   avatarJSX: JSX.Element;
@@ -558,6 +565,13 @@ function MessageInternal(
     return existing;
   }, [pronouns, inlinePronoun]);
 
+  const collapsedTimeJSX =
+    collapse && isDesktopHover ? (
+      <Box className={css.MessageCollapsedTimeWrap}>
+        <CollapsedMessageTime ts={mEvent.getTs()} hour24Clock={hour24Clock} />
+      </Box>
+    ) : undefined;
+
   const headerJSX = (collapsed?: boolean) => {
     if (!collapsed)
       return (
@@ -688,7 +702,11 @@ function MessageInternal(
   };
 
   const avatarJSX = (collapsed?: boolean) => {
-    if (!collapsed && messageLayout !== MessageLayout.Compact)
+    if (collapsed) {
+      if (messageLayout === MessageLayout.Compact) return <></>;
+      return collapsedTimeJSX ?? <></>;
+    }
+    if (messageLayout !== MessageLayout.Compact)
       return (
         <AvatarBase
           className={messageLayout === MessageLayout.Bubble ? css.BubbleAvatarBase : undefined}

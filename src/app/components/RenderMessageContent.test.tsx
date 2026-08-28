@@ -1,9 +1,10 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MsgType } from '$types/matrix-sdk';
 import { M_POLL_START } from 'matrix-js-sdk';
 import { ClientConfigProvider } from '$hooks/useClientConfig';
 import { MatrixClientProvider } from '$hooks/useMatrixClient';
+import { ModalType } from '$state/modal';
 import { RenderMessageContent } from './RenderMessageContent';
 
 vi.mock('./message/content/UploadedSableCssContent', () => ({
@@ -15,6 +16,20 @@ vi.mock('./message/content/UploadedSableCssContent', () => ({
 vi.mock('$hooks/useMediaAuthentication', () => ({
   useMediaAuthentication: () => false,
 }));
+
+const { setModalSpy } = vi.hoisted(() => ({
+  setModalSpy: vi.fn<(next: Record<string, unknown>) => void>(),
+}));
+
+vi.mock('$state/modal', async () => {
+  const { atom } = await import('jotai');
+  return {
+    ModalType: { EditHistory: 'edit_history' },
+    modalAtom: atom(null, (_get: unknown, _set: unknown, next: Record<string, unknown>) =>
+      setModalSpy(next)
+    ),
+  };
+});
 
 vi.mock('./url-preview', () => ({
   UrlPreviewHolder: ({ children }: { children: React.ReactNode }) => (
@@ -221,5 +236,113 @@ describe('RenderMessageContent', () => {
     );
 
     expect(screen.getByTestId('poll-event')).toBeInTheDocument();
+  });
+});
+
+const roomWithEdits = {
+  getTimelineForEvent: () => ({
+    getTimelineSet: () => ({
+      relations: {
+        getChildEventsForEvent: () => ({
+          getRelations: () => [{ getTs: () => 1710000000000 }],
+        }),
+      },
+    }),
+  }),
+  hasEncryptionStateEvent: () => false,
+};
+
+const messageEvent = {
+  getId: () => '$evt:example.com',
+  getType: () => 'm.room.message',
+  getTs: () => 1700000000000,
+};
+
+function renderEditedMessage(room?: unknown) {
+  return render(
+    <ClientConfigProvider value={{}}>
+      <MatrixClientProvider value={matrixClient}>
+        <RenderMessageContent
+          displayName="Alice"
+          msgType={MsgType.Text as string}
+          ts={1700000000000}
+          edited
+          getContent={() => ({ msgtype: MsgType.Text, body: 'hello world' }) as never}
+          htmlReactParserOptions={{}}
+          linkifyOpts={{}}
+          room={room as never}
+          mEvent={messageEvent as never}
+        />
+      </MatrixClientProvider>
+    </ClientConfigProvider>
+  );
+}
+
+describe('edited indicator', () => {
+  beforeEach(() => {
+    setModalSpy.mockClear();
+  });
+
+  it('opens version history on click with the same modal payload as the context menu', () => {
+    renderEditedMessage(roomWithEdits);
+
+    const indicator = screen.getByText('(edited)');
+    expect(indicator).toHaveAttribute('role', 'button');
+
+    fireEvent.click(indicator);
+
+    expect(setModalSpy).toHaveBeenCalledTimes(1);
+    expect(setModalSpy).toHaveBeenCalledWith({
+      type: ModalType.EditHistory,
+      room: roomWithEdits,
+      mEvent: messageEvent,
+    });
+  });
+
+  it('keeps the tooltip-capable wrapper around the clickable indicator', () => {
+    renderEditedMessage(roomWithEdits);
+
+    const wrapper = screen.getByText('(edited)').closest('span[style*="inline"]');
+    expect(wrapper?.firstElementChild).toHaveAttribute('role', 'button');
+  });
+
+  it('stops propagation so surrounding message click handlers do not fire', () => {
+    const outsideClick = vi.fn<(event: Event) => void>();
+    document.addEventListener('click', outsideClick);
+
+    try {
+      renderEditedMessage(roomWithEdits);
+
+      fireEvent.click(screen.getByText('(edited)'));
+
+      expect(setModalSpy).toHaveBeenCalledTimes(1);
+      expect(outsideClick).not.toHaveBeenCalled();
+    } finally {
+      document.removeEventListener('click', outsideClick);
+    }
+  });
+
+  it('opens version history on Enter and Space keys', () => {
+    renderEditedMessage(roomWithEdits);
+
+    fireEvent.keyDown(screen.getByText('(edited)'), { key: 'Enter' });
+    expect(setModalSpy).toHaveBeenCalledTimes(1);
+    expect(setModalSpy).toHaveBeenCalledWith({
+      type: ModalType.EditHistory,
+      room: roomWithEdits,
+      mEvent: messageEvent,
+    });
+
+    fireEvent.keyDown(screen.getByText('(edited)'), { key: ' ' });
+    expect(setModalSpy).toHaveBeenCalledTimes(2);
+  });
+
+  it('is not interactive when the event context is missing', () => {
+    renderEditedMessage();
+
+    expect(screen.queryByRole('button', { name: '(edited)' })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByText('(edited)'));
+    expect(setModalSpy).not.toHaveBeenCalled();
   });
 });

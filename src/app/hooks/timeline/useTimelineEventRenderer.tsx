@@ -758,6 +758,7 @@ export function useTimelineEventRenderer({
                 htmlReactParserOptions={htmlReactParserOptions}
                 linkifyOpts={linkifyOpts}
                 outlineAttachment={messageLayout === MessageLayout.Bubble}
+                mEvent={mEvent}
                 mx={mx}
                 room={room}
                 onOpenMedia={onOpenMedia}

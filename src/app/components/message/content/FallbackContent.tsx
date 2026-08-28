@@ -1,5 +1,10 @@
-import { Box, Text, as, color, config } from 'folds';
-import type { MatrixClient } from '$types/matrix-sdk';
+import { useCallback } from 'react';
+import type { KeyboardEvent, MouseEvent, SyntheticEvent } from 'react';
+import { useSetAtom } from 'jotai';
+import { Box, Text, Tooltip, as, color, config, toRem } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
+import { modalAtom, ModalType } from '$state/modal';
+import type { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
 
 import { Lock, timelineIcon, Trash, Warning, X } from '$components/icons/phosphor';
 import { ReactionKeyInline } from '../ReactionKeyInline';
@@ -136,8 +141,74 @@ export const MessageBlockedContent = as<'div', { children?: never }>(({ ...props
   </Box>
 ));
 
-export const MessageEditedContent = as<'span', { children?: never }>(({ ...props }, ref) => (
-  <Text as="span" size="T200" priority="300" {...props} ref={ref}>
-    {' (edited)'}
-  </Text>
-));
+export const MessageEditedContent = as<
+  'span',
+  { editTimestamps?: number[]; room?: Room; mEvent?: MatrixEvent }
+>(({ editTimestamps, room, mEvent, ...props }, ref) => {
+  // Same open action as the context-menu "Version History" item.
+  const setModal = useSetAtom(modalAtom);
+
+  const openEditHistory = useCallback(
+    (e: SyntheticEvent<HTMLSpanElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (!room || !mEvent) return;
+      setModal({ type: ModalType.EditHistory, room, mEvent });
+    },
+    [setModal, room, mEvent]
+  );
+
+  const handleKeyDown = useCallback(
+    (e: KeyboardEvent<HTMLSpanElement>) => {
+      if (e.key === 'Enter' || e.key === ' ') openEditHistory(e);
+    },
+    [openEditHistory]
+  );
+
+  const timestamps =
+    editTimestamps && editTimestamps.length > 0
+      ? editTimestamps.map((ts) => new Date(ts).toLocaleString())
+      : undefined;
+  const edited = (
+    <Text
+      as="span"
+      size="T200"
+      priority="300"
+      {...(room && mEvent
+        ? {
+            role: 'button',
+            tabIndex: 0,
+            onClick: (e: MouseEvent<HTMLSpanElement>) => openEditHistory(e),
+            onKeyDown: handleKeyDown,
+            style: { cursor: 'pointer' },
+          }
+        : {})}
+      {...props}
+      ref={ref}
+    >
+      {' (edited)'}
+    </Text>
+  );
+
+  if (!timestamps) return edited;
+  return (
+    <TooltipProvider
+      position="Top"
+      tooltip={
+        <Tooltip style={{ maxWidth: toRem(250) }}>
+          <Text size="T200">
+            {timestamps.length === 1
+              ? `Edited at ${timestamps[0]}`
+              : `Last edited at ${timestamps[timestamps.length - 1]}`}
+          </Text>
+        </Tooltip>
+      }
+    >
+      {(triggerRef) => (
+        <span ref={triggerRef} style={{ display: 'inline' }}>
+          {edited}
+        </span>
+      )}
+    </TooltipProvider>
+  );
+});

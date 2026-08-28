@@ -147,6 +147,14 @@ export const CustomEditor = forwardRef<HTMLDivElement, CustomEditorProps>(
       });
     }, [updateMultilineLayout]);
 
+    const scheduleMultilineLayout = useCallback(() => {
+      if (layoutFrameRef.current !== undefined) return;
+      layoutFrameRef.current = requestAnimationFrame(() => {
+        layoutFrameRef.current = undefined;
+        updateMultilineLayout();
+      });
+    }, [updateMultilineLayout]);
+
     useEffect(() => {
       const root = rootRef.current;
       if (!root) return undefined;

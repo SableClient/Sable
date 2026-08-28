@@ -322,13 +322,10 @@ export const useUserProfile = (
             return;
           }
           const normalized = normalizeInfo(info);
-          setGlobalProfiles((prev) => {
-            const { [userId]: previousProfile, ...otherProfiles } = prev;
-            return {
-              ...otherProfiles,
-              [userId]: { ...previousProfile, ...normalized },
-            };
-          });
+          setGlobalProfiles((prev) => ({
+            ...prev,
+            [userId]: { ...prev[userId], ...normalized },
+          }));
         })
         .catch(() => {
           if (getFetchGeneration(mx, userId) !== generation) {

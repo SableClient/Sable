@@ -381,7 +381,6 @@ export const scaleSystemEmoji = (text: string): (string | JSX.Element)[] => {
 
   [...text.matchAll(URL_REG)].forEach((match) => {
     const start = match.index ?? 0;
-    scaleEmojiChunk(text.slice(lastIndex, start), parts);
     parts.push(match[0]);
     lastIndex = start + match[0].length;
   });

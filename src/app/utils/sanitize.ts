@@ -47,32 +47,40 @@ const permittedHtmlTags = [
 ] as const;
 
 const permittedTagToAttributes = {
-  span: ['data-mx-bg-color', 'data-mx-color', 'data-mx-spoiler', 'data-mx-maths', 'data-md'],
-  a: ['href', 'data-md'],
-  img: ['width', 'height', 'alt', 'title', 'src', 'data-mx-emoticon'], // data-mx-emoticon is for MSC2545
-  ol: ['start', 'data-md'],
-  ul: ['data-md'],
-  code: ['class', 'data-md', 'data-lang'],
-  pre: ['class', 'data-md', 'data-lang'],
-  div: ['data-mx-maths'],
-  blockquote: ['data-md'],
-  h1: ['data-md'],
-  h2: ['data-md'],
-  h3: ['data-md'],
-  h4: ['data-md'],
-  h5: ['data-md'],
-  h6: ['data-md'],
-  strong: ['data-md'],
-  i: ['data-md'],
-  em: ['data-md'],
-  u: ['data-md'],
-  s: ['data-md'],
-  del: ['data-md'],
-  sub: ['data-md'],
-  hr: ['data-md'],
-} as const satisfies Record<string, readonly string[]>;
+  span: new Set([
+    'data-mx-bg-color',
+    'data-mx-color',
+    'data-mx-spoiler',
+    'data-mx-maths',
+    'data-md',
+  ]),
+  a: new Set(['href', 'data-md']),
+  img: new Set(['width', 'height', 'alt', 'title', 'src', 'data-mx-emoticon']), // data-mx-emoticon is for MSC2545
+  ol: new Set(['start', 'data-md']),
+  ul: new Set(['data-md']),
+  code: new Set(['class', 'data-md', 'data-lang']),
+  pre: new Set(['class', 'data-md', 'data-lang']),
+  div: new Set(['data-mx-maths']),
+  blockquote: new Set(['data-md']),
+  h1: new Set(['data-md']),
+  h2: new Set(['data-md']),
+  h3: new Set(['data-md']),
+  h4: new Set(['data-md']),
+  h5: new Set(['data-md']),
+  h6: new Set(['data-md']),
+  strong: new Set(['data-md']),
+  i: new Set(['data-md']),
+  em: new Set(['data-md']),
+  u: new Set(['data-md']),
+  s: new Set(['data-md']),
+  del: new Set(['data-md']),
+  sub: new Set(['data-md']),
+  hr: new Set(['data-md']),
+} as const satisfies Record<string, ReadonlySet<string>>;
 
-const permittedHtmlAttributes = Array.from(new Set(Object.values(permittedTagToAttributes).flat()));
+const permittedHtmlAttributes = Array.from(
+  new Set(Object.values(permittedTagToAttributes).flatMap((set) => [...set]))
+);
 
 const allowedLinkSchemes = new Set(['https', 'http', 'ftp', 'mailto', 'magnet']);
 const forbiddenContentTags = ['mx-reply', 'script', 'style', 'textarea', 'option', 'noscript'];
@@ -97,7 +105,7 @@ function tagAllowsAttribute(tagName: string, attrName: string): boolean {
   const allowedAttributes =
     permittedTagToAttributes[tagName as keyof typeof permittedTagToAttributes];
 
-  return allowedAttributes ? (allowedAttributes as readonly string[]).includes(attrName) : false;
+  return allowedAttributes ? allowedAttributes.has(attrName) : false;
 }
 
 function isAllowedAbsoluteLink(value: string): boolean {

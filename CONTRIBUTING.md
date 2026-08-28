@@ -20,13 +20,11 @@ Bug reports and feature suggestions must use descriptive and concise titles and 
 
 > [!CAUTION]
 >
-> When contributing to this project, you must agree that you have authored 100% of the content, that you have the
-> necessary rights to the content and that the content you contribute may be provided under the project license.
-> See the [section about DCO below](#developer-certification-of-origin-dco) for details.
+> Please also check the [section about DCO below](#developer-certification-of-origin-dco) for details about the contribution requirements.
 
 **NOTE: If you want to add new features, please discuss with maintainers before coding or opening a pull request.** This is to ensure that we are on same track and following our roadmap.
 
-**Please use clean, concise titles for your pull requests.** We use commit squashing, so the final commit in the dev branch will carry the title of the pull request. For easier sorting in changelog, start your pull request titles using one of the verbs "Add", "Change", "Remove", or "Fix" (present tense).
+**Please use clean, concise titles for your pull requests.** The final commit in the dev branch will carry the title of the pull request. For easier sorting in changelog, start your pull request titles using one of the verbs "Add", "Change", "Remove", or "Fix" (present tense).
 
 Example:
 
@@ -38,7 +36,7 @@ It is not always possible to phrase every change in such a manner, but it is des
 
 **The smaller the set of changes in the pull request is, the quicker it can be reviewed and merged.** Splitting tasks into multiple smaller pull requests is often preferable.
 
-Also, we use [ESLint](https://eslint.org/) for clean and stylistically consistent code syntax, so make sure your pull request follow it.
+Also, we use [OXFmt](https://oxc.rs/docs/guide/usage/formatter.html) for clean and stylistically consistent code syntax, so make sure your pull request follow it.
 
 **Pull requests are not merged unless all quality checks are passing.** At minimum, `format`, `lint`, `typecheck`, `knip`, and `tests` must all be green before a pull request can be merged. Run these locally before opening or updating a pull request:
 

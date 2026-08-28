@@ -1,14 +1,16 @@
 import { useCallback } from 'react';
-import { Box, Button, Spinner, Text, color } from 'folds';
+import { Box, Text } from 'folds';
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
+import { AsyncError } from '$components/AsyncError';
 
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { getViaServers } from '$plugins/via-servers';
 import { RoomInputPlaceholder } from './RoomInputPlaceholder';
 import * as css from './RoomTombstone.css';
 import { KnownMembership } from '$types/matrix-sdk';
+import { Button } from '$components/button';
 
 type RoomTombstoneProps = { roomId: string; body?: string; replacementRoomId: string };
 export function RoomTombstone({ roomId, body, replacementRoomId }: RoomTombstoneProps) {
@@ -35,11 +37,7 @@ export function RoomTombstone({ roomId, body, replacementRoomId }: RoomTombstone
     <RoomInputPlaceholder alignItems="Center" gap="600" className={css.RoomTombstone}>
       <Box direction="Column" grow="Yes">
         <Text size="T400">{body || 'This room has been replaced and is no longer active.'}</Text>
-        {joinState.status === AsyncStatus.Error && (
-          <Text style={{ color: color.Critical.Main }} size="T200">
-            {(joinState.error as Error)?.message ?? 'Failed to join replacement room!'}
-          </Text>
-        )}
+        <AsyncError state={joinState} />
       </Box>
       <Box shrink="No">
         {replacementRoom?.getMyMembership() === KnownMembership.Join ||
@@ -49,17 +47,15 @@ export function RoomTombstone({ roomId, body, replacementRoomId }: RoomTombstone
           </Button>
         ) : (
           <Button
-            onClick={handleJoin}
+            loading={joinState.status === AsyncStatus.Loading}
+            spinnerSize="100"
+            spinnerVariant="Primary"
+            spinnerFill="Solid"
             size="300"
             variant="Primary"
             fill="Solid"
             radii="300"
-            before={
-              joinState.status === AsyncStatus.Loading && (
-                <Spinner size="100" variant="Primary" fill="Solid" />
-              )
-            }
-            disabled={joinState.status === AsyncStatus.Loading}
+            onClick={handleJoin}
           >
             <Text size="B300">Join New Room</Text>
           </Button>

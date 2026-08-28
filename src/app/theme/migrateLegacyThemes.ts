@@ -1,6 +1,7 @@
 import { ThemeKind } from '$hooks/useTheme';
 import type { Settings, ThemeRemoteFavorite } from '$state/settings';
 import { trimTrailingSlash } from '$utils/common';
+import { fetch } from '$utils/fetch';
 
 import { putCachedThemeCss } from './cache';
 import { DEFAULT_THEME_CATALOG_BASE } from './catalogDefaults';

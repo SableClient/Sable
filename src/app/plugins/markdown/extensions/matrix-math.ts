@@ -1,14 +1,14 @@
 import type { TokenizerExtension, RendererExtension } from 'marked';
 
 /** Private-use char so math extensions do not match `$` / `$$` inside code spans. Not U+E000–U+E002 (emoticon placeholders). {@link shieldDollarRunsForMarked} uses U+E021–U+E022. */
-export const MATH_CODE_DOLLAR_MASK = '\uE020';
+const MATH_CODE_DOLLAR_MASK = '\uE020';
 
 /**
  * Replaces the `-` of line-start `-# …` inside markdown code so the Matrix subscript block
  * extension does not match before marked's `fences` rule (custom block extensions run first).
  * {@link unmaskSubscriptCodeLinePlaceholders} restores output HTML.
  */
-export const SUBSCRIPT_CODE_LINE_MASK = '\uE023';
+const SUBSCRIPT_CODE_LINE_MASK = '\uE023';
 
 function maskSubscriptLineStartsInCodeInner(inner: string): string {
   return inner.replace(/(^|\n)-#( +)/g, `$1${SUBSCRIPT_CODE_LINE_MASK}#$2`);
@@ -221,10 +221,16 @@ function isIgnorableMathContent(latex: string): boolean {
  * - the closing `$` is not preceded by whitespace, and
  * - the closing `$` is not immediately followed by an ASCII digit.
  */
+/** Opening `$[fg.color=…]` / `$[bg.color=…]` */
+const MFM_COLOR_FN_OPEN = /^\$\[(?:fg|bg)\.color=/;
+
 function tryTokenizeInlineMath(
   src: string
 ): { type: 'math'; raw: string; latex: string } | undefined {
   if (!src.startsWith('$')) {
+    return undefined;
+  }
+  if (MFM_COLOR_FN_OPEN.test(src)) {
     return undefined;
   }
   if (src.startsWith('$$') && (src.length < 3 || src.charAt(2) !== '$')) {
@@ -256,7 +262,7 @@ export const matrixMathExtension = {
   name: 'math',
   level: 'inline',
   start(src: string) {
-    if (/^\$\[(?:fg|bg)\.color=/.test(src)) return -1;
+    if (MFM_COLOR_FN_OPEN.test(src)) return -1;
     return src.indexOf('$');
   },
   tokenizer(src: string) {

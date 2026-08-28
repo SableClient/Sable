@@ -5,7 +5,7 @@ export const PinMenu = style({
   display: 'flex',
   maxWidth: toRem(548),
   width: '100vw',
-  maxHeight: '90vh',
+  maxHeight: '90dvh',
 });
 
 export const PinMenuHeader = style({

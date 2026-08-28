@@ -2,13 +2,12 @@ import { useCallback, useEffect } from 'react';
 import { Box, Button, Switch, Text } from 'folds';
 
 import { SettingMenuSelector } from '$components/setting-menu-selector';
-import { SequenceCard } from '$components/sequence-card';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import type { Theme } from '$hooks/useTheme';
 import { DarkTheme, LightTheme, ThemeKind, useThemeNames, useThemes } from '$hooks/useTheme';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { SequenceCardStyle } from '$features/settings/styles.css';
 import { useStore } from 'jotai/react';
 
 import { useThemeCatalogOnboardingGate } from './ThemeCatalogOnboarding';

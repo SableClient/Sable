@@ -1,8 +1,7 @@
-import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { useEffect } from 'react';
-import type { Editor } from 'slate';
-import { ReactEditor } from 'slate-react';
-import { Avatar, Icon, Icons, MenuItem, Text } from 'folds';
+import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Avatar, MenuItem, Text } from 'folds';
+import { userFallbackIcon } from '$components/icons/phosphor';
 import type { MatrixClient, Room, RoomMember } from '$types/matrix-sdk';
 
 import { useRoomMembers } from '$hooks/useRoomMembers';
@@ -12,24 +11,27 @@ import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { onTabPress } from '$utils/keyboard';
 import { useKeyDown } from '$hooks/useKeyDown';
 import { getMxIdLocalPart, isUserId } from '$utils/matrix';
-import { getMemberDisplayName, getMemberSearchStr } from '$utils/room';
+import { getAvatarUrl, getMemberDisplayName, getMemberSearchStr } from '$utils/room/display';
 import { UserAvatar } from '$components/user-avatar';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 
 import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
-import {
-  createMentionElement,
-  moveCursor,
-  replaceWithElement,
-  resolveUserMentionName,
-} from '$components/editor/utils';
+import { createMentionElement, mentionNameForUserAutocomplete } from '$components/editor/utils';
 import { getMxIdServer } from '$utils/mxIdHelper';
 import { AutocompleteMenu } from './AutocompleteMenu';
-import type { AutocompleteQuery } from './autocompleteQuery';
+import type {
+  EditorAutocompleteQuery,
+  ProseMirrorEditorController,
+} from '../prosemirrorController';
 import { KnownMembership } from '$types/matrix-sdk';
 
 type MentionAutoCompleteHandler = (userId: string, name: string) => void;
+type UserDirectoryEntry = {
+  userId: string;
+  displayName?: string;
+  avatarUrl?: string;
+};
 
 const userIdFromQueryText = (mx: MatrixClient, text: string) =>
   isUserId(`@${text}`)
@@ -52,13 +54,11 @@ function UnknownMentionItem({
       onKeyDown={(evt: ReactKeyboardEvent<HTMLButtonElement>) =>
         onTabPress(evt, () => handleAutocomplete(userId, name))
       }
+      onMouseDown={(evt: ReactMouseEvent<HTMLButtonElement>) => evt.preventDefault()}
       onClick={() => handleAutocomplete(userId, name)}
       before={
         <Avatar size="200">
-          <UserAvatar
-            userId={userId}
-            renderFallback={() => <Icon size="50" src={Icons.User} filled />}
-          />
+          <UserAvatar userId={userId} renderFallback={() => userFallbackIcon('sm')} />
         </Avatar>
       }
     >
@@ -71,8 +71,8 @@ function UnknownMentionItem({
 
 type UserMentionAutocompleteProps = {
   room: Room;
-  editor: Editor;
-  query: AutocompleteQuery<string>;
+  controller: ProseMirrorEditorController;
+  query: EditorAutocompleteQuery<string>;
   requestClose: () => void;
 };
 
@@ -82,19 +82,20 @@ const withAllowedMembership = (member: RoomMember): boolean =>
   member.membership === KnownMembership.Knock;
 
 const SEARCH_OPTIONS: UseAsyncSearchOptions = {
-  limit: 1000,
+  // The menu only displays 20 members; continuing to search reorders its visible results.
+  limit: 20,
   matchOptions: {
     contain: true,
   },
 };
+const MAX_MENTION_RESULTS = 20;
+const DIRECTORY_SEARCH_DELAY_MS = 200;
 
 const mxIdToName = (mxId: string) => getMxIdLocalPart(mxId) ?? mxId;
-const getRoomMemberStr: SearchItemStrGetter<RoomMember> = (m, query) =>
-  getMemberSearchStr(m, query, mxIdToName);
 
 export function UserMentionAutocomplete({
   room,
-  editor,
+  controller,
   query,
   requestClose,
 }: UserMentionAutocompleteProps) {
@@ -103,27 +104,78 @@ export function UserMentionAutocomplete({
   const nicknames = useAtomValue(nicknamesAtom);
   const roomId: string = room.roomId;
   const roomAliasOrId = room.getCanonicalAlias() || roomId;
+  const memberListComplete = room.membersLoaded();
   const members = useRoomMembers(mx, roomId);
+  const mentionableMembers = useMemo(() => members.filter(withAllowedMembership), [members]);
+  const [directoryResults, setDirectoryResults] = useState<UserDirectoryEntry[]>([]);
 
-  const [result, search, resetSearch] = useAsyncSearch(members, getRoomMemberStr, SEARCH_OPTIONS);
-  const autoCompleteMembers = (result ? result.items.slice(0, 20) : members.slice(0, 20)).filter(
-    withAllowedMembership
+  const getRoomMemberStr = useCallback<SearchItemStrGetter<RoomMember>>(
+    (m, searchQuery) => getMemberSearchStr(m, searchQuery, mxIdToName, nicknames),
+    [nicknames]
   );
+
+  const [result, search, resetSearch] = useAsyncSearch(
+    mentionableMembers,
+    getRoomMemberStr,
+    SEARCH_OPTIONS
+  );
+  const autoCompleteMembers = result?.items ?? mentionableMembers.slice(0, MAX_MENTION_RESULTS);
+  const directoryMatches = useMemo(() => {
+    const memberIds = new Set(autoCompleteMembers.map((member) => member.userId));
+    return directoryResults
+      .filter((member) => !memberIds.has(member.userId))
+      .slice(0, MAX_MENTION_RESULTS - autoCompleteMembers.length);
+  }, [autoCompleteMembers, directoryResults]);
 
   useEffect(() => {
     if (query.text) search(query.text);
     else resetSearch();
   }, [query.text, search, resetSearch]);
 
-  const handleAutocomplete: MentionAutoCompleteHandler = (uId) => {
+  useEffect(() => {
+    if (!query.text || query.text === 'room' || memberListComplete) {
+      setDirectoryResults([]);
+      return undefined;
+    }
+
+    let disposed = false;
+    setDirectoryResults([]);
+    const searchId = window.setTimeout(() => {
+      void mx
+        .searchUserDirectory({ term: query.text, limit: MAX_MENTION_RESULTS })
+        .then(({ results }) => {
+          if (disposed) return;
+          setDirectoryResults(
+            results.map(
+              ({ user_id: userId, display_name: displayName, avatar_url: avatarUrl }) => ({
+                userId,
+                displayName,
+                avatarUrl,
+              })
+            )
+          );
+        })
+        .catch(() => {
+          if (!disposed) setDirectoryResults([]);
+        });
+    }, DIRECTORY_SEARCH_DELAY_MS);
+
+    return () => {
+      disposed = true;
+      window.clearTimeout(searchId);
+    };
+  }, [memberListComplete, mx, query.text]);
+
+  const handleAutocomplete: MentionAutoCompleteHandler = (id, displayName) => {
+    const isRoomPing = displayName === '@room';
+    const isCurrentRoom = roomId === id || room.getCanonicalAlias() === id || roomAliasOrId === id;
     const mentionEl = createMentionElement(
-      uId,
-      resolveUserMentionName(uId, { room, nicknames }),
-      mx.getUserId() === uId || roomAliasOrId === uId
+      id,
+      mentionNameForUserAutocomplete(id, displayName, { room, nicknames }),
+      isRoomPing ? isCurrentRoom : mx.getUserId() === id || isCurrentRoom
     );
-    replaceWithElement(editor, query.range, mentionEl);
-    moveCursor(editor, true);
-    ReactEditor.focus(editor);
+    controller.insertInline(mentionEl, query.from, query.to);
+    controller.insertText(' ');
     requestClose();
   };
 
@@ -141,22 +193,28 @@ export function UserMentionAutocomplete({
         handleAutocomplete(roomAliasOrId, '@room');
         return;
       }
-      if (autoCompleteMembers.length === 0) {
+      if (autoCompleteMembers.length === 0 && directoryMatches.length === 0) {
         const userId = userIdFromQueryText(mx, query.text);
         handleAutocomplete(userId, userId);
         return;
       }
-      const roomMember = autoCompleteMembers[0]!;
-      handleAutocomplete(roomMember.userId, getName(roomMember));
+      const roomMember = autoCompleteMembers[0];
+      if (roomMember) {
+        handleAutocomplete(roomMember.userId, getName(roomMember));
+        return;
+      }
+      const directoryMember = directoryMatches[0]!;
+      handleAutocomplete(
+        directoryMember.userId,
+        directoryMember.displayName ??
+          getMxIdLocalPart(directoryMember.userId) ??
+          directoryMember.userId
+      );
     });
   });
 
   return (
-    <AutocompleteMenu
-      headerContent={<Text size="L400">Mentions</Text>}
-      requestClose={requestClose}
-      editor={editor}
-    >
+    <AutocompleteMenu headerContent={<Text size="L400">Mentions</Text>} requestClose={requestClose}>
       {query.text === 'room' && (
         <UnknownMentionItem
           userId={roomAliasOrId}
@@ -164,49 +222,88 @@ export function UserMentionAutocomplete({
           handleAutocomplete={handleAutocomplete}
         />
       )}
-      {autoCompleteMembers.length === 0 ? (
+      {autoCompleteMembers.length === 0 && directoryMatches.length === 0 ? (
         <UnknownMentionItem
           userId={userIdFromQueryText(mx, query.text)}
           name={userIdFromQueryText(mx, query.text)}
           handleAutocomplete={handleAutocomplete}
         />
       ) : (
-        autoCompleteMembers.map((roomMember) => {
-          const avatarMxcUrl = roomMember.getMxcAvatarUrl();
-          const avatarUrl = avatarMxcUrl
-            ? mx.mxcUrlToHttp(avatarMxcUrl, 32, 32, 'crop', undefined, false, useAuthentication)
-            : undefined;
-          return (
-            <MenuItem
-              key={roomMember.userId}
-              as="button"
-              radii="300"
-              onKeyDown={(evt: ReactKeyboardEvent<HTMLButtonElement>) =>
-                onTabPress(evt, () => handleAutocomplete(roomMember.userId, getName(roomMember)))
-              }
-              onClick={() => handleAutocomplete(roomMember.userId, getName(roomMember))}
-              after={
-                <Text size="T200" priority="300" truncate>
-                  {roomMember.userId}
+        <>
+          {autoCompleteMembers.map((roomMember) => {
+            const avatarMxcUrl = roomMember.getMxcAvatarUrl();
+            const avatarUrl = getAvatarUrl(mx, avatarMxcUrl, 32, useAuthentication);
+            return (
+              <MenuItem
+                key={roomMember.userId}
+                as="button"
+                radii="300"
+                onKeyDown={(evt: ReactKeyboardEvent<HTMLButtonElement>) =>
+                  onTabPress(evt, () => handleAutocomplete(roomMember.userId, getName(roomMember)))
+                }
+                onMouseDown={(evt: ReactMouseEvent<HTMLButtonElement>) => evt.preventDefault()}
+                onClick={() => handleAutocomplete(roomMember.userId, getName(roomMember))}
+                after={
+                  <Text size="T200" priority="300" truncate>
+                    {roomMember.userId}
+                  </Text>
+                }
+                before={
+                  <Avatar size="200">
+                    <UserAvatar
+                      userId={roomMember.userId}
+                      src={avatarUrl ?? undefined}
+                      alt={getName(roomMember)}
+                      renderFallback={() => userFallbackIcon('sm')}
+                    />
+                  </Avatar>
+                }
+              >
+                <Text style={{ flexGrow: 1 }} size="B400" truncate>
+                  {getName(roomMember)}
                 </Text>
-              }
-              before={
-                <Avatar size="200">
-                  <UserAvatar
-                    userId={roomMember.userId}
-                    src={avatarUrl ?? undefined}
-                    alt={getName(roomMember)}
-                    renderFallback={() => <Icon size="50" src={Icons.User} filled />}
-                  />
-                </Avatar>
-              }
-            >
-              <Text style={{ flexGrow: 1 }} size="B400" truncate>
-                {getName(roomMember)}
-              </Text>
-            </MenuItem>
-          );
-        })
+              </MenuItem>
+            );
+          })}
+          {directoryMatches.map((directoryMember) => {
+            const name =
+              directoryMember.displayName ??
+              getMxIdLocalPart(directoryMember.userId) ??
+              directoryMember.userId;
+            const avatarUrl = getAvatarUrl(mx, directoryMember.avatarUrl, 32, useAuthentication);
+            return (
+              <MenuItem
+                key={directoryMember.userId}
+                as="button"
+                radii="300"
+                onKeyDown={(evt: ReactKeyboardEvent<HTMLButtonElement>) =>
+                  onTabPress(evt, () => handleAutocomplete(directoryMember.userId, name))
+                }
+                onMouseDown={(evt: ReactMouseEvent<HTMLButtonElement>) => evt.preventDefault()}
+                onClick={() => handleAutocomplete(directoryMember.userId, name)}
+                after={
+                  <Text size="T200" priority="300" truncate>
+                    {directoryMember.userId}
+                  </Text>
+                }
+                before={
+                  <Avatar size="200">
+                    <UserAvatar
+                      userId={directoryMember.userId}
+                      src={avatarUrl ?? undefined}
+                      alt={name}
+                      renderFallback={() => userFallbackIcon('sm')}
+                    />
+                  </Avatar>
+                }
+              >
+                <Text style={{ flexGrow: 1 }} size="B400" truncate>
+                  {name}
+                </Text>
+              </MenuItem>
+            );
+          })}
+        </>
       )}
     </AutocompleteMenu>
   );

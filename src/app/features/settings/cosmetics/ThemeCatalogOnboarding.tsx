@@ -1,21 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import FocusTrap from 'focus-trap-react';
-import {
-  Box,
-  Button,
-  config,
-  Dialog,
-  Header,
-  Icon,
-  IconButton,
-  Icons,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
-  Text,
-} from 'folds';
+import { Box, Button, config, Dialog, Header, IconButton, Text } from 'folds';
+import { menuIcon, X } from '$components/icons/phosphor';
 
-import { stopPropagation } from '$utils/keyboard';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 type ThemeCatalogOnboardingProps = {
   open: boolean;
@@ -23,7 +10,7 @@ type ThemeCatalogOnboardingProps = {
   onDecline: () => void;
 };
 
-export function ThemeCatalogOnboarding({ open, onEnable, onDecline }: ThemeCatalogOnboardingProps) {
+function ThemeCatalogOnboarding({ open, onEnable, onDecline }: ThemeCatalogOnboardingProps) {
   const suppressDeactivateDecline = useRef(false);
 
   const handleEnableClick = useCallback(() => {
@@ -44,74 +31,65 @@ export function ThemeCatalogOnboarding({ open, onEnable, onDecline }: ThemeCatal
     onDecline();
   }, [onDecline]);
 
+  if (!open) return null;
+
   return (
-    <Overlay open={open} backdrop={<OverlayBackdrop />}>
-      <OverlayCenter>
-        <FocusTrap
-          focusTrapOptions={{
-            initialFocus: false,
-            onDeactivate: handleTrapDeactivate,
-            clickOutsideDeactivates: false,
-            escapeDeactivates: stopPropagation,
+    <ModalOverlay requestClose={handleTrapDeactivate} dismissOnClickOutside={false}>
+      <Dialog variant="Surface">
+        <Header
+          style={{
+            padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
+            borderBottomWidth: config.borderWidth.B300,
           }}
+          variant="Surface"
+          size="500"
         >
-          <Dialog variant="Surface">
-            <Header
-              style={{
-                padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
-                borderBottomWidth: config.borderWidth.B300,
-              }}
-              variant="Surface"
-              size="500"
+          <Box grow="Yes">
+            <Text size="H4">Remote themes</Text>
+          </Box>
+          <IconButton
+            size="300"
+            variant="Secondary"
+            fill="Soft"
+            outlined
+            radii="300"
+            onClick={handleDeclineClick}
+            aria-label="Close"
+          >
+            {menuIcon(X)}
+          </IconButton>
+        </Header>
+        <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
+          <Text priority="400">
+            Load themes from the official Sable theme catalog on GitHub? You can browse previews,
+            save favorites locally, and sync them with light and dark mode. If you choose not to,
+            you can keep using the built-in Light and Dark themes only.
+          </Text>
+          <Box direction="Column" gap="200">
+            <Button
+              variant="Primary"
+              fill="Soft"
+              outlined
+              size="300"
+              radii="300"
+              onClick={handleEnableClick}
             >
-              <Box grow="Yes">
-                <Text size="H4">Remote themes</Text>
-              </Box>
-              <IconButton
-                size="300"
-                variant="Secondary"
-                fill="Soft"
-                outlined
-                radii="300"
-                onClick={handleDeclineClick}
-                aria-label="Close"
-              >
-                <Icon src={Icons.Cross} size="100" />
-              </IconButton>
-            </Header>
-            <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
-              <Text priority="400">
-                Load themes from the official Sable theme catalog on GitHub? You can browse
-                previews, save favorites locally, and sync them with light and dark mode. If you
-                choose not to, you can keep using the built-in Light and Dark themes only.
-              </Text>
-              <Box direction="Column" gap="200">
-                <Button
-                  variant="Primary"
-                  fill="Soft"
-                  outlined
-                  size="300"
-                  radii="300"
-                  onClick={handleEnableClick}
-                >
-                  <Text size="B400">Yes, use the catalog</Text>
-                </Button>
-                <Button
-                  variant="Secondary"
-                  fill="Soft"
-                  outlined
-                  size="300"
-                  radii="300"
-                  onClick={handleDeclineClick}
-                >
-                  <Text size="B400">No, built-in themes only</Text>
-                </Button>
-              </Box>
-            </Box>
-          </Dialog>
-        </FocusTrap>
-      </OverlayCenter>
-    </Overlay>
+              <Text size="B400">Yes, use the catalog</Text>
+            </Button>
+            <Button
+              variant="Secondary"
+              fill="Soft"
+              outlined
+              size="300"
+              radii="300"
+              onClick={handleDeclineClick}
+            >
+              <Text size="B400">No, built-in themes only</Text>
+            </Button>
+          </Box>
+        </Box>
+      </Dialog>
+    </ModalOverlay>
   );
 }
 

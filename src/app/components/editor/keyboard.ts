@@ -1,87 +1,53 @@
-import { isKeyHotkey } from 'is-hotkey';
 import type { KeyboardEvent } from 'react';
-import { Editor, Range, Transforms } from 'slate';
+import type { ProseMirrorEditorController } from './prosemirrorController';
+import type { ShortcutId, ShortcutOverrides } from '../../keyboard/shortcuts';
+import { matchesShortcut } from '../../keyboard/shortcuts';
 
-export const INLINE_HOTKEYS: Record<string, string> = {
-  'mod+b': '**',
-  'mod+i': '*',
-  'mod+u': '__',
-  'mod+s': '~~',
-  'mod+[': '`',
-  'mod+h': '||',
-};
-const INLINE_KEYS = Object.keys(INLINE_HOTKEYS);
+export const INLINE_MARKERS = {
+  'composer.bold': '**',
+  'composer.italic': '*',
+  'composer.underline': '__',
+  'composer.strikethrough': '~~',
+  'composer.inlineCode': '`',
+  'composer.spoiler': '||',
+} satisfies Partial<Record<ShortcutId, string>>;
 
-export const BLOCK_HOTKEYS: Record<string, string> = {
-  'mod+7': '1. ',
-  'mod+8': '- ',
-  "mod+'": '> ',
-  'mod+;': '```\n',
-};
-const BLOCK_KEYS = Object.keys(BLOCK_HOTKEYS);
-const isHeading1 = isKeyHotkey('mod+1');
-const isHeading2 = isKeyHotkey('mod+2');
-const isHeading3 = isKeyHotkey('mod+3');
+export const BLOCK_PREFIXES = {
+  'composer.heading1': '# ',
+  'composer.heading2': '## ',
+  'composer.heading3': '### ',
+  'composer.blockquote': '> ',
+  'composer.codeBlock': '```\n',
+  'composer.orderedList': '1. ',
+  'composer.unorderedList': '- ',
+} satisfies Partial<Record<ShortcutId, string>>;
 
-export const applyMarkdownInline = (editor: Editor, marker: string) => {
-  if (editor.selection && Range.isExpanded(editor.selection)) {
-    const text = Editor.string(editor, editor.selection);
-    Transforms.insertText(editor, `${marker}${text}${marker}`);
-  } else {
-    Transforms.insertText(editor, `${marker}${marker}`);
-    Transforms.move(editor, { distance: marker.length, reverse: true });
-  }
-};
+const INLINE_ACTIONS = Object.entries(INLINE_MARKERS) as [ShortcutId, string][];
+const BLOCK_ACTIONS = Object.entries(BLOCK_PREFIXES) as [ShortcutId, string][];
 
-export const applyMarkdownBlockPrefix = (editor: Editor, prefix: string) => {
-  if (editor.selection) {
-    const path = editor.selection.anchor.path;
-    const startPoint = Editor.start(editor, path);
-    Transforms.insertText(editor, prefix, { at: startPoint });
-  }
-};
-
-/**
- * @return boolean true if shortcut is toggled.
- */
-export const toggleKeyboardShortcut = (editor: Editor, event: KeyboardEvent): boolean => {
-  if (isKeyHotkey('escape', event)) {
-    return false;
-  }
-
-  const blockToggled = BLOCK_KEYS.find((hotkey) => {
-    if (isKeyHotkey(hotkey, event)) {
-      event.preventDefault();
-      applyMarkdownBlockPrefix(editor, BLOCK_HOTKEYS[hotkey]!);
-      return true;
-    }
-    return false;
-  });
-  if (blockToggled) return true;
-
-  if (isHeading1(event)) {
-    event.preventDefault();
-    applyMarkdownBlockPrefix(editor, '# ');
+/** Same user-configurable Markdown shortcut policy for the ProseMirror adapter. */
+export const toggleProseMirrorKeyboardShortcut = (
+  controller: ProseMirrorEditorController,
+  event: KeyboardEvent,
+  overrides: ShortcutOverrides
+): boolean => {
+  if (matchesShortcut('composer.undo', event, overrides)) {
+    controller.undo();
     return true;
   }
-  if (isHeading2(event)) {
-    event.preventDefault();
-    applyMarkdownBlockPrefix(editor, '## ');
+  if (matchesShortcut('composer.redo', event, overrides)) {
+    controller.redo();
     return true;
   }
-  if (isHeading3(event)) {
-    event.preventDefault();
-    applyMarkdownBlockPrefix(editor, '### ');
+  const block = BLOCK_ACTIONS.find(([id]) => matchesShortcut(id, event, overrides));
+  if (block) {
+    controller.applyMarkdownBlockPrefix(block[1]);
     return true;
   }
-
-  const inlineToggled = INLINE_KEYS.find((hotkey) => {
-    if (isKeyHotkey(hotkey, event)) {
-      event.preventDefault();
-      applyMarkdownInline(editor, INLINE_HOTKEYS[hotkey]!);
-      return true;
-    }
-    return false;
-  });
-  return !!inlineToggled;
+  const inline = INLINE_ACTIONS.find(([id]) => matchesShortcut(id, event, overrides));
+  if (inline) {
+    controller.applyMarkdownInline(inline[1]);
+    return true;
+  }
+  return false;
 };

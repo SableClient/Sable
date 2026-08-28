@@ -1,72 +1,17 @@
-import type { WritableAtom } from 'jotai';
-import { atom } from 'jotai';
-import { produce } from 'immer';
-import {
-  atomWithLocalStorage,
-  getLocalStorageItem,
-  setLocalStorageItem,
-} from './utils/atomWithLocalStorage';
+import { getLocalStorageItem } from './utils/atomWithLocalStorage';
+import { makeStringSetAtom } from './utils/stringSetAtom';
+import type { StringSetAtom } from './utils/stringSetAtom';
 import { getSettings } from './settings';
 
 const OPENED_SIDEBAR_FOLDER = 'openedSidebarFolder';
 
-type OpenedSidebarFolderAction =
-  | {
-      type: 'PUT';
-      id: string;
+export type OpenedSidebarFolderAtom = StringSetAtom;
+
+export const makeOpenedSidebarFolderAtom = (userId: string): OpenedSidebarFolderAtom =>
+  makeStringSetAtom(`${OPENED_SIDEBAR_FOLDER}${userId}`, (key) => {
+    const settings = getSettings();
+    if (settings.closeFoldersByDefault) {
+      return new Set<string>();
     }
-  | {
-      type: 'DELETE';
-      id: string;
-    };
-
-export type OpenedSidebarFolderAtom = WritableAtom<
-  Set<string>,
-  [OpenedSidebarFolderAction],
-  undefined
->;
-
-export const makeOpenedSidebarFolderAtom = (userId: string): OpenedSidebarFolderAtom => {
-  const storeKey = `${OPENED_SIDEBAR_FOLDER}${userId}`;
-
-  const baseOpenedSidebarFolderAtom = atomWithLocalStorage<Set<string>>(
-    storeKey,
-    (key) => {
-      const settings = getSettings();
-      if (settings.closeFoldersByDefault) {
-        return new Set<string>();
-      }
-      const arrayValue = getLocalStorageItem<string[]>(key, []);
-      return new Set(arrayValue);
-    },
-    (key, value) => {
-      const arrayValue = Array.from(value);
-      setLocalStorageItem(key, arrayValue);
-    }
-  );
-
-  const openedSidebarFolderAtom = atom<Set<string>, [OpenedSidebarFolderAction], undefined>(
-    (get) => get(baseOpenedSidebarFolderAtom),
-    (get, set, action) => {
-      if (action.type === 'DELETE') {
-        set(
-          baseOpenedSidebarFolderAtom,
-          produce(get(baseOpenedSidebarFolderAtom), (draft) => {
-            draft.delete(action.id);
-          })
-        );
-        return;
-      }
-      if (action.type === 'PUT') {
-        set(
-          baseOpenedSidebarFolderAtom,
-          produce(get(baseOpenedSidebarFolderAtom), (draft) => {
-            draft.add(action.id);
-          })
-        );
-      }
-    }
-  );
-
-  return openedSidebarFolderAtom;
-};
+    return new Set(getLocalStorageItem<string[]>(key, []));
+  });

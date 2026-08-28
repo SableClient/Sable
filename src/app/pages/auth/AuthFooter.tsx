@@ -1,4 +1,5 @@
 import { Box, Text } from 'folds';
+import { versionLabel } from '$utils/platform';
 import * as css from './styles.css';
 
 export function AuthFooter() {
@@ -14,7 +15,7 @@ export function AuthFooter() {
         target="_blank"
         rel="noreferrer"
       >
-        {`v${APP_VERSION}${IS_RELEASE_TAG ? '' : `-dev${BUILD_HASH ? ` (${BUILD_HASH})` : ''}`}`}
+        {versionLabel()}
       </Text>
       <Text as="a" size="T300" href="https://matrix.org" target="_blank" rel="noreferrer">
         Powered by Matrix

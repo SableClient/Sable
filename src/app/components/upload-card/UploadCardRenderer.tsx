@@ -1,22 +1,24 @@
 import type { ReactNode } from 'react';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Box, Chip, IconButton, Text, Tooltip, color, config, toRem } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
 import {
-  Box,
-  Chip,
-  Icon,
-  IconButton,
-  Icons,
-  Scroll,
-  Text,
-  Tooltip,
-  TooltipProvider,
-  color,
-  config,
-  toRem,
-} from 'folds';
+  Check,
+  EyeSlash,
+  File,
+  Image,
+  Info,
+  PencilSimple,
+  VideoCamera,
+  X,
+  sizedIcon,
+  type PhosphorIcon,
+  phosphorSizeRem,
+} from '$components/icons/phosphor';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import { Play, Pause } from '@phosphor-icons/react';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { Image as MediaImage } from '$components/media';
 import type { Opts as LinkifyOpts } from 'linkifyjs';
 import { getReactCustomHtmlParser, LINKIFY_OPTS } from '$plugins/react-custom-html-parser';
 import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
@@ -25,7 +27,8 @@ import type { UploadSuccess } from '$state/upload';
 import { UploadStatus, useBindUploadAtom } from '$state/upload';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import type { TUploadContent } from '$utils/matrix';
-import { bytesToSize, getFileTypeIcon } from '$utils/common';
+import { isImageMimeType } from '$utils/mimeTypes';
+import { bytesToSize } from '$utils/common';
 import type { TUploadItem, TUploadMetadata } from '$state/room/roomInputDrafts';
 import { roomUploadAtomFamily } from '$state/room/roomInputDrafts';
 import { useObjectURL } from '$hooks/useObjectURL';
@@ -37,6 +40,14 @@ import { UploadCard, UploadCardError, UploadCardProgress } from './UploadCard';
 import * as css from './UploadCard.css';
 import { DescriptionEditor } from './UploadDescriptionEditor';
 
+function getFileTypeIconComponent(fileType: string): PhosphorIcon {
+  const type = fileType.toLowerCase();
+  if (type.startsWith('audio')) return Play;
+  if (type.startsWith('video')) return VideoCamera;
+  if (isImageMimeType(type)) return Image;
+  return File;
+}
+
 type PreviewImageProps = {
   fileItem: TUploadItem;
 };
@@ -45,11 +56,11 @@ function PreviewImage({ fileItem }: Readonly<PreviewImageProps>) {
   const fileUrl = useObjectURL(originalFile);
 
   return (
-    <img
+    <MediaImage
       style={{
         objectFit: 'contain',
         width: '100%',
-        height: toRem(152),
+        height: toRem(128),
         filter: metadata.markedAsSpoiler ? 'blur(44px)' : undefined,
       }}
       alt={originalFile.name}
@@ -71,7 +82,7 @@ function PreviewVideo({ fileItem }: Readonly<PreviewVideoProps>) {
       style={{
         objectFit: 'contain',
         width: '100%',
-        height: toRem(152),
+        height: toRem(128),
         filter: metadata.markedAsSpoiler ? 'blur(44px)' : undefined,
       }}
       src={fileUrl}
@@ -82,6 +93,7 @@ function PreviewVideo({ fileItem }: Readonly<PreviewVideoProps>) {
 const BAR_COUNT = 44;
 
 function formatAudioTime(s: number): string {
+  if (!Number.isFinite(s) || s < 0) return '0:00';
   const m = Math.floor(s / 60);
   const sec = Math.floor(s % 60);
   return `${m}:${sec.toString().padStart(2, '0')}`;
@@ -206,7 +218,7 @@ function PreviewAudio({ fileItem }: PreviewAudioProps) {
       setCurrentTime(targetTime);
     } else {
       // Metadata not yet loaded (Firefox, first scrub before load() resolves).
-      // Do NOT call load() again here — that resets currentTime to 0 and
+      // Do NOT call load() again here  Ethat resets currentTime to 0 and
       // restarts the fetch. load() was already called in the useEffect;
       // just wait for the in-flight loadedmetadata event.
       el.addEventListener(
@@ -265,7 +277,11 @@ function PreviewAudio({ fileItem }: PreviewAudioProps) {
         aria-label={isPlaying ? 'Pause' : 'Play voice message'}
         aria-pressed={isPlaying}
       >
-        {isPlaying ? <Pause size={20} weight="fill" /> : <Play size={20} weight="fill" />}
+        {isPlaying ? (
+          <Pause size={phosphorSizeRem(20)} weight="fill" />
+        ) : (
+          <Play size={phosphorSizeRem(20)} weight="fill" />
+        )}
       </IconButton>
 
       <Box
@@ -335,7 +351,7 @@ function MediaPreview({ fileItem, onSpoiler, children }: MediaPreviewProps) {
           fill="Soft"
           radii="Pill"
           aria-pressed={metadata.markedAsSpoiler}
-          before={<Icon src={Icons.EyeBlind} size="50" />}
+          before={sizedIcon(EyeSlash, '50')}
           onClick={() => onSpoiler(!metadata.markedAsSpoiler)}
         >
           <Text size="B300">Spoiler</Text>
@@ -353,6 +369,7 @@ type UploadCardRendererProps = {
   onRemove: (file: TUploadContent) => void;
   onComplete?: (upload: UploadSuccess) => void;
   roomId: string;
+  hideCaption?: boolean;
 };
 export function UploadCardRenderer({
   isEncrypted,
@@ -362,6 +379,7 @@ export function UploadCardRenderer({
   onRemove,
   onComplete,
   roomId,
+  hideCaption,
 }: Readonly<UploadCardRendererProps>) {
   const mx = useMatrixClient();
   const mediaConfig = useMediaConfig();
@@ -375,7 +393,7 @@ export function UploadCardRenderer({
 
   const [isDescribed, setIsDescribed] = useState(false);
 
-  if (upload.status === UploadStatus.Idle && !fileSizeExceeded) {
+  if (upload.status === UploadStatus.Idle && !fileSizeExceeded && !fileItem.encrypting) {
     startUpload();
   }
 
@@ -428,7 +446,9 @@ export function UploadCardRenderer({
   return (
     <UploadCard
       radii="300"
-      before={<Icon src={getFileTypeIcon(Icons, file.type)} />}
+      compact
+      style={{ maxWidth: toRem(400), flexShrink: 0 }}
+      before={sizedIcon(getFileTypeIconComponent(file.type))}
       after={
         <>
           {upload.status === UploadStatus.Error && (
@@ -443,7 +463,7 @@ export function UploadCardRenderer({
               <Text size="B300">Retry</Text>
             </Chip>
           )}
-          {!isDescribed && (
+          {!isDescribed && !hideCaption && (
             <IconButton
               onClick={() => {
                 setIsDescribed(true);
@@ -453,10 +473,10 @@ export function UploadCardRenderer({
               radii="Pill"
               size="300"
             >
-              <Icon src={Icons.Pencil} size="50" />
+              {sizedIcon(PencilSimple, '50')}
             </IconButton>
           )}
-          {isDescribed && (
+          {isDescribed && !hideCaption && (
             <TooltipProvider
               delay={400}
               position="Top"
@@ -469,7 +489,7 @@ export function UploadCardRenderer({
                 </Tooltip>
               }
             >
-              {(triggerRef) => <Icon ref={triggerRef} src={Icons.Info} size="50" />}
+              {(triggerRef) => <span ref={triggerRef}>{sizedIcon(Info, '50')}</span>}
             </TooltipProvider>
           )}
 
@@ -480,13 +500,13 @@ export function UploadCardRenderer({
             radii="Pill"
             size="300"
           >
-            <Icon src={Icons.Cross} size="200" />
+            {sizedIcon(X, '200')}
           </IconButton>
         </>
       }
       bottom={
         <>
-          {fileItem.originalFile.type.startsWith('image') && (
+          {isImageMimeType(fileItem.originalFile.type) && (
             <MediaPreview fileItem={fileItem} onSpoiler={handleSpoiler}>
               <PreviewImage fileItem={fileItem} />
             </MediaPreview>
@@ -518,7 +538,7 @@ export function UploadCardRenderer({
             </UploadCardError>
           )}
 
-          {isDescribed && (
+          {isDescribed && !hideCaption && (
             <DescriptionEditor
               value={fileItem.formatted_body || fileItem.body}
               onSave={(plainText, htmlContent) => {
@@ -528,41 +548,26 @@ export function UploadCardRenderer({
               onCancel={() => setIsDescribed(false)}
             />
           )}
-          {!isDescribed && fileItem.body && fileItem.body.length > 0 && (
-            <Scroll
-              direction="Vertical"
-              variant="SurfaceVariant"
-              visibility="Always"
-              size="300"
-              style={{
-                backgroundColor: 'var(--sable-bg-container)',
-                borderRadius: config.radii.R400,
-                maxHeight: '180px',
-                marginTop: config.space.S0,
-                overflowY: 'auto',
-              }}
-            >
-              <Box style={{ padding: config.space.S200, wordBreak: 'break-word' }}>
-                <Text size="T200" priority="400" as="div">
-                  <RenderBody
-                    body={fileItem.body}
-                    customBody={fileItem.formatted_body}
-                    htmlReactParserOptions={htmlReactParserOptions}
-                    linkifyOpts={linkifyOpts}
-                  />
-                </Text>
-              </Box>
-            </Scroll>
+          {!isDescribed && !hideCaption && fileItem.body && fileItem.body.length > 0 && (
+            <Box style={{ padding: config.space.S200, wordBreak: 'break-word' }}>
+              <Text size="T200" priority="400" as="div">
+                <RenderBody
+                  body={fileItem.body}
+                  customBody={fileItem.formatted_body}
+                  htmlReactParserOptions={htmlReactParserOptions}
+                  linkifyOpts={linkifyOpts}
+                />
+              </Text>
+            </Box>
           )}
         </>
       }
     >
-      <Text size="H6" truncate>
+      <Text size="H6" truncate style={{ minWidth: 0, flexGrow: 1 }}>
         {file.name}
       </Text>
-      {upload.status === UploadStatus.Success && (
-        <Icon style={{ color: color.Success.Main }} src={Icons.Check} size="100" />
-      )}
+      {upload.status === UploadStatus.Success &&
+        sizedIcon(Check, '100', { style: { color: color.Success.Main } })}
     </UploadCard>
   );
 }

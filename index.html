@@ -3,7 +3,10 @@
   <head>
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover, interactive-widget=resizes-content"
+    />
     <title>Sable Client</title>
     <meta name="name" content="Sable" />
     <meta name="author" content="7w1" />
@@ -27,6 +30,24 @@
     <meta name="theme-color" media="(prefers-color-scheme: dark)" content="#1b1a21" />
 
     <link id="favicon" rel="shortcut icon" href="./public/favicon.png" />
+
+    <style>
+      html,
+      body {
+        background-color: #1b1a21;
+        background-image: radial-gradient(#2d2c36 2px, #1b1a21 2px);
+        background-size: 40px 40px;
+        color: #eae8f0;
+      }
+      @media (prefers-color-scheme: light) {
+        html,
+        body {
+          background-color: #ffffff;
+          background-image: radial-gradient(#e4e4e7 2px, #ffffff 2px);
+          color: #18181b;
+        }
+      }
+    </style>
 
     <link rel="manifest" href="/manifest.json" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -122,8 +143,24 @@
     <script>
       window.global ||= window;
     </script>
+    <script>
+      (function () {
+        var base = '%BASE_URL%';
+        var lng = (localStorage.getItem('i18nextLng') || navigator.language || 'en').split('-')[0];
+        var configPromise = fetch(base + 'config.json').then(function (r) {
+          if (!r.ok) return undefined;
+          return r.json();
+        });
+        var localePromise = fetch(base + 'public/locales/' + lng + '.json');
+        window.__SABLE_PRELOAD = {
+          config: configPromise,
+          locale: { lng: lng, promise: localePromise },
+        };
+        configPromise.catch(function () {});
+        localePromise.catch(function () {});
+      })();
+    </script>
     <div id="root"></div>
-    <div id="portalContainer"></div>
     <script type="module" src="/src/index.tsx"></script>
   </body>
 </html>

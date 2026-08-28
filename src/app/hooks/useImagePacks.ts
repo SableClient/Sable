@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ImagePack, ImageUsage } from '$plugins/custom-emoji';
 import {
   getGlobalImagePacks,
+  getGlobalImagePackRoomIds,
   getRoomImagePack,
   getRoomImagePacks,
   getUserImagePack,
@@ -15,6 +16,7 @@ import {
   writeCachedPack,
   writeCachedPacks,
 } from '$plugins/custom-emoji';
+import { getSlidingSyncManager } from '$client/initMatrix';
 import { useMatrixClient } from './useMatrixClient';
 import { useAccountDataCallback } from './useAccountDataCallback';
 import { useStateEventCallback } from './useStateEventCallback';
@@ -54,6 +56,9 @@ const imagePackListEqual = (a: ImagePack[], b: ImagePack[]): boolean => {
   if (a.length !== b.length) return false;
   return a.every((pack, index) => imagePackEqual(pack, b[index]));
 };
+
+const roomIdListEqual = (a: string[], b: string[]): boolean =>
+  a.length === b.length && a.every((roomId, index) => roomId === b[index]);
 
 export const useUserImagePack = (): ImagePack | undefined => {
   const mx = useMatrixClient();
@@ -100,6 +105,24 @@ export const useGlobalImagePacks = (): ImagePack[] => {
     const cachedPacks = readCachedPacks(userId, globalPacksScope());
     return cachedPacks.length > 0 ? cachedPacks : livePacks;
   });
+  const [packRoomIds, setPackRoomIds] = useState<string[]>(() => getGlobalImagePackRoomIds(mx));
+
+  useEffect(() => {
+    const manager = getSlidingSyncManager(mx);
+    if (!manager) return undefined;
+
+    const refresh = () => {
+      setGlobalPacks((prev) => {
+        const next = getGlobalImagePacks(mx);
+        return imagePackListEqual(prev, next) ? prev : next;
+      });
+    };
+
+    manager.setImagePackSubscriptions(packRoomIds);
+    const listeners = packRoomIds.map((roomId) => manager.onRoomData(roomId, refresh));
+
+    return () => listeners.forEach((unsubscribe) => unsubscribe());
+  }, [mx, packRoomIds]);
 
   useEffect(() => {
     const userId = mx.getUserId();
@@ -110,7 +133,16 @@ export const useGlobalImagePacks = (): ImagePack[] => {
     mx,
     useCallback(
       (mEvent) => {
-        if (mEvent.getType() === (CustomAccountDataEvent.PoniesEmoteRooms as string)) {
+        if (
+          mEvent.getType() === (CustomAccountDataEvent.ImagePackRooms as string) ||
+          mEvent.getType() === (CustomAccountDataEvent.PoniesEmoteRooms as string)
+        ) {
+          const manager = getSlidingSyncManager(mx);
+          const nextPackRoomIds = getGlobalImagePackRoomIds(mx);
+          manager?.setImagePackSubscriptions(nextPackRoomIds);
+          setPackRoomIds((current) =>
+            roomIdListEqual(current, nextPackRoomIds) ? current : nextPackRoomIds
+          );
           setGlobalPacks((prev) => {
             const next = getGlobalImagePacks(mx);
             return imagePackListEqual(prev, next) ? prev : next;
@@ -127,24 +159,19 @@ export const useGlobalImagePacks = (): ImagePack[] => {
       (mEvent) => {
         const eventType = mEvent.getType();
         const roomId = mEvent.getRoomId();
-        const stateKey = mEvent.getStateKey();
         if (
-          eventType === (CustomStateEvent.PoniesRoomEmotes as string) &&
+          (eventType === (CustomStateEvent.ImagePack as string) ||
+            eventType === (CustomStateEvent.PoniesRoomEmotes as string)) &&
           roomId &&
-          typeof stateKey === 'string'
+          packRoomIds.includes(roomId)
         ) {
           setGlobalPacks((prev) => {
-            const global = !!prev.find(
-              (pack) =>
-                pack.address && pack.address.roomId === roomId && pack.address.stateKey === stateKey
-            );
-            if (!global) return prev;
             const next = getGlobalImagePacks(mx);
             return imagePackListEqual(prev, next) ? prev : next;
           });
         }
       },
-      [mx]
+      [mx, packRoomIds]
     )
   );
 
@@ -178,7 +205,8 @@ export const useRoomImagePack = (room: Room, stateKey: string): ImagePack | unde
       (mEvent) => {
         if (
           mEvent.getRoomId() === room.roomId &&
-          mEvent.getType() === (CustomStateEvent.PoniesRoomEmotes as string) &&
+          (mEvent.getType() === (CustomStateEvent.ImagePack as string) ||
+            mEvent.getType() === (CustomStateEvent.PoniesRoomEmotes as string)) &&
           mEvent.getStateKey() === stateKey
         ) {
           setRoomPack((prev) => {
@@ -217,7 +245,8 @@ export const useRoomImagePacks = (room: Room): ImagePack[] => {
       (mEvent) => {
         if (
           mEvent.getRoomId() === room.roomId &&
-          mEvent.getType() === (CustomStateEvent.PoniesRoomEmotes as string)
+          (mEvent.getType() === (CustomStateEvent.ImagePack as string) ||
+            mEvent.getType() === (CustomStateEvent.PoniesRoomEmotes as string))
         ) {
           setRoomPacks((prev) => {
             const next = getRoomImagePacks(room);
@@ -270,7 +299,8 @@ export const useRoomsImagePacks = (rooms: Room[]) => {
       (mEvent) => {
         if (
           rooms.find((room) => room.roomId === mEvent.getRoomId()) &&
-          mEvent.getType() === (CustomStateEvent.PoniesRoomEmotes as string)
+          (mEvent.getType() === (CustomStateEvent.ImagePack as string) ||
+            mEvent.getType() === (CustomStateEvent.PoniesRoomEmotes as string))
         ) {
           setRoomPacks((prev) => {
             const next = rooms.flatMap(getRoomImagePacks);

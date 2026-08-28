@@ -1,8 +1,8 @@
 import to from 'await-to-js';
 import type { LoginRequest, LoginResponse } from '$types/matrix-sdk';
 import { createClient, MatrixError } from '$types/matrix-sdk';
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useCallback, useEffect } from 'react';
+import { useNavigate } from 'react-router';
 import { useSetAtom } from 'jotai';
 import * as Sentry from '@sentry/react';
 import type { ClientConfig } from '$hooks/useClientConfig';
@@ -11,17 +11,19 @@ import {
   deleteAfterLoginRedirectPath,
   getAfterLoginRedirectPath,
 } from '$pages/afterLoginRedirectPath';
+import { clearPendingSlidingSyncLogin } from './slidingSyncLogin';
 import { getHomePath } from '$pages/pathUtils';
-import { activeSessionIdAtom, sessionsAtom } from '$state/sessions';
+import { activeSessionIdAtom, sessionsAtom, type Session } from '$state/sessions';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
+import { fetch } from '$utils/fetch';
 import { ErrorCode } from '../../../cs-errorcode';
 import { autoDiscovery, specVersions } from '../../../cs-api';
 
 const log = createLogger('loginUtil');
 const debugLog = createDebugLogger('loginUtil');
 
-export enum GetBaseUrlError {
+enum GetBaseUrlError {
   NotAllow = 'NotAllow',
   NotFound = 'NotFound',
 }
@@ -79,7 +81,7 @@ export const login = async (
     });
   }
 
-  const mx = createClient({ baseUrl: url });
+  const mx = createClient({ baseUrl: url, fetchFn: fetch });
   debugLog.info('general', 'Attempting login', { baseUrl: url, loginType: data.type });
 
   return Sentry.startSpan(
@@ -145,10 +147,34 @@ export const login = async (
   );
 };
 
-export const useLoginComplete = (data?: CustomLoginResponse) => {
+/**
+ * Commits a session to the store, makes it active, and navigates into the app. Shared by the
+ * password/token login path and the OIDC callback.
+ */
+export const useCommitLoginSession = () => {
   const navigate = useNavigate();
   const setSessions = useSetAtom(sessionsAtom);
   const setActiveSessionId = useSetAtom(activeSessionIdAtom);
+
+  return useCallback(
+    (session: Session, slidingSyncOptIn?: boolean) => {
+      const committedSession =
+        slidingSyncOptIn === undefined ? session : { ...session, slidingSyncOptIn };
+      setSessions({ type: 'PUT', session: committedSession });
+      setActiveSessionId(committedSession.userId);
+      clearPendingSlidingSyncLogin();
+      const afterLoginRedirectUrl = getAfterLoginRedirectPath();
+      deleteAfterLoginRedirectPath();
+      const destination = afterLoginRedirectUrl ?? getHomePath();
+      log.log('commitLoginSession: navigating to', destination);
+      navigate(destination, { replace: true });
+    },
+    [navigate, setSessions, setActiveSessionId]
+  );
+};
+
+export const useLoginComplete = (data?: CustomLoginResponse, slidingSyncOptIn?: boolean) => {
+  const commitSession = useCommitLoginSession();
 
   useEffect(() => {
     if (data) {
@@ -157,19 +183,13 @@ export const useLoginComplete = (data?: CustomLoginResponse) => {
         userId: loginRes.user_id,
         baseUrl: loginBaseUrl,
       });
-      const newSession = {
+      const newSession: Session = {
         baseUrl: loginBaseUrl,
         userId: loginRes.user_id,
         deviceId: loginRes.device_id,
         accessToken: loginRes.access_token,
       };
-      setSessions({ type: 'PUT', session: newSession });
-      setActiveSessionId(loginRes.user_id);
-      const afterLoginRedirectUrl = getAfterLoginRedirectPath();
-      deleteAfterLoginRedirectPath();
-      const destination = afterLoginRedirectUrl ?? getHomePath();
-      log.log('useLoginComplete: navigating to', destination);
-      navigate(destination, { replace: true });
+      commitSession(newSession, slidingSyncOptIn);
     }
-  }, [data, navigate, setSessions, setActiveSessionId]);
+  }, [data, slidingSyncOptIn, commitSession]);
 };

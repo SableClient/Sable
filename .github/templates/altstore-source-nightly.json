@@ -1,0 +1,32 @@
+{
+  "name": "Sable (nightly)",
+  "identifier": "moe.sable.client.source.nightly",
+  "subtitle": "Sable for iOS (nightly)",
+  "description": "Sable iOS nightly builds for AltStore and SideStore, rebuilt on every push to dev.",
+  "iconURL": "https://raw.githubusercontent.com/SableClient/Sable/dev/src-tauri/icons/icon.png",
+  "website": "https://github.com/SableClient/Sable",
+  "tintColor": "#5CA399",
+  "featuredApps": ["moe.sable.client.nightly"],
+  "apps": [
+    {
+      "name": "Sable Nightly",
+      "bundleIdentifier": "moe.sable.client.nightly",
+      "developerName": "SableClient",
+      "subtitle": "Sable iOS (nightly)",
+      "localizedDescription": "Sable for iOS. Nightly builds from dev; unsigned, resigned at install by AltStore/SideStore.",
+      "iconURL": "https://raw.githubusercontent.com/SableClient/Sable/dev/src-tauri/icons/icon.png",
+      "tintColor": "#5CA399",
+      "category": "social",
+      "screenshots": [],
+      "versions": [],
+      "appPermissions": {
+        "entitlements": ["aps-environment"],
+        "privacy": {
+          "NSCameraUsageDescription": "Sable needs camera access for video calls.",
+          "NSMicrophoneUsageDescription": "Sable needs microphone access for voice and video calls."
+        }
+      }
+    }
+  ],
+  "news": []
+}

@@ -19,7 +19,7 @@ export function injectDataMd(html: string): string {
   // Inject blockquote data-md
   html = html.replace(/<blockquote([^>]*)>/g, (_, attrs) => {
     if (attrs.includes('data-md')) return `<blockquote${attrs}>`;
-    return `<blockquote data-md=">"${attrs}>`;
+    return `<blockquote data-md="&gt;"${attrs}>`;
   });
 
   // Inject code block data-md

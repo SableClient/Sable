@@ -13,7 +13,7 @@ export const matrixSpoilerExtension = {
   ) {
     // Only match if || at the very start of the remaining text
     if (!src.startsWith('||')) return undefined;
-    const rule = /^\|\|(.+?)\|\|/;
+    const rule = /^\|\|(.+?)\|\|/s;
     const match = rule.exec(src);
     if (match) {
       const token = {

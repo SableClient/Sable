@@ -7,4 +7,5 @@
  */
 export const MATRIX_UNSTABLE_ACCOUNT_USER_EMOTES_PROPERTY_NAME = 'im.ponies.user_emotes';
 
+export const MATRIX_ACCOUNT_EMOTE_ROOMS_PROPERTY_NAME = 'm.image_pack.rooms';
 export const MATRIX_UNSTABLE_ACCOUNT_EMOTE_ROOMS_PROPERTY_NAME = 'im.ponies.emote_rooms';

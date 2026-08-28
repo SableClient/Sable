@@ -1,6 +1,8 @@
 import { useSetAtom } from 'jotai';
-import { useParams } from 'react-router-dom';
-import { Box, Text, TooltipProvider, Tooltip, Icon, Icons, IconButton, toRem } from 'folds';
+import { useParams } from 'react-router';
+import { Box, Text, Tooltip, IconButton, toRem } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
+import { composerIcon, X } from '$components/icons/phosphor';
 import { Page, PageHeader } from '../../components/page';
 import { callChatAtom } from '../../state/callEmbed';
 import { RoomView } from './RoomView';
@@ -8,7 +10,7 @@ import { ScreenSize, useScreenSizeContext } from '../../hooks/useScreenSize';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { mobileOrTablet } from '$utils/user-agent';
+import { isMobileOrTablet } from '$utils/platform';
 import { useState, useEffect } from 'react';
 
 export function CallChatView() {
@@ -33,7 +35,7 @@ export function CallChatView() {
         flexGrow: 0,
       }}
     >
-      {!mobileOrTablet() && (
+      {!isMobileOrTablet() && (
         <SidebarResizer
           setCurWidth={setCurWidth}
           sidebarWidth={vcmsgSidebarWidth}
@@ -70,7 +72,7 @@ export function CallChatView() {
               >
                 {(triggerRef) => (
                   <IconButton ref={triggerRef} variant="Surface" onClick={handleClose}>
-                    <Icon src={Icons.Cross} />
+                    {composerIcon(X)}
                   </IconButton>
                 )}
               </TooltipProvider>

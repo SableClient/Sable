@@ -1,18 +1,9 @@
 import type { ReactNode } from 'react';
-import type { IconSrc } from 'folds';
-import {
-  Box,
-  Scroll,
-  Line,
-  as,
-  TooltipProvider,
-  Tooltip,
-  Text,
-  IconButton,
-  Icon,
-  Icons,
-} from 'folds';
+import { Box, Scroll, Line, as, Tooltip, Text, IconButton } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
 import classNames from 'classnames';
+import { Image as MediaImage } from '$components/media';
+import { sizedIcon, Image as ImageIcon, type PhosphorIcon } from '$components/icons/phosphor';
 import * as css from './styles.css';
 
 export function Sidebar({ children }: { children: ReactNode }) {
@@ -87,7 +78,7 @@ type GroupIconProps<T extends string> = {
   active: boolean;
   id: T;
   label: string;
-  icon: IconSrc;
+  icon: PhosphorIcon;
   onClick: (id: T) => void;
 };
 export function GroupIcon<T extends string>({
@@ -99,7 +90,7 @@ export function GroupIcon<T extends string>({
 }: GroupIconProps<T>) {
   return (
     <SidebarBtn active={active} id={id} label={label} onClick={onClick}>
-      <Icon src={icon} filled={active} />
+      {sizedIcon(icon, '200', { filled: active })}
     </SidebarBtn>
   );
 }
@@ -121,9 +112,9 @@ export function ImageGroupIcon<T extends string>({
   return (
     <SidebarBtn active={active} id={id} label={label} onClick={onClick}>
       {url ? (
-        <img className={css.SidebarBtnImg} src={url} alt={label} />
+        <MediaImage className={css.SidebarBtnImg} src={url} alt={label} />
       ) : (
-        <Icon src={Icons.Photo} filled={active} />
+        sizedIcon(ImageIcon, '200', { filled: active })
       )}
     </SidebarBtn>
   );

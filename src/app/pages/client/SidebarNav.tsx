@@ -1,60 +1,51 @@
 import type { MouseEventHandler } from 'react';
-import { useRef, useState } from 'react';
-import { Box, Checkbox, config, Line, Menu, MenuItem, PopOut, Scroll, Text, toRem } from 'folds';
-import FocusTrap from 'focus-trap-react';
-import { stopPropagation } from '$utils/keyboard';
+import { useRef } from 'react';
+import { Box, Checkbox, config, Line, Menu, MenuItem, Scroll, Text, toRem } from 'folds';
+import { ResponsiveMenu } from '$components/ResponsiveMenu';
+import { useMenuAnchor } from '$hooks/useMenuAnchor';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { Sidebar, SidebarContent, SidebarStackSeparator, SidebarStack } from '$components/sidebar';
-import {
-  DirectTab,
-  DirectDMsList,
-  HomeTab,
-  SpaceTabs,
-  InboxTab,
-  ExploreTab,
-  UnverifiedTab,
-  SearchTab,
-  AccountSwitcherTab,
-} from './sidebar';
+import { Sidebar, SidebarContent, SidebarStack } from '$components/sidebar';
+import { DirectTab, DirectDMsList, HomeTab, SpaceTabs, InboxTab } from './sidebar';
 import { CreateTab } from './sidebar/CreateTab';
+import { NavigateTab } from './sidebar/NavigateTab';
+import { SettingsTab } from './sidebar/SettingsTab';
+import { useScreenSizeContext, ScreenSize } from '$hooks/useScreenSize';
+import { UserMenuTab } from './sidebar/UserMenuTab';
 
 export function SidebarNav() {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [menuAnchor, setMenuAnchor] = useState<DOMRect>();
+  const sidebarMenu = useMenuAnchor<HTMLDivElement>();
 
   const [uniformIcons, setUniformIcons] = useSetting(settingsAtom, 'uniformIcons');
   const [showUnreadCounts, setShowUnreadCounts] = useSetting(settingsAtom, 'showUnreadCounts');
   const [badgeCountDMsOnly, setBadgeCountDMsOnly] = useSetting(settingsAtom, 'badgeCountDMsOnly');
   const [showPingCounts, setShowPingCounts] = useSetting(settingsAtom, 'showPingCounts');
+  const [roomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
 
-  const handleContextMenu: MouseEventHandler<HTMLDivElement> = (evt) => {
+  const [oldSidebar] = useSetting(settingsAtom, 'oldSidebar');
+  const screenSize = useScreenSizeContext();
+  const compact = screenSize === ScreenSize.Mobile;
+
+  const width = roomSidebarWidth + 66;
+  const isCollapsed = compact ? false : width < 190 + 66;
+
+  const handleSidebarContextMenu: MouseEventHandler<HTMLDivElement> = (evt) => {
     const target = evt.target as HTMLElement;
     if (target.closest('button, a, [role="button"]')) return;
-    evt.preventDefault();
-    const cords = new DOMRect(evt.clientX, evt.clientY, 0, 0);
-    setMenuAnchor((current) => (current ? undefined : cords));
+    sidebarMenu.triggerProps.onContextMenu(evt);
   };
 
   return (
-    <Sidebar onContextMenu={handleContextMenu}>
-      {menuAnchor && (
-        <PopOut
-          anchor={menuAnchor}
-          position="Right"
-          align="Start"
-          content={
-            <FocusTrap
-              focusTrapOptions={{
-                initialFocus: false,
-                returnFocusOnDeactivate: false,
-                onDeactivate: () => setMenuAnchor(undefined),
-                clickOutsideDeactivates: true,
-                isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
-                isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
-                escapeDeactivates: stopPropagation,
-              }}
-            >
+    <>
+      <Sidebar onContextMenu={handleSidebarContextMenu}>
+        {!compact && (
+          <ResponsiveMenu
+            anchor={sidebarMenu.anchor}
+            position="Right"
+            align="Start"
+            requestClose={sidebarMenu.close}
+            menu={
               <Menu style={{ maxWidth: toRem(208), width: '100vw' }}>
                 <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
                   <MenuItem
@@ -110,35 +101,55 @@ export function SidebarNav() {
                   </MenuItem>
                 </Box>
               </Menu>
-            </FocusTrap>
+            }
+          />
+        )}
+        <SidebarContent
+          scrollable={
+            <Scroll ref={scrollRef} variant="Background" size="0">
+              <SidebarStack>
+                <HomeTab />
+                <DirectTab />
+                <DirectDMsList />
+              </SidebarStack>
+              <SpaceTabs scrollRef={scrollRef} />
+              <SidebarStack>
+                <CreateTab />
+              </SidebarStack>
+            </Scroll>
+          }
+          sticky={
+            <>
+              {(oldSidebar || isCollapsed) && (
+                <SidebarStack>
+                  {oldSidebar ? (
+                    <>
+                      <NavigateTab />
+                      <InboxTab />
+                    </>
+                  ) : (
+                    <>
+                      <NavigateTab />
+                      <InboxTab />
+                      <SettingsTab />
+                    </>
+                  )}
+                </SidebarStack>
+              )}
+              {!compact && (
+                <div
+                  style={{
+                    paddingBottom: config.space.S400,
+                    paddingTop: !oldSidebar ? config.space.S400 : undefined,
+                  }}
+                >
+                  <UserMenuTab />
+                </div>
+              )}
+            </>
           }
         />
-      )}
-      <SidebarContent
-        scrollable={
-          <Scroll ref={scrollRef} variant="Background" size="0">
-            <SidebarStack>
-              <HomeTab />
-              <DirectTab />
-              <DirectDMsList />
-            </SidebarStack>
-            <SpaceTabs scrollRef={scrollRef} />
-            <SidebarStackSeparator />
-            <SidebarStack>
-              <ExploreTab />
-              <CreateTab />
-            </SidebarStack>
-          </Scroll>
-        }
-        sticky={
-          <SidebarStack>
-            <SearchTab />
-            <UnverifiedTab />
-            <InboxTab />
-            <AccountSwitcherTab />
-          </SidebarStack>
-        }
-      />
-    </Sidebar>
+      </Sidebar>
+    </>
   );
 }

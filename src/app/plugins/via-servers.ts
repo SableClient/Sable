@@ -3,7 +3,7 @@ import { creatorsSupported } from '$utils/roomSupport';
 import type { Room } from '$types/matrix-sdk';
 import type { IRoomCreateContent } from '$types/matrix/room';
 import type { IPowerLevels } from '$hooks/usePowerLevels';
-import { getStateEvent } from '$utils/room';
+import { getStateEvent } from '$utils/room/hierarchy';
 import { EventType } from '$types/matrix-sdk';
 
 export const getViaServers = (room: Room): string[] => {

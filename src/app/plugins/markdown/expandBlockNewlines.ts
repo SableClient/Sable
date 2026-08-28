@@ -50,7 +50,7 @@ function trySkipFenceEnd(md: string, i: number): number | null {
   if (!atLineStart) return null;
 
   const rest = md.slice(i);
-  const open = /^(\s{0,3})(`{3,}|~{3,})/.exec(rest);
+  const open = /^( {0,3})(`{3,}|~{3,})/.exec(rest);
   if (!open?.[2]) return null;
 
   const fenceStr = open[2];
@@ -58,20 +58,26 @@ function trySkipFenceEnd(md: string, i: number): number | null {
   const openLen = fenceStr.length;
   const afterOpen = i + open[0].length;
 
-  if (afterOpen < md.length && md[afterOpen] === '\n') {
-    const contentStart = afterOpen + 1;
+  const lineEnd = md.indexOf('\n', afterOpen);
+  const closeIdx = findSameLineFenceClose(md, afterOpen, tick, openLen);
+  if (closeIdx >= 0) {
+    let closeRun = 0;
+    while (closeIdx + closeRun < md.length && md[closeIdx + closeRun] === tick) closeRun++;
+
+    return closeIdx + closeRun;
+  }
+
+  if (lineEnd >= 0) {
+    const info = md.slice(afterOpen, lineEnd);
+    if (tick === '`' && info.includes('`')) return null;
+
+    const contentStart = lineEnd + 1;
     const close = findMultilineFenceEnd(md, contentStart, tick, openLen);
     if (!close) return md.length;
     return close.blockEnd;
   }
 
-  const closeIdx = findSameLineFenceClose(md, afterOpen, tick, openLen);
-  if (closeIdx < 0) return null;
-
-  let closeRun = 0;
-  while (closeIdx + closeRun < md.length && md[closeIdx + closeRun] === tick) closeRun++;
-
-  return closeIdx + closeRun;
+  return null;
 }
 
 function afterLeadingIndent(line: string): string {
@@ -135,7 +141,41 @@ function nextLineIsBlockStarter(md: string, newlineIdx: number): boolean {
   return looksLikeBlockStart(effective);
 }
 
+function leadingSpaces(line: string): number {
+  let k = 0;
+  while (k < line.length && line[k] === ' ') k++;
+  return k;
+}
+
+function lineLooksLikeListItem(line: string): boolean {
+  const effective = effectiveContentAfterEscapes(line);
+  if (effective === null) return false;
+  return /^\d{1,9}\.\s/.test(effective) || /^[-*+]\s/.test(effective);
+}
+
+function nextLineIsNestedListItem(md: string, newlineIdx: number): boolean {
+  const prevLine = lineAtNewline(md, newlineIdx);
+  const nextLine = lineAfterNewline(md, newlineIdx);
+  if (!lineLooksLikeListItem(nextLine)) return false;
+  return leadingSpaces(nextLine) > leadingSpaces(prevLine);
+}
+
+function nextLineIsSiblingListItem(md: string, newlineIdx: number): boolean {
+  const prevLine = lineAtNewline(md, newlineIdx);
+  const nextLine = lineAfterNewline(md, newlineIdx);
+  if (!lineLooksLikeListItem(prevLine) || !lineLooksLikeListItem(nextLine)) return false;
+  return leadingSpaces(prevLine) === leadingSpaces(nextLine);
+}
+
 function shouldExpandSingleNewline(md: string, newlineIdx: number): boolean {
+  // Consecutive `>` lines belong to one blockquote, keep the single `\n` between them.
+  if (prevLineIsBlockquote(md, newlineIdx) && nextLineContinuesBlockquote(md, newlineIdx)) {
+    return false;
+  }
+  // Keep single `\n` between list items (siblings) and before nested sublists (2- or 4-space indent).
+  if (nextLineIsSiblingListItem(md, newlineIdx) || nextLineIsNestedListItem(md, newlineIdx)) {
+    return false;
+  }
   if (nextLineIsBlockStarter(md, newlineIdx)) return true;
   // CommonMark lazy continuation keeps non-`>` lines inside blockquotes, close on single `\n`.
   if (prevLineIsBlockquote(md, newlineIdx) && !nextLineContinuesBlockquote(md, newlineIdx)) {

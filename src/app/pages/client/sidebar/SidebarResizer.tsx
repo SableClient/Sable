@@ -3,7 +3,7 @@
 import { Box } from 'folds';
 import * as css from '$pages/client/sidebar/SidebarResizer.css';
 import type { Dispatch, SetStateAction } from 'react';
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 
 export function SidebarResizer({
   sidebarWidth,
@@ -15,6 +15,7 @@ export function SidebarResizer({
   outstep,
   isReversed,
   topSided,
+  setAnnouncement,
 }: {
   sidebarWidth: number;
   setSidebarWidth: (arg0: number) => void;
@@ -25,6 +26,7 @@ export function SidebarResizer({
   outstep?: number;
   isReversed?: boolean;
   topSided?: boolean;
+  setAnnouncement?: (announcement: boolean) => void;
 }) {
   const [isPointerOver, setIsPointerOver] = useState(false);
   const [isPointerDown, setIsPointerDown] = useState(false);
@@ -57,9 +59,30 @@ export function SidebarResizer({
     e.preventDefault();
     setNewPos(topSided ? e.clientY : e.clientX);
     setIsPointerDown(false);
+    setAnnouncement?.(false);
+    releaseResizeListeners();
+  }, []);
+  const onPointerCancel = useCallback(() => {
+    setIsPointerDown(false);
+    setAnnouncement?.(false);
+    releaseResizeListeners();
+  }, []);
+
+  const releaseResizeListeners = useCallback(() => {
+    resizeReleaseRef.current = null;
     window.removeEventListener('pointerup', onPointerUp);
     window.removeEventListener('pointermove', onPointerMove);
-  }, []);
+    window.removeEventListener('pointercancel', onPointerCancel);
+  }, [onPointerUp, onPointerMove, onPointerCancel]);
+
+  const resizeReleaseRef = useRef<(() => void) | null>(null);
+
+  useEffect(
+    () => () => {
+      resizeReleaseRef.current?.();
+    },
+    []
+  );
 
   const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
@@ -67,10 +90,13 @@ export function SidebarResizer({
       e.currentTarget.setPointerCapture(e.pointerId);
       setOldPos(topSided ? e.clientY : e.clientX);
       setIsPointerDown(true);
+      setAnnouncement?.(true);
       window.addEventListener('pointerup', onPointerUp);
       window.addEventListener('pointermove', onPointerMove);
+      window.addEventListener('pointercancel', onPointerCancel);
+      resizeReleaseRef.current = releaseResizeListeners;
     },
-    [onPointerUp, onPointerMove]
+    [onPointerUp, onPointerMove, onPointerCancel, releaseResizeListeners]
   );
 
   const dockClass = topSided

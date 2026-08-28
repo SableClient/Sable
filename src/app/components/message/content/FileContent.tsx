@@ -1,23 +1,9 @@
 import type { ReactNode } from 'react';
 import { useCallback, useState } from 'react';
-import {
-  Box,
-  Button,
-  Icon,
-  Icons,
-  Modal,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
-  Spinner,
-  Text,
-  Tooltip,
-  TooltipProvider,
-  as,
-} from 'folds';
-import FileSaver from 'file-saver';
+import { Box, Button, Modal, Spinner, Text, Tooltip, as } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
+import { ArrowRight, Download, sizedIcon, Warning } from '$components/icons/phosphor';
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
-import FocusTrap from 'focus-trap-react';
 import type { IFileInfo } from '$types/matrix/common';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -28,10 +14,22 @@ import {
   getFileNameExt,
   mimeTypeToExt,
 } from '$utils/mimeTypes';
-import { stopPropagation } from '$utils/keyboard';
 import { decryptFile, downloadEncryptedMedia, downloadMedia, mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useCreateObjectURL } from '$hooks/useObjectURL';
+import { useDismissOnBack } from '$utils/androidBack';
 import { ModalWide } from '$styles/Modal.css';
+import { getDownloadFilename, reportDownloadFailure, saveMediaToDevice } from '$utils/download';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
+
+const loadFileContent = (
+  mediaUrl: string,
+  mimeType: string,
+  encInfo?: EncryptedAttachmentInfo
+): Promise<Blob> =>
+  encInfo
+    ? downloadEncryptedMedia(mediaUrl, (encBuf) => decryptFile(encBuf, mimeType, encInfo))
+    : downloadMedia(mediaUrl);
 
 const renderErrorButton = (retry: () => void, text: string) => (
   <TooltipProvider
@@ -52,7 +50,7 @@ const renderErrorButton = (retry: () => void, text: string) => (
         outlined
         radii="300"
         onClick={retry}
-        before={<Icon size="100" src={Icons.Warning} filled />}
+        before={sizedIcon(Warning, '100', { filled: true })}
       >
         <Text size="B400" truncate>
           {text}
@@ -80,50 +78,43 @@ export function ReadTextFile({ body, mimeType, url, encInfo, renderViewer }: Rea
   const useAuthentication = useMediaAuthentication();
   const [textViewer, setTextViewer] = useState(false);
 
+  // Android back closes the text viewer instead of navigating away.
+  useDismissOnBack(() => setTextViewer(false), textViewer);
+
   const [textState, loadText] = useAsyncCallback(
     useCallback(async () => {
       const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
       if (!mediaUrl) throw new Error('Invalid media URL');
-      const fileContent = encInfo
-        ? await downloadEncryptedMedia(mediaUrl, (encBuf) => decryptFile(encBuf, mimeType, encInfo))
-        : await downloadMedia(mediaUrl);
+      const fileContent = await loadFileContent(mediaUrl, mimeType, encInfo).catch((error) => {
+        reportDownloadFailure(error, 'fetch', getDownloadFilename(body), mimeType);
+        throw error;
+      });
 
       const text = fileContent.text();
       setTextViewer(true);
       return text;
-    }, [mx, useAuthentication, mimeType, encInfo, url])
+    }, [mx, useAuthentication, mimeType, encInfo, url, body])
   );
 
   return (
     <>
       {textState.status === AsyncStatus.Success && (
-        <Overlay open={textViewer} backdrop={<OverlayBackdrop />}>
-          <OverlayCenter>
-            <FocusTrap
-              focusTrapOptions={{
-                initialFocus: false,
-                onDeactivate: () => setTextViewer(false),
-                clickOutsideDeactivates: true,
-                escapeDeactivates: stopPropagation,
-              }}
-            >
-              <Modal
-                className={ModalWide}
-                size="500"
-                onContextMenu={(evt: React.MouseEvent) => evt.stopPropagation()}
-              >
-                {renderViewer({
-                  name: body,
-                  text: textState.data,
-                  langName: READABLE_TEXT_MIME_TYPES.includes(mimeType)
-                    ? mimeTypeToExt(mimeType)
-                    : mimeTypeToExt(READABLE_EXT_TO_MIME_TYPE[getFileNameExt(body)] ?? mimeType),
-                  requestClose: () => setTextViewer(false),
-                })}
-              </Modal>
-            </FocusTrap>
-          </OverlayCenter>
-        </Overlay>
+        <ModalOverlay open={textViewer} requestClose={() => setTextViewer(false)}>
+          <Modal
+            className={ModalWide}
+            size="500"
+            onContextMenu={(evt: React.MouseEvent) => evt.stopPropagation()}
+          >
+            {renderViewer({
+              name: body,
+              text: textState.data,
+              langName: READABLE_TEXT_MIME_TYPES.includes(mimeType)
+                ? mimeTypeToExt(mimeType)
+                : mimeTypeToExt(READABLE_EXT_TO_MIME_TYPE[getFileNameExt(body)] ?? mimeType),
+              requestClose: () => setTextViewer(false),
+            })}
+          </Modal>
+        </ModalOverlay>
       )}
       {textState.status === AsyncStatus.Error ? (
         renderErrorButton(loadText, 'Open File')
@@ -141,7 +132,7 @@ export function ReadTextFile({ body, mimeType, url, encInfo, renderViewer }: Rea
             textState.status === AsyncStatus.Loading ? (
               <Spinner fill="Solid" size="100" variant="Secondary" />
             ) : (
-              <Icon size="100" src={Icons.ArrowRight} filled />
+              sizedIcon(ArrowRight, '100', { filled: true })
             )
           }
         >
@@ -171,45 +162,42 @@ export function ReadPdfFile({ body, mimeType, url, encInfo, renderViewer }: Read
   const useAuthentication = useMediaAuthentication();
   const [pdfViewer, setPdfViewer] = useState(false);
 
+  // Android back closes the PDF viewer instead of navigating away.
+  useDismissOnBack(() => setPdfViewer(false), pdfViewer);
+
+  const createObjectURL = useCreateObjectURL();
+
   const [pdfState, loadPdf] = useAsyncCallback(
     useCallback(async () => {
       const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
       if (!mediaUrl) throw new Error('Invalid media URL');
-      const fileContent = encInfo
-        ? await downloadEncryptedMedia(mediaUrl, (encBuf) => decryptFile(encBuf, mimeType, encInfo))
-        : await downloadMedia(mediaUrl);
+      const fileURL = await createObjectURL(loadFileContent(mediaUrl, mimeType, encInfo)).catch(
+        (error) => {
+          reportDownloadFailure(error, 'fetch', getDownloadFilename(body), mimeType);
+          throw error;
+        }
+      );
       setPdfViewer(true);
-      return URL.createObjectURL(fileContent);
-    }, [mx, url, useAuthentication, mimeType, encInfo])
+      return fileURL;
+    }, [mx, url, useAuthentication, mimeType, encInfo, createObjectURL, body])
   );
 
   return (
     <>
       {pdfState.status === AsyncStatus.Success && (
-        <Overlay open={pdfViewer} backdrop={<OverlayBackdrop />}>
-          <OverlayCenter>
-            <FocusTrap
-              focusTrapOptions={{
-                initialFocus: false,
-                onDeactivate: () => setPdfViewer(false),
-                clickOutsideDeactivates: true,
-                escapeDeactivates: stopPropagation,
-              }}
-            >
-              <Modal
-                className={ModalWide}
-                size="500"
-                onContextMenu={(evt: React.MouseEvent) => evt.stopPropagation()}
-              >
-                {renderViewer({
-                  name: body,
-                  src: pdfState.data,
-                  requestClose: () => setPdfViewer(false),
-                })}
-              </Modal>
-            </FocusTrap>
-          </OverlayCenter>
-        </Overlay>
+        <ModalOverlay open={pdfViewer} requestClose={() => setPdfViewer(false)}>
+          <Modal
+            className={ModalWide}
+            size="500"
+            onContextMenu={(evt: React.MouseEvent) => evt.stopPropagation()}
+          >
+            {renderViewer({
+              name: body,
+              src: pdfState.data,
+              requestClose: () => setPdfViewer(false),
+            })}
+          </Modal>
+        </ModalOverlay>
       )}
       {pdfState.status === AsyncStatus.Error ? (
         renderErrorButton(loadPdf, 'Open PDF')
@@ -225,7 +213,7 @@ export function ReadPdfFile({ body, mimeType, url, encInfo, renderViewer }: Read
             pdfState.status === AsyncStatus.Loading ? (
               <Spinner fill="Solid" size="100" variant="Secondary" />
             ) : (
-              <Icon size="100" src={Icons.ArrowRight} filled />
+              sizedIcon(ArrowRight, '100', { filled: true })
             )
           }
         >
@@ -253,13 +241,13 @@ export function DownloadFile({ body, mimeType, url, info, encInfo }: DownloadFil
     useCallback(async () => {
       const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
       if (!mediaUrl) throw new Error('Invalid media URL');
-      const fileContent = encInfo
-        ? await downloadEncryptedMedia(mediaUrl, (encBuf) => decryptFile(encBuf, mimeType, encInfo))
-        : await downloadMedia(mediaUrl);
-
-      const fileURL = URL.createObjectURL(fileContent);
-      FileSaver.saveAs(fileURL, body);
-      return fileURL;
+      return saveMediaToDevice({
+        mediaUrl,
+        filename: getDownloadFilename(body),
+        mimeType,
+        encInfo,
+        loadBlob: () => loadFileContent(mediaUrl, mimeType, encInfo),
+      });
     }, [mx, url, useAuthentication, mimeType, encInfo, body])
   );
 
@@ -271,17 +259,13 @@ export function DownloadFile({ body, mimeType, url, info, encInfo }: DownloadFil
       fill="Soft"
       radii="300"
       size="400"
-      onClick={() =>
-        downloadState.status === AsyncStatus.Success
-          ? FileSaver.saveAs(downloadState.data, body)
-          : download()
-      }
+      onClick={() => download()}
       disabled={downloadState.status === AsyncStatus.Loading}
       before={
         downloadState.status === AsyncStatus.Loading ? (
           <Spinner fill="Soft" size="100" variant="Secondary" />
         ) : (
-          <Icon size="100" src={Icons.Download} filled />
+          sizedIcon(Download, '100', { filled: true })
         )
       }
     >

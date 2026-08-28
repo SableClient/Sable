@@ -4,6 +4,7 @@ import type { Position, RectCords } from 'folds';
 import type { UserProfile } from '$hooks/useUserProfile';
 import type { UserRoomProfileState } from '$state/userRoomProfile';
 import { userRoomProfileAtom } from '$state/userRoomProfile';
+import type { Persona } from '$app/persona';
 
 export const useUserRoomProfileState = (): UserRoomProfileState | undefined => {
   const data = useAtomValue(userRoomProfileAtom);
@@ -25,6 +26,7 @@ type OpenCallback = (
   roomId: string,
   spaceId: string | undefined,
   userId: string,
+  pmp: Persona | undefined,
   cords: RectCords,
   position?: Position,
   initialProfile?: Partial<UserProfile>
@@ -34,11 +36,12 @@ export const useOpenUserRoomProfile = (): OpenCallback => {
   const setUserRoomProfile = useSetAtom(userRoomProfileAtom);
 
   const open: OpenCallback = useCallback(
-    (roomId, spaceId, userId, cords, position, initialProfile) => {
+    (roomId, spaceId, userId, pmp, cords, position, initialProfile) => {
       setUserRoomProfile({
         roomId,
         spaceId,
         userId,
+        pmp,
         cords,
         position,
         initialProfile,

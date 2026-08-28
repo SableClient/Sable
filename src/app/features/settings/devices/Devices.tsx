@@ -1,6 +1,6 @@
 import { Box, Text, Scroll } from 'folds';
-import { PageContent } from '$components/page';
-import { SequenceCard } from '$components/sequence-card';
+import { PageContent, SettingsSectionPage } from '$components/page';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useDeviceIds, useDeviceList, useSplitCurrentDevice } from '$hooks/useDeviceList';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -12,8 +12,6 @@ import {
 import { useSecretStorageDefaultKeyId, useSecretStorageKeyContent } from '$hooks/useSecretStorage';
 import { useCrossSigningActive } from '$hooks/useCrossSigning';
 import { BackupRestoreTile } from '$components/BackupRestore';
-import { SequenceCardStyle } from '$features/settings/styles.css';
-import { SettingsSectionPage } from '../SettingsSectionPage';
 import { LocalBackup } from './LocalBackup';
 import { DeviceLogoutBtn, DeviceKeyDetails, DeviceTile, DeviceTilePlaceholder } from './DeviceTile';
 import { OtherDevices } from './OtherDevices';
@@ -123,7 +121,11 @@ export function Devices({ requestBack, requestClose }: DevicesProps) {
                         />
                       )}
                     {crypto && verificationStatus === VerificationStatus.Verified && (
-                      <BackupRestoreTile crypto={crypto} />
+                      <BackupRestoreTile
+                        crypto={crypto}
+                        secretStorageKeyId={defaultSecretStorageKeyId}
+                        secretStorageKeyContent={defaultSecretStorageKeyContent}
+                      />
                     )}
                   </SequenceCard>
                 ) : (

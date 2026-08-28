@@ -1,6 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import type { Membership, Room, RoomMemberEventHandlerMap } from '$types/matrix-sdk';
 import { RoomMemberEvent, KnownMembership } from '$types/matrix-sdk';
+import { useMatrixEvent } from '$hooks/useMatrixEvent';
 
 export const useMembership = (room: Room, userId: string): Membership => {
   const member = room.getMember(userId);
@@ -10,19 +11,19 @@ export const useMembership = (room: Room, userId: string): Membership => {
   );
 
   useEffect(() => {
-    const handleMembershipChange: RoomMemberEventHandlerMap[RoomMemberEvent.Membership] = (
-      event,
-      m
-    ) => {
+    setMembership(member?.membership ?? KnownMembership.Leave);
+  }, [room, userId, member?.membership]);
+
+  const handleMembershipChange: RoomMemberEventHandlerMap[RoomMemberEvent.Membership] = useCallback(
+    (event, m) => {
       if (event.getRoomId() === room.roomId && m.userId === userId) {
         setMembership(m.membership ?? KnownMembership.Leave);
       }
-    };
-    member?.on(RoomMemberEvent.Membership, handleMembershipChange);
-    return () => {
-      member?.removeListener(RoomMemberEvent.Membership, handleMembershipChange);
-    };
-  }, [room, member, userId]);
+    },
+    [room.roomId, userId]
+  );
 
-  return membership;
+  useMatrixEvent(member, RoomMemberEvent.Membership, handleMembershipChange);
+
+  return member?.membership ?? membership;
 };

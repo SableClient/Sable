@@ -14,6 +14,7 @@ import {
   OpenIDRequestState,
 } from 'matrix-widget-api';
 import type { MatrixClient, Room } from '$types/matrix-sdk';
+import { uploadContentToServer } from '$utils/matrix';
 import {
   EventType,
   type IContent,
@@ -95,8 +96,7 @@ export class GenericWidgetDriver extends WidgetDriver {
   }
 
   public async sendDelayedEvent<K extends keyof StateEvents>(
-    delay: number | null,
-    parentDelayId: string | null,
+    delay: number,
     eventType: K,
     content: StateEvents[K],
     stateKey: string | null,
@@ -104,8 +104,7 @@ export class GenericWidgetDriver extends WidgetDriver {
   ): Promise<ISendDelayedEventDetails>;
 
   public async sendDelayedEvent<K extends keyof TimelineEvents>(
-    delay: number | null,
-    parentDelayId: string | null,
+    delay: number,
     eventType: K,
     content: TimelineEvents[K],
     stateKey: null,
@@ -113,8 +112,7 @@ export class GenericWidgetDriver extends WidgetDriver {
   ): Promise<ISendDelayedEventDetails>;
 
   public async sendDelayedEvent(
-    delay: number | null,
-    parentDelayId: string | null,
+    delay: number,
     eventType: string,
     content: IContent,
     stateKey: string | null = null,
@@ -124,17 +122,7 @@ export class GenericWidgetDriver extends WidgetDriver {
     const roomId = targetRoomId || this.inRoomId;
     if (!client || !roomId) throw new Error('Not in a room or not attached to a client');
 
-    let delayOpts;
-    if (delay !== null) {
-      delayOpts = {
-        delay,
-        ...(parentDelayId !== null && { parent_delay_id: parentDelayId }),
-      };
-    } else if (parentDelayId !== null) {
-      delayOpts = { parent_delay_id: parentDelayId };
-    } else {
-      throw new Error('Must provide at least one of delay or parentDelayId');
-    }
+    const delayOpts = { delay };
 
     let r: SendDelayedEventResponse | null;
     if (stateKey !== null) {
@@ -332,7 +320,7 @@ export class GenericWidgetDriver extends WidgetDriver {
   }
 
   public async uploadFile(file: XMLHttpRequestBodyInit): Promise<{ contentUri: string }> {
-    const uploadResult = await this.mxClient.uploadContent(file);
+    const uploadResult = await uploadContentToServer(this.mxClient, file);
     return { contentUri: uploadResult.content_uri };
   }
 

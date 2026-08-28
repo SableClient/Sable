@@ -3,5 +3,6 @@ export * from './ImageContent';
 export * from './VideoContent';
 export * from './AudioContent';
 export * from './FileContent';
+export * from './UploadedSableCssContent';
 export * from './FallbackContent';
 export * from './EventContent';

@@ -1,11 +1,11 @@
 import { useEffect, useMemo } from 'react';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { selectAtom } from 'jotai/utils';
-import type { Room } from '$types/matrix-sdk';
+import type { MatrixClient, Room } from '$types/matrix-sdk';
 import { EventTimeline, EventType } from '$types/matrix-sdk';
 
 import colorMXID from '$utils/colorMXID';
-import { profilesCacheAtom } from '$state/userRoomProfile';
+import { persistentProfileIdsAtom, profilesCacheAtom } from '$state/userRoomProfile';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom, shouldApplyUserHeroCards } from '$state/settings';
 import type { MSC1767Text } from '$types/matrix/common';
@@ -13,10 +13,59 @@ import { areColorsTooSimilar, shadeColor } from '$utils/shadeColor';
 import type { PronounSet } from '$utils/pronouns';
 import { useMatrixClient } from './useMatrixClient';
 import { ThemeKind, useActiveTheme } from './useTheme';
+import { useTimelineScrolling } from './useTimelineScrollActivity';
+import { useIsInactivePanel } from './useRoom';
 import { CustomStateEvent } from '$types/matrix/room';
 import * as prefix from '$unstable/prefixes';
+import { PROFILE_CACHE_FRESH_MS } from '$client/userProfileCache';
 
-const inFlightProfiles = new Map<string, Promise<Record<string, unknown>>>();
+const MAX_CONCURRENT_PROFILE_REQUESTS = 4;
+const PROFILE_REQUEST_DWELL_MS = 150;
+const inFlightProfiles = new WeakMap<MatrixClient, Map<string, Promise<Record<string, unknown>>>>();
+const activeProfileRequests = new WeakMap<MatrixClient, number>();
+const profileRequestQueues = new WeakMap<MatrixClient, Array<() => void>>();
+const profileFetchGenerations = new WeakMap<MatrixClient, Map<string, number>>();
+
+const getFetchGeneration = (mx: MatrixClient, userId: string): number =>
+  profileFetchGenerations.get(mx)?.get(userId) ?? 0;
+
+const bumpFetchGeneration = (mx: MatrixClient, userId: string): void => {
+  const generations = profileFetchGenerations.get(mx) ?? new Map<string, number>();
+  profileFetchGenerations.set(mx, generations);
+  generations.set(userId, (generations.get(userId) ?? 0) + 1);
+};
+
+export type ColorSet = {
+  on_light?: string;
+  on_dark?: string;
+};
+
+const scheduleProfileRequest = (
+  mx: MatrixClient,
+  task: () => Promise<Record<string, unknown>>
+): Promise<Record<string, unknown>> =>
+  new Promise((resolve, reject) => {
+    const run = () => {
+      activeProfileRequests.set(mx, (activeProfileRequests.get(mx) ?? 0) + 1);
+      void task()
+        .then(resolve, reject)
+        .finally(() => {
+          const active = Math.max(0, (activeProfileRequests.get(mx) ?? 1) - 1);
+          activeProfileRequests.set(mx, active);
+          // Newest first: a profile just scrolled to would otherwise wait behind the backlog.
+          if (active < MAX_CONCURRENT_PROFILE_REQUESTS) profileRequestQueues.get(mx)?.pop()?.();
+        });
+    };
+
+    if ((activeProfileRequests.get(mx) ?? 0) < MAX_CONCURRENT_PROFILE_REQUESTS) {
+      run();
+      return;
+    }
+
+    const queue = profileRequestQueues.get(mx) ?? [];
+    profileRequestQueues.set(mx, queue);
+    queue.push(run);
+  });
 
 export type MSC4440Bio = {
   'm.text': Array<MSC1767Text>;
@@ -33,11 +82,16 @@ export type UserProfile = {
   nameColor?: string;
   nameColorDark?: string;
   nameColorLight?: string;
+  nameColors?: ColorSet;
   heroColorScheme?: Record<string, string>;
   isCat?: boolean;
   hasCats?: boolean;
+  isAnimal?: string;
+  hasAnimal?: string;
+  animalNeed?: string;
   extended?: Record<string, unknown>;
   _fetched?: boolean;
+  _fetchedAt?: number;
 };
 
 const normalizeInfo = (info: Record<string, unknown>): UserProfile => {
@@ -55,12 +109,16 @@ const normalizeInfo = (info: Record<string, unknown>): UserProfile => {
     prefix.MATRIX_UNSTABLE_PROFILE_BIOGRAPHY_PROPERTY_NAME,
     prefix.MATRIX_UNSTABLE_PROFILE_BANNER_PROPERTY_NAME,
     prefix.MATRIX_COMMET_UNSTABLE_PROFILE_STATUS_PROPERTY_NAME,
+    prefix.MATRIX_UNSTABLE_COLORS,
     prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_PROPERTY_NAME,
     prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_LIGHT_PROPERTY_NAME,
     prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_DARK_PROPERTY_NAME,
     prefix.MATRIX_COMMET_UNSTABLE_PROFILE_COLOR_SCHEME_PROPERTY_NAME,
     prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_CAT_PROPERTY_NAME,
     prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_CAT_PROPERTY_NAME,
+    prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_ANIMAL_PROPERTY_NAME,
+    prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_ANIMAL_PROPERTY_NAME,
+    prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_ANIMAL_NEED_PROPERTY_NAME,
   ]);
 
   const extended: Record<string, unknown> = {};
@@ -70,38 +128,114 @@ const normalizeInfo = (info: Record<string, unknown>): UserProfile => {
     }
   });
 
-  return {
+  const normalized: UserProfile = {
     avatarUrl: info.avatar_url as string | undefined,
     displayName: info.displayname as string | undefined,
-    pronouns: info[prefix.MATRIX_UNSTABLE_PROFILE_PRONOUNS_PROPERTY_NAME] as
+    _fetched: true,
+    _fetchedAt: Date.now(),
+  };
+
+  if (prefix.MATRIX_UNSTABLE_PROFILE_PRONOUNS_PROPERTY_NAME in info) {
+    normalized.pronouns = info[prefix.MATRIX_UNSTABLE_PROFILE_PRONOUNS_PROPERTY_NAME] as
       | PronounSet[]
-      | undefined,
-    timezone: (info[prefix.MATRIX_UNSTABLE_PROFILE_TIMEZONE_PROPERTY_NAME] ||
-      info[prefix.MATRIX_STABLE_PROFILE_TIMEZONE_PROPERTY_NAME]) as string | undefined,
-    bio:
+      | undefined;
+  }
+  if (
+    prefix.MATRIX_UNSTABLE_PROFILE_TIMEZONE_PROPERTY_NAME in info ||
+    prefix.MATRIX_STABLE_PROFILE_TIMEZONE_PROPERTY_NAME in info
+  ) {
+    normalized.timezone = (info[prefix.MATRIX_UNSTABLE_PROFILE_TIMEZONE_PROPERTY_NAME] ||
+      info[prefix.MATRIX_STABLE_PROFILE_TIMEZONE_PROPERTY_NAME]) as string | undefined;
+  }
+  if (
+    prefix.MATRIX_UNSTABLE_PROFILE_BIOGRAPHY_PROPERTY_NAME in info ||
+    prefix.MATRIX_SABLE_UNSTABLE_PROFILE_BIOGRAPHY_PROPERTY_NAME in info ||
+    prefix.MATRIX_COMMET_UNSTABLE_PROFILE_BIO_PROPERTY_NAME in info
+  ) {
+    normalized.bio =
       msc4440Bio?.['m.text']?.[0]?.body ||
       (info[prefix.MATRIX_SABLE_UNSTABLE_PROFILE_BIOGRAPHY_PROPERTY_NAME] as string | undefined) ||
-      (info[prefix.MATRIX_COMMET_UNSTABLE_PROFILE_BIO_PROPERTY_NAME] as string | undefined),
-    status: info[prefix.MATRIX_COMMET_UNSTABLE_PROFILE_STATUS_PROPERTY_NAME] as string | undefined,
-    bannerUrl: info[prefix.MATRIX_UNSTABLE_PROFILE_BANNER_PROPERTY_NAME] as string | undefined,
-    nameColor: info[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_PROPERTY_NAME] as string | undefined,
-    nameColorDark: info[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_DARK_PROPERTY_NAME] as
+      (info[prefix.MATRIX_COMMET_UNSTABLE_PROFILE_BIO_PROPERTY_NAME] as string | undefined);
+  }
+  if (prefix.MATRIX_COMMET_UNSTABLE_PROFILE_STATUS_PROPERTY_NAME in info) {
+    normalized.status = info[prefix.MATRIX_COMMET_UNSTABLE_PROFILE_STATUS_PROPERTY_NAME] as
       | string
-      | undefined,
-    nameColorLight: info[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_LIGHT_PROPERTY_NAME] as
+      | undefined;
+  }
+  if (prefix.MATRIX_UNSTABLE_PROFILE_BANNER_PROPERTY_NAME in info) {
+    normalized.bannerUrl = info[prefix.MATRIX_UNSTABLE_PROFILE_BANNER_PROPERTY_NAME] as
       | string
-      | undefined,
-    heroColorScheme: info[prefix.MATRIX_COMMET_UNSTABLE_PROFILE_COLOR_SCHEME_PROPERTY_NAME] as
-      | Record<string, string>
-      | undefined,
-    isCat: info[prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_CAT_PROPERTY_NAME] === true,
-    hasCats: info[prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_CAT_PROPERTY_NAME] === true,
-    extended,
-    _fetched: true,
-  };
+      | undefined;
+  }
+  if (prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_PROPERTY_NAME in info) {
+    normalized.nameColor = info[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_PROPERTY_NAME] as
+      | string
+      | undefined;
+  }
+  if (prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_DARK_PROPERTY_NAME in info) {
+    normalized.nameColorDark = info[prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_DARK_PROPERTY_NAME] as
+      | string
+      | undefined;
+  }
+  if (prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_LIGHT_PROPERTY_NAME in info) {
+    normalized.nameColorLight = info[
+      prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_LIGHT_PROPERTY_NAME
+    ] as string | undefined;
+  }
+  if (prefix.MATRIX_UNSTABLE_COLORS in info) {
+    normalized.nameColors = info[prefix.MATRIX_UNSTABLE_COLORS] as ColorSet | undefined;
+  }
+  if (prefix.MATRIX_COMMET_UNSTABLE_PROFILE_COLOR_SCHEME_PROPERTY_NAME in info) {
+    normalized.heroColorScheme = info[
+      prefix.MATRIX_COMMET_UNSTABLE_PROFILE_COLOR_SCHEME_PROPERTY_NAME
+    ] as Record<string, string> | undefined;
+  }
+  if (prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_CAT_PROPERTY_NAME in info) {
+    normalized.isCat = info[prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_CAT_PROPERTY_NAME] as
+      | boolean
+      | undefined;
+  }
+  if (prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_CAT_PROPERTY_NAME in info) {
+    normalized.hasCats = info[
+      prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_CAT_PROPERTY_NAME
+    ] as boolean | undefined;
+  }
+  if (prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_ANIMAL_PROPERTY_NAME in info) {
+    normalized.isAnimal = info[
+      prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_ANIMAL_PROPERTY_NAME
+    ] as string;
+  }
+  if (prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_ANIMAL_PROPERTY_NAME in info) {
+    normalized.hasAnimal = info[
+      prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_ANIMAL_PROPERTY_NAME
+    ] as string;
+  }
+  if (prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_ANIMAL_NEED_PROPERTY_NAME in info) {
+    normalized.animalNeed = info[
+      prefix.MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_ANIMAL_NEED_PROPERTY_NAME
+    ] as string;
+  }
+  if (Object.keys(extended).length > 0) {
+    normalized.extended = extended;
+  }
+
+  return normalized;
 };
 
-const isValidHex = (c: unknown): string | undefined => {
+export const invalidateUserProfileCache = (
+  mx: MatrixClient,
+  userId: string,
+  setProfiles: (update: (prev: Record<string, UserProfile>) => Record<string, UserProfile>) => void
+): void => {
+  bumpFetchGeneration(mx, userId);
+  setProfiles((prev) => {
+    const existing = prev[userId];
+    if (!existing) return prev;
+    return { ...prev, [userId]: { ...existing, _fetchedAt: 0 } };
+  });
+};
+
+export const isValidHex = (c: unknown): string | undefined => {
   if (typeof c !== 'string') return undefined;
   // silly tuwunel smh
   const cleaned = c.replaceAll(/["']/g, '').trim();
@@ -113,7 +247,9 @@ const sanitizeFont = (f: string) => f.replaceAll(/[;{}<>]/g, '').slice(0, 32);
 export const useUserProfile = (
   userId: string,
   room?: Room,
-  initialProfile?: Partial<UserProfile>
+  initialProfile?: Partial<UserProfile>,
+  persistAcrossSessions = false,
+  fetchEnabled = true
 ): UserProfile & {
   resolvedColor?: string;
   resolvedFont?: string;
@@ -129,51 +265,86 @@ export const useUserProfile = (
   const [renderRoomFonts] = useSetting(settingsAtom, 'renderRoomFonts');
   const [renderUserCardsMode] = useSetting(settingsAtom, 'renderUserCards');
   const themeKind = useActiveTheme().kind;
+  const timelineScrolling = useTimelineScrolling();
+  const isInactivePanel = useIsInactivePanel();
 
   const userSelector = useMemo(() => selectAtom(profilesCacheAtom, (db) => db[userId]), [userId]);
 
   const cached = useAtomValue(userSelector);
   const setGlobalProfiles = useSetAtom(profilesCacheAtom);
+  const setPersistentProfileIds = useSetAtom(persistentProfileIdsAtom);
 
-  const hasOnlyFetchedMarker =
-    cached?._fetched === true && Object.keys(cached ?? {}).every((key) => key === '_fetched');
+  useEffect(() => {
+    if (!persistAcrossSessions || !userId || userId === 'undefined') return;
+    setPersistentProfileIds((prev) => {
+      if (prev.has(userId)) return prev;
+      const next = new Set(prev);
+      next.add(userId);
+      return next;
+    });
+  }, [persistAcrossSessions, setPersistentProfileIds, userId]);
+
+  const fetchedAt = cached?._fetchedAt;
+  const isFresh =
+    cached?._fetched === true &&
+    typeof fetchedAt === 'number' &&
+    Date.now() - fetchedAt < PROFILE_CACHE_FRESH_MS;
   const needsFetch =
-    !!userId && userId !== 'undefined' && (!cached?._fetched || hasOnlyFetchedMarker);
+    fetchEnabled &&
+    !timelineScrolling &&
+    !isInactivePanel &&
+    !!userId &&
+    userId !== 'undefined' &&
+    !isFresh;
 
   useEffect(() => {
     if (!needsFetch) return undefined;
 
-    let fetchPromise = inFlightProfiles.get(userId);
+    const startFetch = () => {
+      const clientInFlight = inFlightProfiles.get(mx) ?? new Map();
+      inFlightProfiles.set(mx, clientInFlight);
+      if (clientInFlight.has(userId)) return;
 
-    if (!fetchPromise) {
-      fetchPromise = mx.getProfileInfo(userId).finally(() => {
-        inFlightProfiles.delete(userId);
-      });
-      inFlightProfiles.set(userId, fetchPromise);
-    }
+      const generation = getFetchGeneration(mx, userId);
+      const fetchPromise = scheduleProfileRequest(mx, () => mx.getProfileInfo(userId)).finally(
+        () => {
+          clientInFlight.delete(userId);
+        }
+      );
+      clientInFlight.set(userId, fetchPromise);
 
-    let isMounted = true;
-
-    fetchPromise
-      .then((info: Record<string, unknown>) => {
-        if (!isMounted) return;
-        const normalized = normalizeInfo(info);
-        setGlobalProfiles((prev) => ({
-          ...prev,
-          [userId]: { ...prev[userId], ...normalized },
-        }));
-      })
-      .catch(() => {
-        if (!isMounted) return;
-        setGlobalProfiles((prev) => ({
-          ...prev,
-          [userId]: { ...prev[userId], _fetched: true },
-        }));
-      });
-
-    return () => {
-      isMounted = false;
+      // Attach the cache update only when creating the shared request. It deliberately outlives
+      // the initiating row: a completed request remains useful after a fast virtualized scroll.
+      fetchPromise
+        .then((info: Record<string, unknown>) => {
+          if (getFetchGeneration(mx, userId) !== generation) {
+            startFetch();
+            return;
+          }
+          const normalized = normalizeInfo(info);
+          setGlobalProfiles((prev) => {
+            const { [userId]: previousProfile, ...otherProfiles } = prev;
+            return {
+              ...otherProfiles,
+              [userId]: { ...previousProfile, ...normalized },
+            };
+          });
+        })
+        .catch(() => {
+          if (getFetchGeneration(mx, userId) !== generation) {
+            startFetch();
+            return;
+          }
+          setGlobalProfiles((prev) => ({
+            ...prev,
+            [userId]: { ...prev[userId], _fetched: true, _fetchedAt: Date.now() },
+          }));
+        });
     };
+
+    const timeoutId = window.setTimeout(startFetch, PROFILE_REQUEST_DWELL_MS);
+
+    return () => window.clearTimeout(timeoutId);
   }, [userId, needsFetch, mx, setGlobalProfiles]);
 
   return useMemo(() => {
@@ -194,8 +365,17 @@ export const useUserProfile = (
       const state = room.getLiveTimeline().getState(EventTimeline.FORWARDS);
 
       if (renderRoomColors) {
+        const roomMemberEvent = state?.getStateEvents(EventType.RoomMember, userId);
+        const roomColorContent = (
+          Array.isArray(roomMemberEvent) ? roomMemberEvent[0] : roomMemberEvent
+        )?.getContent();
+        const roomColorObject = roomColorContent?.[prefix.MATRIX_UNSTABLE_COLORS];
+        const roomColorNew =
+          themeKind === ThemeKind.Light ? roomColorObject?.on_light : roomColorObject?.on_dark;
         const localEvent = state?.getStateEvents(CustomStateEvent.RoomCosmeticsColor, userId);
-        localColor = (Array.isArray(localEvent) ? localEvent[0] : localEvent)?.getContent()?.color;
+        const localColorOld = (Array.isArray(localEvent) ? localEvent[0] : localEvent)?.getContent()
+          ?.color;
+        localColor = roomColorNew ?? localColorOld;
       }
 
       if (renderRoomFonts) {
@@ -219,9 +399,18 @@ export const useUserProfile = (
         const pState = parentSpace?.getLiveTimeline().getState(EventTimeline.FORWARDS);
 
         if (renderRoomColors) {
+          const spaceMemberEvent = pState?.getStateEvents(EventType.RoomMember, userId);
+          const spaceColorContent = (
+            Array.isArray(spaceMemberEvent) ? spaceMemberEvent[0] : spaceMemberEvent
+          )?.getContent();
+          const spaceColorObject = spaceColorContent?.[prefix.MATRIX_UNSTABLE_COLORS];
+          const spaceColorNew =
+            themeKind === ThemeKind.Light ? spaceColorObject?.on_light : spaceColorObject?.on_dark;
           const spaceEvent = pState?.getStateEvents(CustomStateEvent.RoomCosmeticsColor, userId);
-          spaceColor = (Array.isArray(spaceEvent) ? spaceEvent[0] : spaceEvent)?.getContent()
-            ?.color;
+          const spaceColorOld = (
+            Array.isArray(spaceEvent) ? spaceEvent[0] : spaceEvent
+          )?.getContent()?.color;
+          spaceColor = spaceColorNew ?? spaceColorOld;
         }
 
         if (renderRoomFonts) {
@@ -241,9 +430,12 @@ export const useUserProfile = (
       }
     }
 
+    const colorArray = data.nameColors;
+
     const validGlobalVal = isValidHex(data?.nameColor);
-    const validGlobalValDark = isValidHex(data?.nameColorDark);
-    const validGlobalValLight = isValidHex(data?.nameColorLight);
+    const validGlobalValDark = isValidHex(colorArray?.on_dark) ?? isValidHex(data?.nameColorDark);
+    const validGlobalValLight =
+      isValidHex(colorArray?.on_light) ?? isValidHex(data?.nameColorLight);
 
     const validGlobalGeneral =
       (renderGlobalColors || userId === mx.getUserId()) && !!validGlobalVal
@@ -283,8 +475,13 @@ export const useUserProfile = (
     const resolvedPronouns = localPronouns || spacePronouns || data?.pronouns;
 
     const rawHeroBrightness = data?.heroColorScheme?.brightness;
-    const heroCardsAllowed = shouldApplyUserHeroCards(renderUserCardsMode, rawHeroBrightness);
-    const validHeroColor = heroCardsAllowed ? isValidHex(data?.heroColorScheme?.color) : undefined;
+    const rawHeroColor = data?.heroColorScheme?.color;
+    const heroCardsAllowed = shouldApplyUserHeroCards(
+      renderUserCardsMode,
+      rawHeroBrightness,
+      rawHeroColor
+    );
+    const validHeroColor = heroCardsAllowed ? isValidHex(rawHeroColor) : undefined;
     const heroBrightness = heroCardsAllowed ? rawHeroBrightness : undefined;
     const testUserHeroColor = shadeColor(validHeroColor, heroBrightness === 'dark' ? -80 : 80);
 

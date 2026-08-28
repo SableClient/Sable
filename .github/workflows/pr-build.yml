@@ -1,0 +1,245 @@
+name: PR build
+
+# On-demand PR build (APK / unsigned IPA); dispatched by /build or run manually.
+on:
+  workflow_dispatch:
+    inputs:
+      pr_number:
+        description: Pull request number to build
+        required: true
+        type: number
+      platform:
+        description: Platform to build
+        required: true
+        default: both
+        type: choice
+        options:
+          - android
+          - ios
+          - both
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: pr-build-${{ inputs.pr_number }}
+  cancel-in-progress: false
+
+env:
+  CARGO_INCREMENTAL: 0
+  CARGO_TERM_COLOR: always
+  SABLE_BUILD_FLAVOR: dev
+  VITE_APP_VERSION: 0.0.0-pr.${{ inputs.pr_number }}
+
+jobs:
+  resolve:
+    name: Resolve PR #${{ inputs.pr_number }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      head_sha: ${{ steps.pr.outputs.head_sha }}
+      title: ${{ steps.pr.outputs.title }}
+    steps:
+      - name: Fetch pull request
+        id: pr
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { owner, repo } = context.repo
+            const { data: pull } = await github.rest.pulls.get({
+              owner,
+              repo,
+              pull_number: ${{ inputs.pr_number }},
+            })
+            core.setOutput('head_sha', pull.head.sha)
+            core.setOutput('title', pull.title)
+
+  build-android:
+    name: Build Android (PR #${{ inputs.pr_number }})
+    needs: resolve
+    if: ${{ inputs.platform != 'ios' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      MISE_ENV: tauri
+      RUST_TARGETS: aarch64-linux-android armv7-linux-androideabi
+      ANDROID_KEY_BASE64: ${{ secrets.ANDROID_KEY_BASE64 }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/pull/${{ inputs.pr_number }}/merge
+          persist-credentials: false
+
+      - name: Setup app
+        uses: ./.github/actions/setup
+        with:
+          tauri: 'true'
+
+      - name: Setup Android SDK + NDK
+        shell: bash
+        run: mise run tauri:setup:android
+
+      - name: Add Rust targets
+        shell: bash
+        run: rustup target add $RUST_TARGETS
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: src-tauri
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+
+      - name: Resolve NDK
+        shell: bash
+        run: echo "NDK_HOME=$ANDROID_HOME/ndk/$ANDROID_NDK_VERSION" >> "$GITHUB_ENV"
+
+      - name: Setup Android signing
+        if: ${{ env.ANDROID_KEY_BASE64 != '' }}
+        shell: bash
+        run: |
+          cd src-tauri/gen/android
+          echo "keyAlias=$ANDROID_KEY_ALIAS" > keystore.properties
+          echo "password=$ANDROID_KEY_PASSWORD" >> keystore.properties
+          base64 -d <<< "$ANDROID_KEY_BASE64" > "$RUNNER_TEMP/keystore.jks"
+          echo "storeFile=$RUNNER_TEMP/keystore.jks" >> keystore.properties
+
+      - name: Build Android APK
+        shell: bash
+        run: |
+          export SABLE_LAUNCHER_ICON=dev
+          if [ -n "${ANDROID_KEY_BASE64:-}" ]; then
+            pnpm tauri android build --config src-tauri/tauri.pr.conf.json --apk --target aarch64 armv7
+          else
+            # No keystore secret available: build a debug APK (signed with the
+            # debug keystore) so members can still sideload the build.
+            pnpm tauri android build --config src-tauri/tauri.pr.conf.json --debug --apk --target aarch64 armv7
+          fi
+          OUT='src-tauri/gen/android/app/build/outputs'
+          APK=$(find "$OUT/apk" -name '*.apk' -type f | head -1)
+          [ -n "$APK" ] || { echo "APK not found"; exit 1; }
+          mv "$APK" "$OUT/Sable-pr${{ inputs.pr_number }}-android.apk"
+
+      - name: Upload APK
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sable-pr${{ inputs.pr_number }}-android
+          path: src-tauri/gen/android/app/build/outputs/Sable-pr${{ inputs.pr_number }}-android.apk
+          if-no-files-found: error
+          retention-days: 7
+
+  build-ios:
+    name: Build iOS (PR #${{ inputs.pr_number }})
+    needs: resolve
+    if: ${{ inputs.platform != 'android' }}
+    runs-on: macos-latest
+    timeout-minutes: 60
+    env:
+      RUST_TARGETS: aarch64-apple-ios
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/pull/${{ inputs.pr_number }}/merge
+          persist-credentials: false
+
+      - name: Setup app
+        uses: ./.github/actions/setup
+        with:
+          tauri: 'true'
+
+      - name: Add Rust targets
+        shell: bash
+        run: rustup target add $RUST_TARGETS
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: src-tauri
+
+      - name: Set up iOS
+        shell: bash
+        run: mise -y run tauri:setup:ios
+
+      - name: Download iOS frameworks
+        shell: bash
+        run: pnpm ios:frameworks
+
+      - name: Symlink icons to the ios folder
+        shell: bash
+        run: mise run icons:symlink --write --force
+
+      - name: Build unsigned IPA
+        shell: bash
+        run: |
+          export SABLE_LAUNCHER_ICON=dev
+          pnpm tauri ios build --config src-tauri/tauri.pr.conf.json --no-sign --ci
+          IPA=$(find src-tauri/gen/apple/build -name '*.ipa' -type f | head -1)
+          [ -n "$IPA" ] || { echo "IPA not found"; exit 1; }
+          mv "$IPA" "$(dirname "$IPA")/Sable-pr${{ inputs.pr_number }}-ios.ipa"
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sable-pr${{ inputs.pr_number }}-ios
+          path: src-tauri/gen/apple/build/**/Sable-pr${{ inputs.pr_number }}-ios.ipa
+          if-no-files-found: error
+          retention-days: 7
+
+  comment:
+    name: Post build result comment
+    needs: [resolve, build-android, build-ios]
+    if: ${{ always() && !cancelled() && needs.resolve.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      HEAD_SHA: ${{ needs.resolve.outputs.head_sha }}
+      PR_TITLE: ${{ needs.resolve.outputs.title }}
+    steps:
+      - name: Update PR comment
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        with:
+          script: |
+            const { owner, repo } = context.repo
+            const issue_number = ${{ inputs.pr_number }}
+            const marker = '<!-- pr-build -->'
+            const shortSha = process.env.HEAD_SHA.slice(0, 7)
+            const runUrl = `${context.serverUrl}/${owner}/${repo}/actions/runs/${context.runId}`
+            const status = (result) =>
+              result === 'success' ? ':white_check_mark: success'
+                : result === 'failure' ? ':x: failure'
+                : result === 'cancelled' ? ':stop_sign: cancelled'
+                : ':fast_forward: skipped'
+
+            const body = [
+              marker,
+              '## PR build',
+              '',
+              '| Platform | Status |',
+              '| --- | --- |',
+              `| Android | ${status('${{ needs.build-android.result }}')} |`,
+              `| iOS | ${status('${{ needs.build-ios.result }}')} |`,
+              '',
+              `- [Download artifacts](${runUrl}#artifacts) — expire after 7 days.`,
+              `- Commit \`${shortSha}\`: ${process.env.PR_TITLE}`,
+            ].join('\n')
+
+            const { data: comments } = await github.rest.issues.listComments({ owner, repo, issue_number })
+            const previous = comments.find((comment) => comment.body?.includes(marker))
+
+            if (previous) {
+              await github.rest.issues.updateComment({
+                owner,
+                repo,
+                comment_id: previous.id,
+                body,
+              })
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body })
+            }

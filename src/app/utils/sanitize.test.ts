@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { sanitizeCustomHtml } from './sanitize';
+import { getSafeMediaUrl, sanitizeCustomHtml } from './sanitize';
 
 describe('sanitizeCustomHtml', () => {
   it('keeps permitted Matrix v1.18 tags', () => {
@@ -53,8 +53,8 @@ describe('sanitizeCustomHtml', () => {
     expect(result).toContain('data-mx-maths="x"');
     expect(result).toContain('data-md="**"');
     expect(result).toContain('href="https://example.com"');
-    expect(result).toContain('target="_blank"');
     expect(result).toContain('data-md="[]()"');
+    expect(result).not.toContain('target=');
     expect(result).not.toContain('rel=');
     expect(result).toContain('<ol start="2" data-md="1.">');
     expect(result).not.toContain('type=');
@@ -91,11 +91,21 @@ describe('sanitizeCustomHtml', () => {
     );
 
     expect(sanitizeCustomHtml('<a href="/relative">relative</a>')).toBe('<a>relative</a>');
-    expect(sanitizeCustomHtml('<a href="matrix:u/alice:example.com">matrix</a>')).toBe(
-      '<a>matrix</a>'
-    );
     expect(sanitizeCustomHtml('<a href="javascript:alert(1)">bad</a>')).toBe('<a>bad</a>');
     expect(sanitizeCustomHtml('<a href="vbscript:msgbox(1)">bad</a>')).toBe('<a>bad</a>');
+  });
+
+  it('keeps valid matrix: URIs but strips malformed ones', () => {
+    expect(sanitizeCustomHtml('<a href="matrix:u/alice:example.com">matrix</a>')).toContain(
+      'href="matrix:u/alice:example.com"'
+    );
+    expect(
+      sanitizeCustomHtml('<a href="matrix:roomid/room:example.com/e/event">matrix</a>')
+    ).toContain('href="matrix:roomid/room:example.com/e/event"');
+
+    // Malformed matrix: URIs (unknown type, missing id) are dropped.
+    expect(sanitizeCustomHtml('<a href="matrix:nonsense">bad</a>')).toBe('<a>bad</a>');
+    expect(sanitizeCustomHtml('<a href="matrix:u/">bad</a>')).toBe('<a>bad</a>');
   });
 
   it('keeps only mxc image sources and preserves custom-emote markers', () => {
@@ -144,5 +154,20 @@ describe('sanitizeCustomHtml', () => {
 
     expect(result).toContain('text');
     expect((result.match(/<div>/g) ?? []).length).toBeLessThanOrEqual(100);
+  });
+});
+
+describe('getSafeMediaUrl', () => {
+  it('allows blob, http, https, and valid mxc urls only', () => {
+    const scriptUrl = ['javascript', 'alert(1)'].join(':');
+
+    expect(getSafeMediaUrl('blob:fake-url')).toBe('blob:fake-url');
+    expect(getSafeMediaUrl('https://example.com/image.png')).toBe('https://example.com/image.png');
+    expect(getSafeMediaUrl('http://example.com/image.png')).toBe('http://example.com/image.png');
+    expect(getSafeMediaUrl('mxc://example.com/abc123')).toBe('mxc://example.com/abc123');
+
+    expect(getSafeMediaUrl(scriptUrl)).toBeUndefined();
+    expect(getSafeMediaUrl('data:text/html,boom')).toBeUndefined();
+    expect(getSafeMediaUrl('/relative/path.png')).toBeUndefined();
   });
 });

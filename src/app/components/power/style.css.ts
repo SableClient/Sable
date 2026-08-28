@@ -37,6 +37,7 @@ export const PowerIcon = recipe({
     {
       display: 'inline-flex',
       height: PowerIconSize,
+      width: PowerIconSize,
       minWidth: PowerIconSize,
       fontSize: PowerIconSize,
       lineHeight: PowerIconSize,

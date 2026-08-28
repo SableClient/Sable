@@ -16,49 +16,34 @@ jobs:
     steps:
       - name: Generate bot token
         id: generate-token
-        uses: actions/create-github-app-token@f8d387b68d61c58ab83c6c016672934102569859
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
           app-id: ${{ secrets.APP_ID }}
           private-key: ${{ secrets.APP_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
 
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
           persist-credentials: true
           token: ${{ steps.generate-token.outputs.token }}
 
+      - name: Setup app
+        uses: ./.github/actions/setup
+        with:
+          install-command: ''
+
       - uses: fregante/setup-git-user@024bc0b8e177d7e77203b48dab6fb45666854b35 # v2.0.2
 
-      - uses: knope-dev/action@19617851f9f13ab2f27a05989c55efb18aca3675 # v2.1.2
-        with:
-          version: 0.22.3
-
       - name: Prepare Release
-        run: knope prepare-release --verbose
+        run: mise run knope -- prepare-release --verbose
         env:
           GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
 
-      - name: Enrich changelog and update release PR
-        env:
-          GITHUB_TOKEN: ${{ steps.generate-token.outputs.token }}
-        run: node .github/scripts/enrich-changelog.mjs --update-release-pr
-
-      - name: Amend release commit with enriched changelog
-        shell: bash
+      - name: Add internal label
         run: |
-          if [[ "$(git rev-parse --abbrev-ref HEAD)" != "release" ]]; then
-            echo "Not on release branch — skipping amend."
-            exit 1
-          fi
-
-          if git diff --cached --name-only | grep -q "CHANGELOG.md"; then
-            git add CHANGELOG.md
-            git commit --amend --no-edit
-          elif git diff --name-only HEAD | grep -q "CHANGELOG.md"; then
-            git add CHANGELOG.md
-            git commit --amend --no-edit
-          fi
-
-      - name: Push release branch
-        shell: bash
-        run: git push --force --set-upstream origin release
+          PR_NUMBER=$(gh pr list --head release --json number --jq '.[0].number')
+          gh pr edit "$PR_NUMBER" --add-label internal
+        env:
+          GH_TOKEN: ${{ steps.generate-token.outputs.token }}

@@ -3,9 +3,10 @@ import type { MatrixClient, MatrixEvent } from '$types/matrix-sdk';
 import { ClientEvent, EventType } from '$types/matrix-sdk';
 import { useEffect } from 'react';
 
-import { getAccountData, getMDirects } from '$utils/room';
+import { getAccountData } from '$utils/room/hierarchy';
+import { getMDirects } from '$utils/room/unread';
 
-export type MDirectAction = {
+type MDirectAction = {
   type: 'INITIALIZE' | 'UPDATE';
   rooms: Set<string>;
 };

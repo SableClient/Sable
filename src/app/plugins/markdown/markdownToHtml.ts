@@ -23,6 +23,12 @@ import { escapeNonAllowlistedHtmlTags, MARKDOWN_ALLOWED_HTML_TAGS } from './allo
 // Configure marked with Matrix extensions
 const processor = marked.use({
   breaks: true,
+  renderer: {
+    // `input` is not a Matrix-permitted tag, keep the literal `[ ]`/`[x]` marker.
+    checkbox({ raw }) {
+      return raw;
+    },
+  },
   extensions: [
     matrixMfmColorExtension,
     matrixUnderlineExtension,
@@ -154,12 +160,8 @@ export function markdownToHtml(markdown: string, options?: MarkdownToHtmlOptions
 
   const allowlistedHtml = escapeNonAllowlistedHtmlTags(unescapedInline);
 
-  // Force all links to open in a new tab, validate <ol start>.
+  // Validate <ol start> after sanitization.
   DOMPurify.addHook('afterSanitizeAttributes', (node) => {
-    if (node.tagName === 'A' && node.getAttribute('href')) {
-      node.setAttribute('target', '_blank');
-      node.setAttribute('rel', 'noreferrer noopener');
-    }
     if (node.tagName === 'OL') {
       const start = node.getAttribute('start');
       if (start !== null && !ORDERED_LIST_START_REGEX.test(start)) {
@@ -177,8 +179,6 @@ export function markdownToHtml(markdown: string, options?: MarkdownToHtmlOptions
       'title',
       'height',
       'width',
-      'target',
-      'rel',
       'data-mx-emoticon',
       'data-mx-spoiler',
       'data-mx-maths',
@@ -194,9 +194,8 @@ export function markdownToHtml(markdown: string, options?: MarkdownToHtmlOptions
     // Ensure these safe attrs survive sanitization even when the input HTML
     // originates from markdown-embedded tags (e.g. custom emoji <img>).
     // `start` must be URI-safe or DOMPurify drops it when ALLOWED_URI_REGEXP is set.
-    ADD_ATTR: ['target', 'rel', 'height', 'width'],
+    ADD_ATTR: ['height', 'width'],
     ADD_URI_SAFE_ATTR: ['start'],
-    // Force all links to have safe rel attribute
     FORCE_BODY: false,
     ALLOWED_URI_REGEXP: /^(?:https?|ftp|mailto|magnet|mxc):/i,
   });

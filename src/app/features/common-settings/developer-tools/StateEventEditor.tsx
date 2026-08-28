@@ -3,20 +3,17 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Text,
-  Icon,
-  Icons,
   IconButton,
   Chip,
   Scroll,
   config,
   TextArea as TextAreaComponent,
   color,
-  Spinner,
-  Button,
 } from 'folds';
+import { ArrowLeft, composerIcon, menuIcon, X } from '$components/icons/phosphor';
 import type { MatrixError, StateEvents } from '$types/matrix-sdk';
 import { Page, PageHeader } from '$components/page';
-import { SequenceCard } from '$components/sequence-card';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { TextViewerContent } from '$components/text-viewer';
 import { useStateEvent } from '$hooks/useStateEvent';
 import { useRoom } from '$hooks/useRoom';
@@ -25,13 +22,14 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useAlive } from '$hooks/useAlive';
 import { Cursor } from '$plugins/text-area';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
+import { AsyncError } from '$components/AsyncError';
 import { syntaxErrorPosition } from '$utils/dom';
 import { SettingTile } from '$components/setting-tile';
 import { usePowerLevels } from '$hooks/usePowerLevels';
 import { useTextAreaCodeEditor } from '$hooks/useTextAreaCodeEditor';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
-import { SequenceCardStyle } from '$features/common-settings/styles.css';
+import { Button } from '$components/button';
 
 const EDITOR_INTENT_SPACE_COUNT = 2;
 
@@ -136,8 +134,10 @@ function StateEventEdit({ type, stateKey, content, requestClose }: StateEventEdi
                   size="300"
                   radii="300"
                   type="submit"
-                  disabled={submitting}
-                  before={submitting && <Spinner variant="Primary" fill="Solid" size="300" />}
+                  loading={submitting}
+                  spinnerSize="300"
+                  spinnerVariant="Primary"
+                  spinnerFill="Solid"
                 >
                   <Text size="B300">Save</Text>
                 </Button>
@@ -156,11 +156,7 @@ function StateEventEdit({ type, stateKey, content, requestClose }: StateEventEdi
           />
         </SequenceCard>
 
-        {submitState.status === AsyncStatus.Error && (
-          <Text size="T200" style={{ color: color.Critical.Main }}>
-            <b>{submitState.error.message}</b>
-          </Text>
-        )}
+        <AsyncError state={submitState} bold />
       </Box>
       <Box grow="Yes" direction="Column" gap="100">
         <Box shrink="No">
@@ -169,7 +165,7 @@ function StateEventEdit({ type, stateKey, content, requestClose }: StateEventEdi
         <TextAreaComponent
           ref={textAreaRef}
           name="contentTextArea"
-          style={{ fontFamily: 'var(--font-monospace)' }}
+          style={{ fontFamily: 'var(--font-monospace)', fontSize: '1rem', lineHeight: 'inherit' }}
           onKeyDown={handleKeyDown}
           defaultValue={defaultContentStr}
           resize="None"
@@ -236,12 +232,18 @@ function StateEventView({ content, eventJSONStr, onEditContent }: StateEventView
 export type StateEventInfo = {
   type: string;
   stateKey: string;
+  rawEvent?: object;
 };
 export type StateEventEditorProps = StateEventInfo & {
   requestClose: () => void;
 };
 
-export function StateEventEditor({ type, stateKey, requestClose }: StateEventEditorProps) {
+export function StateEventEditor({
+  type,
+  stateKey,
+  rawEvent,
+  requestClose,
+}: StateEventEditorProps) {
   const mx = useMatrixClient();
   const room = useRoom();
   const stateEvent = useStateEvent(room, type as keyof StateEvents, stateKey);
@@ -253,9 +255,16 @@ export function StateEventEditor({ type, stateKey, requestClose }: StateEventEdi
   const canEdit = permissions.stateEvent(type, mx.getSafeUserId());
 
   const eventJSONStr = useMemo(() => {
-    if (!stateEvent) return '';
-    return JSON.stringify(stateEvent.event, null, EDITOR_INTENT_SPACE_COUNT);
-  }, [stateEvent]);
+    if (stateEvent) {
+      return JSON.stringify(stateEvent.event, null, EDITOR_INTENT_SPACE_COUNT);
+    }
+    if (rawEvent) {
+      return JSON.stringify(rawEvent, null, EDITOR_INTENT_SPACE_COUNT);
+    }
+    return '';
+  }, [stateEvent, rawEvent]);
+
+  const content = stateEvent?.getContent() ?? (rawEvent as { content?: object })?.content ?? {};
 
   const handleCloseEdit = useCallback(() => {
     setEditContent(undefined);
@@ -266,18 +275,13 @@ export function StateEventEditor({ type, stateKey, requestClose }: StateEventEdi
       <PageHeader outlined={false} balance>
         <Box alignItems="Center" grow="Yes" gap="200">
           <Box alignItems="Inherit" grow="Yes" gap="200">
-            <Chip
-              size="500"
-              radii="Pill"
-              onClick={requestClose}
-              before={<Icon size="100" src={Icons.ArrowLeft} />}
-            >
+            <Chip size="500" radii="Pill" onClick={requestClose} before={menuIcon(ArrowLeft)}>
               <Text size="T300">Developer Tools</Text>
             </Chip>
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              {composerIcon(X)}
             </IconButton>
           </Box>
         </Box>
@@ -292,7 +296,7 @@ export function StateEventEditor({ type, stateKey, requestClose }: StateEventEdi
           />
         ) : (
           <StateEventView
-            content={stateEvent?.getContent() ?? {}}
+            content={content}
             onEditContent={canEdit ? setEditContent : undefined}
             eventJSONStr={eventJSONStr}
           />

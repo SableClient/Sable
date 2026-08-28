@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Sable Nightly — Flatpak</title>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg: #ffffff;
+        --fg: #1a1c28;
+        --muted: #5b5f74;
+        --accent: #4b3f8f;
+        --code-bg: #f2f1f8;
+        --border: #dedce9;
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --bg: #14151d;
+          --fg: #eceaf5;
+          --muted: #a09fb4;
+          --accent: #b9abfa;
+          --code-bg: #1e1f2b;
+          --border: #2c2d3c;
+        }
+      }
+      body {
+        margin: 0 auto;
+        padding: 3rem 1.25rem 5rem;
+        max-width: 44rem;
+        background: var(--bg);
+        color: var(--fg);
+        font:
+          16px/1.6 system-ui,
+          sans-serif;
+      }
+      h1 {
+        margin: 0 0 0.25rem;
+        font-size: 1.9rem;
+      }
+      .version {
+        color: var(--muted);
+        font-family: ui-monospace, monospace;
+        font-size: 0.9rem;
+      }
+      h2 {
+        margin-top: 2.5rem;
+        font-size: 1.15rem;
+      }
+      pre {
+        overflow-x: auto;
+        padding: 0.85rem 1rem;
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        background: var(--code-bg);
+        font-size: 0.9rem;
+      }
+      a {
+        color: var(--accent);
+      }
+      .warn {
+        border-left: 3px solid var(--accent);
+        padding-left: 1rem;
+        color: var(--muted);
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Sable Nightly</h1>
+    <p class="version">@VERSION@</p>
+
+    <p class="warn">
+      Rebuilt every night from the development branch, and it breaks. For everyday use, install the
+      stable release from <a href="https://flathub.org/apps/moe.sable.client">Flathub</a>.
+    </p>
+
+    <h2>Install</h2>
+    <pre><code>flatpak remote-add --if-not-exists sable-nightly @BASE_URL@/sable-nightly.flatpakrepo
+flatpak install sable-nightly moe.sable.client.Nightly</code></pre>
+
+    <h2>Update</h2>
+    <pre><code>flatpak update moe.sable.client.Nightly</code></pre>
+
+    <h2>Uninstall</h2>
+    <pre><code>flatpak uninstall moe.sable.client.Nightly
+flatpak remote-delete sable-nightly</code></pre>
+
+    <p>
+      Installs alongside the stable build, with separate data.
+      <a href="https://github.com/SableClient/Sable">Source and issues</a>.
+    </p>
+  </body>
+</html>

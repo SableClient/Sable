@@ -22,6 +22,10 @@ export function usePermissionState(name: PermissionName, initialValue: Permissio
       setPermissionState(this.state);
     }
 
+    if (!navigator.permissions?.query) {
+      return undefined;
+    }
+
     navigator.permissions
       .query({ name })
       .then((permStatus: PermissionStatus) => {

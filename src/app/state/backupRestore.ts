@@ -8,13 +8,13 @@ export enum BackupProgressStatus {
   Loading,
   Done,
 }
-export type ProgressData = {
+type ProgressData = {
   downloaded: number;
   successes: number;
   failures: number;
   total: number;
 };
-export type IBackupProgress =
+type IBackupProgress =
   | {
       status: BackupProgressStatus.Idle;
     }
@@ -32,6 +32,21 @@ export type IBackupProgress =
 const baseBackupRestoreProgressAtom = atom<IBackupProgress>({
   status: BackupProgressStatus.Idle,
 });
+
+export const backupRestoreErrorAtom = atom<string | undefined>(undefined);
+
+// Progress sticks at Fetching if a restore throws after it starts importing, and
+// both atoms outlive an account switch since there is no jotai Provider.
+export const resetBackupRestoreAtom = atom(null, (_get, set) => {
+  set(baseBackupRestoreProgressAtom, { status: BackupProgressStatus.Idle });
+  set(backupRestoreErrorAtom, undefined);
+});
+
+export const isMissingBackupKeyError = (error: unknown): boolean => {
+  if (error === undefined || error === null) return false;
+  const message = error instanceof Error ? error.message : typeof error === 'string' ? error : '';
+  return message.toLowerCase().includes('no decryption key found');
+};
 
 export const backupRestoreProgressAtom = atom<
   IBackupProgress,

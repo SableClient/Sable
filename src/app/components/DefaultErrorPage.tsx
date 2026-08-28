@@ -1,11 +1,16 @@
-import { Box, Button, Dialog, Icon, Icons, Text, color, config } from 'folds';
+import { useState } from 'react';
+import { isTauri } from '@tauri-apps/api/core';
+import { openUrl } from '@tauri-apps/plugin-opener';
+import { Box, Button, Dialog, Text, TextArea, color, config } from 'folds';
+import { Warning, sizedIcon } from '$components/icons/phosphor';
 import * as Sentry from '@sentry/react';
 import { SplashScreen } from '$components/splash-screen';
-import { buildGitHubUrl } from '$features/bug-report/BugReportModal';
+import { buildGitHubUrl } from '$features/bug-report';
+import { isMobileTauri } from '$utils/platform';
 
 type ErrorPageProps = {
   error: Error;
-  /** Sentry event ID — present when Sentry.ErrorBoundary captured the crash */
+  /** Sentry event ID  Epresent when Sentry.ErrorBoundary captured the crash */
   eventId?: string;
 };
 
@@ -28,6 +33,19 @@ ${stacktrace}
   return buildGitHubUrl('bug', `Error: ${error.message}`, { context: automatedBugReport });
 }
 
+async function openIssueUrl(error: Error) {
+  const url = createIssueUrl(error);
+  if (isTauri()) {
+    try {
+      await openUrl(url);
+    } catch {
+      window.open(url, '_blank', 'noopener,noreferrer');
+    }
+    return;
+  }
+  window.open(url, '_blank', 'noopener,noreferrer');
+}
+
 // This component is used as the fallback for the ErrorBoundary in App.tsx, which means it will be rendered whenever an uncaught error is thrown in any of the child components and not handled locally.
 // It provides a user-friendly error message and options to report the issue or reload the page.
 // Motivation of the design is to encourage users to report issues while also providing them with the necessary information to do so, and to give them an easy way to recover by reloading the page.
@@ -35,6 +53,19 @@ ${stacktrace}
 export function ErrorPage({ error, eventId }: ErrorPageProps) {
   const sentryEnabled = Sentry.isInitialized();
   const reportedToSentry = sentryEnabled && !!eventId;
+  const [feedback, setFeedback] = useState('');
+  const [feedbackSubmitted, setFeedbackSubmitted] = useState(false);
+
+  const submitFeedback = () => {
+    if (!eventId || !feedback.trim()) return;
+    Sentry.captureFeedback({
+      message: feedback.trim(),
+      name: 'Crash report follow-up',
+      associatedEventId: eventId,
+    });
+    setFeedbackSubmitted(true);
+  };
+
   return (
     <SplashScreen>
       <Box grow="Yes" direction="Column" gap="400" alignItems="Center" justifyContent="Center">
@@ -48,12 +79,7 @@ export function ErrorPage({ error, eventId }: ErrorPageProps) {
           <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
             <Box direction="Column" gap="100">
               <Box alignItems="Center" gap="200">
-                <Icon
-                  size="300"
-                  src={Icons.Warning}
-                  filled
-                  style={{ color: color.Critical.Main }}
-                />
+                {sizedIcon(Warning, '300', { filled: true, style: { color: color.Critical.Main } })}
                 <Text size="H2">Oops! Something went wrong</Text>
               </Box>
               <Text size="T300">
@@ -63,21 +89,49 @@ export function ErrorPage({ error, eventId }: ErrorPageProps) {
               </Text>
               {reportedToSentry ? (
                 <Box direction="Column" gap="200">
-                  <Button
-                    variant="Primary"
-                    onClick={() => Sentry.showReportDialog({ eventId })}
-                    fill="Solid"
-                    title="Opens a short form so you can describe what you were doing before the crash. This helps our team fix the issue faster."
-                  >
-                    <Text as="span" size="B400">
-                      Add Details to Report
-                    </Text>
-                  </Button>
+                  {isMobileTauri() ? (
+                    feedbackSubmitted ? (
+                      <Text size="T300">Thank you for adding details to the report.</Text>
+                    ) : (
+                      <Box direction="Column" gap="200">
+                        <TextArea
+                          size="400"
+                          variant="SurfaceVariant"
+                          radii="400"
+                          rows={3}
+                          placeholder="What were you doing when the error occurred?"
+                          value={feedback}
+                          onChange={(evt) => setFeedback((evt.target as HTMLTextAreaElement).value)}
+                        />
+                        <Button
+                          variant="Primary"
+                          onClick={submitFeedback}
+                          disabled={!feedback.trim()}
+                          fill="Solid"
+                        >
+                          <Text as="span" size="B400">
+                            Add Details to Report
+                          </Text>
+                        </Button>
+                      </Box>
+                    )
+                  ) : (
+                    <Button
+                      variant="Primary"
+                      onClick={() => Sentry.showReportDialog({ eventId })}
+                      fill="Solid"
+                      title="Opens a short form so you can describe what you were doing before the crash. This helps our team fix the issue faster."
+                    >
+                      <Text as="span" size="B400">
+                        Add Details to Report
+                      </Text>
+                    </Button>
+                  )}
                   <Button
                     variant="Secondary"
-                    onClick={() =>
-                      window.open(createIssueUrl(error), '_blank', 'noopener noreferrer')
-                    }
+                    onClick={() => {
+                      void openIssueUrl(error);
+                    }}
                     fill="None"
                     title="Opens a pre-filled GitHub issue as an alternative reporting method."
                   >
@@ -89,9 +143,9 @@ export function ErrorPage({ error, eventId }: ErrorPageProps) {
               ) : (
                 <Button
                   variant="Secondary"
-                  onClick={() =>
-                    window.open(createIssueUrl(error), '_blank', 'noopener noreferrer')
-                  }
+                  onClick={() => {
+                    void openIssueUrl(error);
+                  }}
                   fill="Solid"
                   title="Clicking this button will open a new issue on our GitHub repository with the error details pre-filled. Please review the information before submitting."
                 >

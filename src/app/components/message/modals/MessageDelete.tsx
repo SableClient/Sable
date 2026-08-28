@@ -7,8 +7,6 @@ import {
   Dialog,
   Header,
   IconButton,
-  Icon,
-  Icons,
   Text,
   Input,
   Button,
@@ -17,22 +15,32 @@ import {
   config,
   color,
 } from 'folds';
+import { menuIcon, Trash, X } from '$components/icons/phosphor';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { modalAtom, ModalType } from '$state/modal';
 import * as css from '$features/room/message/styles.css';
 import { createDebugLogger } from '$utils/debugLogger';
+import { optimisticallyRedactEvent } from '$utils/matrix';
 import * as Sentry from '@sentry/react';
 
 const debugLog = createDebugLogger('MessageDelete');
 
-export function MessageDeleteItem({ room, mEvent }: { room: Room; mEvent: MatrixEvent }) {
+export function MessageDeleteItem({
+  room,
+  mEvent,
+  closeMenu,
+}: {
+  room: Room;
+  mEvent: MatrixEvent;
+  closeMenu?: () => void;
+}) {
   const setModal = useSetAtom(modalAtom);
 
   return (
     <MenuItem
       size="300"
-      after={<Icon size="100" src={Icons.Delete} />}
+      after={menuIcon(Trash)}
       radii="300"
       fill="None"
       variant="Critical"
@@ -44,6 +52,7 @@ export function MessageDeleteItem({ room, mEvent }: { room: Room; mEvent: Matrix
           room,
           mEvent,
         });
+        closeMenu?.();
       }}
     >
       <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
@@ -64,9 +73,9 @@ export function MessageDeleteInternal({ room, mEvent, onClose }: MessageDeleteIn
 
   const [deleteState, deleteMessage] = useAsyncCallback(
     useCallback(
-      (eventId: string, reason?: string) =>
-        mx.redactEvent(room.roomId, eventId, undefined, reason ? { reason } : undefined),
-      [mx, room]
+      (reason?: string) =>
+        optimisticallyRedactEvent(mx, room, mEvent, reason ? { reason } : undefined),
+      [mx, room, mEvent]
     )
   );
 
@@ -98,7 +107,7 @@ export function MessageDeleteInternal({ room, mEvent, onClose }: MessageDeleteIn
 
     debugLog.info('ui', 'Deleting message', { eventId, hasReason: !!reason });
     Sentry.metrics.count('sable.message.delete.attempt', 1);
-    deleteMessage(eventId, reason);
+    deleteMessage(reason);
   };
 
   return (
@@ -115,7 +124,7 @@ export function MessageDeleteInternal({ room, mEvent, onClose }: MessageDeleteIn
           <Text size="H4">Delete Message</Text>
         </Box>
         <IconButton size="300" onClick={onClose} radii="300">
-          <Icon src={Icons.Cross} />
+          {menuIcon(X)}
         </IconButton>
       </Header>
       <Box
@@ -147,7 +156,7 @@ export function MessageDeleteInternal({ room, mEvent, onClose }: MessageDeleteIn
           variant="Critical"
           before={
             deleteState.status === AsyncStatus.Loading ? (
-              <Spinner fill="Solid" variant="Critical" size="200" />
+              <Spinner variant="Secondary" size="200" style={{ backgroundColor: 'transparent' }} />
             ) : undefined
           }
           aria-disabled={deleteState.status === AsyncStatus.Loading}

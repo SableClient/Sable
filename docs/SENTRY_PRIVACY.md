@@ -297,6 +297,24 @@ Matrix IDs are replaced with placeholder tokens before sending:
 **Code:** `src/instrument.ts` — `beforeSend` callback (applied to `event.message`
 and all `event.exception.values`)
 
+### Homeserver Host
+
+Any external http(s) origin (the Matrix homeserver, OIDC issuers, media
+redirectors) is replaced with `[HOMESERVER]` before sending. Only the scheme
+is kept (`https://[HOMESERVER]`). The path, query, and hash are preserved so
+routing and grouping still work.
+
+This applies to HTTP span descriptions and `span.data` URL fields, breadcrumb
+`data.url` / `data.from` / `data.to`, structured log attributes and message
+strings, error messages, exception values, and request URLs.
+
+The app's own origin and local dev hosts (`localhost`, `127.0.0.1`,
+`tauri.localhost`) are preserved. They identify the app shell, not a
+homeserver.
+
+**Code:** `src/app/utils/sentryScrubbers.ts` — `scrubExternalHosts`, applied
+inside `scrubMatrixIds` and `scrubMatrixUrl`
+
 ---
 
 ## User Controls

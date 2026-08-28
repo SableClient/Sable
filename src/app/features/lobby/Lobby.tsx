@@ -1,22 +1,10 @@
 import type { MouseEventHandler, ReactElement } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Box,
-  Chip,
-  Icon,
-  IconButton,
-  Icons,
-  Line,
-  Scroll,
-  Spinner,
-  Text,
-  color,
-  config,
-} from 'folds';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { Box, Chip, IconButton, Line, Scroll, Spinner, Text, color, config } from 'folds';
 import type { VirtualItem } from '@tanstack/react-virtual';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useAtom, useAtomValue } from 'jotai';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import type {
   Room,
   RoomJoinRulesEventContent,
@@ -29,7 +17,7 @@ import { produce } from 'immer';
 import { useSpace } from '$hooks/useSpace';
 import { Page, PageContent, PageContentCenter, PageHeroSection } from '$components/page';
 import type { HierarchyItem, HierarchyItemSpace } from '$hooks/useSpaceHierarchy';
-import { useSpaceHierarchy } from '$hooks/useSpaceHierarchy';
+import { getSpaceHierarchyItemKey, useSpaceHierarchy } from '$hooks/useSpaceHierarchy';
 import { VirtualTile } from '$components/virtualizer';
 import { spaceRoomsAtom } from '$state/spaceRooms';
 import { useSetting } from '$state/hooks/settings';
@@ -44,15 +32,16 @@ import {
   useRoomsPowerLevels,
 } from '$hooks/usePowerLevels';
 import { mDirectAtom } from '$state/mDirectList';
-import { makeLobbyCategoryId, getLobbyCategoryIdParts } from '$state/closedLobbyCategories';
+import { makeLobbyCategoryId } from '$state/closedLobbyCategories';
 import { useCategoryHandler } from '$hooks/useCategoryHandler';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { getCanonicalAliasOrRoomId, rateLimitedActions } from '$utils/matrix';
-import { getSpaceRoomPath } from '$pages/pathUtils';
+import { getSpaceRoomPath, getSpaceForumPath } from '$pages/pathUtils';
+import { CustomRoomType } from '$types/matrix/room';
 
 import { ASCIILexicalTable, orderKeys } from '$utils/ASCIILexicalTable';
-import { getStateEvent } from '$utils/room';
+import { getStateEvent } from '$utils/room/hierarchy';
 import { useClosedLobbyCategoriesAtom } from '$state/hooks/closedLobbyCategories';
 import {
   makeCinnySpacesContent,
@@ -66,6 +55,7 @@ import { useRoomMembers } from '$hooks/useRoomMembers';
 import { useGetRoom } from '$hooks/useGetRoom';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { getRoomPermissionsAPI } from '$hooks/useRoomPermissions';
+import { CaretUp, composerIcon } from '$components/icons/phosphor';
 import { getRoomCreatorsForRoomId } from '$hooks/useRoomCreators';
 import { MembersDrawer } from '$features/room/MembersDrawer';
 import { SpaceHierarchyItem } from './SpaceHierarchyItem';
@@ -214,9 +204,7 @@ export function Lobby() {
   const getRoom = useGetRoom(allJoinedRooms);
 
   const closedCategoriesCache = useRef(new Map());
-  useEffect(() => {
-    closedCategoriesCache.current.clear();
-  }, [closedCategories, roomToParents, getRoom]);
+  closedCategoriesCache.current.clear();
 
   /**
    * Recursively checks if a given parentId (or all its ancestors) is in a closed category.
@@ -275,22 +263,22 @@ export function Lobby() {
     [closedCategories, getRoom, roomToParents, spaceRooms]
   );
 
-  /**
-   * Determines whether all parent categories are collapsed.
-   *
-   * @param spaceId - The root space ID.
-   * @param roomId - The room ID to start the check from.
-   * @returns True if every parent category is collapsed; false otherwise.
-   */
-  const getAllAncestorsCollapsed = (spaceId: string, roomId: string): boolean => {
-    const parentIds = roomToParents.get(roomId);
+  const handleSpacesFound = useCallback(
+    (sItems: IHierarchyRoom[]) => {
+      setSpaceRooms({ type: 'PUT', roomIds: sItems.map((i) => i.room_id) });
+      setSpacesItems((current) => {
+        const newItems = produce(current, (draft) => {
+          sItems.forEach((item) => draft.set(item.room_id, item));
+        });
+        return current.size === newItems.size ? current : newItems;
+      });
+    },
+    [setSpaceRooms]
+  );
 
-    if (!parentIds || parentIds.size === 0) {
-      return false;
-    }
-
-    return !Array.from(parentIds).some((id) => !getInClosedCategories(spaceId, id, roomId));
-  };
+  const handleCategoryClick = useCategoryHandler(setClosedCategories, (categoryId) =>
+    closedCategories.has(categoryId)
+  );
 
   const [subspaceHierarchyLimit] = useSetting(settingsAtom, 'subspaceHierarchyLimit');
   const [draggingItem, setDraggingItem] = useState<HierarchyItem>();
@@ -310,12 +298,22 @@ export function Lobby() {
     )
   );
 
+  const getItemKey = useCallback(
+    (index: number) => {
+      const item = hierarchy[index];
+      if (!item) return index;
+      return getSpaceHierarchyItemKey(space.roomId, item.space);
+    },
+    [hierarchy, space.roomId]
+  );
+
   const virtualizer = useVirtualizer({
     count: hierarchy.length,
     getScrollElement: () => scrollRef.current,
-    estimateSize: () => 1,
-    overscan: 2,
+    estimateSize: () => 72,
+    overscan: 6,
     paddingStart: heroSectionHeight ?? 258,
+    getItemKey,
   });
   const vItems = virtualizer.getVirtualItems();
 
@@ -508,37 +506,16 @@ export function Lobby() {
     )
   );
 
-  const handleSpacesFound = useCallback(
-    (sItems: IHierarchyRoom[]) => {
-      setSpaceRooms({ type: 'PUT', roomIds: sItems.map((i) => i.room_id) });
-      setSpacesItems((current) => {
-        const newItems = produce(current, (draft) => {
-          sItems.forEach((item) => draft.set(item.room_id, item));
-        });
-        return current.size === newItems.size ? current : newItems;
-      });
-    },
-    [setSpaceRooms]
-  );
-
-  const handleCategoryClick = useCategoryHandler(setClosedCategories, (categoryId) => {
-    const collapsed = closedCategories.has(categoryId);
-    const [spaceId, roomId] = getLobbyCategoryIdParts(categoryId);
-
-    // Prevent collapsing if all parents are collapsed
-    const toggleable = !getAllAncestorsCollapsed(spaceId ?? '', roomId ?? '');
-
-    if (toggleable) {
-      return collapsed;
-    }
-    return !collapsed;
-  });
-
   const handleOpenRoom: MouseEventHandler<HTMLButtonElement> = (evt) => {
     const rId = evt.currentTarget.getAttribute('data-room-id');
     if (!rId) return;
     const pSpaceIdOrAlias = getCanonicalAliasOrRoomId(mx, space.roomId);
-    navigate(getSpaceRoomPath(pSpaceIdOrAlias, getCanonicalAliasOrRoomId(mx, rId)));
+    const targetRoom = mx.getRoom(rId);
+    if (targetRoom?.getType() === CustomRoomType.Forum) {
+      navigate(getSpaceForumPath(pSpaceIdOrAlias, getCanonicalAliasOrRoomId(mx, rId)));
+    } else {
+      navigate(getSpaceRoomPath(pSpaceIdOrAlias, getCanonicalAliasOrRoomId(mx, rId)));
+    }
   };
 
   const togglePinToSidebar = useCallback(
@@ -652,7 +629,7 @@ export function Lobby() {
                       size="300"
                       aria-label="Scroll to Top"
                     >
-                      <Icon src={Icons.ChevronTop} size="300" />
+                      {composerIcon(CaretUp)}
                     </IconButton>
                   </ScrollTopContainer>
                   <div
@@ -684,7 +661,7 @@ export function Lobby() {
                             paddingLeft,
                           }}
                           ref={virtualizer.measureElement}
-                          key={vItem.index}
+                          key={vItem.key}
                         >
                           {item.space.depth !== subspaceHierarchyLimit ? (
                             <SpaceHierarchyItem

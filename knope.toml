@@ -1,7 +1,19 @@
 [package]
-versioned_files = ["package.json"]
+versioned_files = ["package.json", "src-tauri/tauri.conf.json", "src-tauri/Cargo.toml"]
 changelog = "CHANGELOG.md"
 extra_changelog_sections = [
+  { name = "Security", types = [
+    "security",
+  ] },
+  { name = "Breaking Changes", types = [
+    "major",
+  ] },
+  { name = "Features", types = [
+    "minor",
+  ] },
+  { name = "Fixes", types = [
+    "patch",
+  ] },
   { name = "Documentation", types = [
     "docs",
   ] },
@@ -42,6 +54,8 @@ template = "chore: prepare release $version"
 
 [workflows.steps.body]
 template = """
+> **Preview the next release on [dev.sable.moe](https://dev.sable.moe)**
+
 > [!IMPORTANT]
 > Merging this PR will create a new release.
 
@@ -66,8 +80,8 @@ owner = "SableClient"
 repo = "Sable"
 
 [release_notes]
-# The <!-- commit:$commit_hash --> marker is used by prepare-release.yml
 change_templates = [
-  "### $summary <!-- commit:$commit_hash -->\n\n$details",
-  "* $summary <!-- commit:$commit_hash -->",
+  "* $summary by @$pr_author_login in #$pr_number",
+  "* $summary by @$pr_author_login",
+  "* $summary",
 ]

@@ -1,26 +1,18 @@
 import type { ChangeEventHandler, KeyboardEventHandler } from 'react';
 import { type MouseEventHandler, useEffect, useMemo, useState } from 'react';
-import {
-  Box,
-  Button,
-  Chip,
-  config,
-  Icon,
-  Icons,
-  Input,
-  Menu,
-  MenuItem,
-  PopOut,
-  Switch,
-  Text,
-  toRem,
-  type RectCords,
-} from 'folds';
+import { Box, Chip, Input, Switch, Text, toRem } from 'folds';
+import { CaretDown, menuIcon } from '$components/icons/phosphor';
 import { isKeyHotkey } from 'is-hotkey';
 
-import { SettingMenuSelector, type SettingMenuOption } from '$components/setting-menu-selector';
-import { SequenceCard } from '$components/sequence-card';
-import { SettingTile } from '$components/setting-tile';
+import {
+  PANEL_SIZE_OPTIONS,
+  SHOW_ROOM_ICON_OPTIONS,
+  SettingMenuSelector,
+  type PanelSizeKey,
+  type SettingMenuOption,
+} from '$components/setting-menu-selector';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
+import { SettingTile, SettingToggle } from '$components/setting-tile';
 import {
   DEFAULT_ARBORIUM_DARK_THEME,
   DEFAULT_ARBORIUM_LIGHT_THEME,
@@ -29,15 +21,10 @@ import {
 } from '$plugins/arborium';
 import { ThemeKind, useActiveTheme } from '$hooks/useTheme';
 import { useSetting } from '$state/hooks/settings';
-import type { PixelatedImageRenderingMode, ShowRoomIcon } from '$state/settings';
+import type { PixelatedImageRenderingMode } from '$state/settings';
+import { ShowRoomIcon } from '$state/settings';
 import { settingsAtom } from '$state/settings';
-import { SequenceCardStyle } from '$features/settings/styles.css';
 import { ThemeAppearanceSection } from './ThemeAppearanceSection';
-import { stopPropagation } from '$utils/keyboard';
-import FocusTrap from 'focus-trap-react';
-import { useShowRoomIcon } from '$hooks/useShowRoomIcon';
-import type { PanelSizetItem } from '$hooks/usePanelSizes';
-import { usePanelSizeItems } from '$hooks/usePanelSizes';
 import { SelectShowPerRoomRoomIcon } from '$features/common-settings/appearance/Appearance';
 
 const clampIncomingInlineImageHeight = (n: number) => Math.max(1, Math.min(4096, n));
@@ -70,7 +57,7 @@ function ThemeTrigger({
       variant={active ? 'Primary' : 'Secondary'}
       outlined={active}
       radii="Pill"
-      after={<Icon size="200" src={Icons.ChevronBottom} />}
+      after={menuIcon(CaretDown)}
       onClick={onClick}
       disabled={disabled}
     >
@@ -210,22 +197,29 @@ function CodeBlockThemeSettings() {
   );
 }
 
+const onNumberInputKeyDown =
+  (reset: () => void): KeyboardEventHandler<HTMLInputElement> =>
+  (evt) => {
+    if (isKeyHotkey('escape', evt)) {
+      evt.stopPropagation();
+      reset();
+      (evt.target as HTMLInputElement).blur();
+    }
+    if (isKeyHotkey('enter', evt)) {
+      (evt.target as HTMLInputElement).blur();
+    }
+  };
+
 function ThemeVisualPreferences() {
-  const [saturation, setSaturation] = useSetting(settingsAtom, 'saturationLevel');
-  const [underlineLinks, setUnderlineLinks] = useSetting(settingsAtom, 'underlineLinks');
-  const [reducedMotion, setReducedMotion] = useSetting(settingsAtom, 'reducedMotion');
-  const [autoplayGifs, setAutoplayGifs] = useSetting(settingsAtom, 'autoplayGifs');
-  const [autoplayStickers, setAutoplayStickers] = useSetting(settingsAtom, 'autoplayStickers');
-  const [autoplayEmojis, setAutoplayEmojis] = useSetting(settingsAtom, 'autoplayEmojis');
+  const [oldSidebar, setOldSidebar] = useSetting(settingsAtom, 'oldSidebar');
   const [pixelatedImageRendering, setPixelatedImageRendering] = useSetting(
     settingsAtom,
     'pixelatedImageRendering'
   );
   const pixelatedImageRenderingOptions: SettingMenuOption<PixelatedImageRenderingMode>[] = [
-    { value: 'both', label: 'Both' },
-    { value: 'chat', label: 'Chat' },
-    { value: 'viewer', label: 'Image viewer' },
-    { value: 'none', label: 'Neither' },
+    { value: 'always', label: 'Always' },
+    { value: 'smart', label: 'Smart' },
+    { value: 'never', label: 'never' },
   ];
   const [incomingInlineImagesDefaultHeight, setIncomingInlineImagesDefaultHeight] = useSetting(
     settingsAtom,
@@ -271,73 +265,17 @@ function ThemeVisualPreferences() {
     if (!Number.isNaN(parsed)) setLinkPreviewImageMaxHeight(clampIncomingInlineImageHeight(parsed));
   };
 
-  const onNumberInputKeyDown =
-    (reset: () => void): KeyboardEventHandler<HTMLInputElement> =>
-    (evt) => {
-      if (isKeyHotkey('escape', evt)) {
-        evt.stopPropagation();
-        reset();
-        (evt.target as HTMLInputElement).blur();
-      }
-      if (isKeyHotkey('enter', evt)) {
-        (evt.target as HTMLInputElement).blur();
-      }
-    };
-
   return (
     <Box direction="Column" gap="100">
       <Text size="L400">Display</Text>
 
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Saturation"
-          focusId="saturation"
-          description={`${saturation}%`}
-          after={
-            <input
-              type="range"
-              min="0"
-              max="100"
-              step="1"
-              value={saturation}
-              onChange={(e) => setSaturation(Number.parseInt(e.target.value, 10))}
-              style={{
-                width: toRem(160),
-                cursor: 'pointer',
-                appearance: 'none',
-                height: toRem(6),
-                borderRadius: config.radii.Pill,
-                backgroundColor: 'var(--sable-surface-container-line)',
-                accentColor: 'var(--sable-primary-main)',
-              }}
-            />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Underline Links"
-          focusId="underline-links"
-          description="Always show underlines on links in chat, bios and room descriptions."
-          after={<Switch variant="Primary" value={underlineLinks} onChange={setUnderlineLinks} />}
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Reduced Motion"
-          focusId="reduced-motion"
-          description="Stops animations and sliding UI elements."
-          after={<Switch variant="Primary" value={reducedMotion} onChange={setReducedMotion} />}
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Autoplay GIFs"
-          focusId="autoplay-gifs"
-          description="Automatically play animated image uploads and links."
-          after={<Switch variant="Primary" value={autoplayGifs} onChange={setAutoplayGifs} />}
-        />
-      </SequenceCard>
+      <SettingToggle
+        title="Go back to old sidebar"
+        focusId="old-sidebar"
+        description="Reset the sidebar to its old style"
+        value={oldSidebar}
+        onChange={setOldSidebar}
+      />
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
           title="Pixelated image scaling"
@@ -352,32 +290,12 @@ function ThemeVisualPreferences() {
           }
         />
       </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Autoplay Stickers"
-          focusId="autoplay-stickers"
-          description="Automatically play animated stickers."
-          after={
-            <Switch variant="Primary" value={autoplayStickers} onChange={setAutoplayStickers} />
-          }
-        />
-      </SequenceCard>
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Autoplay Emojis"
-          focusId="autoplay-emojis"
-          description="Automatically play animated custom emojis."
-          after={<Switch variant="Primary" value={autoplayEmojis} onChange={setAutoplayEmojis} />}
-        />
-      </SequenceCard>
-
-      <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-        <SettingTile
-          title="Display Room banners"
-          focusId="display-room-banners"
-          after={<Switch variant="Primary" value={showRoomBanners} onChange={setShowRoomBanners} />}
-        />
-      </SequenceCard>
+      <SettingToggle
+        title="Display Room banners"
+        focusId="display-room-banners"
+        value={showRoomBanners}
+        onChange={setShowRoomBanners}
+      />
 
       <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
         <SettingTile
@@ -567,76 +485,18 @@ function PanelSelector({
   sidebarSelector,
   setSidebarSelector,
 }: {
-  sidebarSelector: string;
-  setSidebarSelector: (arg0: string) => void;
+  sidebarSelector: PanelSizeKey;
+  setSidebarSelector: (key: PanelSizeKey) => void;
 }) {
-  const [menuCords, setMenuCords] = useState<RectCords>();
-  const panelSizeItems = usePanelSizeItems();
-
-  const handleMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    setMenuCords(evt.currentTarget.getBoundingClientRect());
-  };
-
-  const handleSelect = (position: PanelSizetItem) => {
-    setSidebarSelector(position.layout);
-    setMenuCords(undefined);
-  };
-
   return (
-    <>
-      <Button
-        size="300"
-        variant="Secondary"
-        outlined
-        fill="Soft"
-        radii="300"
-        after={<Icon size="300" src={Icons.ChevronBottom} />}
-        onClick={handleMenu}
-      >
-        <Text size="T300">
-          {panelSizeItems.find((i) => i.layout === sidebarSelector)?.name ?? sidebarSelector}
-        </Text>
-      </Button>
-      <PopOut
-        anchor={menuCords}
-        offset={5}
-        position="Bottom"
-        align="End"
-        content={
-          <FocusTrap
-            focusTrapOptions={{
-              initialFocus: false,
-              onDeactivate: () => setMenuCords(undefined),
-              clickOutsideDeactivates: true,
-              isKeyForward: (evt: KeyboardEvent) =>
-                evt.key === 'ArrowDown' || evt.key === 'ArrowRight',
-              isKeyBackward: (evt: KeyboardEvent) =>
-                evt.key === 'ArrowUp' || evt.key === 'ArrowLeft',
-              escapeDeactivates: stopPropagation,
-            }}
-          >
-            <Menu>
-              <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-                {panelSizeItems.map((item) => (
-                  <MenuItem
-                    key={item.layout}
-                    size="300"
-                    variant={sidebarSelector === item.layout ? 'Primary' : 'Surface'}
-                    radii="300"
-                    onClick={() => handleSelect(item)}
-                  >
-                    <Text size="T300">{item.name}</Text>
-                  </MenuItem>
-                ))}
-              </Box>
-            </Menu>
-          </FocusTrap>
-        }
-      />
-    </>
+    <SettingMenuSelector
+      value={sidebarSelector}
+      options={PANEL_SIZE_OPTIONS}
+      onSelect={setSidebarSelector}
+    />
   );
 }
-function SidebarWidth({ sidebarSelector }: { sidebarSelector: string }) {
+function SidebarWidth({ sidebarSelector }: { sidebarSelector: PanelSizeKey }) {
   const [roomSidebarWidth, setRoomSidebarWidth] = useSetting(settingsAtom, 'roomSidebarWidth');
   const [memberSidebarWidth, setMemberSidebarWidth] = useSetting(
     settingsAtom,
@@ -734,72 +594,14 @@ function SidebarWidth({ sidebarSelector }: { sidebarSelector: string }) {
 }
 
 function SelectShowRoomIcon() {
-  const [menuCords, setMenuCords] = useState<RectCords>();
   const [showRoomIcon, setShowRoomIcon] = useSetting(settingsAtom, 'showRoomIcon');
-  const showRoomIconItems = useShowRoomIcon();
-
-  const handleMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    setMenuCords(evt.currentTarget.getBoundingClientRect());
-  };
-
-  const handleSelect = (position?: ShowRoomIcon) => {
-    if (!position) return;
-    setShowRoomIcon(position);
-    setMenuCords(undefined);
-  };
 
   return (
-    <>
-      <Button
-        size="300"
-        variant="Secondary"
-        outlined
-        fill="Soft"
-        radii="300"
-        after={<Icon size="300" src={Icons.ChevronBottom} />}
-        onClick={handleMenu}
-      >
-        <Text size="T300">
-          {showRoomIconItems.find((i) => i.layout === showRoomIcon)?.name ?? showRoomIcon}
-        </Text>
-      </Button>
-      <PopOut
-        anchor={menuCords}
-        offset={5}
-        position="Bottom"
-        align="End"
-        content={
-          <FocusTrap
-            focusTrapOptions={{
-              initialFocus: false,
-              onDeactivate: () => setMenuCords(undefined),
-              clickOutsideDeactivates: true,
-              isKeyForward: (evt: KeyboardEvent) =>
-                evt.key === 'ArrowDown' || evt.key === 'ArrowRight',
-              isKeyBackward: (evt: KeyboardEvent) =>
-                evt.key === 'ArrowUp' || evt.key === 'ArrowLeft',
-              escapeDeactivates: stopPropagation,
-            }}
-          >
-            <Menu>
-              <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-                {showRoomIconItems.map((item) => (
-                  <MenuItem
-                    key={item.layout}
-                    size="300"
-                    variant={showRoomIcon === item.layout ? 'Primary' : 'Surface'}
-                    radii="300"
-                    onClick={() => handleSelect(item.layout)}
-                  >
-                    <Text size="T300">{item.name}</Text>
-                  </MenuItem>
-                ))}
-              </Box>
-            </Menu>
-          </FocusTrap>
-        }
-      />
-    </>
+    <SettingMenuSelector
+      value={showRoomIcon}
+      options={SHOW_ROOM_ICON_OPTIONS}
+      onSelect={setShowRoomIcon}
+    />
   );
 }
 export function Appearance({
@@ -807,15 +609,17 @@ export function Appearance({
 }: {
   onThemeBrowserOpenChange?: (open: boolean) => void;
 } = {}) {
-  const [sidebarSelector, setSidebarSelector] = useState('roomSidebarWidth');
+  const [sidebarSelector, setSidebarSelector] = useState<PanelSizeKey>('roomSidebarWidth');
   const [twitterEmoji, setTwitterEmoji] = useSetting(settingsAtom, 'twitterEmoji');
   const [customDMCards, setCustomDMCards] = useSetting(settingsAtom, 'customDMCards');
   const [showEasterEggs, setShowEasterEggs] = useSetting(settingsAtom, 'showEasterEggs');
+  const [showRoomIcon] = useSetting(settingsAtom, 'showRoomIcon');
   const [themeBrowserOpen, setThemeBrowserOpen] = useState(false);
   const [closeFoldersByDefault, setCloseFoldersByDefault] = useSetting(
     settingsAtom,
     'closeFoldersByDefault'
   );
+  const [roomIconOverlay, setRoomIconOverlay] = useSetting(settingsAtom, 'roomIconOverlay');
 
   return (
     <Box direction="Column" gap="700">
@@ -833,51 +637,37 @@ export function Appearance({
           <Box direction="Column" gap="100">
             <Text size="L400">Visual Tweaks</Text>
 
-            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-              <SettingTile
-                title="Twitter Emoji"
-                focusId="twitter-emoji"
-                description="Use Twitter-style emojis instead of system native ones."
-                after={<Switch variant="Primary" value={twitterEmoji} onChange={setTwitterEmoji} />}
-              />
-            </SequenceCard>
+            <SettingToggle
+              title="Twitter Emoji"
+              focusId="twitter-emoji"
+              description="Use Twitter-style emojis instead of system native ones."
+              value={twitterEmoji}
+              onChange={setTwitterEmoji}
+            />
 
-            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-              <SettingTile
-                title="Close Space Folders by Default"
-                focusId="collapse-folders-by-default"
-                description="Collapse sidebar folders upon loading."
-                after={
-                  <Switch
-                    variant="Primary"
-                    value={closeFoldersByDefault}
-                    onChange={setCloseFoldersByDefault}
-                  />
-                }
-              />
-            </SequenceCard>
+            <SettingToggle
+              title="Close Space Folders by Default"
+              focusId="collapse-folders-by-default"
+              description="Collapse sidebar folders upon loading."
+              value={closeFoldersByDefault}
+              onChange={setCloseFoldersByDefault}
+            />
 
-            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-              <SettingTile
-                title="Customize DM cards"
-                focusId="customize-dm-cards"
-                description="Show a custom DM card instead of the DM-ed's details"
-                after={
-                  <Switch variant="Primary" value={customDMCards} onChange={setCustomDMCards} />
-                }
-              />
-            </SequenceCard>
+            <SettingToggle
+              title="Customize DM cards"
+              focusId="customize-dm-cards"
+              description="Show a custom DM card instead of the DM-ed's details"
+              value={customDMCards}
+              onChange={setCustomDMCards}
+            />
 
-            <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
-              <SettingTile
-                title="Show Easter Eggs"
-                focusId="show-easter-eggs"
-                description="Lets the interface keep a little mischief turned on."
-                after={
-                  <Switch variant="Primary" value={showEasterEggs} onChange={setShowEasterEggs} />
-                }
-              />
-            </SequenceCard>
+            <SettingToggle
+              title="Allow Whimsy"
+              focusId="show-easter-eggs"
+              description="Lets the interface keep a little mischief turned on."
+              value={showEasterEggs}
+              onChange={setShowEasterEggs}
+            />
 
             <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
               <SettingTile title="Page Zoom" focusId="page-zoom" after={<PageZoomInput />} />
@@ -892,11 +682,35 @@ export function Appearance({
               />
             </SequenceCard>
 
+            <SettingToggle
+              title="Overlay Room Privacy Icons"
+              focusId="room-icon-overlay"
+              description="When enabled, public and private rooms show a globe or lock badge over the room hash icon in the sidebar. When disabled, show the globe or lock icon alone."
+              value={roomIconOverlay}
+              onChange={setRoomIconOverlay}
+            />
+
             <SequenceCard className={SequenceCardStyle} variant="SurfaceVariant" direction="Column">
               <SettingTile
                 title="Show Room Icons In Sidebars"
                 focusId="show-room-icons"
-                description="When do you want to show the specific room icons in the sidebar as opposed to the default room icons?"
+                description={
+                  <>
+                    <Text size="T200">
+                      When do you want to show the specific room icons in the sidebar?
+                    </Text>
+                    {(showRoomIcon === ShowRoomIcon.Always &&
+                      'Always show icons, and fallback to initials') ||
+                      (showRoomIcon === ShowRoomIcon.Strict &&
+                        'Show icons when available, but fallback to hashes') ||
+                      (showRoomIcon === ShowRoomIcon.Smart &&
+                        'Show icons only when sidebar is minimized, else icons.') ||
+                      (showRoomIcon === ShowRoomIcon.Never &&
+                        'Never show icons, always only the hashes.') ||
+                      ''}
+                    <span style={{ opacity: '50%' }}>{' (current)'}</span>
+                  </>
+                }
                 after={<SelectShowRoomIcon />}
               />
             </SequenceCard>

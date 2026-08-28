@@ -63,7 +63,6 @@ export const Code = style([
 const SpoilerBase = style([
   DefaultReset,
   {
-    padding: `0 ${config.space.S100}`,
     backgroundColor: color.SurfaceVariant.ContainerLine,
     borderRadius: config.radii.R300,
     selectors: {
@@ -299,5 +298,43 @@ export const HorizontalRule = style([
     height: 0,
     margin: `${config.space.S400} 0`,
     userSelect: 'none',
+  },
+]);
+
+export const TableContainer = style([
+  DefaultReset,
+  MarginSpaced,
+  {
+    overflowX: 'auto',
+    maxWidth: '100%',
+  },
+]);
+
+export const Table = style([
+  DefaultReset,
+  {
+    borderCollapse: 'collapse',
+  },
+]);
+
+export const Th = style([
+  DefaultReset,
+  {
+    padding: `${config.space.S100} ${config.space.S200}`,
+    border: `${config.borderWidth.B300} solid ${color.SurfaceVariant.ContainerLine}`,
+    backgroundColor: color.SurfaceVariant.Container,
+    color: color.SurfaceVariant.OnContainer,
+    minWidth: toRem(100),
+  },
+]);
+
+export const Td = style([
+  DefaultReset,
+  {
+    padding: `${config.space.S100} ${config.space.S200}`,
+    border: `${config.borderWidth.B300} solid ${color.Surface.ContainerLine}`,
+    backgroundColor: color.Surface.Container,
+    color: color.Surface.OnContainer,
+    minWidth: toRem(100),
   },
 ]);

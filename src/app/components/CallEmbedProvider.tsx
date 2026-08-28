@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
-import { useCallback, useRef } from 'react';
-import { useAtomValue, useSetAtom } from 'jotai';
+import { useCallback, useEffect, useRef } from 'react';
+import { useAtomValue, useSetAtom, useStore } from 'jotai';
 import { useAutoJoinCall } from '$hooks/useAutoJoinCall';
 import {
   CallEmbedContextProvider,
@@ -12,13 +12,17 @@ import {
 } from '$hooks/useCallEmbed';
 import type { CallEmbed } from '$plugins/call';
 import { useClientWidgetApiEvent, ElementWidgetActions } from '$plugins/call';
-import { callChatAtom, callEmbedAtom } from '$state/callEmbed';
+import { callChatAtom, callEmbedAtom, callEmbedStartErrorAtom } from '$state/callEmbed';
 import { useSelectedRoom } from '$hooks/router/useSelectedRoom';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
-import { IncomingCallModal } from './IncomingCallModal';
+import { IncomingCallModal } from '$features/call/IncomingCallModal';
+import { toCallEmbedStartError } from '$plugins/call/callEmbedError';
+import { LivekitJsCallManagerProvider } from '$features/call/livekitJsCallManager';
+import { getNativeCallManager } from '$features/call/nativeCallManager';
 
 function CallUtils({ embed }: { embed: CallEmbed }) {
   const setCallEmbed = useSetAtom(callEmbedAtom);
+  const setCallEmbedStartError = useSetAtom(callEmbedStartErrorAtom);
 
   useCallMemberSoundSync(embed);
   useCallThemeSync(embed);
@@ -29,6 +33,24 @@ function CallUtils({ embed }: { embed: CallEmbed }) {
 
   useCallHangupEvent(embed, handleCallEnd);
   useClientWidgetApiEvent(embed.call, ElementWidgetActions.Close, handleCallEnd);
+
+  useEffect(() => {
+    const disposeOnReady = embed.onReady(() => {
+      setCallEmbedStartError(null);
+    });
+    const disposeOnCapabilitiesNotified = embed.onCapabilitiesNotified(() => {
+      setCallEmbedStartError(null);
+    });
+    const disposeOnPreparingError = embed.onPreparingError((error) => {
+      setCallEmbedStartError(toCallEmbedStartError(error));
+    });
+
+    return () => {
+      disposeOnReady();
+      disposeOnCapabilitiesNotified();
+      disposeOnPreparingError();
+    };
+  }, [embed, setCallEmbedStartError]);
 
   return null;
 }
@@ -43,6 +65,8 @@ function AutoJoinManager() {
 }
 
 export function CallEmbedProvider({ children }: CallEmbedProviderProps) {
+  const store = useStore();
+  getNativeCallManager(store);
   const callEmbed = useAtomValue(callEmbedAtom);
   const callEmbedRef = useRef<HTMLDivElement>(null);
   const joined = useCallJoined(callEmbed);
@@ -60,8 +84,10 @@ export function CallEmbedProvider({ children }: CallEmbedProviderProps) {
       <IncomingCallModal />
       {callEmbed && <CallUtils embed={callEmbed} />}
       <CallEmbedRefContextProvider value={callEmbedRef}>
-        <AutoJoinManager />
-        {children}
+        <LivekitJsCallManagerProvider>
+          <AutoJoinManager />
+          {children}
+        </LivekitJsCallManagerProvider>
       </CallEmbedRefContextProvider>
 
       <div

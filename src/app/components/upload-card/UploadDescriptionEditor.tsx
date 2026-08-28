@@ -1,26 +1,24 @@
 import type { KeyboardEventHandler } from 'react';
-import { useCallback, useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import type { Room } from '$types/matrix-sdk';
 import type { RectCords } from 'folds';
-import { Box, Chip, Icon, IconButton, Icons, PopOut, Spinner, Text, config } from 'folds';
-import { Editor, Transforms } from 'slate';
-import { ReactEditor } from 'slate-react';
+import { Box, Chip, IconButton, Spinner, Text, config } from 'folds';
+import { PopOut } from '$components/overlay-stack';
+import { Smiley, sizedIcon } from '$components/icons/phosphor';
 import { isKeyHotkey } from 'is-hotkey';
-import type { AutocompleteQuery } from '$components/editor';
 import {
   AutocompletePrefix,
-  CustomEditor,
+  useAutocompleteQuery,
   EmoticonAutocomplete,
   MarkdownFormattingToolbarBottom,
   MarkdownFormattingToolbarToggle,
   createEmoticonElement,
-  getAutocompleteQuery,
-  getPrevWorldRange,
   plainToEditorInput,
-  moveCursor,
+  ProseMirrorEditorSurface,
   toMatrixCustomHTML,
   toPlainText,
   trimCustomHtml,
+  toggleProseMirrorKeyboardShortcut,
   useEditor,
 } from '$components/editor';
 import { htmlToMarkdown } from '$plugins/markdown';
@@ -28,7 +26,6 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { EmojiBoard } from '$components/emoji-board';
-import { mobileOrTablet } from '$utils/user-agent';
 import * as css from './UploadDescriptionEditor.css';
 
 type DescriptionEditorProps = {
@@ -48,16 +45,17 @@ export function DescriptionEditor({
 }: Readonly<DescriptionEditorProps>) {
   const editor = useEditor();
   const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
+  const [shortcutOverrides] = useSetting(settingsAtom, 'shortcutOverrides');
 
-  const [autocompleteQuery, setAutocompleteQuery] =
-    useState<AutocompleteQuery<AutocompletePrefix>>();
+  const [autocompleteQuery, setAutocompleteQuery, handleCloseAutocomplete] =
+    useAutocompleteQuery(editor);
 
   const prevValue = useRef(value);
   const initialized = useRef(false);
   const handleSave = useCallback(() => {
-    const plainText = toPlainText(editor.children).trim();
+    const plainText = toPlainText(editor.getDocument()).trim();
 
-    const customHtml = trimCustomHtml(toMatrixCustomHTML(editor.children, {}));
+    const customHtml = trimCustomHtml(toMatrixCustomHTML(editor.getDocument(), {}));
 
     onSave(plainText, customHtml || plainText);
   }, [editor, onSave]);
@@ -83,7 +81,7 @@ export function DescriptionEditor({
       const incomingPlainText = toPlainText(
         plainToEditorInput(safeValue.includes('<') ? htmlToMarkdown(safeValue) : safeValue)
       ).trim();
-      const currentPlainText = toPlainText(editor.children).trim();
+      const currentPlainText = toPlainText(editor.getDocument()).trim();
 
       if (currentPlainText === incomingPlainText && initialized.current) return;
 
@@ -92,9 +90,7 @@ export function DescriptionEditor({
         ? plainToEditorInput(htmlToMarkdown(safeValue))
         : plainToEditorInput(safeValue);
 
-      editor.children = initialValue;
-      Editor.normalize(editor, { force: true });
-      Transforms.select(editor, Editor.start(editor, []));
+      editor.setDocument(initialValue);
 
       initialized.current = true;
     }
@@ -102,12 +98,16 @@ export function DescriptionEditor({
 
   const handleKeyDown: KeyboardEventHandler = useCallback(
     (evt) => {
+      if (toggleProseMirrorKeyboardShortcut(editor, evt, shortcutOverrides)) {
+        evt.preventDefault();
+        return;
+      }
       if (isKeyHotkey('mod+enter', evt) || (!enterForNewline && isKeyHotkey('enter', evt))) {
         evt.preventDefault();
         handleSave();
       }
     },
-    [handleSave, enterForNewline]
+    [editor, enterForNewline, handleSave, shortcutOverrides]
   );
 
   const handleKeyUp: KeyboardEventHandler = useCallback(
@@ -117,23 +117,14 @@ export function DescriptionEditor({
         onCancel();
         return;
       }
-      const prevWordRange = getPrevWorldRange(editor);
-      const query = prevWordRange
-        ? getAutocompleteQuery(editor, prevWordRange, [AutocompletePrefix.Emoticon])
-        : undefined;
-      setAutocompleteQuery(query);
+      setAutocompleteQuery(editor.getAutocompleteQuery([AutocompletePrefix.Emoticon]));
     },
-    [editor, onCancel]
+    [editor, onCancel, setAutocompleteQuery]
   );
 
-  const handleCloseAutocomplete = useCallback(() => {
-    ReactEditor.focus(editor);
-    setAutocompleteQuery(undefined);
-  }, [editor]);
-
   const handleEmoticonSelect = (key: string, shortcode: string) => {
-    editor.insertNode(createEmoticonElement(key, shortcode));
-    moveCursor(editor);
+    editor.insertInline(createEmoticonElement(key, shortcode));
+    editor.insertText(' ');
   };
 
   return (
@@ -146,13 +137,13 @@ export function DescriptionEditor({
         {autocompleteQuery?.prefix === AutocompletePrefix.Emoticon && (
           <EmoticonAutocomplete
             imagePackRooms={imagePackRooms || []}
-            editor={editor}
-            query={autocompleteQuery}
+            controller={editor}
+            query={autocompleteQuery!}
             requestClose={handleCloseAutocomplete}
           />
         )}
-        <CustomEditor
-          editor={editor}
+        <ProseMirrorEditorSurface
+          controller={editor}
           placeholder="File Description..."
           onKeyDown={handleKeyDown}
           onKeyUp={handleKeyUp}
@@ -160,7 +151,7 @@ export function DescriptionEditor({
           variant="Background"
           bottom={
             <Box direction="Column" style={{ backgroundColor: 'var(--sable-bg-container)' }}>
-              <MarkdownFormattingToolbarBottom />
+              <MarkdownFormattingToolbarBottom controller={editor} />
               <Box
                 style={{ padding: config.space.S200, paddingTop: 0 }}
                 alignItems="End"
@@ -213,7 +204,7 @@ export function DescriptionEditor({
                             requestClose={() =>
                               setAnchor((v) => {
                                 if (v) {
-                                  if (!mobileOrTablet()) ReactEditor.focus(editor);
+                                  editor.focus();
                                   return undefined;
                                 }
                                 return v;
@@ -229,7 +220,7 @@ export function DescriptionEditor({
                           radii="300"
                           onClick={(evt) => setAnchor(evt.currentTarget.getBoundingClientRect())}
                         >
-                          <Icon size="400" src={Icons.Smile} filled={anchor !== undefined} />
+                          {sizedIcon(Smiley, '400', { filled: anchor !== undefined })}
                         </IconButton>
                       </PopOut>
                     )}

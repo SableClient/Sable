@@ -1,6 +1,6 @@
 import { EventType, MatrixEvent, UpdateDelayedEventAction } from '$types/matrix-sdk';
 import type {
-  DelayedEventInfo,
+  DelayedEventInfoItem,
   SendDelayedEventResponse,
   IContent,
   MatrixClient,
@@ -13,6 +13,15 @@ import type {
 interface EncryptableBackend {
   encryptEvent(event: MatrixEvent, room: Room): Promise<void>;
 }
+
+// matrix-js-sdk's own `DelayedEventInfo` type declares this array under `scheduled`, but its
+// `_unstable_getDelayedEvents` call is a raw passthrough of the server's response, and MSC4140
+// (and every homeserver implementing it) puts the array under `delayed_events`:
+// https://github.com/matrix-org/matrix-spec-proposals/blob/main/proposals/4140-delayed-events-futures.md
+export type DelayedEventsResponse = {
+  delayed_events: DelayedEventInfoItem[];
+  next_batch?: string;
+};
 
 export async function supportsDelayedEvents(mx: MatrixClient): Promise<boolean> {
   try {
@@ -27,13 +36,14 @@ export async function sendDelayedMessage(
   roomId: string,
   content: IContent,
   delayMs: number,
-  threadId?: string | null
+  threadId?: string | null,
+  eventType: keyof TimelineEvents = EventType.RoomMessage
 ): Promise<SendDelayedEventResponse> {
   return mx._unstable_sendDelayedEvent(
     roomId,
     { delay: delayMs },
     threadId ?? null,
-    EventType.RoomMessage as Parameters<typeof mx._unstable_sendDelayedEvent>[3],
+    eventType as Parameters<typeof mx._unstable_sendDelayedEvent>[3],
     content as RoomMessageEventContent
   );
 }
@@ -50,7 +60,8 @@ export async function sendDelayedMessageE2EE(
   room: Room,
   content: IContent,
   delayMs: number,
-  threadId?: string | null
+  threadId?: string | null,
+  eventType: keyof TimelineEvents = EventType.RoomMessage
 ): Promise<SendDelayedEventResponse> {
   const crypto = mx.getCrypto();
   if (!crypto || !('encryptEvent' in crypto)) {
@@ -59,7 +70,7 @@ export async function sendDelayedMessageE2EE(
 
   // Create a temporary MatrixEvent to encrypt in-place.
   const event = new MatrixEvent({
-    type: EventType.RoomMessage,
+    type: eventType,
     content,
     room_id: roomId,
     sender: mx.getUserId() ?? '',
@@ -87,16 +98,12 @@ export async function sendDelayedMessageE2EE(
   );
 }
 
-export async function getDelayedEvents(mx: MatrixClient): Promise<DelayedEventInfo> {
-  return mx._unstable_getDelayedEvents();
+export async function getDelayedEvents(mx: MatrixClient): Promise<DelayedEventsResponse> {
+  return mx._unstable_getDelayedEvents() as unknown as Promise<DelayedEventsResponse>;
 }
 
 export async function cancelDelayedEvent(mx: MatrixClient, delayId: string): Promise<void> {
   await mx._unstable_updateDelayedEvent(delayId, UpdateDelayedEventAction.Cancel);
-}
-
-export async function sendDelayedEventNow(mx: MatrixClient, delayId: string): Promise<void> {
-  await mx._unstable_updateDelayedEvent(delayId, UpdateDelayedEventAction.Send);
 }
 
 export function computeDelayMs(targetDate: Date): number {

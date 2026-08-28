@@ -1,10 +1,6 @@
-import type { MouseEventHandler } from 'react';
-import { forwardRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import type { RectCords } from 'folds';
-import { Box, Icon, Icons, Menu, MenuItem, PopOut, Text, config, toRem } from 'folds';
+import { forwardRef } from 'react';
+import { useNavigate } from 'react-router';
 import { useAtomValue } from 'jotai';
-import FocusTrap from 'focus-trap-react';
 import { useOrphanRooms } from '$state/hooks/roomList';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mDirectAtom } from '$state/mDirectList';
@@ -13,19 +9,13 @@ import { allRoomsAtom } from '$state/room-list/roomList';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { getHomePath, joinPathComponent } from '$pages/pathUtils';
 import { useRoomsUnread } from '$state/hooks/unread';
-import {
-  SidebarAvatar,
-  SidebarItem,
-  SidebarUnreadBadge,
-  SidebarItemTooltip,
-} from '$components/sidebar';
-import { useHomeSelected } from '$hooks/router/useHomeSelected';
+import { SidebarTab } from '$components/sidebar';
+import { useHomeSelected } from '$hooks/router/useRouteSelected';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
-import { markAsRead } from '$utils/notifications';
-import { stopPropagation } from '$utils/keyboard';
-import { useSetting } from '$state/hooks/settings';
-import { settingsAtom } from '$state/settings';
+import { House, getPhosphorIconSize } from '$components/icons/phosphor';
+import { useMenuAnchor } from '$hooks/useMenuAnchor';
+import { NavMenu } from '$components/nav/NavMenu';
 import { useHomeRooms } from '$pages/client/home/useHomeRooms';
 
 type HomeMenuProps = {
@@ -33,34 +23,10 @@ type HomeMenuProps = {
 };
 const HomeMenu = forwardRef<HTMLDivElement, HomeMenuProps>(({ requestClose }, ref) => {
   const orphanRooms = useHomeRooms();
-  const [hideReads] = useSetting(settingsAtom, 'hideReads');
-  const unread = useRoomsUnread(orphanRooms, roomToUnreadAtom);
-  const mx = useMatrixClient();
 
-  const handleMarkAsRead = () => {
-    if (!unread) return;
-    orphanRooms.forEach((rId) => markAsRead(mx, rId, hideReads));
-    requestClose();
-  };
-
-  return (
-    <Menu ref={ref} style={{ maxWidth: toRem(160), width: '100vw' }}>
-      <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-        <MenuItem
-          onClick={handleMarkAsRead}
-          size="300"
-          after={<Icon size="100" src={Icons.CheckTwice} />}
-          radii="300"
-          aria-disabled={!unread}
-        >
-          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-            Mark as Read
-          </Text>
-        </MenuItem>
-      </Box>
-    </Menu>
-  );
+  return <NavMenu ref={ref} rooms={orphanRooms} requestClose={requestClose} />;
 });
+HomeMenu.displayName = 'HomeMenu';
 
 export function HomeTab() {
   const navigate = useNavigate();
@@ -73,7 +39,7 @@ export function HomeTab() {
   const orphanRooms = useOrphanRooms(mx, allRoomsAtom, mDirects, roomToParents);
   const homeUnread = useRoomsUnread(orphanRooms, roomToUnreadAtom);
   const homeSelected = useHomeSelected();
-  const [menuAnchor, setMenuAnchor] = useState<RectCords>();
+  const menuAnchor = useMenuAnchor<HTMLButtonElement>();
 
   const handleHomeClick = () => {
     const activePath = navToActivePath.get('home');
@@ -85,58 +51,20 @@ export function HomeTab() {
     navigate(getHomePath());
   };
 
-  const handleContextMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    evt.preventDefault();
-    const cords = evt.currentTarget.getBoundingClientRect();
-    setMenuAnchor((currentState) => {
-      if (currentState) return undefined;
-      return cords;
-    });
-  };
-
   return (
-    <SidebarItem active={homeSelected}>
-      <SidebarItemTooltip tooltip="Home">
-        {(triggerRef) => (
-          <SidebarAvatar
-            as="button"
-            ref={triggerRef}
-            outlined
-            onClick={handleHomeClick}
-            onContextMenu={handleContextMenu}
-          >
-            <Icon src={Icons.Home} filled={homeSelected} />
-          </SidebarAvatar>
-        )}
-      </SidebarItemTooltip>
-      {homeUnread && (
-        <SidebarUnreadBadge
-          highlight={homeUnread.highlight > 0}
-          count={homeUnread.highlight > 0 ? homeUnread.highlight : homeUnread.total}
-        />
-      )}
-      {menuAnchor && (
-        <PopOut
-          anchor={menuAnchor}
-          position="Right"
-          align="Start"
-          content={
-            <FocusTrap
-              focusTrapOptions={{
-                initialFocus: false,
-                returnFocusOnDeactivate: false,
-                onDeactivate: () => setMenuAnchor(undefined),
-                clickOutsideDeactivates: true,
-                isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
-                isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
-                escapeDeactivates: stopPropagation,
-              }}
-            >
-              <HomeMenu requestClose={() => setMenuAnchor(undefined)} />
-            </FocusTrap>
-          }
-        />
-      )}
-    </SidebarItem>
+    <SidebarTab
+      icon={
+        <House size={getPhosphorIconSize('toolbar')} weight={homeSelected ? 'fill' : 'regular'} />
+      }
+      selected={homeSelected}
+      tooltip="Home"
+      onClick={handleHomeClick}
+      menu={<HomeMenu requestClose={menuAnchor.close} />}
+      menuAnchor={menuAnchor}
+      unreadHighlight={homeUnread ? homeUnread.highlight > 0 : false}
+      unreadCount={
+        homeUnread ? (homeUnread.highlight > 0 ? homeUnread.highlight : homeUnread.total) : 0
+      }
+    />
   );
 }

@@ -1,13 +1,13 @@
 import { find as findLinks } from 'linkifyjs';
-import type { Descendant } from 'slate';
-import { Text } from 'slate';
-import type { FormattedText, InlineElement, ParagraphElement } from '$components/editor/slate';
+import type {
+  EditorDocument,
+  EditorParagraph,
+  EditorText,
+  InlineToken,
+} from '$components/editor/model';
+import { isEditorText } from '$components/editor/model';
 import { BlockType } from '$components/editor/types';
-import {
-  createLinkElement,
-  getMarkdownCodeSpanRanges,
-  isInsideMarkdownCodeSpan,
-} from '$components/editor/utils';
+import { getMarkdownCodeSpanRanges, isInsideMarkdownCodeSpan } from '$components/editor/utils';
 import { getSettingsLinkLabel, parseSettingsLink } from '$features/settings/settingsLink';
 
 type RewritableSettingsLinkMatch = {
@@ -72,24 +72,24 @@ const getRewritableSettingsLinkMatches = (
 };
 
 const hasRewritableSettingsLinksInInlineChildren = (
-  children: InlineElement[],
+  children: InlineToken[],
   baseUrl: string
 ): boolean =>
   children.some(
     (child) =>
-      Text.isText(child) && getRewritableSettingsLinkMatches(child.text, baseUrl).length > 0
+      isEditorText(child) && getRewritableSettingsLinkMatches(child.text, baseUrl).length > 0
   );
 
-const createTextSegment = (node: FormattedText, text: string): FormattedText => ({
+const createTextSegment = (node: EditorText, text: string): EditorText => ({
   ...node,
   text,
 });
 
-const rewriteInlineText = (node: FormattedText, baseUrl: string): InlineElement[] => {
+const rewriteInlineText = (node: EditorText, baseUrl: string): InlineToken[] => {
   const matches = getRewritableSettingsLinkMatches(node.text, baseUrl);
   if (matches.length === 0) return [node];
 
-  const rewritten: InlineElement[] = [];
+  const rewritten: InlineToken[] = [];
   let cursor = 0;
 
   matches.forEach((match) => {
@@ -97,7 +97,11 @@ const rewriteInlineText = (node: FormattedText, baseUrl: string): InlineElement[
       rewritten.push(createTextSegment(node, node.text.slice(cursor, match.start)));
     }
 
-    rewritten.push(createLinkElement(match.href, [createTextSegment(node, match.label)]));
+    rewritten.push({
+      type: BlockType.Link,
+      href: match.href,
+      children: [createTextSegment(node, match.label)],
+    });
     cursor = match.end;
   });
 
@@ -107,22 +111,18 @@ const rewriteInlineText = (node: FormattedText, baseUrl: string): InlineElement[
     rewritten.push(createTextSegment(node, node.text.slice(cursor)));
   }
 
-  return rewritten.filter((child) => !Text.isText(child) || child.text.length > 0);
+  return rewritten.filter((child) => !isEditorText(child) || child.text.length > 0);
 };
 
-const rewriteInlineChildren = (children: InlineElement[], baseUrl: string): InlineElement[] =>
-  children.flatMap((child) => (Text.isText(child) ? rewriteInlineText(child, baseUrl) : [child]));
+const rewriteInlineChildren = (children: InlineToken[], baseUrl: string): InlineToken[] =>
+  children.flatMap((child) => (isEditorText(child) ? rewriteInlineText(child, baseUrl) : [child]));
 
-const rewriteInlineContainer = (node: ParagraphElement, baseUrl: string): ParagraphElement => ({
+const rewriteInlineContainer = (node: EditorParagraph, baseUrl: string): EditorParagraph => ({
   ...node,
   children: rewriteInlineChildren(node.children, baseUrl),
 });
 
-const hasSettingsLinksToRewriteInNode = (node: Descendant, baseUrl: string): boolean => {
-  if (Text.isText(node)) {
-    return getRewritableSettingsLinkMatches(node.text, baseUrl).length > 0;
-  }
-
+const hasSettingsLinksToRewriteInNode = (node: EditorParagraph, baseUrl: string): boolean => {
   switch (node.type) {
     case BlockType.Paragraph:
       return hasRewritableSettingsLinksInInlineChildren(node.children, baseUrl);
@@ -131,9 +131,7 @@ const hasSettingsLinksToRewriteInNode = (node: Descendant, baseUrl: string): boo
   }
 };
 
-const rewriteNode = (node: Descendant, baseUrl: string): Descendant => {
-  if (Text.isText(node)) return node;
-
+const rewriteNode = (node: EditorParagraph, baseUrl: string): EditorParagraph => {
   switch (node.type) {
     case BlockType.Paragraph:
       return rewriteInlineContainer(node, baseUrl);
@@ -142,8 +140,8 @@ const rewriteNode = (node: Descendant, baseUrl: string): Descendant => {
   }
 };
 
-export const hasSettingsLinksToRewrite = (nodes: Descendant[], baseUrl: string): boolean =>
+export const hasSettingsLinksToRewrite = (nodes: EditorDocument, baseUrl: string): boolean =>
   nodes.some((node) => hasSettingsLinksToRewriteInNode(node, baseUrl));
 
-export const rewriteSettingsLinks = (nodes: Descendant[], baseUrl: string): Descendant[] =>
+export const rewriteSettingsLinks = (nodes: EditorDocument, baseUrl: string): EditorDocument =>
   nodes.map((node) => rewriteNode(node, baseUrl));

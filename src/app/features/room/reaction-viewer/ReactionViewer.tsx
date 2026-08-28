@@ -1,21 +1,8 @@
 import { useCallback, useState } from 'react';
 import classNames from 'classnames';
-import {
-  Avatar,
-  Box,
-  Header,
-  Icon,
-  IconButton,
-  Icons,
-  Line,
-  MenuItem,
-  Scroll,
-  Text,
-  as,
-  config,
-} from 'folds';
+import { Avatar, Box, Header, IconButton, Line, MenuItem, Scroll, Text, as, config } from 'folds';
 import type { MatrixEvent, Room, RoomMember, Relations } from '$types/matrix-sdk';
-import { getMemberDisplayName } from '$utils/room';
+import { getAvatarUrl, getMemberDisplayName } from '$utils/room/display';
 import { eventWithShortcode, getMxIdLocalPart } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRelations } from '$hooks/useRelations';
@@ -24,13 +11,14 @@ import { getHexcodeForEmoji, getShortcodeFor } from '$plugins/emoji';
 import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import { UserAvatar } from '$components/user-avatar';
+import { composerIcon, userFallbackIcon, X } from '$components/icons/phosphor';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useOpenUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { useSpaceOptionally } from '$hooks/useSpace';
 import { getMouseEventCords } from '$utils/dom';
 import * as css from './ReactionViewer.css';
 
-export type ReactionViewerProps = {
+type ReactionViewerProps = {
   room: Room;
   initialKey?: string;
   relations: Relations;
@@ -102,7 +90,7 @@ export const ReactionViewer = as<'div', ReactionViewerProps>(
               <Text size="H3" truncate>{`Reacted with :${selectedShortcode}:`}</Text>
             </Box>
             <IconButton size="300" onClick={requestClose}>
-              <Icon src={Icons.Cross} />
+              {composerIcon(X)}
             </IconButton>
           </Header>
 
@@ -116,17 +104,7 @@ export const ReactionViewer = as<'div', ReactionViewerProps>(
                   const name = (member ? getName(member) : getMxIdLocalPart(senderId)) ?? senderId;
 
                   const avatarMxcUrl = member?.getMxcAvatarUrl();
-                  const avatarUrl = avatarMxcUrl
-                    ? mx.mxcUrlToHttp(
-                        avatarMxcUrl,
-                        100,
-                        100,
-                        'crop',
-                        undefined,
-                        false,
-                        useAuthentication
-                      )
-                    : undefined;
+                  const avatarUrl = getAvatarUrl(mx, avatarMxcUrl, 100, useAuthentication);
 
                   return (
                     <MenuItem
@@ -138,6 +116,7 @@ export const ReactionViewer = as<'div', ReactionViewerProps>(
                           room.roomId,
                           space?.roomId,
                           senderId,
+                          undefined,
                           getMouseEventCords(event.nativeEvent),
                           'Bottom'
                         );
@@ -148,7 +127,7 @@ export const ReactionViewer = as<'div', ReactionViewerProps>(
                             userId={senderId}
                             src={avatarUrl ?? undefined}
                             alt={name}
-                            renderFallback={() => <Icon size="50" src={Icons.User} filled />}
+                            renderFallback={() => userFallbackIcon('sm')}
                           />
                         </Avatar>
                       }

@@ -1,11 +1,14 @@
 import { useState } from 'react';
-import { Box, Icon, Icons, Text, as } from 'folds';
+import { Box, Text, as } from 'folds';
+import { sizedIcon, Warning } from '$components/icons/phosphor';
 import classNames from 'classnames';
 import type { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
 import { getHexcodeForEmoji, getShortcodeFor } from '$plugins/emoji';
-import { getMemberDisplayName } from '$utils/room';
+import { getMemberDisplayName } from '$utils/room/display';
 import { eventWithShortcode, getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
 import { useAtomValue } from 'jotai';
+import { Image as MediaImage } from '$components/media';
+import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
 import { nicknamesAtom } from '$state/nicknames';
 import * as css from './Reaction.css';
 
@@ -19,6 +22,10 @@ export const Reaction = as<
   }
 >(({ className, mx, count, reaction, useAuthentication, ...props }, ref) => {
   const [imgError, setImgError] = useState(false);
+  const rawReactionUrl = reaction.startsWith('mxc://')
+    ? (mxcUrlToHttp(mx, reaction, useAuthentication) ?? undefined)
+    : undefined;
+  const renderableReactionUrl = useRenderableMediaUrl(rawReactionUrl);
 
   return (
     <Box
@@ -35,17 +42,17 @@ export const Reaction = as<
           (() => {
             if (imgError)
               return (
-                // Image loaded but fetch failed — show a small warning icon so the
+                // Image loaded but fetch failed  Eshow a small warning icon so the
                 // reaction button still renders correctly and the user can see
                 // something went wrong rather than a browser broken-image icon.
                 <span title="Failed to load emoji image" aria-label="Failed to load emoji image">
-                  <Icon size="100" src={Icons.Warning} style={{ opacity: 0.5 }} />
+                  {sizedIcon(Warning, '100', { style: { opacity: 0.5 } })}
                 </span>
               );
             return (
-              <img
+              <MediaImage
                 className={css.ReactionImg}
-                src={mxcUrlToHttp(mx, reaction, useAuthentication) ?? reaction}
+                src={renderableReactionUrl}
                 alt={reaction}
                 onError={() => setImgError(true)}
               />

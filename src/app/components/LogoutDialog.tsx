@@ -1,6 +1,8 @@
 import { forwardRef, useCallback } from 'react';
-import { Dialog, Header, config, Box, Text, Button, Spinner, color } from 'folds';
+import { Dialog, Header, config, Box, Text } from 'folds';
+import { useAtomValue, useSetAtom } from 'jotai';
 import { logoutClient } from '$client/initMatrix';
+import { activeSessionIdAtom, sessionsAtom } from '$state/sessions';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useCrossSigningActive } from '$hooks/useCrossSigning';
@@ -9,6 +11,8 @@ import {
   VerificationStatus,
 } from '$hooks/useDeviceVerificationStatus';
 import { InfoCard } from './info-card';
+import { AsyncError } from '$components/AsyncError';
+import { Button } from '$components/button';
 
 type LogoutDialogProps = {
   handleClose: () => void;
@@ -16,6 +20,11 @@ type LogoutDialogProps = {
 export const LogoutDialog = forwardRef<HTMLDivElement, LogoutDialogProps>(
   ({ handleClose }, ref) => {
     const mx = useMatrixClient();
+    const sessions = useAtomValue(sessionsAtom);
+    const activeSessionId = useAtomValue(activeSessionIdAtom);
+    const setSessions = useSetAtom(sessionsAtom);
+    const setActiveSessionId = useSetAtom(activeSessionIdAtom);
+    const activeSession = sessions.find((s) => s.userId === activeSessionId) ?? sessions[0];
     const hasEncryptedRoom = !!mx.getRooms().find((room) => room.hasEncryptionStateEvent());
     const crossSigningActive = useCrossSigningActive();
     const verificationStatus = useDeviceVerificationStatus(
@@ -26,8 +35,15 @@ export const LogoutDialog = forwardRef<HTMLDivElement, LogoutDialogProps>(
 
     const [logoutState, logout] = useAsyncCallback<void, Error, []>(
       useCallback(async () => {
-        await logoutClient(mx);
-      }, [mx])
+        await logoutClient(mx, activeSession);
+        if (activeSession) {
+          setSessions({ type: 'DELETE', session: activeSession });
+          setActiveSessionId(
+            sessions.find((s) => s.userId !== activeSession.userId)?.userId ?? undefined
+          );
+        }
+        window.location.reload();
+      }, [mx, activeSession, sessions, setSessions, setActiveSessionId])
     );
 
     const ongoingLogout = logoutState.status === AsyncStatus.Loading;
@@ -64,17 +80,14 @@ export const LogoutDialog = forwardRef<HTMLDivElement, LogoutDialogProps>(
               />
             ))}
           <Text priority="400">You’re about to log out. Are you sure?</Text>
-          {logoutState.status === AsyncStatus.Error && (
-            <Text style={{ color: color.Critical.Main }} size="T300">
-              Failed to logout! {logoutState.error.message}
-            </Text>
-          )}
+          <AsyncError state={logoutState} prefix="Failed to logout" size="T300" />
           <Box direction="Column" gap="200">
             <Button
               variant="Critical"
               onClick={logout}
-              disabled={ongoingLogout}
-              before={ongoingLogout && <Spinner variant="Critical" fill="Solid" size="200" />}
+              loading={ongoingLogout}
+              spinnerVariant="Critical"
+              spinnerSize="200"
             >
               <Text size="B400">Logout</Text>
             </Button>

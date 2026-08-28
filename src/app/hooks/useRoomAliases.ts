@@ -6,7 +6,7 @@ import type {
   StateEvents,
 } from '$types/matrix-sdk';
 
-import { getStateEvent } from '$utils/room';
+import { getStateEvent } from '$utils/room/hierarchy';
 import type { AsyncState } from './useAsyncCallback';
 import { useAsyncCallback } from './useAsyncCallback';
 import { useMatrixClient } from './useMatrixClient';

@@ -3,22 +3,35 @@ import { Box, Header, Line, Scroll, Text, as } from 'folds';
 import classNames from 'classnames';
 import { ContainerColor } from '$styles/ContainerColor.css';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
+import { MobileNavDrawer } from './MobileNavDrawer';
 import * as css from './style.css';
 
 type PageRootProps = {
   nav: ReactNode;
+  rail?: ReactNode;
+  bottomNav?: ReactNode;
   children: ReactNode;
+  mobileDrawer?: boolean;
 };
 
-export function PageRoot({ nav, children }: PageRootProps) {
+export function PageRoot({ nav, rail, bottomNav, children, mobileDrawer = true }: PageRootProps) {
   const screenSize = useScreenSizeContext();
+  const isMobile = screenSize === ScreenSize.Mobile;
+
+  if (isMobile && mobileDrawer) {
+    return (
+      <Box grow="Yes" className={ContainerColor({ variant: 'Background' })} style={{ minWidth: 0 }}>
+        <MobileNavDrawer nav={nav} rail={rail} bottomNav={bottomNav}>
+          {children}
+        </MobileNavDrawer>
+      </Box>
+    );
+  }
 
   return (
-    <Box grow="Yes" className={ContainerColor({ variant: 'Background' })}>
+    <Box grow="Yes" className={ContainerColor({ variant: 'Background' })} style={{ minWidth: 0 }}>
       {nav}
-      {screenSize !== ScreenSize.Mobile && (
-        <Line variant="Background" size="300" direction="Vertical" />
-      )}
+      {!isMobile && <Line variant="Background" size="300" direction="Vertical" />}
       {children}
     </Box>
   );
@@ -28,15 +41,8 @@ type ClientDrawerLayoutProps = {
   children: ReactNode;
 };
 export function PageNav({ size, children }: ClientDrawerLayoutProps & css.PageNavVariants) {
-  const screenSize = useScreenSizeContext();
-  const isMobile = screenSize === ScreenSize.Mobile;
-
   return (
-    <Box
-      grow={isMobile ? 'Yes' : undefined}
-      className={css.PageNav({ size })}
-      shrink={isMobile ? 'Yes' : 'No'}
-    >
+    <Box className={classNames(css.PageNav({ size }), css.PageNavBox)}>
       <Box grow="Yes" direction="Column">
         {children}
       </Box>

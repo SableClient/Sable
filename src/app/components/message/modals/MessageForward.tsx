@@ -2,26 +2,30 @@
 
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { modalAtom, ModalType } from '$state/modal';
-import { Icon, Icons, MenuItem, Text, as } from 'folds';
-import { useAtomValue, useSetAtom } from 'jotai';
-import type { MatrixEvent, Room } from '$types/matrix-sdk';
-import { useCallback, useMemo, useState } from 'react';
-import { allRoomsAtom } from '$state/room-list/roomList';
+import { MenuItem, Text, as } from 'folds';
+import { ArrowRight, menuIcon } from '$components/icons/phosphor';
+import { useSetAtom } from 'jotai';
+import { MsgType, type MatrixEvent, type Room } from '$types/matrix-sdk';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAllJoinedRoomsSet, useGetRoom } from '$hooks/useGetRoom';
-import { factoryRoomIdByActivity } from '$utils/sort';
+import { useMessageTargetRooms } from '$hooks/useMessageTargetRooms';
 import * as css from '$features/room/message/styles.css';
 import { sanitizeCustomHtml, sanitizeText } from '$utils/sanitize';
 import { createDebugLogger } from '$utils/debugLogger';
 import * as Sentry from '@sentry/react';
 import { isRoomPrivate } from '$utils/roomVisibility';
+import { canForwardEvent } from '$utils/room/relations';
 import * as prefix from '$unstable/prefixes';
-import { RoomSearchModal } from '$features/search';
+import { SearchWrapper } from '$features/navigate';
+import { useDismissOnBack } from '$utils/androidBack';
 const debugLog = createDebugLogger('MessageForward');
 
 // Message forwarding component
 export const MessageForwardItem = as<'button', MessageForwardItemProps>(
   ({ room, mEvent, onClose, ...props }: MessageForwardItemProps) => {
     const setModal = useSetAtom(modalAtom);
+
+    if (!canForwardEvent(mEvent)) return null;
 
     const handleClick = () => {
       setModal({
@@ -35,7 +39,7 @@ export const MessageForwardItem = as<'button', MessageForwardItemProps>(
     return (
       <MenuItem
         size="300"
-        after={<Icon size="100" src={Icons.ArrowRight} />}
+        after={menuIcon(ArrowRight)}
         radii="300"
         {...props}
         onClick={handleClick}
@@ -92,23 +96,21 @@ export function MessageForwardInternal({
   onClose,
 }: Readonly<MessageForwardInternalProps>) {
   const mx = useMatrixClient();
-
+  const forwardable = canForwardEvent(mEvent);
   const [isForwarding, setIsForwarding] = useState(false);
   const [forwardError, setForwardError] = useState<string | null>(null);
-  const allRooms = useAtomValue(allRoomsAtom);
   const allJoinedRooms = useAllJoinedRoomsSet();
   const getRoom = useGetRoom(allJoinedRooms);
+
+  useEffect(() => {
+    if (!forwardable) onClose();
+  }, [forwardable, onClose]);
+
+  // Android back closes the forward picker instead of navigating away.
+  useDismissOnBack(onClose);
+
   // possible targets to forward the message to
-  const forwardTargets = useMemo(
-    () =>
-      allRooms
-        .filter((id) => {
-          const target = getRoom(id);
-          return !!target && !target.isSpaceRoom() && target.maySendMessage();
-        })
-        .sort(factoryRoomIdByActivity(mx)),
-    [allRooms, getRoom, mx]
-  );
+  const forwardTargets = useMessageTargetRooms();
 
   const forwardToRoom = useCallback(
     (targetRoomId: string) => {
@@ -127,7 +129,7 @@ export function MessageForwardInternal({
 
       const eventType = mEvent.getType() as SendEventType;
       const originalContent = mEvent.getContent();
-      const isTextMessage = originalContent.msgtype === 'm.text';
+      const isTextMessage = originalContent.msgtype === MsgType.Text;
 
       const originalBody = typeof originalContent.body === 'string' ? originalContent.body : '';
       const originalFormattedBody =
@@ -259,7 +261,9 @@ export function MessageForwardInternal({
     [forwardError, forwardTargets, forwardToRoom, isForwarding]
   );
 
-  return <RoomSearchModal requestClose={onClose} pickRoom={pickRoom} />;
+  if (!forwardable) return null;
+
+  return <SearchWrapper requestClose={onClose} pickRoom={pickRoom} />;
 }
 
 type MessageForwardItemProps = {

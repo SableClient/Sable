@@ -1,0 +1,6 @@
+{
+  "build": {
+    "beforeDevCommand": "pnpm generate:app-icons:ios && pnpm dev",
+    "beforeBuildCommand": "pnpm generate:app-icons:ios && pnpm build"
+  }
+}

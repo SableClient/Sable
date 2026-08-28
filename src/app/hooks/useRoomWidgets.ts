@@ -2,7 +2,7 @@ import type { Room, MatrixEvent, MatrixClient } from '$types/matrix-sdk';
 import { useCallback, useMemo } from 'react';
 import type { IWidget } from 'matrix-widget-api';
 
-import { getStateEvents } from '$utils/room';
+import { getStateEvents } from '$utils/room/hierarchy';
 import { useStateEventCallback } from './useStateEventCallback';
 import { useForceUpdate } from './useForceUpdate';
 import { CustomStateEvent } from '$types/matrix/room';

@@ -1,23 +1,25 @@
 import { useAtomValue } from 'jotai';
-import { Box, Icon, Icons, Text, as, config } from 'folds';
+import { Box, Text, as, config } from 'folds';
+import { Checks, menuIcon } from '$components/icons/phosphor';
 import type { Room } from '$types/matrix-sdk';
 import classNames from 'classnames';
 import { useAtom } from 'jotai';
 
-import { getMemberDisplayName } from '$utils/room';
+import { getMemberDisplayName } from '$utils/room/display';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoomLatestRenderedEvent } from '$hooks/useRoomLatestRenderedEvent';
 import { useRoomEventReaders } from '$hooks/useRoomEventReaders';
 import { modalAtom, ModalType } from '$state/modal';
 import { nicknamesAtom } from '$state/nicknames';
+import { profilesCacheAtom } from '$state/userRoomProfile';
 import * as css from './RoomViewFollowing.css';
 
 export function RoomViewFollowingPlaceholder() {
   return <div className={css.RoomViewFollowingPlaceholder} />;
 }
 
-export type RoomViewFollowingProps = {
+type RoomViewFollowingProps = {
   room: Room;
   threadEventId?: string;
   participantIds?: Set<string>;
@@ -30,12 +32,16 @@ export const RoomViewFollowing = as<'div', RoomViewFollowingProps>(
     const resolvedEventId = threadEventId ?? latestEvent?.getId();
     const latestEventReaders = useRoomEventReaders(room, resolvedEventId);
     const nicknames = useAtomValue(nicknamesAtom);
+    const cachedProfiles = useAtomValue(profilesCacheAtom);
     const names = latestEventReaders
       .filter((readerId) => readerId !== mx.getUserId())
       .filter((readerId) => !participantIds || participantIds.has(readerId))
       .map(
         (readerId) =>
-          getMemberDisplayName(room, readerId, nicknames) ?? getMxIdLocalPart(readerId) ?? readerId
+          getMemberDisplayName(room, readerId, nicknames) ??
+          cachedProfiles[readerId]?.displayName ??
+          getMxIdLocalPart(readerId) ??
+          readerId
       );
 
     const eventId = resolvedEventId;
@@ -43,6 +49,7 @@ export const RoomViewFollowing = as<'div', RoomViewFollowingProps>(
     return (
       <Box
         as={names.length > 0 ? 'button' : 'div'}
+        data-no-button-motion={names.length > 0 || undefined}
         onClick={
           names.length > 0
             ? () => {
@@ -61,7 +68,7 @@ export const RoomViewFollowing = as<'div', RoomViewFollowingProps>(
       >
         {names.length > 0 && (
           <>
-            <Icon style={{ opacity: config.opacity.P300 }} size="100" src={Icons.CheckTwice} />
+            {menuIcon(Checks, { style: { opacity: config.opacity.P300 } })}
             <Text size="T300" truncate>
               {names.length === 1 && (
                 <>

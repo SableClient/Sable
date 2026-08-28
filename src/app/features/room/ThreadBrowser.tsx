@@ -1,60 +1,27 @@
 import type { ChangeEventHandler, MouseEventHandler } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import {
-  Box,
-  Header,
-  Icon,
-  IconButton,
-  Icons,
-  Input,
-  Scroll,
-  Spinner,
-  Text,
-  Avatar,
-  config,
-  Chip,
-  toRem,
-} from 'folds';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Box, Header, IconButton, Input, Scroll, Spinner, Text, config, Chip, toRem } from 'folds';
 import type { EventTimelineSet, MatrixEvent, Room, Thread } from '$types/matrix-sdk';
 import { NotificationCountType, RoomEvent, ThreadEvent } from '$types/matrix-sdk';
 import { useAtomValue } from 'jotai';
-import type { HTMLReactParserOptions } from 'html-react-parser';
-import type { Opts as LinkifyOpts } from 'linkifyjs';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { nicknamesAtom } from '$state/nicknames';
-import { getMemberAvatarMxc, getMemberDisplayName, reactionOrEditEvent } from '$utils/room';
-import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
-import { UserAvatar } from '$components/user-avatar';
-import {
-  AvatarBase,
-  ModernLayout,
-  RedactedContent,
-  Time,
-  Username,
-  UsernameBold,
-  Reply,
-} from '$components/message';
-import { RenderMessageContent } from '$components/RenderMessageContent';
+import { profilesCacheAtom } from '$state/userRoomProfile';
+import { useRoomMemberHydration } from '$hooks/useRoomMemberHydration';
+import { getMemberDisplayName } from '$utils/room/display';
+import { reactionOrEditEvent } from '$utils/room/relations';
+import { getMxIdLocalPart } from '$utils/matrix';
+import { Chats, chipIcon, composerIcon, MagnifyingGlass, X } from '$components/icons/phosphor';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
-import type { GetContentCallback } from '$types/matrix/room';
-import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
-import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
-import {
-  factoryRenderLinkifyWithMention,
-  getReactCustomHtmlParser,
-  LINKIFY_OPTS,
-  makeMentionCustomProps,
-  renderMatrixMention,
-} from '$plugins/react-custom-html-parser';
+import { MessagePreview, useRoomMessagePreviewRenderer } from '$components/message-preview';
 import { UnreadBadge, UnreadBadgeCenter } from '$components/unread-badge';
-import { EncryptedContent } from './message';
 import * as css from './ThreadDrawer.css';
 import { SidebarResizer } from '$pages/client/sidebar/SidebarResizer';
-import { mobileOrTablet } from '$utils/user-agent';
+import { isMobileOrTablet } from '$utils/platform';
+import { useDismissOnBack } from '$utils/androidBack';
+import { useMatrixEvent } from '$hooks/useMatrixEvent';
 
 type ThreadPreviewProps = {
   room: Room;
@@ -64,58 +31,12 @@ type ThreadPreviewProps = {
 };
 
 function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
-  const mx = useMatrixClient();
-  const useAuthentication = useMediaAuthentication();
   const { navigateRoom } = useRoomNavigate();
   const nicknames = useAtomValue(nicknamesAtom);
-  const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
+  const cachedProfiles = useAtomValue(profilesCacheAtom);
   const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
   const [dateFormatString] = useSetting(settingsAtom, 'dateFormatString');
-  const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
-  const [urlPreview] = useSetting(settingsAtom, 'urlPreview');
-  const mentionClickHandler = useMentionClickHandler(room.roomId);
-  const spoilerClickHandler = useSpoilerClickHandler();
-
-  const linkifyOpts = useMemo<LinkifyOpts>(
-    () => ({
-      ...LINKIFY_OPTS,
-      render: factoryRenderLinkifyWithMention(
-        settingsLinkBaseUrl,
-        (href: string) =>
-          renderMatrixMention(
-            mx,
-            room.roomId,
-            href,
-            makeMentionCustomProps(mentionClickHandler),
-            nicknames
-          ),
-        mentionClickHandler
-      ),
-    }),
-    [mx, room.roomId, nicknames, mentionClickHandler, settingsLinkBaseUrl]
-  );
-
-  const htmlReactParserOptions = useMemo<HTMLReactParserOptions>(
-    () =>
-      getReactCustomHtmlParser(mx, room.roomId, {
-        settingsLinkBaseUrl,
-        linkifyOpts,
-        handleSpoilerClick: spoilerClickHandler,
-        handleMentionClick: mentionClickHandler,
-        useAuthentication,
-        nicknames,
-      }),
-    [
-      mx,
-      room,
-      linkifyOpts,
-      mentionClickHandler,
-      spoilerClickHandler,
-      useAuthentication,
-      nicknames,
-      settingsLinkBaseUrl,
-    ]
-  );
+  const renderContent = useRoomMessagePreviewRenderer(room);
 
   const handleJumpClick: MouseEventHandler = useCallback(
     (evt) => {
@@ -127,15 +48,13 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
   );
 
   const [, forceUnread] = useState(0);
-  useEffect(() => {
-    const onUnread = (_count: unknown, threadId?: string) => {
+  const onUnread = useCallback(
+    (_count: unknown, threadId?: string) => {
       if (!threadId || threadId === thread.id) forceUnread((n) => n + 1);
-    };
-    room.on(RoomEvent.UnreadNotifications, onUnread);
-    return () => {
-      room.off(RoomEvent.UnreadNotifications, onUnread);
-    };
-  }, [room, thread.id]);
+    },
+    [thread.id]
+  );
+  useMatrixEvent(room, RoomEvent.UnreadNotifications, onUnread);
   const unreadTotal = room.getThreadUnreadNotificationCount(thread.id, NotificationCountType.Total);
   const unreadHighlight = room.getThreadUnreadNotificationCount(
     thread.id,
@@ -143,13 +62,13 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
   );
 
   const { rootEvent } = thread;
-  if (!rootEvent) return null;
+  const lastReply = thread.events.findLast(
+    (ev: MatrixEvent) => ev.getId() !== thread.id && !reactionOrEditEvent(ev)
+  );
+  const lastSenderId = lastReply?.getSender() ?? '';
+  useRoomMemberHydration(room, lastSenderId);
 
-  const senderId = rootEvent.getSender() ?? '';
-  const displayName =
-    getMemberDisplayName(room, senderId, nicknames) ?? getMxIdLocalPart(senderId) ?? senderId;
-  const senderAvatarMxc = getMemberAvatarMxc(room, senderId);
-  const getContent = (() => rootEvent.getContent()) as GetContentCallback;
+  if (!rootEvent) return null;
 
   const localReplyCount = thread.events.filter(
     (ev: MatrixEvent) => ev.getId() !== thread.id && !reactionOrEditEvent(ev)
@@ -157,12 +76,9 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
   // Use Math.max so we never show fewer replies than the server reports.
   const replyCount = Math.max(localReplyCount, thread.length ?? 0);
 
-  const lastReply = thread.events.findLast(
-    (ev: MatrixEvent) => ev.getId() !== thread.id && !reactionOrEditEvent(ev)
-  );
-  const lastSenderId = lastReply?.getSender() ?? '';
   const lastDisplayName =
     getMemberDisplayName(room, lastSenderId, nicknames) ??
+    cachedProfiles[lastSenderId]?.displayName ??
     getMxIdLocalPart(lastSenderId) ??
     lastSenderId;
   const lastContent = lastReply?.getContent();
@@ -176,38 +92,11 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
       className={css.ThreadBrowserItem}
       onClick={() => onClick(thread.id)}
     >
-      <ModernLayout
-        before={
-          <AvatarBase>
-            <Avatar size="300">
-              <UserAvatar
-                userId={senderId}
-                src={
-                  senderAvatarMxc
-                    ? (mxcUrlToHttp(mx, senderAvatarMxc, useAuthentication, 48, 48, 'crop') ??
-                      undefined)
-                    : undefined
-                }
-                alt={displayName}
-                renderFallback={() => <Icon size="200" src={Icons.User} filled />}
-              />
-            </Avatar>
-          </AvatarBase>
-        }
-      >
-        <Box gap="300" justifyContent="SpaceBetween" alignItems="Center" grow="Yes">
-          <Box gap="200" alignItems="Baseline">
-            <Username>
-              <Text as="span" truncate>
-                <UsernameBold>{displayName}</UsernameBold>
-              </Text>
-            </Username>
-            <Time
-              ts={rootEvent.getTs()}
-              hour24Clock={hour24Clock}
-              dateFormatString={dateFormatString}
-            />
-          </Box>
+      <MessagePreview
+        room={room}
+        event={rootEvent}
+        renderContent={renderContent}
+        actions={
           <Box shrink="No" alignItems="Center" gap="200">
             {unreadTotal > 0 && (
               <UnreadBadgeCenter>
@@ -218,62 +107,32 @@ function ThreadPreview({ room, thread, onClick, onJump }: ThreadPreviewProps) {
               <Text size="T200">Jump</Text>
             </Chip>
           </Box>
-        </Box>
-        {rootEvent.replyEventId && (
-          <Reply
-            room={room}
-            replyEventId={rootEvent.replyEventId}
-            threadRootId={rootEvent.threadRootId}
-            mentions={rootEvent.getContent()['m.mentions']}
-            onClick={handleJumpClick}
-          />
-        )}
-        <Box style={{ maxHeight: '200px', overflow: 'auto', flexShrink: 0 }}>
-          <EncryptedContent mEvent={rootEvent}>
-            {() => {
-              if (rootEvent.isRedacted()) {
-                return <RedactedContent />;
-              }
-
-              return (
-                <RenderMessageContent
-                  displayName={displayName}
-                  msgType={rootEvent.getContent().msgtype ?? ''}
-                  ts={rootEvent.getTs()}
-                  getContent={getContent}
-                  edited={!!rootEvent.replacingEvent()}
-                  mediaAutoLoad={mediaAutoLoad}
-                  urlPreview={urlPreview}
-                  htmlReactParserOptions={htmlReactParserOptions}
-                  linkifyOpts={linkifyOpts}
-                  outlineAttachment
-                />
-              );
-            }}
-          </EncryptedContent>
-        </Box>
-        {replyCount > 0 && (
-          <Box gap="100" alignItems="Center" style={{ marginTop: config.space.S200 }}>
-            <Text size="T200" priority="300" style={{ flexShrink: 0 }}>
-              {replyCount} {replyCount === 1 ? 'reply' : 'replies'}
+        }
+        onOpen={handleJumpClick}
+        hour24Clock={hour24Clock}
+        dateFormatString={dateFormatString}
+      />
+      {replyCount > 0 && (
+        <Box gap="100" alignItems="Center" style={{ marginTop: config.space.S200 }}>
+          <Text size="T200" priority="300" style={{ flexShrink: 0 }}>
+            {replyCount} {replyCount === 1 ? 'reply' : 'replies'}
+          </Text>
+          {lastReply && lastBody && (
+            <Text
+              size="T200"
+              priority="300"
+              style={{
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+                minWidth: 0,
+              }}
+            >
+              · {lastDisplayName}: {lastBody.slice(0, 60)}
             </Text>
-            {lastReply && lastBody && (
-              <Text
-                size="T200"
-                priority="300"
-                style={{
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                  minWidth: 0,
-                }}
-              >
-                · {lastDisplayName}: {lastBody.slice(0, 60)}
-              </Text>
-            )}
-          </Box>
-        )}
-      </ModernLayout>
+          )}
+        </Box>
+      )}
     </Box>
   );
 }
@@ -296,6 +155,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
   const loadingMoreRef = useRef(false);
   const canLoadMoreRef = useRef(false);
   canLoadMoreRef.current = canLoadMore;
+  useDismissOnBack(onClose);
 
   // On mount, set up thread event listeners, create the server-side thread
   // timeline sets, then fetch page 1 via paginate.  The two operations are
@@ -457,7 +317,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
         width: overlay ? '100%' : toRem(curWidth),
       }}
     >
-      {!mobileOrTablet() && (
+      {!isMobileOrTablet() && (
         <SidebarResizer
           setCurWidth={setCurWidth}
           sidebarWidth={threadSidebarWidth}
@@ -469,7 +329,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
       )}
       <Header className={css.ThreadDrawerHeader} variant="Background" size="600">
         <Box grow="Yes" alignItems="Center" gap="200">
-          <Icon size="200" src={Icons.Thread} />
+          {composerIcon(Chats)}
           <Text size="H4" truncate>
             Threads
           </Text>
@@ -482,7 +342,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
             radii="300"
             aria-label="Close threads"
           >
-            <Icon size="200" src={Icons.Cross} />
+            {composerIcon(X)}
           </IconButton>
         </Box>
       </Header>
@@ -501,7 +361,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
           variant="Surface"
           size="400"
           radii="400"
-          before={<Icon size="50" src={Icons.Search} />}
+          before={chipIcon(MagnifyingGlass)}
           after={
             query ? (
               <IconButton
@@ -514,7 +374,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
                 }}
                 aria-label="Clear search"
               >
-                <Icon size="50" src={Icons.Cross} />
+                {chipIcon(X)}
               </IconButton>
             ) : undefined
           }
@@ -550,7 +410,7 @@ export function ThreadBrowser({ room, onOpenThread, onClose, overlay }: ThreadBr
                   justifyContent="Center"
                   style={{ padding: config.space.S400, gap: config.space.S200 }}
                 >
-                  <Icon size="400" src={Icons.Thread} />
+                  {composerIcon(Chats, { style: { opacity: 0.6 } })}
                   <Text size="T300" align="Center">
                     {lowerQuery ? 'No threads match your search.' : 'No threads yet.'}
                   </Text>

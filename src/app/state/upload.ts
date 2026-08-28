@@ -4,7 +4,7 @@ import type { MatrixClient, UploadResponse, UploadProgress, MatrixError } from '
 import { useCallback } from 'react';
 import { useThrottle } from '$hooks/useThrottle';
 import type { TUploadContent } from '$utils/matrix';
-import { uploadContent } from '$utils/matrix';
+import { cancelUploadContent, uploadContent } from '$utils/matrix';
 
 export enum UploadStatus {
   Idle = 'idle',
@@ -39,7 +39,7 @@ export type UploadError = {
 
 export type Upload = UploadIdle | UploadLoading | UploadSuccess | UploadError;
 
-export type UploadAtomAction =
+type UploadAtomAction =
   | {
       promise: Promise<UploadResponse>;
     }
@@ -125,7 +125,7 @@ export const useBindUploadAtom = (
 
   const cancelUpload = useCallback(() => {
     if (upload.status === UploadStatus.Loading) {
-      mx.cancelUpload(upload.promise);
+      cancelUploadContent(mx, upload.promise);
     }
   }, [mx, upload]);
 

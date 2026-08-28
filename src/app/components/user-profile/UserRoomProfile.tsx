@@ -1,24 +1,24 @@
-import {
-  Box,
-  Button,
-  color,
-  config,
-  Icon,
-  Icons,
-  Menu,
-  MenuItem,
-  Scroll,
-  Text,
-  toRem,
-} from 'folds';
-import type { CSSProperties, SyntheticEvent } from 'react';
-import { useCallback, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Box, Button, color, config, Menu, MenuItem, Scroll, Text, toRem } from 'folds';
+import type { Position, RectCords } from 'folds';
+import type { CSSProperties } from 'react';
+import { useLayoutEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router';
 import { useAtomValue } from 'jotai';
 import type { Opts as LinkifyOpts } from 'linkifyjs';
 import type { HTMLReactParserOptions } from 'html-react-parser';
+import {
+  ArrowLeft,
+  ArrowRight,
+  CaretDown,
+  CaretUp,
+  ChatCircle,
+  Clock,
+  Heart,
+  profileIcon,
+  User,
+} from '$components/icons/phosphor';
 import { mxcUrlToHttp } from '$utils/matrix';
-import { getMemberAvatarMxc, getMemberDisplayName } from '$utils/room';
+import { getMemberAvatarMxc, getMemberDisplayName } from '$utils/room/display';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { usePowerLevels } from '$hooks/usePowerLevels';
@@ -27,6 +27,7 @@ import { useUserPresence } from '$hooks/useUserPresence';
 import { useCloseUserRoomProfile } from '$state/hooks/userRoomProfile';
 import { useIgnoredUsers } from '$hooks/useIgnoredUsers';
 import { useMembership } from '$hooks/useMembership';
+import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
@@ -60,8 +61,12 @@ import { PowerChip } from './PowerChip';
 import { IgnoredUserAlert, MutualRoomsChip, OptionsChip, ServerChip, ShareChip } from './UserChips';
 import { UserHero, UserHeroName } from './UserHero';
 import { KnownMembership } from '$types/matrix-sdk';
+import { useRoomMemberHydration } from '$hooks/useRoomMemberHydration';
+import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
 import * as css from './styles.css';
 import * as prefix from '$unstable/prefixes';
+import type { Persona } from '$app/persona';
+import { usePersonaCosmetics } from '$hooks/usePerMessageProfile';
 
 const KNOWN_KEYS = new Set([
   prefix.MATRIX_SABLE_UNSTABLE_PROFILE_BIOGRAPHY_PROPERTY_NAME,
@@ -71,6 +76,7 @@ const KNOWN_KEYS = new Set([
   prefix.MATRIX_UNSTABLE_PROFILE_PRONOUNS_PROPERTY_NAME,
   prefix.MATRIX_UNSTABLE_PROFILE_TIMEZONE_PROPERTY_NAME,
   prefix.MATRIX_STABLE_PROFILE_TIMEZONE_PROPERTY_NAME,
+  prefix.MATRIX_UNSTABLE_COLORS,
   prefix.MATRIX_SABLE_UNSTABLE_NAME_COLOR_PROPERTY_NAME,
   'avatar_url',
   'displayname',
@@ -80,6 +86,7 @@ const KNOWN_KEYS = new Set([
 
 type UserExtendedSectionProps = {
   profile: UserProfile;
+  pmp?: Persona;
   htmlReactParserOptions: HTMLReactParserOptions;
   linkifyOpts: LinkifyOpts;
   innerColor?: string;
@@ -96,6 +103,7 @@ const renderValue = (val: unknown) => {
 
 function UserExtendedSection({
   profile,
+  pmp,
   htmlReactParserOptions,
   linkifyOpts,
   innerColor,
@@ -104,24 +112,31 @@ function UserExtendedSection({
 }: Readonly<UserExtendedSectionProps>) {
   const [showMisc, setShowMisc] = useState(false);
   const [miscDataIndex, setMiscDataIndex] = useState(-1);
+  const screenSize = useScreenSizeContext();
 
   const [renderAnimals] = useSetting(settingsAtom, 'renderAnimals');
+  const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
+
   const isCat = profile.isCat === true;
   const hasCats = profile.hasCats === true;
+  const isAnimal = profile.isAnimal ?? (isCat && 'cat');
+  const hasAnimal = profile.hasAnimal ?? (hasCats && 'cats');
+  const animalNeed = profile.animalNeed ?? 'headpats';
 
   const catStatusText = useMemo(() => {
     if (!renderAnimals) return null;
-    if (isCat && hasCats) return 'Cat with cats—needs pets & love!';
-    if (isCat) return 'Is a cat—give pets & love!';
-    if (hasCats) return 'Has cats—send love!';
+    const animalGive = animalNeed ? `, give ${animalNeed}!` : '!';
+    if (isAnimal && hasAnimal) return `${isAnimal} with ${hasAnimal}${animalGive}`;
+    if (isAnimal) return `Is ${isAnimal}${animalGive}`;
+    if (hasAnimal) return `Has ${hasAnimal}${animalGive}`;
     return null;
-  }, [renderAnimals, isCat, hasCats]);
+  }, [renderAnimals, isAnimal, hasAnimal, animalNeed]);
 
   const languageFilterEnabled = getSettings().filterPronounsBasedOnLanguage ?? false;
   const languagesToFilterFor = getSettings().filterPronounsLanguages ?? ['en'];
 
   const pronouns = filterPronounsByLanguage(
-    profile.pronouns,
+    pmp?.['io.fsky.nyx.pronouns'] ?? profile.pronouns,
     languageFilterEnabled,
     languagesToFilterFor
   )
@@ -135,11 +150,12 @@ function UserExtendedSection({
         hour: 'numeric',
         minute: '2-digit',
         timeZone: profile.timezone.replaceAll(/^["']|["']$/g, ''),
+        hour12: !hour24Clock,
       }).format(new Date());
     } catch {
       return null;
     }
-  }, [profile.timezone]);
+  }, [profile.timezone, hour24Clock]);
 
   const bioContent = useMemo(() => {
     let rawBio =
@@ -190,7 +206,10 @@ function UserExtendedSection({
         style={{
           position: 'absolute',
           zIndex: '100',
-          transform: `translateY(${toRem(32)})`,
+          transform:
+            screenSize === ScreenSize.Mobile && unknownFields.length > 1
+              ? `translateY(calc(-100% - ${toRem(32)}))`
+              : `translateY(${toRem(32)})`,
           backgroundColor: innerColor,
         }}
       >
@@ -206,7 +225,7 @@ function UserExtendedSection({
           }}
           onClick={() => handleMiscSelector(-1)}
         >
-          <Icon src={Icons.ChevronTop} size="50" />
+          {profileIcon(CaretUp)}
           <Text>Show less</Text>
         </MenuItem>
         {unknownFields.map(([key], index) => (
@@ -223,7 +242,7 @@ function UserExtendedSection({
         ))}
       </Menu>
     );
-  }, [cardColor, innerColor, miscDataIndex, showMisc, textColor, unknownFields]);
+  }, [cardColor, innerColor, miscDataIndex, screenSize, showMisc, textColor, unknownFields]);
   const miscHeader = useMemo(
     () => (
       <Box justifyContent="Center" grow="Yes">
@@ -232,9 +251,7 @@ function UserExtendedSection({
           size="300"
           className={css.MiscDataToggleButton}
           onClick={() => setShowMisc(!showMisc)}
-          after={
-            <Icon size="50" src={miscDataIndex === -1 ? Icons.ChevronBottom : Icons.ChevronTop} />
-          }
+          after={profileIcon(miscDataIndex === -1 ? CaretDown : CaretUp)}
           style={{
             padding: '1rem',
             justifyContent: 'flex-start',
@@ -256,11 +273,11 @@ function UserExtendedSection({
   );
   return (
     <Box direction="Column" gap="200" style={{ marginBottom: config.space.S100, color: textColor }}>
-      {(pronouns || localTime) && (
+      {(pronouns || localTime || catStatusText) && (
         <Box alignItems="Center" gap="300" wrap="Wrap">
           {pronouns && (
             <Box alignItems="Center" gap="100">
-              <Icon size="50" src={Icons.User} style={{ opacity: 0.5 }} />
+              {profileIcon(User, { style: { opacity: 0.5 } })}
               <Text size="T200" priority="400">
                 {pronouns}
               </Text>
@@ -268,7 +285,7 @@ function UserExtendedSection({
           )}
           {localTime && profile.timezone && (
             <Box alignItems="Center" gap="100">
-              <Icon size="50" src={Icons.Clock} style={{ opacity: 0.5 }} />
+              {profileIcon(Clock, { style: { opacity: 0.5 } })}
               <Text size="T200" priority="400">
                 {localTime} ({profile.timezone.replaceAll(/^["']|["']$/g, '')})
               </Text>
@@ -276,7 +293,7 @@ function UserExtendedSection({
           )}
           {catStatusText && (
             <Box alignItems="Center" gap="100">
-              <Icon size="50" src={Icons.Heart} style={{ opacity: 0.5 }} />
+              {profileIcon(Heart, { style: { opacity: 0.5 } })}
               <Text size="T200" priority="400">
                 {catStatusText}
               </Text>
@@ -345,7 +362,7 @@ function UserExtendedSection({
                     }
                     style={{ color: textColor }}
                   >
-                    <Icon src={Icons.ArrowLeft} size="50" />
+                    {profileIcon(ArrowLeft)}
                   </Button>
                 )}
                 {miscHeader}
@@ -357,7 +374,7 @@ function UserExtendedSection({
                     onClick={() => setMiscDataIndex((miscDataIndex + 1) % unknownFields.length)}
                     style={{ color: textColor }}
                   >
-                    <Icon src={Icons.ArrowRight} size="50" />
+                    {profileIcon(ArrowRight)}
                   </Button>
                 )}
               </Box>
@@ -398,9 +415,20 @@ function UserExtendedSection({
 
 type UserRoomProfileProps = {
   userId: string;
+  pmp?: Persona;
   initialProfile?: Partial<UserProfile>;
+  onSurfaceColorChange?: (color: string) => void;
+  anchor: RectCords;
+  position?: Position;
 };
-export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomProfileProps>) {
+export function UserRoomProfile({
+  userId,
+  pmp: initialPmp,
+  initialProfile,
+  onSurfaceColorChange,
+  anchor,
+  position,
+}: Readonly<UserRoomProfileProps>) {
   const theme = useTheme();
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
@@ -436,9 +464,6 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
   const server = getMxIdServer(userId);
   const nicknames = useAtomValue(nicknamesAtom);
   const displayName = getMemberDisplayName(room, userId, nicknames);
-  const avatarMxc = getMemberAvatarMxc(room, userId);
-  const avatarUrl = (avatarMxc && mxcUrlToHttp(mx, avatarMxc, useAuthentication)) ?? undefined;
-
   const presence = useUserPresence(userId);
 
   const fetchedProfile = useUserProfile(userId, room);
@@ -446,6 +471,20 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
     fetchedProfile && Object.keys(fetchedProfile).length > 0
       ? fetchedProfile
       : (initialProfile as UserProfile) || fetchedProfile;
+
+  useRoomMemberHydration(room, userId);
+
+  const [pmp, setPmp] = useState(initialPmp);
+  const { avatarUrl: getPmpAvatarUrl } = usePersonaCosmetics(mx, false);
+  const pmpAvatarUrl = pmp?.avatar_url ? getPmpAvatarUrl?.(pmp) : null;
+
+  const handleClearPmp = () => {
+    setPmp(undefined);
+  };
+
+  const avatarMxc = getMemberAvatarMxc(room, userId) ?? extendedProfile.avatarUrl;
+  const avatarUrl =
+    pmpAvatarUrl ?? (avatarMxc && mxcUrlToHttp(mx, avatarMxc, useAuthentication)) ?? undefined;
 
   const parsedBanner =
     typeof extendedProfile.bannerUrl === 'string'
@@ -464,10 +503,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
     navigate(withSearchParam(getDirectCreatePath(), directSearchParam));
   };
 
-  // Todo eventually maybe
-  const mentionClickHandler = useCallback((e: SyntheticEvent<HTMLElement>) => {
-    e.preventDefault();
-  }, []);
+  const mentionClickHandler = useMentionClickHandler(room.roomId, anchor, position);
   const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
 
   const linkifyOpts = useMemo<LinkifyOpts>(
@@ -498,11 +534,25 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
         linkifyOpts,
         useAuthentication,
         handleSpoilerClick: spoilerClickHandler,
+        handleMentionClick: mentionClickHandler,
       }),
-    [mx, room, linkifyOpts, settingsLinkBaseUrl, useAuthentication, spoilerClickHandler]
+    [
+      mx,
+      room,
+      linkifyOpts,
+      settingsLinkBaseUrl,
+      useAuthentication,
+      spoilerClickHandler,
+      mentionClickHandler,
+    ]
   );
 
   const backgroundColor = fetchedProfile.heroColor ?? color.Surface.Container;
+
+  useLayoutEffect(() => {
+    onSurfaceColorChange?.(backgroundColor);
+  }, [backgroundColor, onSurfaceColorChange]);
+
   const fetchedBrightness = fetchedProfile?.heroBrightness;
   const isBackgroundDark = fetchedBrightness ? fetchedBrightness === 'dark' : undefined;
   const innerColor = shadeColor(backgroundColor, isBackgroundDark ? -50 : 50);
@@ -553,7 +603,16 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
       };
 
   return (
-    <Box direction="Column" style={{ color: textColor }}>
+    <Box
+      direction="Column"
+      style={{
+        color: textColor,
+        maxHeight: 'calc(85vh - 2rem)',
+        overflowY: 'auto',
+        overscrollBehavior: 'contain',
+        touchAction: 'pan-y',
+      }}
+    >
       <UserHero
         userId={userId}
         avatarUrl={avatarUrl}
@@ -579,11 +638,14 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
             padding: showCustomHeroCard && innerColor ? config.space.S200 : config.space.S300,
           }}
         >
-          <Box gap="200" alignItems="Center" wrap="Wrap">
+          <Box gap="200" alignItems="Center" wrap="Wrap" style={{ color: textColor }}>
             <UserHeroName
-              displayName={displayName}
+              displayName={pmp?.displayname ?? displayName}
               userId={userId}
               customHeroCards={showCustomHeroCard}
+              server={server}
+              pmp={pmp}
+              clearPmp={handleClearPmp}
             />
             {userId !== myUserId && (
               <Button
@@ -591,7 +653,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
                 variant="Primary"
                 fill="Solid"
                 radii="300"
-                before={<Icon size="50" src={Icons.Message} filled />}
+                before={profileIcon(ChatCircle, { filled: true })}
                 onClick={handleMessage}
                 className={showCustomHeroCard ? css.UserHeroChipThemed : css.UserHeroChip}
                 style={{
@@ -606,6 +668,7 @@ export function UserRoomProfile({ userId, initialProfile }: Readonly<UserRoomPro
           </Box>
           <UserExtendedSection
             profile={extendedProfile}
+            pmp={pmp}
             htmlReactParserOptions={htmlReactParserOptions}
             linkifyOpts={linkifyOpts}
             innerColor={innerColor}

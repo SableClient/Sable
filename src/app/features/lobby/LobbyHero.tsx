@@ -1,5 +1,4 @@
-import { Avatar, Overlay, OverlayBackdrop, OverlayCenter, Text } from 'folds';
-import FocusTrap from 'focus-trap-react';
+import { Avatar, Text } from 'folds';
 import { useRoomAvatar, useRoomName, useRoomTopic } from '$hooks/useRoomMeta';
 import { useSpace } from '$hooks/useSpace';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -8,10 +7,11 @@ import { nameInitials } from '$utils/common';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { RoomTopicViewer } from '$components/room-topic-viewer';
 import { PageHero } from '$components/page';
-import { onEnterOrSpace, stopPropagation } from '$utils/keyboard';
+import { onEnterOrSpace } from '$utils/keyboard';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import * as css from './LobbyHero.css';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 export function LobbyHero() {
   const mx = useMatrixClient();
@@ -43,24 +43,13 @@ export function LobbyHero() {
           <UseStateProvider initial={false}>
             {(viewTopic, setViewTopic) => (
               <>
-                <Overlay open={viewTopic} backdrop={<OverlayBackdrop />}>
-                  <OverlayCenter>
-                    <FocusTrap
-                      focusTrapOptions={{
-                        initialFocus: false,
-                        clickOutsideDeactivates: true,
-                        onDeactivate: () => setViewTopic(false),
-                        escapeDeactivates: stopPropagation,
-                      }}
-                    >
-                      <RoomTopicViewer
-                        name={name}
-                        topic={topic}
-                        requestClose={() => setViewTopic(false)}
-                      />
-                    </FocusTrap>
-                  </OverlayCenter>
-                </Overlay>
+                <ModalOverlay open={viewTopic} requestClose={() => setViewTopic(false)}>
+                  <RoomTopicViewer
+                    name={name}
+                    topic={topic}
+                    requestClose={() => setViewTopic(false)}
+                  />
+                </ModalOverlay>
                 <Text
                   as="span"
                   onClick={() => setViewTopic(true)}

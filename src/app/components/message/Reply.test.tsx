@@ -44,6 +44,11 @@ vi.mock('$hooks/useSableCosmetics', () => ({
   useSableCosmetics: () => ({ color: undefined, font: undefined }),
 }));
 
+vi.mock('$hooks/useTheme', () => ({
+  ThemeKind: { Light: 'light', Dark: 'dark' },
+  useActiveTheme: () => ({ kind: 'light' }),
+}));
+
 vi.mock('$hooks/useMediaAuthentication', () => ({
   useMediaAuthentication: () => false,
 }));
@@ -75,7 +80,7 @@ vi.mock('$features/settings/useSettingsLinkBaseUrl', () => ({
   useSettingsLinkBaseUrl: () => 'https://app.sable.moe',
 }));
 
-vi.mock('$utils/room', async (importActual) => {
+vi.mock('$utils/room/display', async (importActual) => {
   const actual = (await importActual()) as object;
   return {
     ...actual,

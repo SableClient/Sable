@@ -1,73 +1,112 @@
-import type { ReactNode } from 'react';
-import { motion, useMotionValue, useSpring } from 'framer-motion';
-import { useDrag } from '@use-gesture/react';
-import { useAtomValue } from 'jotai';
+import { useCallback, useLayoutEffect, useRef, type ReactNode } from 'react';
+import {
+  getTranslateX,
+  NATIVE_EASE_OUT,
+  setTranslateX,
+  transitionTo,
+} from '$utils/nativeAnimation';
+import { useSetting } from '$state/hooks/settings';
 import { settingsAtom, RightSwipeAction } from '$state/settings';
-import { mobileOrTablet } from '$utils/user-agent';
+import { haptic } from '$utils/haptics';
+import { isMobileOrTablet } from '$utils/platform';
+import { useMobileNavDrawer } from '$components/page/MobileNavDrawerContext';
 
 interface SwipeableChatWrapperProps {
   children: ReactNode;
-  onOpenSidebar?: () => void;
   onOpenMembers?: () => void;
   onReply?: () => void;
 }
 
+const SETTLE_MS = 220;
+const SETTLE_TRANSITION = `transform ${SETTLE_MS}ms ${NATIVE_EASE_OUT}`;
+
 export function SwipeableChatWrapper({
   children,
-  onOpenSidebar,
   onOpenMembers,
   onReply,
 }: SwipeableChatWrapperProps) {
-  const settings = useAtomValue(settingsAtom);
-  const x = useMotionValue(0);
-  const springX = useSpring(x, { stiffness: 400, damping: 40 });
+  const [rightSwipeAction] = useSetting(settingsAtom, 'rightSwipeAction');
+  const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const xRef = useRef(0);
+  const gestureActiveRef = useRef(false);
+  const settleRef = useRef<{ cancel: () => void } | undefined>(undefined);
+  const drawer = useMobileNavDrawer();
 
-  const bind = useDrag(
-    ({ active, movement: [mx], velocity: [vx], direction: [dx], event: e }) => {
-      if (e && 'target' in e && e.target instanceof HTMLElement) {
-        if (e.target.closest('[data-gestures="ignore"]')) {
-          return;
-        }
+  const setOffset = useCallback((value: number) => {
+    xRef.current = value;
+    if (contentRef.current) setTranslateX(contentRef.current, value);
+  }, []);
+
+  const cancelSettle = useCallback(() => {
+    const element = contentRef.current;
+    const liveOffset = element ? getTranslateX(element, xRef.current) : xRef.current;
+    settleRef.current?.cancel();
+    settleRef.current = undefined;
+    if (element) element.style.transition = 'none';
+    setOffset(liveOffset);
+  }, [setOffset]);
+
+  const settleToRest = useCallback(() => {
+    const element = contentRef.current;
+    if (!element) return;
+    cancelSettle();
+    settleRef.current = transitionTo(
+      element,
+      SETTLE_TRANSITION,
+      () => setOffset(0),
+      SETTLE_MS,
+      () => {
+        settleRef.current = undefined;
+      }
+    );
+  }, [cancelSettle, setOffset]);
+
+  const move = useCallback(
+    (distanceX: number) => {
+      if (!gestureActiveRef.current) {
+        gestureActiveRef.current = true;
+        cancelSettle();
       }
 
-      if (!settings.mobileGestures || !mobileOrTablet()) return;
+      if (!isMobileOrTablet()) return;
 
-      let val = mx;
-
-      const canSwipeRight = !!onOpenSidebar;
       const canSwipeLeft =
-        settings.rightSwipeAction === RightSwipeAction.Members ? !!onOpenMembers : !!onReply;
-
-      if (!canSwipeRight && val > 0) val = 0;
-      if (!canSwipeLeft && val < 0) val = 0;
-
-      if (active) {
-        x.set(val);
-      } else {
-        const swipeThreshold = 120;
-        const velocityThreshold = 0.5;
-
-        if (val > swipeThreshold || (vx > velocityThreshold && dx > 0 && val > 0)) {
-          onOpenSidebar?.();
-        } else if (val < -swipeThreshold || (vx > velocityThreshold && dx < 0 && val < 0)) {
-          if (settings.rightSwipeAction === RightSwipeAction.Members) {
-            onOpenMembers?.();
-          } else {
-            onReply?.();
-          }
-        }
-        x.set(0);
-      }
+        rightSwipeAction === RightSwipeAction.Members ? !!onOpenMembers : !!onReply;
+      setOffset(canSwipeLeft ? Math.max(-200, Math.min(0, distanceX)) : 0);
     },
-    {
-      axis: 'x',
-      bounds: { left: -200, right: 200 },
-      rubberband: true,
-      filterTaps: true,
-    }
+    [cancelSettle, onOpenMembers, onReply, rightSwipeAction, setOffset]
   );
 
-  if (!settings.mobileGestures || !mobileOrTablet()) {
+  const finish = useCallback(
+    (commit: boolean, distanceX = 0, velocityX = 0) => {
+      if (commit && (distanceX < -120 || velocityX < -0.5)) {
+        haptic('light');
+        if (rightSwipeAction === RightSwipeAction.Members) {
+          onOpenMembers?.();
+        } else {
+          onReply?.();
+        }
+      }
+
+      gestureActiveRef.current = false;
+      settleToRest();
+    },
+    [onOpenMembers, onReply, rightSwipeAction, settleToRest]
+  );
+
+  useLayoutEffect(() => {
+    const element = containerRef.current;
+    if (!drawer || !element || !isMobileOrTablet()) return undefined;
+
+    return drawer.registerChatSwipe(element, {
+      move,
+      end: ({ distanceX, velocityX }) => finish(true, distanceX, velocityX),
+      cancel: () => finish(false),
+    });
+  }, [drawer, finish, move]);
+
+  if (!isMobileOrTablet()) {
     return (
       <div
         style={{
@@ -85,9 +124,9 @@ export function SwipeableChatWrapper({
 
   return (
     <div
-      {...bind()}
+      ref={containerRef}
+      data-chat-swipe
       style={{
-        touchAction: 'pan-y',
         overflow: 'hidden',
         display: 'flex',
         flexDirection: 'column',
@@ -96,17 +135,19 @@ export function SwipeableChatWrapper({
         width: '100%',
       }}
     >
-      <motion.div
+      <div
+        ref={contentRef}
         style={{
-          x: springX,
+          transform: 'translate3d(0, 0, 0)',
           display: 'flex',
           flexDirection: 'column',
           flexGrow: 1,
           height: '100%',
+          willChange: 'transform',
         }}
       >
         {children}
-      </motion.div>
+      </div>
     </div>
   );
 }

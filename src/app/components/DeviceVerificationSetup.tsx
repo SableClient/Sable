@@ -1,22 +1,11 @@
 import type { FormEventHandler } from 'react';
 import { forwardRef, useCallback, useState } from 'react';
-import {
-  Dialog,
-  Header,
-  Box,
-  Text,
-  IconButton,
-  Icon,
-  Icons,
-  config,
-  Button,
-  Chip,
-  color,
-  Spinner,
-} from 'folds';
-import FileSaver from 'file-saver';
+import { Dialog, Header, Box, Text, IconButton, config, Chip } from 'folds';
+import { AsyncError } from '$components/AsyncError';
+import { composerIcon, X } from '$components/icons/phosphor';
+import { saveFileToDevice } from '$utils/download';
 import to from 'await-to-js';
-import type { AuthDict, IAuthData, UIAuthCallback } from '$types/matrix-sdk';
+import type { AuthDict, IAuthData, UIAuthCallback, UIAFlow } from '$types/matrix-sdk';
 import { MatrixError } from '$types/matrix-sdk';
 import { clearSecretStorageKeys } from '$client/secretStorageKeys';
 import { ContainerColor } from '$styles/ContainerColor.css';
@@ -27,6 +16,7 @@ import { useAlive } from '$hooks/useAlive';
 import { PasswordInput } from './password-input';
 import { ActionUIA, ActionUIAFlowsLoader } from './ActionUIA';
 import { UseStateProvider } from './UseStateProvider';
+import { Button } from '$components/button';
 
 type UIACallback<T> = (
   authDict: AuthDict | null
@@ -69,10 +59,37 @@ function makeUIAAction<T>(
   return action;
 }
 
+function renderUnsupportedUIAFlow() {
+  return (
+    <Text size="T200">
+      Authentication steps to perform this action are not supported by client.
+    </Text>
+  );
+}
+
+type SetupVerificationUIAProps = {
+  authData: IAuthData;
+  ongoingFlow: UIAFlow;
+  action: (authDict: AuthDict) => void;
+  onCancel: () => void;
+};
+
+function SetupVerificationUIA({
+  authData,
+  ongoingFlow,
+  action,
+  onCancel,
+}: SetupVerificationUIAProps) {
+  return (
+    <ActionUIA authData={authData} ongoingFlow={ongoingFlow} action={action} onCancel={onCancel} />
+  );
+}
+
 type SetupVerificationProps = {
   onComplete: (recoveryKey: string) => void;
+  reset?: boolean;
 };
-function SetupVerification({ onComplete }: Readonly<SetupVerificationProps>) {
+function SetupVerification({ onComplete, reset }: Readonly<SetupVerificationProps>) {
   const mx = useMatrixClient();
   const alive = useAlive();
 
@@ -147,21 +164,27 @@ function SetupVerification({ onComplete }: Readonly<SetupVerificationProps>) {
         }
         clearSecretStorageKeys();
 
-        await crypto.bootstrapSecretStorage({
-          createSecretStorageKey: async () => recoveryKeyData,
-          setupNewSecretStorage: true,
-        });
-
-        await crypto.bootstrapCrossSigning({
-          authUploadDeviceSigningKeys,
-          setupNewCrossSigning: true,
-        });
-
-        await crypto.resetKeyBackup();
+        if (reset) {
+          await crypto.resetEncryption(authUploadDeviceSigningKeys);
+          await crypto.bootstrapSecretStorage({
+            createSecretStorageKey: async () => recoveryKeyData,
+            setupNewSecretStorage: true,
+          });
+        } else {
+          await crypto.bootstrapSecretStorage({
+            createSecretStorageKey: async () => recoveryKeyData,
+            setupNewSecretStorage: true,
+          });
+          await crypto.bootstrapCrossSigning({
+            authUploadDeviceSigningKeys,
+            setupNewCrossSigning: true,
+          });
+          await crypto.resetKeyBackup();
+        }
 
         onComplete(recoveryKeyData.encodedPrivateKey);
       },
-      [mx, onComplete, authUploadDeviceSigningKeys]
+      [mx, onComplete, authUploadDeviceSigningKeys, reset]
     )
   );
 
@@ -181,6 +204,21 @@ function SetupVerification({ onComplete }: Readonly<SetupVerificationProps>) {
     setup(passphrase);
   };
 
+  const renderSetupVerificationUIA = useCallback(
+    (ongoingFlow: UIAFlow) => {
+      if (!uiaAction) return null;
+      return (
+        <SetupVerificationUIA
+          authData={nextAuthData ?? uiaAction.authData}
+          ongoingFlow={ongoingFlow}
+          action={handleAction}
+          onCancel={uiaAction.cancelCallback}
+        />
+      );
+    },
+    [uiaAction, nextAuthData, handleAction]
+  );
+
   return (
     <Box as="form" onSubmit={handleSubmit} direction="Column" gap="400">
       <Text size="T300">
@@ -191,35 +229,16 @@ function SetupVerification({ onComplete }: Readonly<SetupVerificationProps>) {
         <Text size="L400">Passphrase (Optional)</Text>
         <PasswordInput name="passphraseInput" size="400" readOnly={loading} />
       </Box>
-      <Button
-        type="submit"
-        disabled={loading}
-        before={loading && <Spinner size="200" variant="Primary" fill="Solid" />}
-      >
+      <Button type="submit" loading={loading} spinnerSize="200" spinnerVariant="Primary">
         <Text size="B400">Continue</Text>
       </Button>
-      {setupState.status === AsyncStatus.Error && (
-        <Text size="T200" style={{ color: color.Critical.Main }}>
-          <b>{setupState.error ? setupState.error.message : 'Unexpected Error!'}</b>
-        </Text>
-      )}
+      <AsyncError state={setupState} bold />
       {nextAuthData !== null && uiaAction && (
         <ActionUIAFlowsLoader
           authData={nextAuthData ?? uiaAction.authData}
-          unsupported={() => (
-            <Text size="T200">
-              Authentication steps to perform this action are not supported by client.
-            </Text>
-          )}
+          unsupported={renderUnsupportedUIAFlow}
         >
-          {(ongoingFlow) => (
-            <ActionUIA
-              authData={nextAuthData ?? uiaAction.authData}
-              ongoingFlow={ongoingFlow}
-              action={handleAction}
-              onCancel={uiaAction.cancelCallback}
-            />
-          )}
+          {renderSetupVerificationUIA}
         </ActionUIAFlowsLoader>
       )}
     </Box>
@@ -240,7 +259,7 @@ function RecoveryKeyDisplay({ recoveryKey }: Readonly<RecoveryKeyDisplayProps>) 
     const blob = new Blob([recoveryKey], {
       type: 'text/plain;charset=us-ascii',
     });
-    FileSaver.saveAs(blob, 'recovery-key.txt');
+    void saveFileToDevice(blob, 'recovery-key.txt');
   };
 
   const safeToDisplayKey = show ? recoveryKey : recoveryKey.replaceAll(/[^\s]/g, '*');
@@ -304,7 +323,7 @@ export const DeviceVerificationSetup = forwardRef<HTMLDivElement, DeviceVerifica
             <Text size="H4">Setup Device Verification</Text>
           </Box>
           <IconButton size="300" radii="300" onClick={onCancel}>
-            <Icon src={Icons.Cross} />
+            {composerIcon(X)}
           </IconButton>
         </Header>
         <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
@@ -339,7 +358,7 @@ export const DeviceVerificationReset = forwardRef<HTMLDivElement, DeviceVerifica
             <Text size="H4">Reset Device Verification</Text>
           </Box>
           <IconButton size="300" radii="300" onClick={onCancel}>
-            <Icon src={Icons.Cross} />
+            {composerIcon(X)}
           </IconButton>
         </Header>
         {reset ? (
@@ -349,7 +368,7 @@ export const DeviceVerificationReset = forwardRef<HTMLDivElement, DeviceVerifica
                 recoveryKey ? (
                   <RecoveryKeyDisplay recoveryKey={recoveryKey} />
                 ) : (
-                  <SetupVerification onComplete={setRecoveryKey} />
+                  <SetupVerification onComplete={setRecoveryKey} reset />
                 )
               }
             </UseStateProvider>

@@ -3,6 +3,9 @@ import { atomFamily } from 'jotai/utils';
 
 export const delayedEventsSupportedAtom = atom(false);
 
+export const getScheduledMessageStateKey = (userId: string, roomId: string): string =>
+  `${userId}\0${roomId}`;
+
 export const roomIdToScheduledTimeAtomFamily = atomFamily<
   string,
   ReturnType<typeof atom<Date | null>>

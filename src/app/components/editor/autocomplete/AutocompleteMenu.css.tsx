@@ -22,7 +22,7 @@ export const AutocompleteMenuContainer = style([
 export const AutocompleteMenu = style([
   DefaultReset,
   {
-    maxHeight: '30vh',
+    maxHeight: '30dvh',
     height: '100%',
     display: 'flex',
     flexDirection: 'column',
@@ -39,7 +39,7 @@ export const AutocompleteNotice = style([
   { color: color.SurfaceVariant.OnContainer },
 ]);
 
-export const AutocompleteMenuItems = style({});
+const AutocompleteMenuItems = style({});
 
 globalStyle(`${AutocompleteMenuItems} button[data-selected='true']`, {
   backgroundColor: color.SurfaceVariant.ContainerHover,

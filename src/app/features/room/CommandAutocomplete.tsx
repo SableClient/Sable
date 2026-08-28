@@ -1,17 +1,14 @@
-import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
+import type { KeyboardEvent as ReactKeyboardEvent, MouseEvent as ReactMouseEvent } from 'react';
 import { useCallback, useEffect, useMemo } from 'react';
-import type { Editor } from 'slate';
 import { Box, config, MenuItem, Text } from 'folds';
 import type { Room } from '$types/matrix-sdk';
 import type { Command } from '$hooks/useCommands';
 import { useCommands } from '$hooks/useCommands';
-import type { AutocompleteQuery } from '$components/editor';
-import {
-  AutocompleteMenu,
-  createCommandElement,
-  moveCursor,
-  replaceWithElement,
-} from '$components/editor';
+import type {
+  EditorAutocompleteQuery,
+  ProseMirrorEditorController,
+} from '$components/editor/prosemirrorController';
+import { AutocompleteMenu, createCommandElement } from '$components/editor';
 import type { UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
 import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -19,11 +16,12 @@ import { useKeyDown } from '$hooks/useKeyDown';
 import { onTabPress } from '$utils/keyboard';
 
 type CommandAutoCompleteHandler = (commandName: string) => void;
+const GIF_COMMAND = 'gif';
 
 type CommandAutocompleteProps = {
   room: Room;
-  editor: Editor;
-  query: AutocompleteQuery<string>;
+  controller: ProseMirrorEditorController;
+  query: EditorAutocompleteQuery<string>;
   requestClose: () => void;
 };
 
@@ -35,13 +33,16 @@ const SEARCH_OPTIONS: UseAsyncSearchOptions = {
 
 export function CommandAutocomplete({
   room,
-  editor,
+  controller,
   query,
   requestClose,
 }: CommandAutocompleteProps) {
   const mx = useMatrixClient();
   const commands = useCommands(mx, room);
-  const commandNames = useMemo(() => Object.keys(commands) as Command[], [commands]);
+  const commandNames = useMemo(
+    () => [GIF_COMMAND, ...(Object.keys(commands) as Command[])],
+    [commands]
+  );
 
   const [result, search, resetSearch] = useAsyncSearch(
     commandNames,
@@ -58,8 +59,8 @@ export function CommandAutocomplete({
 
   const handleAutocomplete: CommandAutoCompleteHandler = (commandName) => {
     const cmdEl = createCommandElement(commandName);
-    replaceWithElement(editor, query.range, cmdEl);
-    moveCursor(editor, true);
+    controller.insertInline(cmdEl, query.from, query.to);
+    controller.insertText(' ');
     requestClose();
   };
 
@@ -81,7 +82,6 @@ export function CommandAutocomplete({
         </Box>
       }
       requestClose={requestClose}
-      editor={editor}
     >
       {autoCompleteNames.map((commandName) => (
         <MenuItem
@@ -92,6 +92,7 @@ export function CommandAutocomplete({
           onKeyDown={(evt: ReactKeyboardEvent<HTMLButtonElement>) =>
             onTabPress(evt, () => handleAutocomplete(commandName))
           }
+          onMouseDown={(evt: ReactMouseEvent<HTMLButtonElement>) => evt.preventDefault()}
           onClick={() => handleAutocomplete(commandName)}
         >
           <Box
@@ -105,7 +106,9 @@ export function CommandAutocomplete({
               {`/${commandName}`}
             </Text>
             <Text truncate priority="300" size="T200">
-              {commands[commandName].description}
+              {commandName === GIF_COMMAND
+                ? 'Search and send a GIF: /gif <search>'
+                : commands[commandName as Command].description}
             </Text>
           </Box>
         </MenuItem>

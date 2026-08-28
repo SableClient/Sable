@@ -1,4 +1,4 @@
-import type { Descendant } from 'slate';
+import type { EditorDocument } from '$components/editor/model';
 import { hasSettingsLinksToRewrite, rewriteSettingsLinks } from './settingsLinkMessage';
 
 export type OutgoingMessageTransformContext = {
@@ -6,8 +6,8 @@ export type OutgoingMessageTransformContext = {
 };
 
 export type OutgoingMessageTransform = {
-  apply: (children: Descendant[], context: OutgoingMessageTransformContext) => Descendant[];
-  shouldApply: (children: Descendant[], context: OutgoingMessageTransformContext) => boolean;
+  apply: (children: EditorDocument, context: OutgoingMessageTransformContext) => EditorDocument;
+  shouldApply: (children: EditorDocument, context: OutgoingMessageTransformContext) => boolean;
 };
 
 export const outgoingMessageTransforms: OutgoingMessageTransform[] = [

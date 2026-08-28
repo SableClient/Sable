@@ -2,6 +2,7 @@ import type { SerializableMap } from '$types/wrapper/SerializableMap';
 import type { SerializableSet } from '$types/wrapper/SerializableSet';
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import type { MsgType } from '$types/matrix-sdk';
+import type { RelationType } from '$types/matrix-sdk';
 import type * as prefix from '$unstable/prefixes';
 
 export type IImageInfo = {
@@ -13,7 +14,7 @@ export type IImageInfo = {
 };
 
 export type MatrixRelatesTo = {
-  rel_type: 'm.annotation';
+  rel_type: RelationType.Annotation;
   event_id: string;
   key?: string;
 };
@@ -136,9 +137,22 @@ export type IFileContent = {
   file?: IEncryptedFile;
 };
 
-export type ILocationContent = {
-  msgtype: MsgType.Location;
-  body?: string;
-  geo_uri?: string;
-  info?: IThumbnailContent;
+export type IGalleryImageItem = Omit<IImageContent, 'msgtype'> & { itemtype: MsgType.Image };
+export type IGalleryVideoItem = Omit<IVideoContent, 'msgtype'> & { itemtype: MsgType.Video };
+export type IGalleryAudioItem = Omit<IAudioContent, 'msgtype'> & { itemtype: MsgType.Audio };
+export type IGalleryFileItem = Omit<IFileContent, 'msgtype'> & { itemtype: MsgType.File };
+export type IGalleryItem =
+  | IGalleryImageItem
+  | IGalleryVideoItem
+  | IGalleryAudioItem
+  | IGalleryFileItem;
+
+export const GALLERY_MSGTYPE = 'dm.filament.gallery';
+
+export type IGalleryContent = {
+  msgtype: typeof GALLERY_MSGTYPE;
+  body: string;
+  format?: string;
+  formatted_body?: string;
+  itemtypes: IGalleryItem[];
 };

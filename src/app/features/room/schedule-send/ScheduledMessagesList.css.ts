@@ -23,10 +23,3 @@ export const ScheduledMessageRow = style({
     },
   },
 });
-
-export const MessagePreview = style({
-  overflow: 'hidden',
-  textOverflow: 'ellipsis',
-  whiteSpace: 'nowrap',
-  maxWidth: toRem(300),
-});

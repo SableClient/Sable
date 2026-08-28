@@ -1,25 +1,76 @@
 import { style } from '@vanilla-extract/css';
+import { recipe } from '@vanilla-extract/recipes';
 import { toRem, color, config, DefaultReset, FocusOutline } from 'folds';
 
 /**
  * Layout
  */
 
-export const Base = style({
-  maxWidth: toRem(432),
-  width: `calc(100vw - 2 * ${config.space.S400})`,
-  height: toRem(450),
-  backgroundColor: color.Surface.Container,
-  color: color.Surface.OnContainer,
-  border: `${config.borderWidth.B300} solid ${color.Surface.ContainerLine}`,
-  borderRadius: config.radii.R400,
-  boxShadow: config.shadow.E200,
-  overflow: 'hidden',
+export const Base = recipe({
+  base: [
+    {
+      maxWidth: toRem(432),
+      width: `calc(100vw - 2 * ${config.space.S400})`,
+      height: toRem(450),
+      backgroundColor: color.Surface.Container,
+      color: color.Surface.OnContainer,
+      border: `${config.borderWidth.B300} solid ${color.Surface.ContainerLine}`,
+      borderRadius: config.radii.R400,
+      boxShadow: config.shadow.E200,
+      overflow: 'hidden',
+    },
+  ],
+  variants: {
+    isFullWidth: {
+      true: {
+        maxWidth: '100vw',
+        width: `calc(100vw - ${config.borderWidth.B300})`,
+        display: 'flex',
+        flexDirection: 'row',
+      },
+    },
+    sheet: {
+      true: {
+        backgroundColor: 'transparent',
+        border: 'none',
+        borderRadius: 0,
+        boxShadow: 'none',
+        height: '100%',
+        flex: 1,
+        minHeight: 0,
+      },
+    },
+  },
+});
+
+export const Main = style({
+  minWidth: 0,
+  display: 'flex',
+  flexDirection: 'column',
+  minHeight: 0,
+});
+
+export const Body = style({
+  display: 'flex',
+  flexDirection: 'column',
+  flex: 1,
+  minHeight: 0,
+});
+
+export const ContentScroll = style({
+  flex: 1,
+  minHeight: 0,
+  // Keeps a fling that reaches either end from chaining out into the sheet.
+  overscrollBehavior: 'contain',
 });
 
 export const Header = style({
   padding: config.space.S300,
   paddingBottom: 0,
+});
+
+export const SheetHeader = style({
+  paddingTop: 0,
 });
 
 /**
@@ -113,6 +164,21 @@ export const EmojiGroupContent = style([
   },
 ]);
 
+export const GifGroupContent = style([
+  DefaultReset,
+  {
+    columnCount: 2,
+    columnGap: config.space.S100,
+    padding: `0 ${config.space.S200}`,
+
+    '@media': {
+      'screen and (max-width: 480px)': {
+        columnCount: 1,
+      },
+    },
+  },
+]);
+
 /**
  * Item
  */
@@ -159,3 +225,30 @@ export const StickerImg = style([
     objectFit: 'contain',
   },
 ]);
+
+export const GifItem = style([
+  DefaultReset,
+  FocusOutline,
+  {
+    width: '100%',
+    marginBottom: toRem(8),
+    breakInside: 'avoid',
+    borderRadius: config.radii.R400,
+    cursor: 'pointer',
+    overflow: 'hidden',
+    display: 'block',
+    position: 'relative',
+
+    ':hover': {
+      backgroundColor: color.Surface.ContainerHover,
+    },
+  },
+]);
+
+export const TextLink = style({
+  color: 'var(--tc-link)',
+  cursor: 'pointer',
+  ':hover': {
+    textDecoration: 'underline',
+  },
+});

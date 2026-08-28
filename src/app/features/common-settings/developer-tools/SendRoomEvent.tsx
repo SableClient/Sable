@@ -4,25 +4,24 @@ import type { MatrixError, StateEvents, TimelineEvents } from '$types/matrix-sdk
 import {
   Box,
   Chip,
-  Icon,
-  Icons,
   IconButton,
   Text,
   config,
-  Button,
-  Spinner,
   color,
   TextArea as TextAreaComponent,
   Input,
 } from 'folds';
+import { ArrowLeft, composerIcon, menuIcon, X } from '$components/icons/phosphor';
 import { Page, PageHeader } from '$components/page';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoom } from '$hooks/useRoom';
 import { useAlive } from '$hooks/useAlive';
 import { useTextAreaCodeEditor } from '$hooks/useTextAreaCodeEditor';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
+import { AsyncError } from '$components/AsyncError';
 import { syntaxErrorPosition } from '$utils/dom';
 import { Cursor } from '$plugins/text-area';
+import { Button } from '$components/button';
 
 const EDITOR_INTENT_SPACE_COUNT = 2;
 
@@ -118,18 +117,13 @@ export function SendRoomEvent({ type, stateKey, requestClose }: SendRoomEventPro
       <PageHeader outlined={false} balance>
         <Box alignItems="Center" grow="Yes" gap="200">
           <Box alignItems="Inherit" grow="Yes" gap="200">
-            <Chip
-              size="500"
-              radii="Pill"
-              onClick={requestClose}
-              before={<Icon size="100" src={Icons.ArrowLeft} />}
-            >
+            <Chip size="500" radii="Pill" onClick={requestClose} before={menuIcon(ArrowLeft)}>
               <Text size="T300">Developer Tools</Text>
             </Chip>
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              {composerIcon(X)}
             </IconButton>
           </Box>
         </Box>
@@ -163,18 +157,16 @@ export function SendRoomEvent({ type, stateKey, requestClose }: SendRoomEventPro
                 size="400"
                 radii="300"
                 type="submit"
-                disabled={submitting}
-                before={submitting && <Spinner variant="Primary" fill="Solid" size="300" />}
+                loading={submitting}
+                spinnerSize="300"
+                spinnerVariant="Primary"
+                spinnerFill="Solid"
               >
                 <Text size="B400">Send</Text>
               </Button>
             </Box>
 
-            {submitState.status === AsyncStatus.Error && (
-              <Text size="T200" style={{ color: color.Critical.Main }}>
-                <b>{submitState.error.message}</b>
-              </Text>
-            )}
+            <AsyncError state={submitState} bold />
           </Box>
           {composeStateEvent && (
             <Box shrink="No" direction="Column" gap="100">

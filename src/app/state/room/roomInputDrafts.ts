@@ -1,6 +1,6 @@
 import { atom } from 'jotai';
 import { atomFamily } from 'jotai/utils';
-import type { Descendant } from 'slate';
+import type { EditorDocument } from '$components/editor/model';
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import type { IEventRelation } from '$types/matrix-sdk';
 import type { TUploadContent } from '$utils/matrix';
@@ -18,30 +18,21 @@ export type TUploadItem = {
   originalFile: TUploadContent;
   metadata: TUploadMetadata;
   encInfo: EncryptedAttachmentInfo | undefined;
+  encrypting?: boolean;
   body?: string;
   format?: string;
   formatted_body?: string;
 };
 
-export type TUploadListAtom = ReturnType<typeof createListAtom<TUploadItem>>;
+type TUploadListAtom = ReturnType<typeof createListAtom<TUploadItem>>;
 
 export const roomIdToUploadItemsAtomFamily = atomFamily<string, TUploadListAtom>(createListAtom);
 
 export const roomUploadAtomFamily = createUploadAtomFamily();
 
-export type RoomIdToMsgAction =
-  | {
-      type: 'PUT';
-      roomId: string;
-      msg: Descendant[];
-    }
-  | {
-      type: 'DELETE';
-      roomId: string;
-    };
-
-const createMsgDraftAtom = () => atom<Descendant[]>([]);
-export type TMsgDraftAtom = ReturnType<typeof createMsgDraftAtom>;
+// Room drafts are Sable documents, not a rendering-engine data structure.
+const createMsgDraftAtom = () => atom<EditorDocument>([]);
+type TMsgDraftAtom = ReturnType<typeof createMsgDraftAtom>;
 export const roomIdToMsgDraftAtomFamily = atomFamily<string, TMsgDraftAtom>(() =>
   createMsgDraftAtom()
 );
@@ -54,7 +45,7 @@ export type IReplyDraft = {
   relation?: IEventRelation | undefined;
 };
 const createReplyDraftAtom = () => atom<IReplyDraft | undefined>(undefined);
-export type TReplyDraftAtom = ReturnType<typeof createReplyDraftAtom>;
+type TReplyDraftAtom = ReturnType<typeof createReplyDraftAtom>;
 export const roomIdToReplyDraftAtomFamily = atomFamily<string, TReplyDraftAtom>(() =>
   createReplyDraftAtom()
 );

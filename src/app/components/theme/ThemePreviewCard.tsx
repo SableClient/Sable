@@ -1,27 +1,23 @@
 import { type ReactNode, useCallback, useMemo } from 'react';
-import {
-  Box,
-  Button,
-  Icon,
-  IconButton,
-  Icons,
-  Text,
-  Tooltip,
-  TooltipProvider,
-  toRem,
-  config,
-} from 'folds';
+import { Box, Button, IconButton, Text, Tooltip, toRem, config } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
+import { Check, Download, Link, Star, Warning, sizedIcon } from '$components/icons/phosphor';
 
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
 import { copyToClipboard } from '$utils/dom';
+import { getCspNonce } from '$utils/cspNonce';
 import { buildPreviewStyleBlock, extractSafePreviewCustomProperties } from '../../theme/previewCss';
+import { CssViewerButton } from './CssViewerButton';
 
 export type ThemePreviewCardProps = {
   title: string;
   subtitle?: ReactNode;
   beforePreview?: ReactNode;
   previewCssText: string;
+  fullCssText?: string;
+  loadFullCssText?: () => Promise<string>;
   scopeSlug: string;
+  sourceLabel?: string;
   copyText?: string;
   isFavorited?: boolean;
   onToggleFavorite?: () => void | Promise<void>;
@@ -50,7 +46,10 @@ export function ThemePreviewCard({
   subtitle,
   beforePreview,
   previewCssText,
+  fullCssText,
+  loadFullCssText,
   scopeSlug,
+  sourceLabel,
   copyText,
   isFavorited,
   onToggleFavorite,
@@ -95,86 +94,101 @@ export function ThemePreviewCard({
     >
       <Box direction="Row" alignItems="Start" justifyContent="SpaceBetween" gap="200">
         <Box direction="Column" gap="100" grow="Yes">
-          <Box direction="Row" gap="100" alignItems="Center" wrap="Wrap">
-            <Text size="H6">{title}</Text>
-            {thirdParty && (
-              <TooltipProvider
-                position="Top"
-                tooltip={
-                  <Tooltip style={{ maxWidth: toRem(280) }}>
-                    <Text size="T200">
-                      Third-party theme. Only use themes from Providers you trust.
-                    </Text>
-                  </Tooltip>
-                }
-              >
-                {(triggerRef) => (
-                  <Icon
-                    ref={triggerRef}
-                    src={Icons.Warning}
-                    size="100"
-                    filled
-                    style={{ color: 'var(--sable-warn-on-container)', flexShrink: 0 }}
-                    aria-label="Third-party theme"
-                  />
-                )}
-              </TooltipProvider>
-            )}
+          <Box direction="Row" alignItems="Center" justifyContent="SpaceBetween">
+            <Box gap="100" wrap="Wrap">
+              <Text size="H6">{title}</Text>
+              {thirdParty && (
+                <TooltipProvider
+                  position="Top"
+                  tooltip={
+                    <Tooltip style={{ maxWidth: toRem(280) }}>
+                      <Text size="T200">
+                        Third-party theme. Only use themes from Providers you trust.
+                      </Text>
+                    </Tooltip>
+                  }
+                >
+                  {(triggerRef) => (
+                    <span
+                      ref={triggerRef}
+                      aria-label="Third-party theme"
+                      style={{
+                        color: 'var(--sable-warn-on-container)',
+                        flexShrink: 0,
+                        display: 'inline-flex',
+                      }}
+                    >
+                      {sizedIcon(Warning, '100', { filled: true })}
+                    </span>
+                  )}
+                </TooltipProvider>
+              )}
+            </Box>
+            <Box gap="100" shrink="No">
+              <CssViewerButton
+                title={`${title} — CSS`}
+                cssText={fullCssText}
+                loadCssText={loadFullCssText}
+                ariaLabel="View theme CSS"
+              />
+              {copyText && (
+                <IconButton
+                  size="300"
+                  variant="Secondary"
+                  fill="Soft"
+                  outlined
+                  radii="300"
+                  aria-label={copied ? 'Copied theme link' : 'Copy theme link'}
+                  onClick={() => {
+                    handleCopy().catch(() => undefined);
+                  }}
+                >
+                  {sizedIcon(copied ? Check : Link, '200')}
+                </IconButton>
+              )}
+
+              {onExport && (
+                <IconButton
+                  size="300"
+                  variant="Secondary"
+                  fill="Soft"
+                  outlined
+                  radii="300"
+                  aria-label="Export theme CSS"
+                  onClick={() => {
+                    onExport();
+                  }}
+                >
+                  {sizedIcon(Download, '200')}
+                </IconButton>
+              )}
+
+              {typeof isFavorited === 'boolean' && onToggleFavorite && (
+                <IconButton
+                  size="300"
+                  variant={isFavorited ? 'Primary' : 'Secondary'}
+                  fill="Soft"
+                  outlined
+                  radii="300"
+                  aria-label={isFavorited ? 'Remove from saved' : 'Save theme'}
+                  onClick={() => {
+                    Promise.resolve(onToggleFavorite()).catch(() => undefined);
+                  }}
+                >
+                  {sizedIcon(Star, '200', { filled: isFavorited })}
+                </IconButton>
+              )}
+            </Box>
           </Box>
           {subtitle && (
             <Text size="T200" priority="300" style={{ wordBreak: 'break-word' }}>
               {subtitle}
             </Text>
           )}
-        </Box>
-
-        <Box direction="Row" gap="100" alignItems="Center" shrink="No">
-          {copyText && (
-            <IconButton
-              size="300"
-              variant="Secondary"
-              fill="Soft"
-              outlined
-              radii="300"
-              aria-label={copied ? 'Copied theme link' : 'Copy theme link'}
-              onClick={() => {
-                handleCopy().catch(() => undefined);
-              }}
-            >
-              <Icon size="200" src={copied ? Icons.Check : Icons.Link} />
-            </IconButton>
-          )}
-
-          {onExport && (
-            <IconButton
-              size="300"
-              variant="Secondary"
-              fill="Soft"
-              outlined
-              radii="300"
-              aria-label="Export theme CSS"
-              onClick={() => {
-                onExport();
-              }}
-            >
-              <Icon size="200" src={Icons.Download} />
-            </IconButton>
-          )}
-
-          {typeof isFavorited === 'boolean' && onToggleFavorite && (
-            <IconButton
-              size="300"
-              variant={isFavorited ? 'Primary' : 'Secondary'}
-              fill="Soft"
-              outlined
-              radii="300"
-              aria-label={isFavorited ? 'Remove from saved' : 'Save theme'}
-              onClick={() => {
-                Promise.resolve(onToggleFavorite()).catch(() => undefined);
-              }}
-            >
-              <Icon size="200" src={Icons.Star} filled={isFavorited} />
-            </IconButton>
+          {sourceLabel && (
+            <Text size="T200" priority="300">
+              Source: {sourceLabel}
+            </Text>
           )}
         </Box>
       </Box>
@@ -183,7 +197,7 @@ export function ThemePreviewCard({
 
       {styleBlock ? (
         <>
-          <style>{styleBlock}</style>
+          <style nonce={getCspNonce()}>{styleBlock}</style>
           <Box
             className={scopeClass}
             direction="Column"

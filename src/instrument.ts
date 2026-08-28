@@ -7,6 +7,7 @@
  * - VITE_APP_VERSION: Release version for tracking
  */
 /* oxlint-disable no-console */
+import './promiseCompat';
 import * as Sentry from '@sentry/react';
 import React from 'react';
 import {
@@ -14,8 +15,10 @@ import {
   useNavigationType,
   createRoutesFromChildren,
   matchRoutes,
-} from 'react-router-dom';
-import { scrubMatrixIds, scrubDataObject, scrubMatrixUrl } from './app/utils/sentryScrubbers';
+} from 'react-router';
+import { scrubMatrixIds, sanitizeSentryPayload, scrubMatrixUrl } from './app/utils/sentryScrubbers';
+import { isTauri } from '@tauri-apps/api/core';
+import { setNativeSentryEnabled } from './app/generated/tauri/commands';
 
 const dsn = import.meta.env.VITE_SENTRY_DSN;
 const environment = import.meta.env.VITE_SENTRY_ENVIRONMENT || import.meta.env.MODE;
@@ -38,6 +41,9 @@ if (dsn && sentryEnabled) {
 
     // Do not send PII (IP addresses, user identifiers) to protect privacy
     sendDefaultPii: false,
+
+    // The default 100 only covered a few seconds of this app's HTTP traffic.
+    maxBreadcrumbs: 200,
 
     integrations: [
       // React Router v6 browser tracing integration
@@ -100,7 +106,7 @@ if (dsn && sentryEnabled) {
       // Redact Matrix IDs from any string-valued log attributes (e.g. roomId, userId)
       // These are flattened from the structured data object and sent as searchable attributes.
       if (log.attributes && typeof log.attributes === 'object') {
-        log.attributes = scrubDataObject(log.attributes) as typeof log.attributes;
+        log.attributes = sanitizeSentryPayload(log.attributes) as typeof log.attributes;
       }
       return log;
     },
@@ -157,6 +163,13 @@ if (dsn && sentryEnabled) {
     beforeBreadcrumb(breadcrumb) {
       // Scrub Matrix paths from HTTP breadcrumb data.url (captures full request URLs)
       const bData = breadcrumb.data as Record<string, unknown> | undefined;
+
+      // Successful requests arrive continuously and evict the breadcrumbs that explain
+      // a failure. Keep failures and anything without a status.
+      if (breadcrumb.category === 'fetch' || breadcrumb.category === 'xhr') {
+        const status = bData?.status_code;
+        if (typeof status === 'number' && status < 400) return null;
+      }
       const rawUrl = typeof bData?.url === 'string' ? bData.url : undefined;
       const scrubbedUrl = rawUrl ? scrubMatrixUrl(rawUrl) : undefined;
       const urlChanged = scrubbedUrl !== undefined && scrubbedUrl !== rawUrl;
@@ -173,7 +186,9 @@ if (dsn && sentryEnabled) {
       // Scrub Matrix IDs from all remaining string values in the breadcrumb data object.
       // debugLog passes structured data (e.g. { roomId, targetEventId }) that would otherwise
       // bypass the URL-specific scrubbers above.
-      const scrubbedData = bData ? (scrubDataObject(bData) as Record<string, unknown>) : undefined;
+      const scrubbedData = bData
+        ? (sanitizeSentryPayload(bData) as Record<string, unknown>)
+        : undefined;
 
       // Scrub message text — token values and Matrix entity IDs
       const message = breadcrumb.message ? scrubMatrixIds(breadcrumb.message) : breadcrumb.message;
@@ -234,7 +249,7 @@ if (dsn && sentryEnabled) {
       // Scrub contexts (e.g. debugLog context from captureMessage in debugLogger.ts,
       // which can carry structured data fields like roomId, targetEventId, etc.)
       if (event.contexts) {
-        event.contexts = scrubDataObject(event.contexts) as typeof event.contexts;
+        event.contexts = sanitizeSentryPayload(event.contexts) as typeof event.contexts;
       }
 
       // Scrub request data
@@ -289,6 +304,12 @@ if (dsn && sentryEnabled) {
   console.info('[Sentry] Disabled by user preference');
 } else {
   console.info('[Sentry] Disabled - no DSN provided');
+}
+
+if (isTauri()) {
+  setNativeSentryEnabled({ enabled: sentryEnabled }).catch((err) =>
+    console.warn('[Sentry] Failed to sync native crash capture consent', err)
+  );
 }
 
 // Export Sentry for use in other parts of the application

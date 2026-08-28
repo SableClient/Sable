@@ -1,17 +1,14 @@
 {
-  "$schema": "https://unpkg.com/knip@5/schema.json",
-  "entry": ["src/sw.ts", "scripts/normalize-imports.js"],
-  "ignore": ["oxlint.config.ts", "oxfmt.config.ts"],
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": ["scripts/**/*.js", "tests/e2e/global.setup.ts", "tests/e2e/global.teardown.ts"],
+  "ignore": ["src/test/notifications-api-stub.ts"],
   "ignoreExportsUsedInFile": {
     "interface": true,
     "type": true
   },
-  "ignoreDependencies": [
-    "buffer",
-    "@sableclient/sable-call-embedded",
-    "@matrix-org/matrix-sdk-crypto-wasm"
-  ],
-  "ignoreBinaries": ["knope"],
+  "ignoreFiles": ["src/app/generated/**/*"],
+  "ignoreDependencies": ["buffer", "@sableclient/sable-call-embedded", "@sableclient/twemoji-font"],
+  "ignoreBinaries": ["knope", "mise"],
   "rules": {
     "exports": "off",
     "types": "off",

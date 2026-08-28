@@ -46,10 +46,22 @@ updates:
     commit-message:
       prefix: chore
     groups:
-      npm-major:
-        update-types:
-          - major
-      npm-non-major:
-        update-types:
-          - minor
-          - patch
+      npm:
+        patterns:
+          - '*'
+
+  - package-ecosystem: cargo
+    cooldown:
+      default-days: 7
+    directory: /src-tauri
+    schedule:
+      interval: daily
+    open-pull-requests-limit: 5
+    labels:
+      - internal
+    commit-message:
+      prefix: chore
+    groups:
+      cargo:
+        patterns:
+          - '*'

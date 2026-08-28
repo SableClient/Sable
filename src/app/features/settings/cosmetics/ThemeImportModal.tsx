@@ -1,21 +1,6 @@
 import { type ChangeEventHandler, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import FocusTrap from 'focus-trap-react';
-import {
-  Box,
-  Button,
-  config,
-  Dialog,
-  Header,
-  Icon,
-  IconButton,
-  Icons,
-  Input,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
-  Text,
-  toRem,
-} from 'folds';
+import { Box, Button, config, Dialog, Header, IconButton, Input, Text, toRem } from 'folds';
+import { menuIcon, X } from '$components/icons/phosphor';
 
 import { useSetting } from '$state/hooks/settings';
 import {
@@ -23,17 +8,18 @@ import {
   type ThemeRemoteFavorite,
   type ThemeRemoteTweakFavorite,
 } from '$state/settings';
-import { stopPropagation } from '$utils/keyboard';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
-import { SequenceCardStyle } from '$features/settings/styles.css';
-import { SequenceCard } from '$components/sequence-card';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import {
   processImportedHttpsUrl,
   processPastedOrUploadedCss,
   type ProcessedThemeImport,
 } from '../../../theme/processThemeImport';
+import { pruneThemeFavorites, pruneThemeTweakFavorites } from '../../../theme/themeLibrary';
 
 import { usePatchSettings } from './themeSettingsPatch';
+import { readFileToString } from '$app/utils/file';
 
 type ThemeImportModalProps = {
   open: boolean;
@@ -63,22 +49,6 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
         Boolean(u && u.trim().length > 0)
       ),
     [darkRemoteFullUrl, lightRemoteFullUrl, manualRemoteFullUrl]
-  );
-
-  const pruneFavorites = useCallback(
-    (nextFavorites: ThemeRemoteFavorite[], nextActiveUrls: string[]) => {
-      const active = new Set(nextActiveUrls);
-      return nextFavorites.filter((f) => f.pinned === true || active.has(f.fullUrl));
-    },
-    []
-  );
-
-  const pruneTweakFavorites = useCallback(
-    (nextFavorites: ThemeRemoteTweakFavorite[], nextEnabledUrls: string[]) => {
-      const enabled = new Set(nextEnabledUrls);
-      return nextFavorites.filter((f) => f.pinned === true || enabled.has(f.fullUrl));
-    },
-    []
   );
 
   useEffect(() => {
@@ -112,12 +82,16 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
           basename: r.basename,
           pinned: true,
           importedLocal: r.importedLocal,
+          cssText: r.cssText,
         };
         const nextEnabled = enabledTweakFullUrls.includes(r.fullUrl)
           ? [...enabledTweakFullUrls]
           : [...enabledTweakFullUrls, r.fullUrl];
         patchSettings({
-          themeRemoteTweakFavorites: pruneTweakFavorites([...tweakFavorites, next], nextEnabled),
+          themeRemoteTweakFavorites: pruneThemeTweakFavorites(
+            [...tweakFavorites, next],
+            nextEnabled
+          ),
           themeRemoteEnabledTweakFullUrls: nextEnabled,
         });
         onClose();
@@ -143,20 +117,11 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
         )
       );
       patchSettings({
-        themeRemoteFavorites: pruneFavorites([...favorites, next], nextActive),
+        themeRemoteFavorites: pruneThemeFavorites([...favorites, next], nextActive),
       });
       onClose();
     },
-    [
-      activeUrls,
-      enabledTweakFullUrls,
-      favorites,
-      onClose,
-      patchSettings,
-      pruneFavorites,
-      pruneTweakFavorites,
-      tweakFavorites,
-    ]
+    [activeUrls, enabledTweakFullUrls, favorites, onClose, patchSettings, tweakFavorites]
   );
 
   const onImportFileChange: ChangeEventHandler<HTMLInputElement> = (e) => {
@@ -164,11 +129,9 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
     if (!file) return;
     setImportFileName(file.name);
     setImportPaste('');
-    const reader = new FileReader();
-    reader.addEventListener('load', () => {
-      setUploadedFileCss(typeof reader.result === 'string' ? reader.result : '');
-    });
-    reader.readAsText(file);
+    readFileToString(file)
+      .then(setUploadedFileCss)
+      .catch((err: Error) => setImportError(err.message));
   };
 
   const handleImportTheme = useCallback(async () => {
@@ -219,146 +182,135 @@ export function ThemeImportModal({ open, onClose }: ThemeImportModalProps) {
   if (!open) return null;
 
   return (
-    <Overlay open backdrop={<OverlayBackdrop />}>
-      <OverlayCenter>
-        <FocusTrap
-          focusTrapOptions={{
-            initialFocus: false,
-            onDeactivate: dismissSafe,
-            clickOutsideDeactivates: false,
-            escapeDeactivates: stopPropagation,
+    <ModalOverlay requestClose={dismissSafe} dismissOnClickOutside={false}>
+      <Dialog variant="Surface" aria-labelledby="theme-import-title">
+        <Header
+          style={{
+            padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
+            borderBottomWidth: config.borderWidth.B300,
           }}
+          variant="Surface"
+          size="500"
         >
-          <Dialog variant="Surface" aria-labelledby="theme-import-title">
-            <Header
-              style={{
-                padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
-                borderBottomWidth: config.borderWidth.B300,
-              }}
-              variant="Surface"
-              size="500"
-            >
-              <Box grow="Yes">
-                <Text id="theme-import-title" size="H4">
-                  Import a theme or tweak
+          <Box grow="Yes">
+            <Text id="theme-import-title" size="H4">
+              Import a theme or tweak
+            </Text>
+          </Box>
+          <IconButton
+            size="300"
+            radii="300"
+            onClick={dismissSafe}
+            disabled={importBusy}
+            aria-label="Close"
+          >
+            {menuIcon(X)}
+          </IconButton>
+        </Header>
+        <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
+          <Text priority="400">
+            Paste a link to a <strong>.sable.css</strong> file, or paste CSS / upload a file. Files
+            whose first metadata block uses <strong>@sable-tweak</strong> are saved as tweaks
+            (applied on top of your current theme and turned on immediately). Themes use{' '}
+            <strong>@sable-theme</strong>. If theme CSS includes <strong>fullThemeUrl</strong> and
+            that URL loads, it is used; otherwise the theme is stored only on this device.
+          </Text>
+          <SequenceCard
+            className={SequenceCardStyle}
+            variant="SurfaceVariant"
+            direction="Column"
+            gap="300"
+          >
+            <Input
+              size="300"
+              radii="300"
+              outlined
+              placeholder="https://…"
+              value={importUrl}
+              onChange={onImportUrlChange}
+            />
+            {importFileName && uploadedFileCss !== null && (
+              <Box direction="Row" gap="200" alignItems="Center" wrap="Wrap">
+                <Text size="T300" priority="300">
+                  Loaded file: <strong>{importFileName}</strong>.
                 </Text>
-              </Box>
-              <IconButton
-                size="300"
-                radii="300"
-                onClick={dismissSafe}
-                disabled={importBusy}
-                aria-label="Close"
-              >
-                <Icon src={Icons.Cross} size="100" />
-              </IconButton>
-            </Header>
-            <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
-              <Text priority="400">
-                Paste a link to a <strong>.sable.css</strong> file, or paste CSS / upload a file.
-                Files whose first metadata block uses <strong>@sable-tweak</strong> are saved as
-                tweaks (applied on top of your current theme and turned on immediately). Themes use{' '}
-                <strong>@sable-theme</strong>. If theme CSS includes <strong>fullThemeUrl</strong>{' '}
-                and that URL loads, it is used; otherwise the theme is stored only on this device.
-              </Text>
-              <SequenceCard
-                className={SequenceCardStyle}
-                variant="SurfaceVariant"
-                direction="Column"
-                gap="300"
-              >
-                <Input
+                <Button
+                  variant="Secondary"
+                  fill="Soft"
+                  outlined
                   size="300"
                   radii="300"
-                  outlined
-                  placeholder="https://…"
-                  value={importUrl}
-                  onChange={onImportUrlChange}
-                />
-                {importFileName && uploadedFileCss !== null && (
-                  <Box direction="Row" gap="200" alignItems="Center" wrap="Wrap">
-                    <Text size="T300" priority="300">
-                      Loaded file: <strong>{importFileName}</strong>.
-                    </Text>
-                    <Button
-                      variant="Secondary"
-                      fill="Soft"
-                      outlined
-                      size="300"
-                      radii="300"
-                      disabled={importBusy}
-                      onClick={() => {
-                        setUploadedFileCss(null);
-                        setImportFileName(undefined);
-                        if (importFileRef.current) importFileRef.current.value = '';
-                      }}
-                    >
-                      <Text size="B300">Clear file</Text>
-                    </Button>
-                  </Box>
-                )}
-                <textarea
-                  value={importPaste}
-                  onChange={onImportPasteChange}
-                  placeholder="Paste .preview.sable.css, .sable.css, or tweak CSS, or pick a file below…"
-                  rows={6}
-                  disabled={Boolean(uploadedFileCss)}
-                  style={{
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    padding: toRem(10),
-                    borderRadius: toRem(8),
-                    border: `${toRem(1)} solid var(--sable-surface-container-line)`,
-                    background: 'var(--sable-surface-container)',
-                    color: 'inherit',
-                    font: 'inherit',
-                    resize: 'vertical',
-                    minHeight: toRem(120),
+                  disabled={importBusy}
+                  onClick={() => {
+                    setUploadedFileCss(null);
+                    setImportFileName(undefined);
+                    if (importFileRef.current) importFileRef.current.value = '';
                   }}
-                />
-                <input
-                  ref={importFileRef}
-                  type="file"
-                  accept=".css,text/css"
-                  style={{ display: 'none' }}
-                  onChange={onImportFileChange}
-                />
-                <Box direction="Row" gap="200" wrap="Wrap" alignItems="Center">
-                  <Button
-                    variant="Secondary"
-                    fill="Soft"
-                    outlined
-                    size="300"
-                    radii="300"
-                    disabled={importBusy}
-                    onClick={() => importFileRef.current?.click()}
-                  >
-                    <Text size="B300">Choose .css file</Text>
-                  </Button>
-                  <Button
-                    variant="Primary"
-                    fill="Soft"
-                    outlined
-                    size="300"
-                    radii="300"
-                    disabled={importBusy}
-                    onClick={() => {
-                      handleImportTheme().catch(() => undefined);
-                    }}
-                  >
-                    <Text size="B300">{importBusy ? 'Importing…' : 'Import'}</Text>
-                  </Button>
-                </Box>
-                {importError && (
-                  <Text size="T300" style={{ color: 'var(--sable-error)' }}>
-                    {importError}
-                  </Text>
-                )}
-              </SequenceCard>
+                >
+                  <Text size="B300">Clear file</Text>
+                </Button>
+              </Box>
+            )}
+            <textarea
+              value={importPaste}
+              onChange={onImportPasteChange}
+              placeholder="Paste .preview.sable.css, .sable.css, or tweak CSS, or pick a file below…"
+              rows={6}
+              disabled={Boolean(uploadedFileCss)}
+              style={{
+                width: '100%',
+                boxSizing: 'border-box',
+                padding: toRem(10),
+                borderRadius: toRem(8),
+                border: `${toRem(1)} solid var(--sable-surface-container-line)`,
+                background: 'var(--sable-surface-container)',
+                color: 'inherit',
+                font: 'inherit',
+                resize: 'vertical',
+                minHeight: toRem(120),
+              }}
+            />
+            <input
+              ref={importFileRef}
+              type="file"
+              accept=".css,text/css"
+              style={{ display: 'none' }}
+              onChange={onImportFileChange}
+            />
+            <Box direction="Row" gap="200" wrap="Wrap" alignItems="Center">
+              <Button
+                variant="Secondary"
+                fill="Soft"
+                outlined
+                size="300"
+                radii="300"
+                disabled={importBusy}
+                onClick={() => importFileRef.current?.click()}
+              >
+                <Text size="B300">Choose .css file</Text>
+              </Button>
+              <Button
+                variant="Primary"
+                fill="Soft"
+                outlined
+                size="300"
+                radii="300"
+                disabled={importBusy}
+                onClick={() => {
+                  handleImportTheme().catch(() => undefined);
+                }}
+              >
+                <Text size="B300">{importBusy ? 'Importing…' : 'Import'}</Text>
+              </Button>
             </Box>
-          </Dialog>
-        </FocusTrap>
-      </OverlayCenter>
-    </Overlay>
+            {importError && (
+              <Text size="T300" style={{ color: 'var(--sable-error)' }}>
+                {importError}
+              </Text>
+            )}
+          </SequenceCard>
+        </Box>
+      </Dialog>
+    </ModalOverlay>
   );
 }

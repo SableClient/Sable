@@ -1,0 +1,41 @@
+name: Resolve release meta
+description: Detect whether the current build is a nightly/dev or stable release and output tag, version, ref, and build flavor.
+
+inputs:
+  input-tag:
+    description: Explicit tag for workflow_dispatch triggers
+    required: false
+    default: ''
+
+outputs:
+  tag:
+    description: Release tag name (e.g. "nightly" or "v1.2.3")
+    value: ${{ steps.meta.outputs.tag }}
+  version:
+    description: SemVer version string
+    value: ${{ steps.meta.outputs.version }}
+  ref:
+    description: Git ref (sha for nightly, tag ref for stable)
+    value: ${{ steps.meta.outputs.ref }}
+  nightly:
+    description: '"true" if this is a nightly/dev build'
+    value: ${{ steps.meta.outputs.nightly }}
+  started_at:
+    description: ISO 8601 timestamp of when the build started
+    value: ${{ steps.meta.outputs.started_at }}
+  build_flavor:
+    description: '"dev" or "stable"'
+    value: ${{ steps.meta.outputs.build_flavor }}
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      id: meta
+      env:
+        EVENT_NAME: ${{ github.event_name }}
+        INPUT_TAG: ${{ inputs.input-tag }}
+        GIT_REF: ${{ github.ref }}
+        GIT_REF_NAME: ${{ github.ref_name }}
+        GIT_SHA: ${{ github.sha }}
+      run: node ${{ github.action_path }}/../../scripts/release-meta.mjs "$GITHUB_OUTPUT"

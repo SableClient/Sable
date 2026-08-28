@@ -1,0 +1,107 @@
+{
+  "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
+  "productName": "Sable",
+  "version": "1.21.0",
+  "identifier": "moe.sable.client",
+  "build": {
+    "frontendDist": "../dist",
+    "devUrl": "http://localhost:8080",
+    "beforeDevCommand": "pnpm dev",
+    "beforeBuildCommand": "pnpm build"
+  },
+  "app": {
+    "windows": [],
+    "security": {
+      "csp": "default-src 'self' blob: data: filesystem: tauri:; script-src 'self' 'wasm-unsafe-eval' 'unsafe-inline' filesystem: tauri:; worker-src 'self' blob:; style-src 'self' 'unsafe-inline' blob: data: filesystem: http: https: tauri:; font-src 'self' blob: data: filesystem: http: https: tauri:; img-src 'self' data: blob: filesystem: http: https: sable-media:; media-src 'self' blob: data: http: https: sable-media:; frame-src 'self' blob: http: https: tauri:; connect-src 'self' ipc: ws: wss: http: https: http://ipc.localhost sable-media: http://sable-media.localhost; object-src 'none'; base-uri 'self'; form-action 'self'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "createUpdaterArtifacts": true,
+    "macOS": {
+      "infoPlist": "Info.plist"
+    },
+    "iOS": {
+      "template": "src-tauri/ios-project.yml",
+      "minimumSystemVersion": "16.0",
+      "frameworks": [
+        "AudioToolbox",
+        "Photos",
+        "Frameworks/LiveKitWebRTC.xcframework",
+        "Frameworks/RustLiveKitUniFFI.xcframework"
+      ]
+    },
+    "linux": {
+      "deb": {
+        "depends": [
+          "xwayland",
+          "gstreamer1.0-plugins-good",
+          "gstreamer1.0-plugins-bad",
+          "gstreamer1.0-libav",
+          "gstreamer1.0-nice",
+          "geoclue-2.0"
+        ]
+      },
+      "rpm": {
+        "depends": [
+          "xorg-x11-server-Xwayland",
+          "gstreamer1-plugins-good",
+          "gstreamer1-plugins-bad-free",
+          "gstreamer1-libav",
+          "gstreamer1-plugins-nice",
+          "geoclue2"
+        ]
+      }
+    },
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ]
+  },
+  "plugins": {
+    "updater": {
+      "endpoints": ["https://github.com/SableClient/Sable/releases/latest/download/latest.json"],
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM0NDc2QkI0NjdCODlEQUUKUldTdW5iaG50R3RIeFBQeGFwcDZNcGhCQ2Y4UFgzVnptRmNRZjRoVDl0MkdOZmREdC9pTUZrZnAK"
+    },
+    "typegen": {
+      "projectPath": ".",
+      "outputPath": "../src/app/generated/tauri",
+      "validationLibrary": "none",
+      "verbose": false,
+      "typeMappings": {
+        "Response": "unknown"
+      }
+    },
+    "deep-link": {
+      "desktop": {
+        "schemes": ["sable", "moe.sable.app"]
+      },
+      "mobile": [
+        {
+          "scheme": ["sable", "moe.sable.app"],
+          "appLink": false
+        }
+      ]
+    },
+    "notifications": {
+      "actionTypes": [
+        {
+          "id": "sable-message",
+          "actions": [
+            {
+              "id": "sable-reply",
+              "title": "Reply",
+              "input": true,
+              "inputButtonTitle": "Send",
+              "inputPlaceholder": "Type a reply"
+            }
+          ]
+        }
+      ]
+    }
+  }
+}

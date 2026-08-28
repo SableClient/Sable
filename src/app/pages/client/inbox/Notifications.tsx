@@ -1,655 +1,253 @@
 import type { MouseEventHandler } from 'react';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
+import { Avatar, Badge, Box, Chip, Header, IconButton, Scroll, Spinner, Text, config } from 'folds';
+import { useSearchParams } from 'react-router';
+import { Virtualizer } from 'virtua';
 import {
-  Avatar,
-  Box,
-  Chip,
-  Header,
-  Icon,
-  IconButton,
-  Icons,
-  Scroll,
-  Text,
-  config,
-  toRem,
-} from 'folds';
-import { useSearchParams } from 'react-router-dom';
-import type { INotification, INotificationsResponse, IRoomEvent, Room } from '$types/matrix-sdk';
-import type { IImageContent } from '$types/matrix/common';
-import { JoinRule, Method, RelationType, EventType } from '$types/matrix-sdk';
-import { useVirtualizer } from '@tanstack/react-virtual';
-import type { HTMLReactParserOptions } from 'html-react-parser';
-import type { Opts as LinkifyOpts } from 'linkifyjs';
-import { useAtomValue } from 'jotai';
-import { nicknamesAtom } from '$state/nicknames';
+  ArrowLeft,
+  CaretDown,
+  CaretUp,
+  ChatCircle,
+  Check,
+  Checks,
+  composerIcon,
+  sizedIcon,
+} from '$components/icons/phosphor';
+import { JoinRule, MatrixEvent } from '$types/matrix-sdk';
+import type { Room } from '$types/matrix-sdk';
 import { Page, PageContent, PageContentCenter, PageHeader } from '$components/page';
-import { useMatrixClient } from '$hooks/useMatrixClient';
-import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
-import type { InboxNotificationsPathSearchParams } from '$pages/paths';
-import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { SequenceCard } from '$components/sequence-card';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
-import {
-  getEditedEvent,
-  getMemberAvatarMxc,
-  getMemberDisplayName,
-  getRoomAvatarUrl,
-} from '$utils/room';
 import { ScrollTopContainer } from '$components/scroll-top-container';
-import { useInterval } from '$hooks/useInterval';
-import {
-  AvatarBase,
-  ImageContent,
-  MSticker,
-  MessageNotDecryptedContent,
-  MessageUnsupportedContent,
-  ModernLayout,
-  RedactedContent,
-  Reply,
-  Time,
-  Username,
-  UsernameBold,
-} from '$components/message';
-import {
-  factoryRenderLinkifyWithMention,
-  getReactCustomHtmlParser,
-  LINKIFY_OPTS,
-  makeMentionCustomProps,
-  renderMatrixMention,
-} from '$plugins/react-custom-html-parser';
-import { RenderMessageContent } from '$components/RenderMessageContent';
+import { ContainerColor } from '$styles/ContainerColor.css';
+import { useMatrixClient } from '$hooks/useMatrixClient';
+import { useRoomNavigate } from '$hooks/useRoomNavigate';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { Image } from '$components/media';
-import { ImageViewer } from '$components/image-viewer';
-import type { GetContentCallback } from '$types/matrix/room';
-
-import { useMatrixEventRenderer } from '$hooks/useMatrixEventRenderer';
-import * as customHtmlCss from '$styles/CustomHtml.css';
-import { useRoomNavigate } from '$hooks/useRoomNavigate';
+import { showToast } from '$state/toast';
+import { markAsRead } from '$utils/notifications';
+import { fetchNotificationEvent } from '$utils/notificationEvent';
+import { getRoomAvatarUrl } from '$utils/room/display';
 import { useRoomUnread } from '$state/hooks/unread';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
-import { markAsRead } from '$utils/notifications';
-import { ContainerColor } from '$styles/ContainerColor.css';
-import { VirtualTile } from '$components/virtualizer';
-import { UserAvatar } from '$components/user-avatar';
-import { EncryptedContent } from '$features/room/message';
-import { useMentionClickHandler } from '$hooks/useMentionClickHandler';
-import { useSpoilerClickHandler } from '$hooks/useSpoilerClickHandler';
+import { useLocalNotificationTimeline } from '$hooks/useLocalNotificationTimeline';
+import {
+  isStoredNotificationRead,
+  type NotificationTab,
+  type StoredNotification,
+} from '$utils/localNotifications';
+import { MessagePreview, useRoomMessagePreviewRenderer } from '$components/message-preview';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { BackRouteHandler } from '$components/BackRouteHandler';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { allRoomsAtom } from '$state/room-list/roomList';
-import { usePowerLevels } from '$hooks/usePowerLevels';
-import { usePowerLevelTags } from '$hooks/usePowerLevelTags';
-import { useTheme } from '$hooks/useTheme';
-import { PowerIcon } from '$components/power';
-import colorMXID from '$utils/colorMXID';
-import { mDirectAtom } from '$state/mDirectList';
-import {
-  getPowerTagIconSrc,
-  useAccessiblePowerTagColors,
-  useGetMemberPowerTag,
-} from '$hooks/useMemberPowerTag';
-import { useRoomCreatorsTag } from '$hooks/useRoomCreatorsTag';
-import { useRoomCreators } from '$hooks/useRoomCreators';
 
-type RoomNotificationsGroup = {
-  roomId: string;
-  notifications: INotification[];
-};
-type NotificationTimeline = {
-  nextToken?: string;
-  groups: RoomNotificationsGroup[];
-};
-type LoadTimeline = (from?: string) => Promise<void>;
-type SilentReloadTimeline = () => Promise<void>;
-
-const groupNotifications = (
-  notifications: INotification[],
-  allowRooms: Set<string>
-): RoomNotificationsGroup[] => {
-  const groups: RoomNotificationsGroup[] = [];
-  notifications.forEach((notification) => {
-    if (notification.event.type === (EventType.RoomMember as string)) return;
-    if (!allowRooms.has(notification.room_id)) return;
-
-    const groupIndex = groups.length - 1;
-    const lastAddedGroup: RoomNotificationsGroup | undefined = groups[groupIndex];
-    if (notification.room_id === lastAddedGroup?.roomId) {
-      lastAddedGroup.notifications.push(notification);
-      return;
-    }
-    groups.push({
-      roomId: notification.room_id,
-      notifications: [notification],
-    });
-  });
-  return groups;
+type NotificationRow = {
+  notification: StoredNotification;
+  showHeader: boolean;
 };
 
-const useNotificationTimeline = (
-  paginationLimit: number,
-  onlyHighlight?: boolean
-): [NotificationTimeline, LoadTimeline, SilentReloadTimeline] => {
-  const mx = useMatrixClient();
-  const allRooms = useAtomValue(allRoomsAtom);
-  const allJoinedRooms = useMemo(() => new Set(allRooms), [allRooms]);
+const notificationRows = (items: StoredNotification[]): NotificationRow[] =>
+  items.map((notification, index) => ({
+    notification,
+    showHeader: items[index - 1]?.room_id !== notification.room_id,
+  }));
 
-  const [notificationTimeline, setNotificationTimeline] = useState<NotificationTimeline>({
-    groups: [],
-  });
-
-  const fetchNotifications = useCallback(
-    (from?: string, limit?: number, only?: 'highlight') => {
-      const queryParams = { from, limit, only };
-      return mx.http.authedRequest<INotificationsResponse>(
-        Method.Get,
-        '/notifications',
-        queryParams
-      );
-    },
-    [mx]
-  );
-
-  const loadTimeline: LoadTimeline = useCallback(
-    async (from) => {
-      if (!from) {
-        setNotificationTimeline({ groups: [] });
-      }
-      const data = await fetchNotifications(
-        from,
-        paginationLimit,
-        onlyHighlight ? 'highlight' : undefined
-      );
-      const groups = groupNotifications(data.notifications, allJoinedRooms);
-
-      setNotificationTimeline((currentTimeline) => {
-        if (currentTimeline.nextToken === from) {
-          return {
-            nextToken: data.next_token,
-            groups: from ? currentTimeline.groups.concat(groups) : groups,
-          };
-        }
-        return currentTimeline;
-      });
-    },
-    [paginationLimit, onlyHighlight, fetchNotifications, allJoinedRooms]
-  );
-
-  /**
-   * Reload timeline silently i.e without setting to default
-   * before fetching notifications from start
-   */
-  const silentReloadTimeline: SilentReloadTimeline = useCallback(async () => {
-    const data = await fetchNotifications(
-      undefined,
-      paginationLimit,
-      onlyHighlight ? 'highlight' : undefined
-    );
-    const groups = groupNotifications(data.notifications, allJoinedRooms);
-    setNotificationTimeline({
-      nextToken: data.next_token,
-      groups,
-    });
-  }, [paginationLimit, onlyHighlight, fetchNotifications, allJoinedRooms]);
-
-  return [notificationTimeline, loadTimeline, silentReloadTimeline];
-};
-
-type RoomNotificationsGroupProps = {
+type NotificationItemProps = {
   room: Room;
-  appBaseUrl: string;
-  notifications: INotification[];
-  mediaAutoLoad?: boolean;
-  urlPreview?: boolean;
-  hideReads: boolean;
+  notification: StoredNotification;
+  renderContent: ReturnType<typeof useRoomMessagePreviewRenderer>;
   onOpen: (roomId: string, eventId: string) => void;
-  legacyUsernameColor?: boolean;
   hour24Clock: boolean;
   dateFormatString: string;
 };
-function RoomNotificationsGroupComp({
+
+function NotificationItem({
   room,
-  appBaseUrl,
-  notifications,
-  mediaAutoLoad,
-  urlPreview,
-  hideReads,
+  notification,
+  renderContent,
   onOpen,
-  legacyUsernameColor,
   hour24Clock,
   dateFormatString,
-}: Readonly<RoomNotificationsGroupProps>) {
+}: NotificationItemProps) {
   const mx = useMatrixClient();
-  const useAuthentication = useMediaAuthentication();
-  const unread = useRoomUnread(room.roomId, roomToUnreadAtom);
-  const nicknames = useAtomValue(nicknamesAtom);
-
-  const powerLevels = usePowerLevels(room);
-  const creators = useRoomCreators(room);
-
-  const creatorsTag = useRoomCreatorsTag();
-  const powerLevelTags = usePowerLevelTags(room, powerLevels);
-  const getMemberPowerTag = useGetMemberPowerTag(room, creators, powerLevels);
-
-  const theme = useTheme();
-  const accessibleTagColors = useAccessiblePowerTagColors(theme.kind, creatorsTag, powerLevelTags);
-
-  const mentionClickHandler = useMentionClickHandler(room.roomId);
-  const spoilerClickHandler = useSpoilerClickHandler();
-
-  const linkifyOpts = useMemo<LinkifyOpts>(
-    () => ({
-      ...LINKIFY_OPTS,
-      render: factoryRenderLinkifyWithMention(
-        appBaseUrl,
-        (href) =>
-          renderMatrixMention(
-            mx,
-            room.roomId,
-            href,
-            makeMentionCustomProps(mentionClickHandler),
-            nicknames
-          ),
-        mentionClickHandler
-      ),
-    }),
-    [appBaseUrl, mx, room, mentionClickHandler, nicknames]
+  const liveEvent = useMemo(
+    () => room.findEventById(notification.event.event_id),
+    [room, notification.event.event_id]
   );
-  const htmlReactParserOptions = useMemo<HTMLReactParserOptions>(
-    () =>
-      getReactCustomHtmlParser(mx, room.roomId, {
-        settingsLinkBaseUrl: appBaseUrl,
-        linkifyOpts,
-        useAuthentication,
-        handleSpoilerClick: spoilerClickHandler,
-        handleMentionClick: mentionClickHandler,
-        nicknames,
-      }),
-    [
-      appBaseUrl,
-      mx,
-      room,
-      linkifyOpts,
-      mentionClickHandler,
-      spoilerClickHandler,
-      useAuthentication,
-      nicknames,
-    ]
-  );
+  const storedEvent = useMemo(() => new MatrixEvent(notification.event), [notification.event]);
+  const [remoteEvent, setRemoteEvent] = useState<MatrixEvent>();
 
-  const renderMatrixEvent = useMatrixEventRenderer<[IRoomEvent, string, GetContentCallback]>(
-    {
-      [EventType.RoomMessage]: (event, displayName, getContent) => {
-        if (event.unsigned?.redacted_because) {
-          return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
-        }
+  useEffect(() => {
+    setRemoteEvent(undefined);
+    if (liveEvent) return undefined;
 
-        return (
-          <RenderMessageContent
-            displayName={displayName}
-            msgType={event.content.msgtype ?? ''}
-            ts={event.origin_server_ts}
-            getContent={getContent}
-            mediaAutoLoad={mediaAutoLoad}
-            urlPreview={urlPreview}
-            htmlReactParserOptions={htmlReactParserOptions}
-            linkifyOpts={linkifyOpts}
-            outlineAttachment
-          />
-        );
-      },
-      [EventType.RoomMessageEncrypted]: (evt, displayName) => {
-        const evtTimeline = room.getTimelineForEvent(evt.event_id);
+    let mounted = true;
+    fetchNotificationEvent(mx, room.roomId, notification.event.event_id)
+      .then((event) => mounted && setRemoteEvent(event))
+      // Offline, or the event is gone: storedEvent stays as the fallback.
+      .catch(() => undefined);
 
-        const mEvent = evtTimeline?.getEvents().find((e) => e.getId() === evt.event_id);
+    return () => {
+      mounted = false;
+    };
+  }, [mx, room.roomId, notification.event.event_id, liveEvent]);
 
-        if (!mEvent || !evtTimeline) {
-          return (
-            <Box grow="Yes" direction="Column">
-              <Text size="T400" priority="300">
-                <code className={customHtmlCss.Code}>{evt.type}</code>
-                {' event'}
-              </Text>
-            </Box>
-          );
-        }
+  const event = liveEvent ?? remoteEvent ?? storedEvent;
 
-        return (
-          <EncryptedContent mEvent={mEvent}>
-            {() => {
-              if (mEvent.isRedacted()) return <RedactedContent />;
-              if (mEvent.getType() === (EventType.Sticker as string))
-                return (
-                  <MSticker
-                    content={mEvent.getContent()}
-                    renderImageContent={(props) => (
-                      <ImageContent
-                        {...props}
-                        autoPlay={mediaAutoLoad}
-                        renderImage={(p) => <Image {...p} loading="lazy" />}
-                        renderViewer={(p) => <ImageViewer {...p} />}
-                      />
-                    )}
-                  />
-                );
-              if (mEvent.getType() === (EventType.RoomMessage as string)) {
-                const editedEvent = getEditedEvent(
-                  evt.event_id,
-                  mEvent,
-                  evtTimeline.getTimelineSet()
-                );
-                const getContent = (() =>
-                  editedEvent?.getContent()['m.new_content'] ??
-                  mEvent.getContent()) as GetContentCallback;
+  const handleOpen: MouseEventHandler<HTMLButtonElement> = (evt) => {
+    evt.stopPropagation();
+    onOpen(room.roomId, notification.event.event_id);
+  };
+  const read = isStoredNotificationRead(room, mx.getSafeUserId(), notification);
 
-                return (
-                  <RenderMessageContent
-                    displayName={displayName}
-                    msgType={mEvent.getContent().msgtype ?? ''}
-                    ts={mEvent.getTs()}
-                    edited={!!editedEvent}
-                    getContent={getContent}
-                    mediaAutoLoad={mediaAutoLoad}
-                    urlPreview={urlPreview}
-                    htmlReactParserOptions={htmlReactParserOptions}
-                    linkifyOpts={linkifyOpts}
-                  />
-                );
-              }
-              if (mEvent.getType() === (EventType.RoomMessageEncrypted as string))
-                return (
-                  <Text>
-                    <MessageNotDecryptedContent />
-                  </Text>
-                );
-              return (
-                <Text>
-                  <MessageUnsupportedContent />
-                </Text>
-              );
-            }}
-          </EncryptedContent>
-        );
-      },
-      [EventType.Sticker]: (event, displayName, getContent) => {
-        if (event.unsigned?.redacted_because) {
-          return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
-        }
-        return (
-          <MSticker
-            content={getContent() as IImageContent}
-            renderImageContent={(props) => (
-              <ImageContent
-                {...props}
-                autoPlay={mediaAutoLoad}
-                renderImage={(p) => <Image {...p} loading="lazy" />}
-                renderViewer={(p) => <ImageViewer {...p} />}
-              />
+  return (
+    <SequenceCard
+      style={{ padding: config.space.S400 }}
+      variant="SurfaceVariant"
+      direction="Column"
+    >
+      <MessagePreview
+        room={room}
+        event={event}
+        renderContent={renderContent}
+        actions={
+          <Box shrink="No" gap="200" alignItems="Center">
+            {!read && (
+              <Badge variant="Secondary" size="200" fill="Solid" radii="Pill" outlined={false} />
             )}
-          />
-        );
-      },
-      [EventType.RoomTombstone]: (event) => {
-        const { content } = event;
-        return (
-          <Box grow="Yes" direction="Column">
-            <Text size="T400" priority="300">
-              Room Tombstone. {content.body}
-            </Text>
+            <Chip onClick={handleOpen} variant="Secondary" radii="400">
+              <Text size="T200">Open</Text>
+            </Chip>
           </Box>
-        );
-      },
-    },
-    undefined,
-    (event) => {
-      if (event.unsigned?.redacted_because) {
-        return <RedactedContent reason={event.unsigned?.redacted_because.content.reason} />;
-      }
-      return (
-        <Box grow="Yes" direction="Column">
-          <Text size="T400" priority="300">
-            <code className={customHtmlCss.Code}>{event.type}</code>
-            {' event'}
-          </Text>
-        </Box>
-      );
-    }
+        }
+        onOpen={handleOpen}
+        hour24Clock={hour24Clock}
+        dateFormatString={dateFormatString}
+      />
+    </SequenceCard>
   );
+}
 
-  const handleOpenClick: MouseEventHandler = (evt) => {
-    const eventId = evt.currentTarget.getAttribute('data-event-id');
-    if (!eventId) return;
-    onOpen(room.roomId, eventId);
-  };
-  const handleMarkAsRead = () => {
-    markAsRead(mx, room.roomId, hideReads);
-  };
+function NotificationRowItem({
+  room,
+  appBaseUrl,
+  row,
+  hideReads,
+  onOpen,
+  onMarkRead,
+  hour24Clock,
+  dateFormatString,
+}: {
+  room: Room;
+  appBaseUrl: string;
+  row: NotificationRow;
+  hideReads: boolean;
+  onOpen: (roomId: string, eventId: string) => void;
+  onMarkRead: () => void;
+  hour24Clock: boolean;
+  dateFormatString: string;
+}) {
+  const mx = useMatrixClient();
+  const unread = useRoomUnread(room.roomId, roomToUnreadAtom);
+  const useAuthentication = useMediaAuthentication();
+  const renderContent = useRoomMessagePreviewRenderer(room, {
+    settingsLinkBaseUrl: appBaseUrl,
+  });
 
   return (
     <Box direction="Column" gap="200">
-      <Header size="300">
-        <Box gap="200" grow="Yes">
-          <Avatar size="200" radii="300">
-            <RoomAvatar
-              roomId={room.roomId}
-              src={getRoomAvatarUrl(mx, room, 96, useAuthentication)}
-              alt={room.name}
-              renderFallback={() => (
-                <RoomIcon
-                  size="50"
-                  roomType={room.getType()}
-                  joinRule={room.getJoinRule() ?? JoinRule.Restricted}
-                  filled
-                />
-              )}
-            />
-          </Avatar>
-          <Text size="H4" truncate>
-            {room.name}
-          </Text>
-        </Box>
-        <Box shrink="No">
-          {unread && (
+      {row.showHeader && (
+        <Header size="300">
+          <Box gap="200" grow="Yes">
+            <Avatar size="200" radii="300">
+              <RoomAvatar
+                roomId={room.roomId}
+                src={getRoomAvatarUrl(mx, room, 96, useAuthentication)}
+                alt={room.name}
+                renderFallback={() => (
+                  <RoomIcon
+                    size="50"
+                    roomType={room.getType()}
+                    joinRule={room.getJoinRule() ?? JoinRule.Restricted}
+                    filled
+                  />
+                )}
+              />
+            </Avatar>
+            <Text size="H4" truncate>
+              {room.name}
+            </Text>
+          </Box>
+          {unread && (unread.total > 0 || unread.highlight > 0) && (
             <Chip
               variant="Primary"
               radii="Pill"
-              onClick={handleMarkAsRead}
-              before={<Icon size="100" src={Icons.CheckTwice} />}
+              onClick={() => {
+                void markAsRead(mx, room.roomId, hideReads, true)
+                  .then(onMarkRead)
+                  .catch(() => showToast('Unable to mark this room as read.'));
+              }}
+              before={sizedIcon(Checks, '100')}
             >
               <Text size="T200">Mark as Read</Text>
             </Chip>
           )}
-        </Box>
-      </Header>
-      <Box direction="Column" gap="100">
-        {notifications.map((notification) => {
-          const { event } = notification;
-
-          const displayName =
-            getMemberDisplayName(room, event.sender, nicknames) ??
-            getMxIdLocalPart(event.sender) ??
-            event.sender;
-          const senderAvatarMxc = getMemberAvatarMxc(room, event.sender);
-          const getContent = (() => event.content) as GetContentCallback;
-
-          const relation = event.content['m.relates_to'];
-          const replyEventId = relation?.['m.in_reply_to']?.event_id;
-          const threadRootId =
-            relation?.rel_type === RelationType.Thread ? relation.event_id : undefined;
-          // doesn't work for encrypted rooms
-          // not a big deal really, don't want to bother with finding the event by id and decrypting
-          const mentions = event.content['m.mentions'];
-
-          const memberPowerTag = getMemberPowerTag(event.sender);
-          const tagColor = memberPowerTag?.color
-            ? accessibleTagColors?.get(memberPowerTag.color)
-            : undefined;
-          const tagIconSrc = memberPowerTag?.icon
-            ? getPowerTagIconSrc(mx, useAuthentication, memberPowerTag.icon)
-            : undefined;
-
-          const usernameColor = legacyUsernameColor ? colorMXID(event.sender) : tagColor;
-
-          return (
-            <SequenceCard
-              key={notification.event.event_id}
-              style={{ padding: config.space.S400 }}
-              variant="SurfaceVariant"
-              direction="Column"
-            >
-              <ModernLayout
-                before={
-                  <AvatarBase>
-                    <Avatar size="300">
-                      <UserAvatar
-                        userId={event.sender}
-                        src={
-                          senderAvatarMxc
-                            ? (mxcUrlToHttp(
-                                mx,
-                                senderAvatarMxc,
-                                useAuthentication,
-                                48,
-                                48,
-                                'crop'
-                              ) ?? undefined)
-                            : undefined
-                        }
-                        alt={displayName}
-                        renderFallback={() => <Icon size="200" src={Icons.User} filled />}
-                      />
-                    </Avatar>
-                  </AvatarBase>
-                }
-              >
-                <Box gap="300" justifyContent="SpaceBetween" alignItems="Center" grow="Yes">
-                  <Box gap="200" alignItems="Baseline">
-                    <Box alignItems="Center" gap="200">
-                      <Username style={{ color: usernameColor }}>
-                        <Text as="span" truncate>
-                          <UsernameBold>{displayName}</UsernameBold>
-                        </Text>
-                      </Username>
-                      {tagIconSrc && <PowerIcon size="100" iconSrc={tagIconSrc} />}
-                    </Box>
-                    <Time
-                      ts={event.origin_server_ts}
-                      hour24Clock={hour24Clock}
-                      dateFormatString={dateFormatString}
-                    />
-                  </Box>
-                  <Box shrink="No" gap="200" alignItems="Center">
-                    <Chip
-                      data-event-id={event.event_id}
-                      onClick={handleOpenClick}
-                      variant="Secondary"
-                      radii="400"
-                    >
-                      <Text size="T200">Open</Text>
-                    </Chip>
-                  </Box>
-                </Box>
-                {replyEventId && (
-                  <Reply
-                    room={room}
-                    replyEventId={replyEventId}
-                    threadRootId={threadRootId}
-                    mentions={mentions}
-                    onClick={handleOpenClick}
-                  />
-                )}
-                {renderMatrixEvent(event.type, false, event, displayName, getContent)}
-              </ModernLayout>
-            </SequenceCard>
-          );
-        })}
-      </Box>
+        </Header>
+      )}
+      <NotificationItem
+        room={room}
+        notification={row.notification}
+        renderContent={renderContent}
+        onOpen={onOpen}
+        hour24Clock={hour24Clock}
+        dateFormatString={dateFormatString}
+      />
     </Box>
   );
 }
 
-const useNotificationsSearchParams = (
-  searchParams: URLSearchParams
-): InboxNotificationsPathSearchParams =>
-  useMemo(
-    () => ({
-      only: searchParams.get('only') ?? undefined,
-    }),
-    [searchParams]
-  );
-
-const FAST_REFRESH_MS = 2500;
-
 export function Notifications() {
   const mx = useMatrixClient();
   const [hideReads] = useSetting(settingsAtom, 'hideReads');
-  const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
-  const [urlPreview] = useSetting(settingsAtom, 'urlPreview');
-  const [legacyUsernameColor] = useSetting(settingsAtom, 'legacyUsernameColor');
   const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
   const [dateFormatString] = useSetting(settingsAtom, 'dateFormatString');
   const screenSize = useScreenSizeContext();
-  const mDirects = useAtomValue(mDirectAtom);
   const appBaseUrl = useSettingsLinkBaseUrl();
-
   const { navigateRoom } = useRoomNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const notificationsSearchParams = useNotificationsSearchParams(searchParams);
   const scrollRef = useRef<HTMLDivElement>(null);
   const scrollTopAnchorRef = useRef<HTMLDivElement>(null);
+  const virtualStartRef = useRef<HTMLDivElement>(null);
+  const [virtualStartMargin, setVirtualStartMargin] = useState(0);
 
-  const onlyHighlight = notificationsSearchParams.only === 'highlight';
-  const setOnlyHighlighted = (highlight: boolean) => {
-    if (highlight) {
-      setSearchParams(
-        new URLSearchParams({
-          only: 'highlight',
-        })
-      );
-      return;
-    }
-    setSearchParams();
+  const tabValue = searchParams.get('tab');
+  const tab: NotificationTab = tabValue === 'dms' || tabValue === 'mentions' ? tabValue : 'all';
+  const includeRead = searchParams.get('read') === '1';
+  const query = useMemo(() => ({ tab, includeRead, limit: 24 }), [includeRead, tab]);
+  const { page, loadingOlder, error, refresh, loadOlder } = useLocalNotificationTimeline(query);
+  const rows = useMemo(() => notificationRows(page.items), [page.items]);
+
+  useLayoutEffect(() => {
+    const scroll = scrollRef.current;
+    const start = virtualStartRef.current;
+    if (!scroll || !start) return undefined;
+    const updateMargin = () => {
+      const margin =
+        start.getBoundingClientRect().top - scroll.getBoundingClientRect().top + scroll.scrollTop;
+      setVirtualStartMargin((current) => (current === margin ? current : margin));
+    };
+    updateMargin();
+    window.addEventListener('resize', updateMargin);
+    return () => window.removeEventListener('resize', updateMargin);
+  }, [includeRead, rows.length, tab]);
+
+  const setFilter = (name: string, value?: string) => {
+    const next = new URLSearchParams(searchParams);
+    if (value === undefined) next.delete(name);
+    else next.set(name, value);
+    setSearchParams(next);
   };
-
-  const [notificationTimeline, loadTimelineRaw, silentReloadTimeline] = useNotificationTimeline(
-    24,
-    onlyHighlight
-  );
-  const [timelineState, loadTimeline] = useAsyncCallback(loadTimelineRaw);
-
-  const virtualizer = useVirtualizer({
-    count: notificationTimeline.groups.length,
-    getScrollElement: () => scrollRef.current,
-    estimateSize: () => 40,
-    overscan: 4,
-  });
-  const vItems = virtualizer.getVirtualItems();
-
-  useInterval(
-    useCallback(() => {
-      silentReloadTimeline();
-    }, [silentReloadTimeline]),
-    FAST_REFRESH_MS
-  );
-
-  useEffect(() => {
-    loadTimeline();
-  }, [loadTimeline]);
-
-  const lastVItem = vItems.at(-1);
-  const lastVItemIndex: number | undefined = lastVItem?.index;
-  useEffect(() => {
-    if (
-      timelineState.status === AsyncStatus.Success &&
-      notificationTimeline.groups.length - 1 === lastVItemIndex &&
-      notificationTimeline.nextToken
-    ) {
-      loadTimeline(notificationTimeline.nextToken);
-    }
-  }, [timelineState, notificationTimeline, lastVItemIndex, loadTimeline]);
 
   return (
     <Page>
@@ -658,16 +256,12 @@ export function Notifications() {
           <Box grow="Yes" basis="No">
             {screenSize === ScreenSize.Mobile && (
               <BackRouteHandler>
-                {(onBack) => (
-                  <IconButton onClick={onBack}>
-                    <Icon src={Icons.ArrowLeft} />
-                  </IconButton>
-                )}
+                {(onBack) => <IconButton onClick={onBack}>{composerIcon(ArrowLeft)}</IconButton>}
               </BackRouteHandler>
             )}
           </Box>
           <Box alignItems="Center" gap="200">
-            {screenSize !== ScreenSize.Mobile && <Icon size="400" src={Icons.Message} />}
+            {screenSize !== ScreenSize.Mobile && sizedIcon(ChatCircle, '400')}
             <Text size="H3" truncate>
               Notification Messages
             </Text>
@@ -684,111 +278,82 @@ export function Notifications() {
                 <Box ref={scrollTopAnchorRef} direction="Column" gap="100">
                   <span data-spacing-node />
                   <Text size="L400">Filter</Text>
-                  <Box gap="200">
+                  <Box gap="200" wrap="Wrap">
+                    {(['dms', 'mentions', 'all'] as NotificationTab[]).map((value) => (
+                      <Chip
+                        key={value}
+                        onClick={() => setFilter('tab', value === 'all' ? undefined : value)}
+                        variant={tab === value ? 'Success' : 'Surface'}
+                        aria-pressed={tab === value}
+                        before={tab === value && sizedIcon(Check, '100')}
+                        outlined
+                      >
+                        <Text size="T200">
+                          {value === 'dms' ? 'DMs' : value[0]!.toUpperCase() + value.slice(1)}
+                        </Text>
+                      </Chip>
+                    ))}
                     <Chip
-                      onClick={() => setOnlyHighlighted(false)}
-                      variant={onlyHighlight ? 'Surface' : 'Success'}
-                      aria-pressed={!onlyHighlight}
-                      before={!onlyHighlight && <Icon size="100" src={Icons.Check} />}
+                      onClick={() => setFilter('read', includeRead ? undefined : '1')}
+                      variant={includeRead ? 'Success' : 'Surface'}
+                      aria-pressed={includeRead}
+                      before={includeRead && sizedIcon(Check, '100')}
                       outlined
                     >
-                      <Text size="T200">All Notifications</Text>
-                    </Chip>
-                    <Chip
-                      onClick={() => setOnlyHighlighted(true)}
-                      variant={onlyHighlight ? 'Success' : 'Surface'}
-                      aria-pressed={onlyHighlight}
-                      before={onlyHighlight && <Icon size="100" src={Icons.Check} />}
-                      outlined
-                    >
-                      <Text size="T200">Highlighted</Text>
+                      <Text size="T200">Include read</Text>
                     </Chip>
                   </Box>
                 </Box>
+
                 <ScrollTopContainer scrollRef={scrollRef} anchorRef={scrollTopAnchorRef}>
                   <IconButton
-                    onClick={() => virtualizer.scrollToOffset(0)}
+                    onClick={() => scrollRef.current?.scrollTo({ top: 0 })}
                     variant="SurfaceVariant"
                     radii="Pill"
                     outlined
                     size="300"
                     aria-label="Scroll to Top"
                   >
-                    <Icon src={Icons.ChevronTop} size="300" />
+                    {composerIcon(CaretUp)}
                   </IconButton>
                 </ScrollTopContainer>
-                <div
-                  style={{
-                    position: 'relative',
-                    height: virtualizer.getTotalSize(),
-                  }}
-                >
-                  {vItems.map((vItem) => {
-                    const group = notificationTimeline.groups[vItem.index];
-                    if (!group) return null;
-                    const groupRoom = mx.getRoom(group.roomId);
-                    if (!groupRoom) return null;
 
-                    return (
-                      <VirtualTile
-                        virtualItem={vItem}
-                        style={{ paddingTop: config.space.S500 }}
-                        ref={virtualizer.measureElement}
-                        key={vItem.index}
-                      >
-                        <RoomNotificationsGroupComp
-                          room={groupRoom}
-                          appBaseUrl={appBaseUrl}
-                          notifications={group.notifications}
-                          mediaAutoLoad={mediaAutoLoad}
-                          urlPreview={urlPreview}
-                          hideReads={hideReads}
-                          onOpen={navigateRoom}
-                          legacyUsernameColor={
-                            legacyUsernameColor || mDirects.has(groupRoom.roomId)
-                          }
-                          hour24Clock={hour24Clock}
-                          dateFormatString={dateFormatString}
-                        />
-                      </VirtualTile>
-                    );
-                  })}
+                <div ref={virtualStartRef}>
+                  <Virtualizer<NotificationRow>
+                    data={rows}
+                    scrollRef={scrollRef}
+                    startMargin={virtualStartMargin}
+                    bufferSize={800}
+                  >
+                    {(row) => {
+                      const room = mx.getRoom(row.notification.room_id);
+                      if (!room) return <div key={row.notification.event.event_id} />;
+                      return (
+                        <div
+                          key={row.notification.event.event_id}
+                          style={{
+                            paddingTop: row.showHeader ? config.space.S500 : config.space.S100,
+                          }}
+                        >
+                          <NotificationRowItem
+                            room={room}
+                            appBaseUrl={appBaseUrl}
+                            row={row}
+                            hideReads={hideReads}
+                            onOpen={navigateRoom}
+                            onMarkRead={refresh}
+                            hour24Clock={hour24Clock}
+                            dateFormatString={dateFormatString}
+                          />
+                        </div>
+                      );
+                    }}
+                  </Virtualizer>
                 </div>
 
-                {timelineState.status === AsyncStatus.Success &&
-                  notificationTimeline.groups.length === 0 && (
-                    <Box
-                      className={ContainerColor({
-                        variant: 'SurfaceVariant',
-                      })}
-                      style={{
-                        padding: config.space.S300,
-                        borderRadius: config.radii.R400,
-                      }}
-                      direction="Column"
-                      gap="200"
-                    >
-                      <Text>No Notifications</Text>
-                      <Text size="T200">
-                        You don&apos;t have any new notifications to display yet.
-                      </Text>
-                    </Box>
-                  )}
-
-                {timelineState.status === AsyncStatus.Loading && (
-                  <Box direction="Column" gap="100">
-                    {Array.from({ length: 8 }).map(() => (
-                      <SequenceCard
-                        variant="SurfaceVariant"
-                        key={crypto.randomUUID()}
-                        style={{ minHeight: toRem(80) }}
-                      />
-                    ))}
-                  </Box>
-                )}
-                {timelineState.status === AsyncStatus.Error && (
+                {page.items.length === 0 && (
                   <Box
-                    className={ContainerColor({ variant: 'Critical' })}
+                    className={ContainerColor({ variant: 'SurfaceVariant' })}
                     style={{
                       padding: config.space.S300,
                       borderRadius: config.radii.R400,
@@ -796,8 +361,46 @@ export function Notifications() {
                     direction="Column"
                     gap="200"
                   >
-                    <Text size="L400">{(timelineState.error as Error).name}</Text>
-                    <Text size="T300">{(timelineState.error as Error).message}</Text>
+                    <Text>No Notifications</Text>
+                    <Text size="T200">
+                      You don&apos;t have any notifications matching these filters.
+                    </Text>
+                  </Box>
+                )}
+                {error && (
+                  <Box
+                    className={ContainerColor({ variant: 'Critical' })}
+                    style={{
+                      padding: config.space.S300,
+                      borderRadius: config.radii.R400,
+                    }}
+                  >
+                    <Text size="T300">{error.message}</Text>
+                  </Box>
+                )}
+                {page.canLoadOlder && (
+                  <Box
+                    alignItems="Center"
+                    justifyContent="Center"
+                    style={{ padding: config.space.S300 }}
+                  >
+                    <IconButton
+                      onClick={() => void loadOlder()}
+                      disabled={loadingOlder}
+                      variant="SurfaceVariant"
+                      radii="Pill"
+                      outlined
+                      size="400"
+                      aria-label={
+                        error ? 'Retry loading older notifications' : 'Load older notifications'
+                      }
+                    >
+                      {loadingOlder ? (
+                        <Spinner size="200" variant="Secondary" />
+                      ) : (
+                        composerIcon(CaretDown)
+                      )}
+                    </IconButton>
                   </Box>
                 )}
               </Box>

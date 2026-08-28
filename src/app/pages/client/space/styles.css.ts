@@ -8,7 +8,7 @@ export const RoomCoverNavContainer = style({
   width: '100%',
   zIndex: '100',
   top: '0',
-  background: 'linear-gradient(180deg, #000 0%, #0000 100%)',
+  background: 'linear-gradient(180deg, #000 0%, transparent 100%)',
 });
 export const RoomCoverlessNavContainer = recipe({
   base: {
@@ -35,16 +35,23 @@ export const RoomCoverContainer = style({
 export const RoomCover = style({
   height: '100%',
   width: '100%',
-  objectFit: 'cover',
-  objectPosition: 'center',
-});
-
-export const RoomCoverFallback = style({
-  filter: 'blur(16px) brightness(50%)',
-  transform: 'scale(2)',
+  position: 'relative',
+  display: 'block',
+  overflow: 'hidden',
 });
 
 export const RoomCoverImage = style({
   objectFit: 'cover',
   width: '100%',
+  height: '100%',
+});
+
+export const RoomCoverImageButton = style({
+  display: 'block',
+  width: '100%',
+  height: '100%',
+  padding: 0,
+  border: 'none',
+  background: 'none',
+  cursor: 'pointer',
 });

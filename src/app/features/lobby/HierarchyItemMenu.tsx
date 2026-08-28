@@ -1,42 +1,32 @@
-import type { MouseEventHandler } from 'react';
 import { useCallback, useEffect, useState } from 'react';
-import FocusTrap from 'focus-trap-react';
-import type { RectCords } from 'folds';
-import {
-  Box,
-  IconButton,
-  Icon,
-  Icons,
-  PopOut,
-  Menu,
-  MenuItem,
-  Text,
-  config,
-  Line,
-  Spinner,
-  toRem,
-} from 'folds';
+import { Box, IconButton, Menu, MenuItem, Text, config, Line, Spinner, toRem } from 'folds';
 import type { HierarchyItem } from '$hooks/useSpaceHierarchy';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import type { MSpaceChildContent } from '$types/matrix/room';
 import type { StateEvents } from '$types/matrix-sdk';
 
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { UseStateProvider } from '$components/UseStateProvider';
 import { LeaveSpacePrompt } from '$components/leave-space-prompt';
-import { LeaveRoomPrompt } from '$components/leave-room-prompt';
-import { stopPropagation } from '$utils/keyboard';
+import { confirm } from '$components/confirm/confirm';
+import { showToast } from '$state/toast';
+import { ResponsiveMenu } from '$components/ResponsiveMenu';
+import { useMenuAnchor } from '$hooks/useMenuAnchor';
 import { useOpenRoomSettings } from '$state/hooks/roomSettings';
 import { useSpaceOptionally } from '$hooks/useSpace';
-import { useOpenSpaceSettings } from '$state/hooks/spaceSettings';
 import type { IPowerLevels } from '$hooks/usePowerLevels';
 import { getRoomCreatorsForRoomId } from '$hooks/useRoomCreators';
 import { getRoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { getCanonicalAliasOrRoomId } from '$utils/matrix';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { getSpaceLobbyPath } from '$pages/pathUtils';
 import { EventType } from '$types/matrix-sdk';
+import {
+  chipIcon,
+  DotsThreeOutlineVerticalIcon,
+  menuIcon,
+  SignOut,
+} from '$components/icons/phosphor';
 
 type HierarchyItemWithParent = HierarchyItem & {
   parentId: string;
@@ -184,12 +174,11 @@ function SettingsMenuItem({
   disabled?: boolean;
 }) {
   const openRoomSettings = useOpenRoomSettings();
-  const openSpaceSettings = useOpenSpaceSettings();
   const space = useSpaceOptionally();
 
   const handleSettings = () => {
     if ('space' in item) {
-      openSpaceSettings(item.roomId, item.parentId);
+      openRoomSettings(item.roomId, item.parentId);
     } else {
       openRoomSettings(item.roomId, space?.roomId);
     }
@@ -224,7 +213,7 @@ export function HierarchyItemMenu({
   onTogglePin,
 }: HierarchyItemMenuProps) {
   const mx = useMatrixClient();
-  const [menuAnchor, setMenuAnchor] = useState<RectCords>();
+  const menu = useMenuAnchor<HTMLButtonElement>();
 
   const canInvite = (): boolean => {
     if (!powerLevels) return false;
@@ -234,12 +223,26 @@ export function HierarchyItemMenu({
     return permissions.action('invite', mx.getSafeUserId());
   };
 
-  const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    setMenuAnchor(evt.currentTarget.getBoundingClientRect());
-  };
-
-  const handleRequestClose = useCallback(() => setMenuAnchor(undefined), []);
   const navigate = useNavigate();
+
+  const [promptLeaveSpace, setPromptLeaveSpace] = useState(false);
+
+  const handleLeaveRoom = async () => {
+    const ok = await confirm({
+      title: 'Leave Room',
+      description: 'Are you sure you want to leave this room?',
+      action: 'Leave',
+      variant: 'Critical',
+    });
+    if (ok) {
+      try {
+        await mx.leave(item.roomId);
+        menu.close();
+      } catch (e) {
+        showToast(`Failed to leave room: ${e instanceof Error ? e.message : 'unknown error'}`);
+      }
+    }
+  };
 
   if (!joined && !canEditChild) {
     return null;
@@ -247,116 +250,93 @@ export function HierarchyItemMenu({
 
   return (
     <Box gap="200" alignItems="Center" shrink="No">
-      <IconButton
-        onClick={handleOpenMenu}
-        size="300"
-        variant="SurfaceVariant"
-        fill="None"
-        radii="300"
-        aria-pressed={!!menuAnchor}
+      <ResponsiveMenu
+        anchor={menu.anchor}
+        requestClose={menu.close}
+        position="Bottom"
+        align="End"
+        menu={
+          <Menu style={{ maxWidth: toRem(150), width: '100vw' }}>
+            {joined && (
+              <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+                {onTogglePin && (
+                  <MenuItem
+                    size="300"
+                    radii="300"
+                    onClick={() => {
+                      onTogglePin(item.roomId);
+                      menu.close();
+                    }}
+                  >
+                    <Text as="span" size="T300" truncate>
+                      {pinned ? 'Unpin from Sidebar' : 'Pin to Sidebar'}
+                    </Text>
+                  </MenuItem>
+                )}
+                <MenuItem
+                  size="300"
+                  radii="300"
+                  onClick={() => {
+                    navigate(getSpaceLobbyPath(getCanonicalAliasOrRoomId(mx, item.roomId)));
+                  }}
+                >
+                  <Text as="span" size="T300" truncate>
+                    Open Lobby
+                  </Text>
+                </MenuItem>
+                <InviteMenuItem item={item} requestClose={menu.close} disabled={!canInvite()} />
+                <SettingsMenuItem item={item} requestClose={menu.close} />
+                <MenuItem
+                  onClick={() => {
+                    if ('space' in item) {
+                      setPromptLeaveSpace(true);
+                    } else {
+                      handleLeaveRoom();
+                    }
+                  }}
+                  variant="Critical"
+                  fill="None"
+                  size="300"
+                  after={menuIcon(SignOut)}
+                  radii="300"
+                  aria-pressed={promptLeaveSpace}
+                >
+                  <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+                    Leave
+                  </Text>
+                </MenuItem>
+                {promptLeaveSpace && 'space' in item && (
+                  <LeaveSpacePrompt
+                    roomId={item.roomId}
+                    onDone={menu.close}
+                    onCancel={() => setPromptLeaveSpace(false)}
+                  />
+                )}
+              </Box>
+            )}
+            {(joined || canEditChild) && (
+              <Line size="300" variant="Surface" direction="Horizontal" />
+            )}
+            {canEditChild && (
+              <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+                <SuggestMenuItem item={item} requestClose={menu.close} />
+                <RemoveMenuItem item={item} requestClose={menu.close} />
+              </Box>
+            )}
+          </Menu>
+        }
       >
-        <Icon size="50" src={Icons.VerticalDots} />
-      </IconButton>
-      {menuAnchor && (
-        <PopOut
-          anchor={menuAnchor}
-          position="Bottom"
-          align="End"
-          content={
-            <FocusTrap
-              focusTrapOptions={{
-                initialFocus: false,
-                returnFocusOnDeactivate: false,
-                onDeactivate: () => setMenuAnchor(undefined),
-                clickOutsideDeactivates: true,
-                isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
-                isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
-                escapeDeactivates: stopPropagation,
-              }}
-            >
-              <Menu style={{ maxWidth: toRem(150), width: '100vw' }}>
-                {joined && (
-                  <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-                    {onTogglePin && (
-                      <MenuItem
-                        size="300"
-                        radii="300"
-                        onClick={() => {
-                          onTogglePin(item.roomId);
-                          handleRequestClose();
-                        }}
-                      >
-                        <Text as="span" size="T300" truncate>
-                          {pinned ? 'Unpin from Sidebar' : 'Pin to Sidebar'}
-                        </Text>
-                      </MenuItem>
-                    )}
-                    <MenuItem
-                      size="300"
-                      radii="300"
-                      onClick={() => {
-                        navigate(getSpaceLobbyPath(getCanonicalAliasOrRoomId(mx, item.roomId)));
-                      }}
-                    >
-                      <Text as="span" size="T300" truncate>
-                        Open Lobby
-                      </Text>
-                    </MenuItem>
-                    <InviteMenuItem
-                      item={item}
-                      requestClose={handleRequestClose}
-                      disabled={!canInvite()}
-                    />
-                    <SettingsMenuItem item={item} requestClose={handleRequestClose} />
-                    <UseStateProvider initial={false}>
-                      {(promptLeave, setPromptLeave) => (
-                        <>
-                          <MenuItem
-                            onClick={() => setPromptLeave(true)}
-                            variant="Critical"
-                            fill="None"
-                            size="300"
-                            after={<Icon size="100" src={Icons.ArrowGoLeft} />}
-                            radii="300"
-                            aria-pressed={promptLeave}
-                          >
-                            <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-                              Leave
-                            </Text>
-                          </MenuItem>
-                          {promptLeave &&
-                            ('space' in item ? (
-                              <LeaveSpacePrompt
-                                roomId={item.roomId}
-                                onDone={handleRequestClose}
-                                onCancel={() => setPromptLeave(false)}
-                              />
-                            ) : (
-                              <LeaveRoomPrompt
-                                roomId={item.roomId}
-                                onDone={handleRequestClose}
-                                onCancel={() => setPromptLeave(false)}
-                              />
-                            ))}
-                        </>
-                      )}
-                    </UseStateProvider>
-                  </Box>
-                )}
-                {(joined || canEditChild) && (
-                  <Line size="300" variant="Surface" direction="Horizontal" />
-                )}
-                {canEditChild && (
-                  <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-                    <SuggestMenuItem item={item} requestClose={handleRequestClose} />
-                    <RemoveMenuItem item={item} requestClose={handleRequestClose} />
-                  </Box>
-                )}
-              </Menu>
-            </FocusTrap>
-          }
-        />
-      )}
+        <IconButton
+          onClick={menu.triggerProps.onClick}
+          size="300"
+          variant="SurfaceVariant"
+          fill="None"
+          radii="300"
+          aria-pressed={!!menu.anchor}
+        >
+          {chipIcon(DotsThreeOutlineVerticalIcon, { weight: menu.anchor ? 'fill' : 'regular' })}
+        </IconButton>
+      </ResponsiveMenu>
     </Box>
   );
 }

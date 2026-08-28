@@ -7,7 +7,7 @@ const fullBadWordList = additionalBadWords.concat(
   badWords.array.filter((word) => !additionalBadWords.includes(word))
 );
 
-export const BAD_WORDS_REGEX = new RegExp(
+const BAD_WORDS_REGEX = new RegExp(
   `(\\b|_)(${fullBadWordList.map((word) => sanitizeForRegex(word)).join('|')})(\\b|_)`,
   'g'
 );

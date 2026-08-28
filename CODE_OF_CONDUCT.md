@@ -1,128 +1,78 @@
-# Contributor Covenant Code of Conduct
+# Sable Community Code of Conduct
 
-## Our Pledge
+## Welcome!
 
-We as members, contributors, and leaders pledge to make participation in our
-community a harassment-free experience for everyone, regardless of age, body
-size, visible or invisible disability, ethnicity, sex characteristics, gender
-identity and expression, level of experience, education, socio-economic status,
-nationality, personal appearance, race, religion, or sexual identity
-and orientation.
+We're excited to have you here. Sable is a Matrix client meant for everyone.
+Because of that we're committed to keeping this community open and welcoming to all.
 
-We pledge to act and interact in ways that contribute to an open, welcoming,
-diverse, inclusive, and healthy community.
+We ask all of our community—the people who build it, use it, break it, suggest things for it, help each other with it, and
+occasionally meow—to abide by some general rules when in official Sable spaces.
 
-## Our Standards
+## The rules
 
-Examples of behavior that contributes to a positive environment for our
-community include:
+Conversation here is casual. You can disagree, joke around, swear, be weird,
+and criticize Sable or its decisions. Just remember that other people share the room with you.
 
-- Demonstrating empathy and kindness toward other people
-- Being respectful of differing opinions, viewpoints, and experiences
-- Giving and gracefully accepting constructive feedback
-- Accepting responsibility and apologizing to those affected by our mistakes,
-  and learning from the experience
-- Focusing on what is best not just for us as individuals, but for the
-  overall community
+The following are not allowed:
 
-Examples of unacceptable behavior include:
+- **Do not harass people.** This includes targeted insults, dogpiling, repeatedly
+  provoking someone, unwelcome sexual advances or attention, or continuing to contact someone after they ask you to
+  stop.
+- **Do not use hate speech or attack someone based on their identity**, including but not
+  limited to race, ethnicity, nationality, religion, disability, age, body size or
+  appearance, sex, sex characteristics, sexuality, gender identity, gender
+  expression, and socioeconomic status.
+- **Do not make threats, encourage violence or self-harm, or doxx anyone.** Doxxing includes
+  sharing or threatening to share someone's private information.
+- **Do not post explicit sexual content.** This includes graphic NSFW media, pornography,
+  and explicit sexual comments or jokes.
+- **Do not abuse the shared spaces.** This includes impersonation, scams, malicious links or
+  files, spam, flooding, ban evasion, or retaliation against someone for making
+  a report or setting a boundary.
 
-- The use of sexualized language or imagery, and sexual attention or
-  advances of any kind
-- Trolling, insulting or derogatory comments, and personal or political attacks
-- Public or private harassment
-- Publishing others' private information, such as a physical or email
-  address, without their explicit permission
-- Other conduct which could reasonably be considered inappropriate in a
-  professional setting
+Context and patterns matter. Being blunt, disagreeing about politics or project
+direction, or criticizing a maintainer is not automatically a violation. These
+rules cannot cover every situation, so moderators have final say on how they
+apply.
 
-## Enforcement Responsibilities
+## Where this applies
 
-Community leaders are responsible for clarifying and enforcing our standards of
-acceptable behavior and will take appropriate and fair corrective action in
-response to any behavior that they deem inappropriate, threatening, offensive,
-or harmful.
+These rules apply to Sable's official GitHub repositories and Matrix space and
+rooms.
 
-Community leaders have the right and responsibility to remove, edit, or reject
-comments, commits, code, wiki edits, issues, and other contributions that are
-not aligned to this Code of Conduct, and will communicate reasons for moderation
-decisions when appropriate.
+We do not police people's unrelated private lives. We may act on credible
+threats, doxxing, or targeted harassment outside these spaces when it is
+connected to Sable.
 
-## Scope
+## Moderation
 
-This Code of Conduct applies within all community spaces, and also applies when
-an individual is officially representing the community in public spaces.
-Examples of representing our community include using an official e-mail address,
-posting via an official social media account, or acting as an appointed
-representative at an online or offline event.
+If a moderator asks you to stop, stop.
 
-## Enforcement
+When this code of conduct is not followed,
+moderators may remove content, issue a warning, kick, or ban someone from Sable's Matrix
+rooms or block them from its GitHub repositories.
 
-Instances of abusive, harassing, or otherwise unacceptable behavior may be
-reported to the community leaders responsible for enforcement at
-executioner@sable.moe.
-All complaints will be reviewed and investigated promptly and fairly.
+When practical, moderators will explain the problem and what needs to happen next.
+Moderators will step back from handling reports that involve them directly, provided another moderator is available. You may request a review by emailing the address listed in the Reporting section below if you believe a decision was mistaken.
 
-All community leaders are obligated to respect the privacy and security of the
-reporter of any incident.
+## Reporting
 
-## Enforcement Guidelines
+Message a moderator (anyone with an Admin or Moderator power level) in the relevant Matrix room or email
+[conduct@sable.moe](mailto:conduct@sable.moe). Reports
+will be handled thoughtfully and as privately as we reasonably can.
 
-Community leaders will follow these Community Impact Guidelines in determining
-the consequences for any action they deem in violation of this Code of Conduct:
+If your report is about a moderator, email
+[conduct@sable.moe](mailto:conduct@sable.moe) or contact 7w1 directly at
+[`@seven:sable.moe`](https://matrix.to/#/@seven:sable.moe).
 
-### 1. Correction
+Send whatever context you have. You do not need to build a case first.
+We will limit access to people who need it to handle the report. We will not
+identify you to the reported person without your permission, though details of
+the report may need to be discussed to investigate or act on it.
+Knowingly false reports or using reports to harass someone are not allowed.
 
-**Community Impact**: Use of inappropriate language or other behavior deemed
-unprofessional or unwelcome in the community.
+## Other stuff
 
-**Consequence**: A private, written warning from community leaders, providing
-clarity around the nature of the violation and an explanation of why the
-behavior was inappropriate. A public apology may be requested.
-
-### 2. Warning
-
-**Community Impact**: A violation through a single incident or series
-of actions.
-
-**Consequence**: A warning with consequences for continued behavior. No
-interaction with the people involved, including unsolicited interaction with
-those enforcing the Code of Conduct, for a specified period of time. This
-includes avoiding interactions in community spaces as well as external channels
-like social media. Violating these terms may lead to a temporary or
-permanent ban.
-
-### 3. Temporary Ban
-
-**Community Impact**: A serious violation of community standards, including
-sustained inappropriate behavior.
-
-**Consequence**: A temporary ban from any sort of interaction or public
-communication with the community for a specified period of time. No public or
-private interaction with the people involved, including unsolicited interaction
-with those enforcing the Code of Conduct, is allowed during this period.
-Violating these terms may lead to a permanent ban.
-
-### 4. Permanent Ban
-
-**Community Impact**: Demonstrating a pattern of violation of community
-standards, including sustained inappropriate behavior, harassment of an
-individual, or aggression toward or disparagement of classes of individuals.
-
-**Consequence**: A permanent ban from any sort of public interaction within
-the community.
-
-## Attribution
-
-This Code of Conduct is adapted from the [Contributor Covenant][homepage],
-version 2.0, available at
-https://www.contributor-covenant.org/version/2/0/code_of_conduct.html.
-
-Community Impact Guidelines were inspired by [Mozilla's code of conduct
-enforcement ladder](https://github.com/mozilla/diversity).
-
-[homepage]: https://www.contributor-covenant.org
-
-For answers to common questions about this code of conduct, see the FAQ at
-https://www.contributor-covenant.org/faq. Translations are available at
-https://www.contributor-covenant.org/translations.
+These rules may change as Sable and its community change.
+By continuing to participate in official Sable spaces, you agree to continue abiding by these rules.
+If something is unclear, missing, or badly written, please tell us and we will update this document.

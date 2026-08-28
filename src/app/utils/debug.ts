@@ -8,8 +8,7 @@
  *   localStorage.removeItem('sable_debug'); location.reload();
  */
 
-export const isDebug = (): boolean =>
-  import.meta.env.DEV || localStorage.getItem('sable_debug') === '1';
+const isDebug = (): boolean => import.meta.env.DEV || localStorage.getItem('sable_debug') === '1';
 
 type LogLevel = 'log' | 'warn' | 'error';
 

@@ -38,7 +38,7 @@ export const MARKDOWN_ALLOWED_HTML_TAGS = new Set([
 ]);
 
 /** Void elements that do not require a separate closing tag. */
-export const VOID_HTML_TAGS = new Set(['br', 'hr', 'img']);
+const VOID_HTML_TAGS = new Set(['br', 'hr', 'img']);
 
 export const isAllowedHtmlTag = (tagName: string): boolean =>
   MARKDOWN_ALLOWED_HTML_TAGS.has(tagName.toLowerCase());

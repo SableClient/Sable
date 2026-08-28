@@ -1,4 +1,6 @@
 import type { IImageInfo } from './common';
+import * as prefix from '$unstable/prefixes';
+import type { ColorSet } from '$hooks/useUserProfile';
 
 export type IMemberContent = {
   avatar_url?: string;
@@ -9,6 +11,7 @@ export type IMemberContent = {
 };
 
 export const CustomStateEvent = {
+  ImagePack: prefix.MATRIX_STATE_ROOM_IMAGE_PACK_PROPERTY_NAME,
   PoniesRoomEmotes: 'im.ponies.room_emotes',
   PowerLevelTags: 'in.cinny.room.power_level_tags',
   RoomWidget: 'im.vector.modular.widgets',
@@ -19,6 +22,11 @@ export const CustomStateEvent = {
   RoomBanner: 'page.codeberg.everypizza.room.banner',
 } as const;
 export type CustomStateEvent = (typeof CustomStateEvent)[keyof typeof CustomStateEvent];
+
+export const CustomRoomType = {
+  Forum: 'pl.chrome.forum',
+} as const;
+export type CustomRoomType = (typeof CustomRoomType)[keyof typeof CustomRoomType];
 
 export type MSpaceChildContent = {
   via: string[];
@@ -58,11 +66,8 @@ export type UnreadInfo = {
   roomId: string;
   total: number;
   highlight: number;
-};
-
-export type MuteChanges = {
-  added: string[];
-  removed: string[];
+  /** Count is a placeholder; read evidence is not loaded yet. */
+  estimated?: boolean;
 };
 
 export type MemberPowerTagIcon = {
@@ -73,4 +78,9 @@ export type MemberPowerTag = {
   name: string;
   color?: string;
   icon?: MemberPowerTagIcon;
+};
+
+export type MemberPowerStyle = {
+  name: string;
+  color?: ColorSet;
 };

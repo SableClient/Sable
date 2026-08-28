@@ -1,8 +1,9 @@
-import { Box, config, Icon, Icons, Text } from 'folds';
+import { Box, config, Text } from 'folds';
 import type { CallMembership } from '$types/matrix-sdk';
 import type { Room } from '$types/matrix-sdk';
 import { UserAvatar } from '../../components/user-avatar';
-import { getMemberAvatarMxc, getMemberDisplayName } from '../../utils/room';
+import { userFallbackIcon } from '$components/icons/phosphor';
+import { getMemberAvatarMxc, getMemberDisplayName } from '../../utils/room/display';
 import { getMxIdLocalPart, mxcUrlToHttp } from '../../utils/matrix';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
@@ -50,6 +51,7 @@ export function MemberGlance({ room, members, speakers, max = 6 }: MemberGlanceP
                 room.roomId,
                 undefined,
                 userId,
+                undefined,
                 getMouseEventCords(evt.nativeEvent),
                 'Top'
               )
@@ -59,7 +61,7 @@ export function MemberGlance({ room, members, speakers, max = 6 }: MemberGlanceP
               userId={userId}
               src={avatarUrl}
               alt={name}
-              renderFallback={() => <Icon size="50" src={Icons.User} filled />}
+              renderFallback={() => userFallbackIcon('sm')}
             />
           </StackedAvatar>
         );

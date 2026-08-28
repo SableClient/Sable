@@ -8,7 +8,7 @@ import {
   useLocation,
   useNavigate,
   useNavigationType,
-} from 'react-router-dom';
+} from 'react-router';
 import { describe, expect, it, vi } from 'vitest';
 import { Text } from 'folds';
 import { SequenceCard } from '$components/sequence-card';
@@ -18,14 +18,13 @@ import { ClientLayout } from '$pages/client';
 import { ClientRouteOutlet } from '$pages/client/ClientRouteOutlet';
 import { ScreenSize, ScreenSizeProvider } from '$hooks/useScreenSize';
 import * as pageCss from '$components/page/style.css';
+import { SettingsSectionPage } from '$components/page';
 import { messageJumpHighlight } from '$components/message/layout/layout.css';
 import { getHomePath, getSettingsPath } from '$pages/pathUtils';
 import { SETTINGS_PATH } from '$pages/paths';
 import { SettingsRoute } from './SettingsRoute';
 import { SettingsShallowRouteRenderer } from './SettingsShallowRouteRenderer';
-import { SettingsSectionPage } from './SettingsSectionPage';
 import { focusedSettingTile } from './styles.css';
-import * as settingsCss from './styles.css';
 import { useOpenSettings } from './useOpenSettings';
 import { useSettingsFocus } from './useSettingsFocus';
 
@@ -91,8 +90,8 @@ vi.mock('$state/hooks/settings', () => ({
   useSetting: mockUseSetting,
 }));
 
-vi.mock('$components/Modal500', () => ({
-  Modal500: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+vi.mock('$components/modal-overlay/ModalOverlay', () => ({
+  ModalOverlay: ({ children }: { children: ReactNode }) => <div>{children}</div>,
 }));
 
 vi.mock('./general', () => ({
@@ -197,6 +196,16 @@ function LocationProbe() {
   );
 }
 
+function RouterBackProbe() {
+  const navigate = useNavigate();
+
+  return (
+    <button type="button" onClick={() => navigate(-1)}>
+      Router back
+    </button>
+  );
+}
+
 function HomePage() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -244,6 +253,7 @@ function renderClientShell(
       <MemoryRouter initialEntries={initialEntries} initialIndex={options?.initialIndex}>
         <ScreenSizeProvider value={screenSize}>
           <LocationProbe />
+          <RouterBackProbe />
           <Routes>
             <Route element={<ClientRouteOutlet />}>
               <Route path={getHomePath()} element={<HomePage />} />
@@ -423,7 +433,9 @@ describe('SettingsSectionPage', () => {
       </ScreenSizeProvider>
     );
 
-    expect(screen.getByText('Devices').closest('header')).toHaveClass(settingsCss.settingsHeader);
+    expect(screen.getByText('Devices').closest('header')).toHaveClass(
+      pageCss.SettingsSectionHeader
+    );
   });
 });
 
@@ -617,7 +629,9 @@ describe('SettingsRoute', () => {
         getSettingsPath('notifications')
       )
     );
-    expect(screen.getByRole('heading', { name: 'Notifications section' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Notifications section' })
+    ).toBeInTheDocument();
   });
 
   it('does not push history when the active section is reselected', async () => {
@@ -631,7 +645,7 @@ describe('SettingsRoute', () => {
     expect(screen.getByTestId('location-probe')).not.toHaveTextContent('PUSH');
   });
 
-  it('uses history back semantics when a section back button is clicked', async () => {
+  it('returns to the settings menu instead of the previous page when a section back button is clicked', async () => {
     const user = userEvent.setup();
 
     renderSettingsRoute('/settings/devices', ScreenSize.Mobile, {
@@ -641,8 +655,33 @@ describe('SettingsRoute', () => {
 
     await user.click(screen.getByRole('button', { name: 'Back' }));
 
-    await waitFor(() => expect(screen.getByTestId('location-probe')).toHaveTextContent('POP'));
+    await waitFor(() =>
+      expect(screen.getByTestId('location-probe')).toHaveTextContent(getSettingsPath())
+    );
     expect(screen.getByText('Settings')).toBeInTheDocument();
+  });
+
+  it('leaves settings in one back after a section opened from the menu was closed', async () => {
+    const user = userEvent.setup();
+
+    renderClientShell(ScreenSize.Mobile, {
+      initialEntries: [getHomePath(), getSettingsPath()],
+      initialIndex: 1,
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Appearance' }));
+    expect(await screen.findByRole('heading', { name: 'Appearance section' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Back' }));
+    await waitFor(() =>
+      expect(screen.getByTestId('location-probe')).toHaveTextContent(getSettingsPath())
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Router back' }));
+
+    await waitFor(() =>
+      expect(screen.getByTestId('location-probe')).toHaveTextContent(getHomePath())
+    );
   });
 });
 

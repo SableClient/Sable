@@ -13,7 +13,7 @@ const CAP_INLINE_SEQ = `${URL_NEG_LB}${INLINE_SEQUENCE_SET}`;
  * @param text - The input markdown plain-text containing escape characters (e.g., `"some \*italic\*"`)
  * @returns The plain-text with markdown escape sequences removed (e.g., `"some *italic*"`)
  */
-export const unescapeMarkdownInlineSequences = (text: string): string => {
+const unescapeMarkdownInlineSequences = (text: string): string => {
   const escapePattern = new RegExp(`${URL_NEG_LB}\\\\(${INLINE_SEQUENCE_SET})`, 'g');
   const parts = findAndReplace(
     text,

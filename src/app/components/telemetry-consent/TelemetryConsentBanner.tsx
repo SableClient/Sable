@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from 'react';
-import { Box, Button, Icon, Icons, Text } from 'folds';
-import * as css from './TelemetryConsentBanner.css';
+import { useMemo, useState } from 'react';
+import { Text } from 'folds';
+import { Shield } from '$components/icons/phosphor';
+import { useRegisterGlobalBanner, type GlobalBanner } from '$state/globalBanners';
 
 const SENTRY_KEY = 'sable_sentry_enabled';
 
@@ -9,17 +10,6 @@ export function TelemetryConsentBanner() {
   const [visible, setVisible] = useState(
     isSentryConfigured && localStorage.getItem(SENTRY_KEY) === null
   );
-  const [dismissing, setDismissing] = useState(false);
-  const dismissTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  useEffect(
-    () => () => {
-      if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current);
-    },
-    []
-  );
-
-  if (!visible) return null;
 
   const handleEnable = () => {
     localStorage.setItem(SENTRY_KEY, 'true');
@@ -28,44 +18,43 @@ export function TelemetryConsentBanner() {
 
   const handleDecline = () => {
     localStorage.setItem(SENTRY_KEY, 'false');
-    setDismissing(true);
-    dismissTimerRef.current = setTimeout(() => setVisible(false), 220);
+    setVisible(false);
   };
 
-  return (
-    <div className={css.Container}>
-      <div
-        className={css.Banner}
-        data-dismissing={dismissing}
-        role="region"
-        aria-label="Crash reporting prompt"
-      >
-        <div className={css.Header}>
-          <Icon src={Icons.Shield} size="400" />
-          <div className={css.HeaderText}>
-            <Text size="H4">Help improve Sable</Text>
-            <Text size="T300" priority="300">
-              Optionally send anonymous crash reports to help us fix bugs faster. No messages, room
-              names, or personal data are included.{' '}
-              <a
-                href="https://github.com/SableClient/Sable/blob/dev/docs/PRIVACY.md"
-                target="_blank"
-                rel="noreferrer noopener"
-              >
-                Learn more
-              </a>
-            </Text>
-          </div>
-        </div>
-        <Box className={css.Actions}>
-          <Button variant="Secondary" fill="Soft" size="300" radii="300" onClick={handleDecline}>
-            <Text size="B300">No thanks</Text>
-          </Button>
-          <Button variant="Primary" fill="Solid" size="300" radii="300" onClick={handleEnable}>
-            <Text size="B300">Enable</Text>
-          </Button>
-        </Box>
-      </div>
-    </div>
-  );
+  const bannerData = useMemo<GlobalBanner | null>(() => {
+    if (!visible) return null;
+    return {
+      id: 'telemetry-consent',
+      priority: 100, // Higher priority than device verification
+      icon: Shield,
+      title: 'Help improve Sable',
+      description: (
+        <Text size="T300" priority="300">
+          Optionally send anonymous crash reports to help us fix bugs faster. No messages, room
+          names, or personal data are included.{' '}
+          <a
+            href="https://github.com/SableClient/Sable/blob/dev/docs/PRIVACY.md"
+            target="_blank"
+            rel="noreferrer noopener"
+          >
+            Learn more
+          </a>
+        </Text>
+      ),
+      primaryAction: {
+        label: 'Enable',
+        variant: 'Primary',
+        onClick: handleEnable,
+      },
+      secondaryAction: {
+        label: 'No thanks',
+        variant: 'Secondary',
+        onClick: handleDecline,
+      },
+    };
+  }, [visible]);
+
+  useRegisterGlobalBanner(bannerData);
+
+  return null;
 }

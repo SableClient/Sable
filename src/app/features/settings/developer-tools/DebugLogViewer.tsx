@@ -1,14 +1,16 @@
 import type { MouseEventHandler } from 'react';
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
 import type { RectCords } from 'folds';
-import { Box, Text, Button, color, config, Badge, Menu, MenuItem, PopOut } from 'folds';
-import { SequenceCard } from '$components/sequence-card';
+import { Box, Text, Button, color, config, Badge, Menu, MenuItem } from 'folds';
+import { PopOut } from '$components/overlay-stack';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 
 import { debugLoggerEnabledAtom, debugLogsAtom, clearDebugLogsAtom } from '$state/debugLogger';
 import type { LogEntry, LogLevel, LogCategory } from '$utils/debugLogger';
 import { getDebugLogger } from '$utils/debugLogger';
-import { SequenceCardStyle } from '$features/settings/styles.css';
+import { copyToClipboard } from '$utils/dom';
+import { saveFileToDevice } from '$utils/download';
 
 const formatTimestamp = (timestamp: number): string => {
   const date = new Date(timestamp);
@@ -138,11 +140,12 @@ export function DebugLogViewer() {
   const logs = useAtomValue(debugLogsAtom);
   const clearLogs = useSetAtom(clearDebugLogsAtom);
   const [autoScroll, setAutoScroll] = useState(true);
-  const scrollRef = useState<HTMLDivElement | null>(null)[0];
+  const scrollRef = useRef<HTMLDivElement | null>(null);
   const [filterLevel, setFilterLevel] = useState<LogLevel | 'all'>('all');
   const [filterCategory, setFilterCategory] = useState<LogCategory | 'all'>('all');
   const [categoryAnchor, setCategoryAnchor] = useState<RectCords | undefined>();
   const [levelAnchor, setLevelAnchor] = useState<RectCords | undefined>();
+  const refreshLogs = useSetAtom(debugLogsAtom);
 
   const handleOpenCategoryMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     evt.stopPropagation();
@@ -173,19 +176,18 @@ export function DebugLogViewer() {
 
     const debugLogger = getDebugLogger();
     const unsubscribe = debugLogger.addListener(() => {
-      // Trigger re-render by refreshing the atom
-      // This will be handled by the debugLogsAtom's refresh mechanism
+      refreshLogs();
     });
 
     return unsubscribe;
-  }, [enabled]);
+  }, [enabled, refreshLogs]);
 
   // Auto-scroll to bottom when new logs arrive
   useEffect(() => {
-    if (autoScroll && scrollRef) {
-      scrollRef.scrollTop = scrollRef.scrollHeight;
+    if (autoScroll && scrollRef.current) {
+      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
     }
-  }, [filteredLogs, autoScroll, scrollRef]);
+  }, [filteredLogs, autoScroll]);
 
   const handleExportLogs = useCallback(
     (filtered: boolean) => {
@@ -219,19 +221,15 @@ export function DebugLogViewer() {
         jsonData = debugLogger.exportLogs();
       }
 
-      const blob = new Blob([jsonData], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
       const filterSuffix =
         filtered && (filterLevel !== 'all' || filterCategory !== 'all')
           ? `-${filterCategory !== 'all' ? filterCategory : 'all'}-${filterLevel !== 'all' ? filterLevel : 'all'}`
           : '';
-      a.download = `sable-debug-logs${filterSuffix}-${new Date().toISOString()}.json`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      void saveFileToDevice(
+        new Blob([jsonData], { type: 'application/json' }),
+        `sable-debug-logs${filterSuffix}-${Date.now()}.json`,
+        'application/json'
+      );
     },
     [filterLevel, filterCategory]
   );
@@ -267,7 +265,7 @@ export function DebugLogViewer() {
         jsonData = debugLogger.exportLogs();
       }
 
-      navigator.clipboard.writeText(jsonData);
+      void copyToClipboard(jsonData);
     },
     [filterLevel, filterCategory]
   );
@@ -355,6 +353,17 @@ export function DebugLogViewer() {
                   disabled={filterCategory === 'message'}
                 >
                   <Text size="T300">Message</Text>
+                </MenuItem>
+                <MenuItem
+                  size="300"
+                  radii="300"
+                  onClick={() => {
+                    setFilterCategory('media');
+                    setCategoryAnchor(undefined);
+                  }}
+                  disabled={filterCategory === 'media'}
+                >
+                  <Text size="T300">Media</Text>
                 </MenuItem>
                 <MenuItem
                   size="300"
@@ -597,6 +606,7 @@ export function DebugLogViewer() {
             </Box>
 
             <Box
+              ref={scrollRef}
               direction="Column"
               gap="200"
               style={{

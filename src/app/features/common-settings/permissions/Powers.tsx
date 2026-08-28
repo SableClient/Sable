@@ -2,11 +2,12 @@ import type { MouseEventHandler, ReactNode } from 'react';
 import { useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import type { RectCords } from 'folds';
-import { Box, Button, Chip, Text, PopOut, Menu, Scroll, toRem, config, color } from 'folds';
-import { SequenceCard } from '$components/sequence-card';
+import { Box, Button, Chip, Text, Menu, Scroll, toRem, config, color } from 'folds';
+import { PopOut } from '$components/overlay-stack';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { getPowers, usePowerLevelTags } from '$hooks/usePowerLevelTags';
 import { SettingTile } from '$components/setting-tile';
-import type { IPowerLevels } from '$hooks/usePowerLevels';
+import type { IPowerLevels, PermissionLocation } from '$hooks/usePowerLevels';
 import { getPermissionPower } from '$hooks/usePowerLevels';
 import { useRoom } from '$hooks/useRoom';
 import { PowerColorBadge, PowerIcon } from '$components/power';
@@ -16,8 +17,10 @@ import { stopPropagation } from '$utils/keyboard';
 import { getPowerTagIconSrc } from '$hooks/useMemberPowerTag';
 import { useRoomCreatorsTag } from '$hooks/useRoomCreatorsTag';
 import { useRoomCreators } from '$hooks/useRoomCreators';
-import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import type { PermissionGroup } from './types';
+
+const getPermissionLocationKey = (location: PermissionLocation | PermissionLocation[]): string =>
+  JSON.stringify(location);
 
 type PeekPermissionsProps = {
   powerLevels: IPowerLevels;
@@ -49,7 +52,7 @@ function PeekPermissions({ powerLevels, power, permissionGroups, children }: Pee
         >
           <Menu
             style={{
-              maxHeight: '75vh',
+              maxHeight: '75dvh',
               maxWidth: toRem(300),
               display: 'flex',
             }}
@@ -67,7 +70,7 @@ function PeekPermissions({ powerLevels, power, permissionGroups, children }: Pee
 
                           return (
                             <Text
-                              key={JSON.stringify(item.location)}
+                              key={getPermissionLocationKey(item.location)}
                               size="T200"
                               style={{
                                 color: hasPower ? undefined : color.Critical.Main,

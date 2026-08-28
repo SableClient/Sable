@@ -2,8 +2,11 @@
 
 /* oxlint-disable no-console, unicorn/require-post-message-target-origin */
 import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
+import { EventType } from 'matrix-js-sdk/lib/@types/event';
 
+import { MATRIX_UNSTABLE_MSC4174_PUSHERS_ACK_PATH } from '$unstable/prefixes';
 import { createPushNotifications } from './sw/pushNotification';
+import { readPersistedSession } from './sw-session-persistence';
 
 declare const self: ServiceWorkerGlobalScope;
 
@@ -24,9 +27,18 @@ const { handlePushNotificationPushData } = createPushNotifications(self, () => (
 const SW_SETTINGS_CACHE = 'sable-sw-settings-v1';
 const SW_SETTINGS_URL = '/sw-settings-meta';
 
-/** Cache key used to persist the active session so push-event fetches work after SW restart. */
+/** Cache key used to persist sessions so push-event fetches work after SW restart. */
 const SW_SESSION_CACHE = 'sable-sw-session-v1';
 const SW_SESSION_URL = '/sw-session-meta';
+
+/**
+ * Version of the media-auth interception protocol this service worker supports.
+ * The page probes for it before handing raw authenticated-media URLs to
+ * <img>/<video> elements; a stale SW build without this handler never answers
+ * and the page falls back to token-attached blob fetches instead.
+ * Keep in sync with src/app/utils/swMediaAuth.ts.
+ */
+const SW_MEDIA_AUTH_PROTOCOL_VERSION = 1;
 
 async function persistSettings() {
   try {
@@ -66,43 +78,54 @@ async function loadPersistedSettings() {
   }
 }
 
-async function persistSession(session: SessionInfo): Promise<void> {
-  try {
-    const cache = await self.caches.open(SW_SESSION_CACHE);
-    await cache.put(
-      SW_SESSION_URL,
-      new Response(JSON.stringify(session), {
-        headers: { 'Content-Type': 'application/json' },
-      })
-    );
-  } catch {
-    // Ignore — caches may be unavailable in some environments.
-  }
-}
-
-async function clearPersistedSession(): Promise<void> {
-  try {
-    const cache = await self.caches.open(SW_SESSION_CACHE);
-    await cache.delete(SW_SESSION_URL);
-  } catch {
-    // Ignore.
-  }
-}
-
-async function loadPersistedSession(): Promise<SessionInfo | undefined> {
+async function loadPersistedSessions(): Promise<Record<string, SessionInfo>> {
   try {
     const cache = await self.caches.open(SW_SESSION_CACHE);
     const response = await cache.match(SW_SESSION_URL);
-    if (!response) return undefined;
-    const s = await response.json();
-    if (typeof s.accessToken === 'string' && typeof s.baseUrl === 'string') {
-      return {
-        accessToken: s.accessToken,
-        baseUrl: s.baseUrl,
-        userId: typeof s.userId === 'string' ? s.userId : undefined,
-      };
+    if (!response) return {};
+    const value = await response.json();
+    const sessions: Record<string, SessionInfo> = {};
+
+    if (typeof value !== 'object' || value === null) return sessions;
+    const legacySession = readPersistedSession(value);
+    if (legacySession?.userId) return { [legacySession.userId]: legacySession };
+    for (const [userId, candidate] of Object.entries(value)) {
+      const session = readPersistedSession(candidate);
+      if (session?.userId === userId) sessions[userId] = session;
     }
-    return undefined;
+    return sessions;
+  } catch {
+    return {};
+  }
+}
+
+let persistedSessionWrites = Promise.resolve();
+
+function updatePersistedSession(userId: string, session?: SessionInfo): Promise<void> {
+  const update = async () => {
+    try {
+      const cache = await self.caches.open(SW_SESSION_CACHE);
+      const sessions = await loadPersistedSessions();
+      if (session) sessions[userId] = session;
+      else delete sessions[userId];
+      await cache.put(
+        SW_SESSION_URL,
+        new Response(JSON.stringify(sessions), {
+          headers: { 'Content-Type': 'application/json' },
+        })
+      );
+    } catch {
+      // Ignore, caches may be unavailable in some environments.
+    }
+  };
+
+  persistedSessionWrites = persistedSessionWrites.then(update, update);
+  return persistedSessionWrites;
+}
+
+async function loadPersistedSession(userId: string): Promise<SessionInfo | undefined> {
+  try {
+    return (await loadPersistedSessions())[userId];
   } catch {
     return undefined;
   }
@@ -120,16 +143,11 @@ type SessionInfo = {
  */
 const sessions = new Map<string, SessionInfo>();
 
-/**
- * Session pre-loaded from cache on SW activation. Acts as an immediate
- * fallback so media fetches don't 401 during the window between SW restart
- * and the first live setSession message from the page.
- * Cleared as soon as any real setSession call comes in.
- */
-let preloadedSession: SessionInfo | undefined;
-
-const clientToResolve = new Map<string, (value: SessionInfo | undefined) => void>();
-const clientToSessionPromise = new Map<string, Promise<SessionInfo | undefined>>();
+type PendingSessionRequest = {
+  promise: Promise<SessionInfo | undefined>;
+  resolve: (value: SessionInfo | undefined) => void;
+};
+const pendingSessionRequests = new Map<string, PendingSessionRequest>();
 
 async function cleanupDeadClients() {
   const activeClients = await self.clients.matchAll();
@@ -138,13 +156,19 @@ async function cleanupDeadClients() {
   Array.from(sessions.keys()).forEach((id) => {
     if (!activeIds.has(id)) {
       sessions.delete(id);
-      clientToResolve.delete(id);
-      clientToSessionPromise.delete(id);
+      pendingSessionRequests.delete(id);
     }
   });
 }
 
-function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, userId?: unknown) {
+function setSession(
+  clientId: string,
+  accessToken: unknown,
+  baseUrl: unknown,
+  userId?: unknown
+): Promise<void> {
+  const previous = sessions.get(clientId);
+  const persistence: Promise<void>[] = [];
   if (typeof accessToken === 'string' && typeof baseUrl === 'string') {
     const info: SessionInfo = {
       accessToken,
@@ -152,39 +176,41 @@ function setSession(clientId: string, accessToken: unknown, baseUrl: unknown, us
       userId: typeof userId === 'string' ? userId : undefined,
     };
     sessions.set(clientId, info);
-    // A real session has arrived — discard the preloaded fallback.
-    preloadedSession = undefined;
     console.debug('[SW] setSession: stored', clientId, baseUrl);
-    // Persist so push-event fetches work after iOS restarts the SW.
-    persistSession(info).catch(() => undefined);
+    if (info.userId) persistence.push(updatePersistedSession(info.userId, info));
   } else {
     // Logout or invalid session
     sessions.delete(clientId);
-    preloadedSession = undefined;
     console.debug('[SW] setSession: removed', clientId);
-    clearPersistedSession().catch(() => undefined);
   }
 
-  const resolveSession = clientToResolve.get(clientId);
-  if (resolveSession) {
-    resolveSession(sessions.get(clientId));
-    clientToResolve.delete(clientId);
-    clientToSessionPromise.delete(clientId);
+  if (
+    previous?.userId &&
+    previous.userId !== sessions.get(clientId)?.userId &&
+    ![...sessions.values()].some((session) => session.userId === previous.userId)
+  ) {
+    persistence.push(updatePersistedSession(previous.userId));
   }
+
+  const pending = pendingSessionRequests.get(clientId);
+  if (pending) {
+    pending.resolve(sessions.get(clientId));
+    pendingSessionRequests.delete(clientId);
+  }
+
+  return Promise.all(persistence).then(() => undefined);
 }
 
 function requestSession(client: Client): Promise<SessionInfo | undefined> {
-  const promise =
-    clientToSessionPromise.get(client.id) ??
-    new Promise((resolve) => {
-      clientToResolve.set(client.id, resolve);
-      client.postMessage({ type: 'requestSession' });
-    });
+  const existing = pendingSessionRequests.get(client.id);
+  if (existing) return existing.promise;
 
-  if (!clientToSessionPromise.has(client.id)) {
-    clientToSessionPromise.set(client.id, promise);
-  }
-
+  let resolveSession!: (value: SessionInfo | undefined) => void;
+  const promise = new Promise<SessionInfo | undefined>((resolve) => {
+    resolveSession = resolve;
+  });
+  pendingSessionRequests.set(client.id, { promise, resolve: resolveSession });
+  client.postMessage({ type: 'requestSession' });
   return promise;
 }
 
@@ -199,15 +225,20 @@ async function requestSessionWithTimeout(
   }
 
   const sessionPromise = requestSession(client);
-
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<undefined>((resolve) => {
-    setTimeout(() => {
+    timeoutId = setTimeout(() => {
       console.warn('[SW] requestSessionWithTimeout: timed out after', timeoutMs, 'ms', clientId);
       resolve(undefined);
     }, timeoutMs);
   });
 
-  return Promise.race([sessionPromise, timeout]);
+  return Promise.race([sessionPromise, timeout]).finally(() => {
+    if (timeoutId !== undefined) clearTimeout(timeoutId);
+    if (pendingSessionRequests.get(clientId)?.promise === sessionPromise) {
+      pendingSessionRequests.delete(clientId);
+    }
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -342,8 +373,7 @@ async function fetchRoomAvatar(
 
 /**
  * Convert an mxc:// URL to a legacy unauthenticated thumbnail URL.
- * Notification icons are fetched by the OS without auth headers, so we use
- * the pre-MSC3916 media endpoint which most homeservers still serve publicly.
+ * OS fetches notification icons without auth headers, so v1.11-strict servers will 404 here.
  */
 function mxcToNotificationUrl(mxcUrl: string, baseUrl: string): string | undefined {
   const match = mxcUrl.match(/^mxc:\/\/([^/]+)\/([^?#]+)/);
@@ -352,12 +382,17 @@ function mxcToNotificationUrl(mxcUrl: string, baseUrl: string): string | undefin
   return `${baseUrl}/_matrix/media/v3/thumbnail/${encodeURIComponent(server)}/${encodeURIComponent(mediaId)}?width=96&height=96&method=crop`;
 }
 
-/**
- * Return the first any-session we have stored (used for push fetches where we
- * don't have a client ID, e.g. when the app is backgrounded but still loaded).
- */
-function getAnyStoredSession(): SessionInfo | undefined {
-  return sessions.values().next().value;
+async function getSessionForPush(userId?: string): Promise<SessionInfo | undefined> {
+  if (userId) {
+    const liveSession = [...sessions.values()].find((session) => session.userId === userId);
+    return liveSession ?? loadPersistedSession(userId);
+  }
+
+  const liveAccounts = new Set([...sessions.values()].map((session) => session.userId));
+  if (liveAccounts.size === 1) return sessions.values().next().value;
+
+  const persisted = Object.values(await loadPersistedSessions());
+  return persisted.length === 1 ? persisted[0] : undefined;
 }
 
 /**
@@ -420,12 +455,10 @@ async function requestDecryptionFromClient(
 async function handleMinimalPushPayload(
   roomId: string,
   eventId: string,
+  userId: string | undefined,
   windowClients: readonly Client[]
 ): Promise<void> {
-  // On iOS the SW is killed and restarted for every push, clearing the in-memory sessions
-  // Map.  Fall back to the Cache Storage copy that was written when the user last opened
-  // the app (same pattern as settings persistence).
-  const session = getAnyStoredSession() ?? (await loadPersistedSession());
+  const session = await getSessionForPush(userId);
 
   if (!session) {
     // No session anywhere — app was never opened since install, or the user logged out.
@@ -481,9 +514,10 @@ async function handleMinimalPushPayload(
     room_id: roomId,
     event_id: eventId,
     user_id: session.userId,
+    sender_id: sender,
   };
 
-  if (eventType === 'm.room.encrypted') {
+  if (eventType === EventType.RoomMessageEncrypted) {
     // Try to relay decryption to an open app tab.
     const result =
       windowClients.length > 0
@@ -540,10 +574,6 @@ self.addEventListener('activate', (event: ExtendableEvent) => {
     (async () => {
       await self.clients.claim();
       await cleanupDeadClients();
-      // Pre-load the persisted session into memory so that media fetches arriving
-      // before the first setSession message from the page are immediately
-      // authenticated rather than falling through to a 3-second timeout.
-      preloadedSession = await loadPersistedSession();
       // Proactively request sessions from all window clients so the sessions Map
       // is pre-populated after a SW restart, rather than waiting for the first
       // media fetch to trigger requestSessionWithTimeout.
@@ -565,8 +595,20 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
   const { type, accessToken, baseUrl, userId } = data as Record<string, unknown>;
 
   if (type === 'setSession') {
-    setSession(client.id, accessToken, baseUrl, userId);
-    event.waitUntil(cleanupDeadClients());
+    event.waitUntil(
+      Promise.all([setSession(client.id, accessToken, baseUrl, userId), cleanupDeadClients()]).then(
+        () => undefined
+      )
+    );
+  }
+  if (type === 'swMediaAuthProbe') {
+    // Capability handshake: prove this SW intercepts authenticated media so the
+    // page can safely stream raw media URLs through media elements.
+    event.ports?.[0]?.postMessage({
+      type: 'swMediaAuth',
+      supported: true,
+      version: SW_MEDIA_AUTH_PROTOCOL_VERSION,
+    });
   }
   if (type === 'pushDecryptResult') {
     // Resolve a pending decryption request from handleMinimalPushPayload
@@ -623,6 +665,57 @@ const MEDIA_PATHS = [
   '/_matrix/media/r0/thumbnail',
 ];
 
+const ELEMENT_CALL_RINGTONE_PATH = '/public/element-call/assets/ringtone-';
+let silentWavBytesCache: Uint8Array | undefined;
+
+function createSilentWavBytes(durationMs = 250): Uint8Array {
+  if (silentWavBytesCache) return silentWavBytesCache;
+
+  const sampleRate = 8000;
+  const channels = 1;
+  const bitsPerSample = 16;
+  const bytesPerSample = bitsPerSample / 8;
+  const frameCount = Math.max(1, Math.floor((sampleRate * durationMs) / 1000));
+  const dataSize = frameCount * channels * bytesPerSample;
+  const buffer = new ArrayBuffer(44 + dataSize);
+  const view = new DataView(buffer);
+
+  // RIFF header
+  view.setUint32(0, 0x52494646, false); // "RIFF"
+  view.setUint32(4, 36 + dataSize, true);
+  view.setUint32(8, 0x57415645, false); // "WAVE"
+
+  // fmt chunk
+  view.setUint32(12, 0x666d7420, false); // "fmt "
+  view.setUint32(16, 16, true); // PCM chunk size
+  view.setUint16(20, 1, true); // PCM format
+  view.setUint16(22, channels, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * channels * bytesPerSample, true);
+  view.setUint16(32, channels * bytesPerSample, true);
+  view.setUint16(34, bitsPerSample, true);
+
+  // data chunk
+  view.setUint32(36, 0x64617461, false); // "data"
+  view.setUint32(40, dataSize, true);
+
+  // PCM data is already zeroed => silence.
+  silentWavBytesCache = new Uint8Array(buffer);
+  return silentWavBytesCache;
+}
+
+function isElementCallRingtoneRequest(url: string): boolean {
+  try {
+    const { pathname } = new URL(url);
+    return (
+      pathname.startsWith(ELEMENT_CALL_RINGTONE_PATH) &&
+      (pathname.endsWith('.mp3') || pathname.endsWith('.ogg') || pathname.endsWith('.wav'))
+    );
+  } catch {
+    return false;
+  }
+}
+
 function mediaPath(url: string): boolean {
   try {
     const { pathname } = new URL(url);
@@ -632,21 +725,152 @@ function mediaPath(url: string): boolean {
   }
 }
 
-function validMediaRequest(url: string, baseUrl: string): boolean {
-  return MEDIA_PATHS.some((p) => {
-    const validUrl = new URL(p, baseUrl);
-    return url.startsWith(validUrl.href);
-  });
+function authenticatedMediaPath(url: string): boolean {
+  try {
+    return new URL(url).pathname.startsWith('/_matrix/client/v1/media/');
+  } catch {
+    return false;
+  }
 }
 
-function fetchConfig(token: string): RequestInit {
+function validMediaRequest(url: string, baseUrl: string): boolean {
+  try {
+    const requestUrl = new URL(url);
+    return MEDIA_PATHS.some((p) => {
+      const mediaUrl = new URL(p, baseUrl);
+      return (
+        requestUrl.origin === mediaUrl.origin && requestUrl.pathname.startsWith(mediaUrl.pathname)
+      );
+    });
+  } catch {
+    return false;
+  }
+}
+
+function fetchConfig(token: string, request?: Request): RequestInit {
+  const headers = new Headers();
+  headers.set('Authorization', `Bearer ${token}`);
+  const range = request?.headers.get('Range');
+  if (range) {
+    headers.set('Range', range);
+  }
   return {
-    headers: {
-      Authorization: `Bearer ${token}`,
-    },
+    headers,
     cache: 'default',
   };
 }
+
+type BufferedMediaResponse = {
+  status: number;
+  statusText: string;
+  headers: Headers;
+  body: ArrayBuffer;
+};
+
+const inflightMediaFetches = new Map<string, Promise<BufferedMediaResponse>>();
+
+// Ranged media is streamed straight through: buffering it would hold playback until the whole
+// file had arrived, and sharing an in-flight fetch buys nothing when each request is its own
+// byte range.
+function respondWithStreamedMedia(
+  request: Request,
+  token: string,
+  redirect: RequestRedirect
+): Promise<Response> {
+  return fetch(request.url, { ...fetchConfig(token, request), redirect }).then(
+    (res) =>
+      new Response(res.body, {
+        status: res.status,
+        statusText: res.statusText,
+        headers: new Headers(res.headers),
+      })
+  );
+}
+
+function respondWithInflightMedia(
+  request: Request,
+  token: string,
+  redirect: RequestRedirect
+): Promise<Response> {
+  const range = request.headers.get('Range') ?? '';
+  if (range) return respondWithStreamedMedia(request, token, redirect);
+
+  const key = `${token}\x00${request.url}\x00${redirect}\x00${range}`;
+  const existing = inflightMediaFetches.get(key);
+  if (existing) {
+    return existing.then(
+      (data) =>
+        new Response(data.body, {
+          status: data.status,
+          statusText: data.statusText,
+          headers: new Headers(data.headers),
+        })
+    );
+  }
+  // Fetch by URL instead of reusing the subresource Request. Image requests commonly carry
+  // mode: "no-cors", which prevents the Authorization header above from reaching the server.
+  // Preserve Range header for streaming audio and video.
+  const promise = fetch(request.url, { ...fetchConfig(token, request), redirect })
+    .then(async (res): Promise<BufferedMediaResponse> => ({
+      status: res.status,
+      statusText: res.statusText,
+      headers: new Headers(res.headers),
+      body: await res.arrayBuffer(),
+    }))
+    .finally(() => {
+      inflightMediaFetches.delete(key);
+    });
+  inflightMediaFetches.set(key, promise);
+  return promise.then(
+    (data) =>
+      new Response(data.body, {
+        status: data.status,
+        statusText: data.statusText,
+        headers: new Headers(data.headers),
+      })
+  );
+}
+
+async function respondWithMediaAuthRecovery(
+  request: Request,
+  session: SessionInfo,
+  redirect: RequestRedirect,
+  clientId?: string
+): Promise<Response> {
+  const response = await respondWithInflightMedia(request, session.accessToken, redirect);
+  if ((response.status !== 401 && response.status !== 403) || !clientId) return response;
+
+  // One exact-client retry; concurrent recoveries share this request.
+  const refreshed = await requestSessionWithTimeout(clientId);
+  if (
+    !refreshed ||
+    refreshed.accessToken === session.accessToken ||
+    !validMediaRequest(request.url, refreshed.baseUrl)
+  ) {
+    return response;
+  }
+
+  // The retry replaces this response, so release its body rather than leaving the stream open.
+  await response.body?.cancel().catch(() => undefined);
+  return respondWithInflightMedia(request, refreshed.accessToken, redirect);
+}
+
+function unavailableAuthenticatedMediaResponse(): Response {
+  return new Response('Media session unavailable', {
+    status: 503,
+    statusText: 'Service Unavailable',
+    headers: { 'Cache-Control': 'no-store' },
+  });
+}
+
+export const swTestHooks = {
+  getSessionForPush,
+  requestSessionWithTimeout,
+  respondWithMediaAuthRecovery,
+  setSession,
+  isWebPushActivationPayload,
+  acknowledgeWebPushActivation,
+};
 
 self.addEventListener('message', (event: ExtendableMessageEvent) => {
   if (event.data.type === 'togglePush') {
@@ -665,7 +889,30 @@ self.addEventListener('message', (event: ExtendableMessageEvent) => {
 self.addEventListener('fetch', (event: FetchEvent) => {
   const { url, method } = event.request;
 
-  if (method !== 'GET' || !mediaPath(url)) return;
+  if (method !== 'GET') return;
+
+  if (isElementCallRingtoneRequest(url)) {
+    const silentWavBytes = createSilentWavBytes();
+    const silentWavBuffer = new Uint8Array(silentWavBytes).buffer;
+    event.respondWith(
+      Promise.resolve(
+        new Response(silentWavBuffer, {
+          status: 200,
+          headers: {
+            'Content-Type': 'audio/wav',
+            'Cache-Control': 'public, max-age=31536000, immutable',
+          },
+        })
+      )
+    );
+    return;
+  }
+
+  if (!mediaPath(url)) return;
+
+  // Direct-auth fallback requests already carry the page's token. Let the
+  // browser send them unchanged instead of routing them back through SW auth.
+  if (event.request.headers.has('Authorization')) return;
 
   const { clientId } = event;
 
@@ -678,41 +925,14 @@ self.addEventListener('fetch', (event: FetchEvent) => {
 
   const session = clientId ? sessions.get(clientId) : undefined;
   if (session && validMediaRequest(url, session.baseUrl)) {
-    event.respondWith(fetch(url, { ...fetchConfig(session.accessToken), redirect }));
+    event.respondWith(respondWithMediaAuthRecovery(event.request, session, redirect, clientId));
     return;
   }
 
-  // Since widgets like element call have their own client ids,
-  // we need this logic. We just go through the sessions list and get a session
-  // with the right base url. Media requests to a homeserver simply are fine with any account
-  // on the homeserver authenticating it, so this is fine. But it can be technically wrong.
-  // If you have two tabs for different users on the same homeserver, it might authenticate
-  // as the wrong one.
-  // Thus any logic in the future which cares about which user is authenticating the request
-  // might break this. Also, again, it is technically wrong.
-  // Also checks preloadedSession — populated from cache at SW activate — for the window
-  // between SW restart and the first live setSession arriving from the page.
-  const byBaseUrl =
-    [...sessions.values()].find((s) => validMediaRequest(url, s.baseUrl)) ??
-    (preloadedSession && validMediaRequest(url, preloadedSession.baseUrl)
-      ? preloadedSession
-      : undefined);
-  if (byBaseUrl) {
-    event.respondWith(fetch(url, { ...fetchConfig(byBaseUrl.accessToken), redirect }));
-    return;
-  }
-
-  // No clientId: the fetch came from a context not associated with a specific
-  // window (e.g. a prerender). Fall back to the persisted session directly.
   if (!clientId) {
     event.respondWith(
-      loadPersistedSession().then((persisted) => {
-        if (persisted && validMediaRequest(url, persisted.baseUrl)) {
-          return fetch(url, {
-            ...fetchConfig(persisted.accessToken),
-            redirect,
-          });
-        }
+      Promise.resolve().then(() => {
+        if (authenticatedMediaPath(url)) return unavailableAuthenticatedMediaResponse();
         return fetch(event.request);
       })
     );
@@ -723,27 +943,82 @@ self.addEventListener('fetch', (event: FetchEvent) => {
     requestSessionWithTimeout(clientId).then(async (s) => {
       // Primary: session received from the live client window.
       if (s && validMediaRequest(url, s.baseUrl)) {
-        return fetch(url, { ...fetchConfig(s.accessToken), redirect });
+        return respondWithMediaAuthRecovery(event.request, s, redirect, clientId);
       }
-      // Fallback: try the persisted session (helps when SW restarts on iOS and
-      // the client window hasn't responded to requestSession yet).
-      const persisted = await loadPersistedSession();
-      if (persisted && validMediaRequest(url, persisted.baseUrl)) {
-        return fetch(url, { ...fetchConfig(persisted.accessToken), redirect });
-      }
-      console.warn(
-        '[SW fetch] No valid session for media request',
-        { url, clientId, hasSession: !!s },
-        'falling back to unauthenticated fetch'
-      );
+      if (authenticatedMediaPath(url)) return unavailableAuthenticatedMediaResponse();
       return fetch(event.request);
     })
   );
 });
 
+// ---------------------------------------------------------------------------
+// MSC4174 web push activation
+// ---------------------------------------------------------------------------
+
+/** MSC4174 validation push: `{ app_id, ack_token }` and nothing else. */
+function isWebPushActivationPayload(data: unknown): data is { app_id: string; ack_token: string } {
+  if (!data || typeof data !== 'object') return false;
+  const d = data as Record<string, unknown>;
+  return (
+    typeof d.app_id === 'string' &&
+    typeof d.ack_token === 'string' &&
+    d.room_id === undefined &&
+    d.event_id === undefined &&
+    d.type === undefined &&
+    typeof d.unread !== 'number'
+  );
+}
+
+async function postWebPushAck(
+  session: SessionInfo,
+  appId: string,
+  ackToken: string
+): Promise<boolean> {
+  try {
+    const res = await fetch(`${session.baseUrl}${MATRIX_UNSTABLE_MSC4174_PUSHERS_ACK_PATH}`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${session.accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ app_id: appId, ack_token: ackToken }),
+    });
+    if (res.ok) return true;
+    console.warn('[SW push] MSC4174 ack rejected with HTTP', res.status);
+  } catch (err) {
+    console.warn('[SW push] MSC4174 ack failed', err);
+  }
+  return false;
+}
+
+/**
+ * Acknowledges a MSC4174 validation push. The payload does not identify the
+ * account that registered the pusher, so each known session is tried in turn.
+ */
+async function acknowledgeWebPushActivation(appId: string, ackToken: string): Promise<boolean> {
+  const candidates: SessionInfo[] = [...sessions.values()];
+  const seen = new Set(candidates.map((session) => session.userId).filter(Boolean));
+  const persisted = await loadPersistedSessions();
+  Object.values(persisted).forEach((session) => {
+    if (!seen.has(session.userId)) {
+      candidates.push(session);
+      seen.add(session.userId);
+    }
+  });
+
+  // Chain sessions sequentially to avoid await-in-loop.
+  return candidates.reduce(
+    (prevPromise, session) =>
+      prevPromise.then((acked) => acked || postWebPushAck(session, appId, ackToken)),
+    Promise.resolve(false)
+  );
+}
+
 // Detect a minimal (event_id_only) payload: has room_id + event_id but no
 // event type field — meaning the homeserver stripped the event content.
-function isMinimalPushPayload(data: unknown): data is { room_id: string; event_id: string } {
+function isMinimalPushPayload(
+  data: unknown
+): data is { room_id: string; event_id: string; user_id?: string } {
   if (!data || typeof data !== 'object') return false;
   const d = data as Record<string, unknown>;
   return typeof d.room_id === 'string' && typeof d.event_id === 'string' && !d.type;
@@ -752,12 +1027,19 @@ function isMinimalPushPayload(data: unknown): data is { room_id: string; event_i
 const onPushNotification = async (event: PushEvent) => {
   if (!event?.data) return;
 
+  const pushData = event.data.json();
+
+  // MSC4174 validation push: not a notification, ack even while visible.
+  if (isWebPushActivationPayload(pushData)) {
+    await acknowledgeWebPushActivation(pushData.app_id, pushData.ack_token);
+    return;
+  }
+
   // The SW may have been restarted by the OS (iOS is aggressive about this),
   // so in-memory settings would be at their defaults.  Reload from cache and
   // match active clients in parallel — they are independent operations.
-  const [, , clients] = await Promise.all([
+  const [, clients] = await Promise.all([
     loadPersistedSettings(),
-    loadPersistedSession(),
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }),
   ]);
 
@@ -779,7 +1061,6 @@ const onPushNotification = async (event: PushEvent) => {
     return;
   }
 
-  const pushData = event.data.json();
   console.debug('[SW push] raw payload:', JSON.stringify(pushData, null, 2));
 
   try {
@@ -814,7 +1095,7 @@ const onPushNotification = async (event: PushEvent) => {
   // to relay decryption to an open app tab.
   if (isMinimalPushPayload(pushData)) {
     console.debug('[SW push] minimal payload detected — fetching event', pushData.event_id);
-    await handleMinimalPushPayload(pushData.room_id, pushData.event_id, clients);
+    await handleMinimalPushPayload(pushData.room_id, pushData.event_id, pushData.user_id, clients);
     return;
   }
 
@@ -837,6 +1118,15 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
   const pushRoomId: string | undefined = data?.room_id ?? undefined;
   const pushEventId: string | undefined = data?.event_id ?? undefined;
   const isInvite = data?.content?.membership === 'invite';
+  const callNotificationType: string | undefined = data?.callNotificationType ?? undefined;
+  const callIntentKind: string | undefined = data?.callIntentKind ?? undefined;
+  const callIntentRaw: string | undefined = data?.callIntentRaw ?? undefined;
+  const callRefEventId: string | undefined = data?.callRefEventId ?? undefined;
+  const callSenderId: string | undefined = data?.sender_id ?? data?.callSenderId ?? undefined;
+  const callSenderTs: number | undefined =
+    typeof data?.callSenderTs === 'number' ? data.callSenderTs : undefined;
+  const callExpiresAt: number | undefined =
+    typeof data?.callExpiresAt === 'number' ? data.callExpiresAt : undefined;
 
   console.debug('[SW notificationclick] notification data:', JSON.stringify(data, null, 2));
   console.debug('[SW notificationclick] resolved fields:', {
@@ -864,11 +1154,25 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
     if (pushUserId) u.searchParams.set('uid', pushUserId);
     targetUrl = u.href;
   } else if (pushUserId && pushRoomId) {
-    const callParam = isCall ? '?joinCall=true' : '';
     const segments = pushEventId
-      ? `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/${encodeURIComponent(pushEventId)}/${callParam}`
-      : `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/${callParam}`;
-    targetUrl = new URL(segments, scope).href;
+      ? `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}/${encodeURIComponent(pushEventId)}`
+      : `to/${encodeURIComponent(pushUserId)}/${encodeURIComponent(pushRoomId)}`;
+    const target = new URL(segments, scope);
+    if (isCall) {
+      target.searchParams.set('call', '1');
+      if (callNotificationType) target.searchParams.set('callType', callNotificationType);
+      if (callIntentKind) target.searchParams.set('callIntentKind', callIntentKind);
+      if (callIntentRaw) target.searchParams.set('callIntentRaw', callIntentRaw);
+      if (callRefEventId) target.searchParams.set('callRefEventId', callRefEventId);
+      if (callSenderId) target.searchParams.set('callSenderId', callSenderId);
+      if (typeof callSenderTs === 'number') {
+        target.searchParams.set('callSenderTs', String(callSenderTs));
+      }
+      if (typeof callExpiresAt === 'number') {
+        target.searchParams.set('callExpiresAt', String(callExpiresAt));
+      }
+    }
+    targetUrl = target.href;
   } else {
     // Fallback: no room ID or no user ID in payload.
     targetUrl = new URL('inbox/notifications/', scope).href;
@@ -906,6 +1210,13 @@ self.addEventListener('notificationclick', (event: NotificationEvent) => {
             eventId: pushEventId,
             isInvite,
             isCall,
+            callNotificationType,
+            callIntentKind,
+            callIntentRaw,
+            callRefEventId,
+            callSenderId,
+            callSenderTs,
+            callExpiresAt,
           });
           // oxlint-disable-next-line no-await-in-loop
           await wc.focus();

@@ -8,17 +8,15 @@ import {
   Chip,
   color,
   config,
-  Icon,
-  Icons,
   Input,
   Spinner,
   Text,
   toRem,
 } from 'folds';
+import { CaretDown, CaretUp, menuIcon } from '$components/icons/phosphor';
 import type { MatrixError } from '$types/matrix-sdk';
 import { SettingTile } from '$components/setting-tile';
-import { SequenceCard } from '$components/sequence-card';
-import { SequenceCardStyle } from '$features/room-settings/styles.css';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoom } from '$hooks/useRoom';
 import {
@@ -388,9 +386,7 @@ export function RoomLocalAddresses({ permissions }: { permissions: RoomPermissio
             fill="Soft"
             outlined
             radii="300"
-            before={
-              <Icon size="100" src={expand ? Icons.ChevronTop : Icons.ChevronBottom} filled />
-            }
+            before={menuIcon(expand ? CaretUp : CaretDown, { weight: 'fill' })}
           >
             <Text as="span" size="B300" truncate>
               {expand ? 'Collapse' : 'Expand'}

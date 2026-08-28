@@ -1,12 +1,14 @@
 import type { ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
-import { Box, Badge, Icon, IconButton, Icons, Spinner, Text, as, toRem } from 'folds';
+import { Box, Badge, IconButton, Spinner, Text, as, toRem } from 'folds';
+import { Link, sizedIcon } from '$components/icons/phosphor';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { encodeBlurHash } from '$utils/blurHash';
+import { fetch } from '$utils/fetch';
 import { Attachment, AttachmentBox, AttachmentHeader } from '../message/attachment';
-import { Image } from '../media';
+import { Image as MediaImage } from '../media';
 import { UrlPreview } from './UrlPreview';
 import { VideoContent } from '../message';
 import { MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME } from '../../../unstable/prefixes';
@@ -30,17 +32,22 @@ interface OEmbed {
 }
 
 async function oEmbedData(url: string): Promise<OEmbed> {
-  const data = await fetch(url).then((resp) => resp.json());
+  const response = await fetch(url);
+  // YouTube answers errors with a plain-text body under an application/json content type,
+  // so the status has to be checked before parsing.
+  if (!response.ok) {
+    throw new Error(`oEmbed request failed: ${response.status}`);
+  }
 
-  return data;
+  return response.json();
 }
 
-export type EmbedHeaderProps = {
+type EmbedHeaderProps = {
   title: string;
   source: string;
   after?: ReactNode;
 };
-export const EmbedHeader = as<'div', EmbedHeaderProps>(({ title, source, after }) => (
+const EmbedHeader = as<'div', EmbedHeaderProps>(({ title, source, after }) => (
   <AttachmentHeader>
     <Box alignItems="Center" gap="200" grow="Yes">
       <Box shrink="No">
@@ -63,10 +70,10 @@ export const EmbedHeader = as<'div', EmbedHeaderProps>(({ title, source, after }
 type EmbedOpenButtonProps = {
   url: string;
 };
-export function EmbedOpenButton({ url }: EmbedOpenButtonProps) {
+function EmbedOpenButton({ url }: EmbedOpenButtonProps) {
   return (
     <IconButton size="300" radii="300" onClick={() => window.open(url, '_blank')}>
-      <Icon size="100" src={Icons.Link} />
+      {sizedIcon(Link, '100')}
     </IconButton>
   );
 }
@@ -76,7 +83,7 @@ type YoutubeElementProps = {
   embedData: OEmbed;
 };
 
-export const YoutubeElement = as<'div', YoutubeElementProps>(({ videoInfo, embedData }) => {
+const YoutubeElement = as<'div', YoutubeElementProps>(({ videoInfo, embedData }) => {
   const thumbnailUrl = `https://i.ytimg.com/vi/${videoInfo.videoId}/hqdefault.jpg`;
 
   const timestamp = videoInfo.timestamp ? `&start=${videoInfo.timestamp}` : '';
@@ -117,7 +124,7 @@ export const YoutubeElement = as<'div', YoutubeElementProps>(({ videoInfo, embed
             thumbnail_info: { [MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME]: blurHash },
           }}
           renderThumbnail={() => (
-            <Image
+            <MediaImage
               src={thumbnailUrl}
               /*
 								this allows the blurhash to be computed, otherwise it throws an "insecure operation" error
@@ -228,7 +235,8 @@ export const ClientPreview = as<'div', { url: string }>(({ url, ...props }, ref)
   useEffect(() => {
     const fetchYoutube = isYoutube && showYoutube;
 
-    if (fetchYoutube) loadEmbed();
+    // The card renders nothing on error; keep the failure out of the global handler.
+    if (fetchYoutube) loadEmbed().catch(() => undefined);
   }, [isYoutube, showYoutube, loadEmbed]);
 
   let previewContent;

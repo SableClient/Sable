@@ -1,26 +1,24 @@
 import type { KeyboardEventHandler } from 'react';
-import { useCallback, useEffect, useState, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Room } from '$types/matrix-sdk';
 import type { RectCords } from 'folds';
-import { Box, Chip, Icon, IconButton, Icons, PopOut, Spinner, Text, config } from 'folds';
-import { Editor, Transforms } from 'slate';
-import { ReactEditor } from 'slate-react';
+import { Box, Chip, IconButton, Spinner, Text, config } from 'folds';
+import { PopOut } from '$components/overlay-stack';
+import { composerIcon, Smiley } from '$components/icons/phosphor';
 import { isKeyHotkey } from 'is-hotkey';
-import type { AutocompleteQuery } from '$components/editor';
 import {
   AutocompletePrefix,
-  CustomEditor,
+  useAutocompleteQuery,
   EmoticonAutocomplete,
   MarkdownFormattingToolbarBottom,
   MarkdownFormattingToolbarToggle,
   createEmoticonElement,
-  getAutocompleteQuery,
-  getPrevWorldRange,
   plainToEditorInput,
-  moveCursor,
+  ProseMirrorEditorSurface,
   toMatrixCustomHTML,
   toPlainText,
   trimCustomHtml,
+  toggleProseMirrorKeyboardShortcut,
   useEditor,
 } from '$components/editor';
 import { htmlToMarkdown } from '$plugins/markdown';
@@ -28,7 +26,6 @@ import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { EmojiBoard } from '$components/emoji-board';
-import { mobileOrTablet } from '$utils/user-agent';
 import { SettingTile } from '$components/setting-tile';
 import * as css from './BioEditor.css';
 
@@ -42,18 +39,19 @@ type BioEditorProps = {
 export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditorProps) {
   const editor = useEditor();
   const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
+  const [shortcutOverrides] = useSetting(settingsAtom, 'shortcutOverrides');
 
-  const [autocompleteQuery, setAutocompleteQuery] =
-    useState<AutocompleteQuery<AutocompletePrefix>>();
+  const [autocompleteQuery, setAutocompleteQuery, handleCloseAutocomplete] =
+    useAutocompleteQuery(editor);
   const [hasChanged, setHasChanged] = useState(false);
 
   const prevValue = useRef(value);
   const initialized = useRef(false);
 
   const handleSave = useCallback(() => {
-    const plainText = toPlainText(editor.children).trim();
+    const plainText = toPlainText(editor.getDocument()).trim();
 
-    const customHtml = trimCustomHtml(toMatrixCustomHTML(editor.children, {}));
+    const customHtml = trimCustomHtml(toMatrixCustomHTML(editor.getDocument(), {}));
 
     onSave(customHtml || plainText, plainText);
     setHasChanged(false);
@@ -80,7 +78,7 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
       const incomingPlainText = toPlainText(
         plainToEditorInput(safeValue.includes('<') ? htmlToMarkdown(safeValue) : safeValue)
       ).trim();
-      const currentPlainText = toPlainText(editor.children).trim();
+      const currentPlainText = toPlainText(editor.getDocument()).trim();
 
       if (currentPlainText === incomingPlainText && initialized.current) return;
 
@@ -89,9 +87,7 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
         ? plainToEditorInput(htmlToMarkdown(safeValue))
         : plainToEditorInput(safeValue);
 
-      editor.children = initialValue;
-      Editor.normalize(editor, { force: true });
-      Transforms.select(editor, Editor.start(editor, []));
+      editor.setDocument(initialValue);
 
       initialized.current = true;
       setHasChanged(false);
@@ -100,12 +96,16 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
 
   const handleKeyDown: KeyboardEventHandler = useCallback(
     (evt) => {
+      if (toggleProseMirrorKeyboardShortcut(editor, evt, shortcutOverrides)) {
+        evt.preventDefault();
+        return;
+      }
       if (isKeyHotkey('mod+enter', evt) || (!enterForNewline && isKeyHotkey('enter', evt))) {
         evt.preventDefault();
         handleSave();
       }
     },
-    [handleSave, enterForNewline]
+    [editor, enterForNewline, handleSave, shortcutOverrides]
   );
 
   const handleKeyUp: KeyboardEventHandler = useCallback(
@@ -114,23 +114,14 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
         evt.preventDefault();
         return;
       }
-      const prevWordRange = getPrevWorldRange(editor);
-      const query = prevWordRange
-        ? getAutocompleteQuery(editor, prevWordRange, [AutocompletePrefix.Emoticon])
-        : undefined;
-      setAutocompleteQuery(query);
+      setAutocompleteQuery(editor.getAutocompleteQuery([AutocompletePrefix.Emoticon]));
     },
-    [editor]
+    [editor, setAutocompleteQuery]
   );
 
-  const handleCloseAutocomplete = useCallback(() => {
-    ReactEditor.focus(editor);
-    setAutocompleteQuery(undefined);
-  }, [editor]);
-
   const handleEmoticonSelect = (key: string, shortcode: string) => {
-    editor.insertNode(createEmoticonElement(key, shortcode));
-    moveCursor(editor);
+    editor.insertInline(createEmoticonElement(key, shortcode));
+    editor.insertText(' ');
     setHasChanged(true);
   };
 
@@ -141,15 +132,15 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
         {autocompleteQuery?.prefix === AutocompletePrefix.Emoticon && (
           <EmoticonAutocomplete
             imagePackRooms={imagePackRooms || []}
-            editor={editor}
-            query={autocompleteQuery}
+            controller={editor}
+            query={autocompleteQuery!}
             requestClose={handleCloseAutocomplete}
           />
         )}
-        <CustomEditor
-          editor={editor}
+        <ProseMirrorEditorSurface
+          controller={editor}
           placeholder="Write a bio..."
-          onChange={() => {
+          onDocumentChange={() => {
             if (!hasChanged) setHasChanged(true);
           }}
           onKeyDown={handleKeyDown}
@@ -158,7 +149,7 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
           variant="Background"
           bottom={
             <Box direction="Column" style={{ backgroundColor: 'var(--sable-bg-container)' }}>
-              <MarkdownFormattingToolbarBottom />
+              <MarkdownFormattingToolbarBottom controller={editor} />
               <Box
                 style={{ padding: config.space.S200, paddingTop: 0 }}
                 alignItems="End"
@@ -199,7 +190,7 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
                             requestClose={() =>
                               setAnchor((v) => {
                                 if (v) {
-                                  if (!mobileOrTablet()) ReactEditor.focus(editor);
+                                  editor.focus();
                                   return undefined;
                                 }
                                 return v;
@@ -215,7 +206,9 @@ export function BioEditor({ value, isSaving, imagePackRooms, onSave }: BioEditor
                           radii="300"
                           onClick={(evt) => setAnchor(evt.currentTarget.getBoundingClientRect())}
                         >
-                          <Icon size="400" src={Icons.Smile} filled={anchor !== undefined} />
+                          {composerIcon(Smiley, {
+                            weight: anchor !== undefined ? 'fill' : 'regular',
+                          })}
                         </IconButton>
                       </PopOut>
                     )}

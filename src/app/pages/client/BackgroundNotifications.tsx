@@ -7,11 +7,11 @@ import {
   MatrixEventEvent,
   RoomEvent,
   SyncState,
-  PushProcessor,
   EventType,
 } from '$types/matrix-sdk';
 
 import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { fetch } from '$utils/fetch';
 import type { Session } from '$state/sessions';
 import {
   sessionsAtom,
@@ -23,15 +23,14 @@ import {
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { getMxIdLocalPart, mxcUrlToHttp } from '$utils/matrix';
+import { getAccountData, getStateEvent } from '$utils/room/hierarchy';
 import {
-  getAccountData,
-  getMemberDisplayName,
   getNotificationType,
-  getStateEvent,
   isNotificationEvent,
   getMDirects,
   isDMRoom,
-} from '$utils/room';
+} from '$utils/room/unread';
+import { getMemberDisplayName } from '$utils/room/display';
 import { NotificationType } from '$types/matrix/room';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
@@ -43,8 +42,9 @@ import {
 } from '$utils/notificationStyle';
 import * as Sentry from '@sentry/react';
 import { startClient, stopClient } from '$client/initMatrix';
-import { useClientConfig } from '$hooks/useClientConfig';
-import { mobileOrTablet } from '$utils/user-agent';
+import { createSessionTokenRefresher } from '$client/oidcTokenRefresher';
+import { isDesktopTauri } from '$utils/platform';
+import { isMobileOrTablet } from '$utils/platform';
 
 const log = createLogger('BackgroundNotifications');
 const debugLog = createDebugLogger('BackgroundNotifications');
@@ -52,13 +52,17 @@ const debugLog = createDebugLogger('BackgroundNotifications');
 const BACKGROUND_SYNC_POLL_TIMEOUT_MS = 60_000;
 const BACKGROUND_STAGGER_DELAY_MS = 5_000;
 
+let desktopNotificationSeq = 1;
+const nextDesktopNotificationId = (): number => {
+  const id = desktopNotificationSeq;
+  desktopNotificationSeq = desktopNotificationSeq >= 2_000_000_000 ? 1 : desktopNotificationSeq + 1;
+  return id;
+};
+
 const isClientReadyForNotifications = (state: SyncState | string | null): boolean =>
   state === SyncState.Prepared || state === SyncState.Syncing || state === SyncState.Catchup;
 
-const startBackgroundClient = async (
-  session: Session,
-  slidingSyncConfig: ReturnType<typeof useClientConfig>['slidingSync']
-): Promise<MatrixClient> => {
+const startBackgroundClient = async (session: Session): Promise<MatrixClient> => {
   const storeName = {
     sync: `bg-sync${session.userId}`,
     crypto: `bg-crypto${session.userId}`,
@@ -71,25 +75,39 @@ const startBackgroundClient = async (
     dbName: storeName.sync,
   });
 
+  const tempClient = createClient({
+    baseUrl: session.baseUrl,
+    fetchFn: fetch,
+  });
+  const tokenRefresher = createSessionTokenRefresher(session, tempClient);
+
   const mx = createClient({
     baseUrl: session.baseUrl,
+    fetchFn: fetch,
     accessToken: session.accessToken,
+    refreshToken: session.refreshToken,
     userId: session.userId,
     deviceId: session.deviceId,
     store: indexedDBStore,
     timelineSupport: false,
+    tokenRefreshFunction: tokenRefresher?.tokenRefreshFunction,
   });
 
   const startOpts = {
     baseUrl: session.baseUrl,
-    slidingSync: session.slidingSyncOptIn ? slidingSyncConfig : undefined,
     sessionSlidingSyncOptIn: session.slidingSyncOptIn,
     pollTimeoutMs: BACKGROUND_SYNC_POLL_TIMEOUT_MS,
     timelineLimit: 1,
   };
 
-  await startClient(mx, startOpts);
-  return mx;
+  try {
+    await indexedDBStore.startup();
+    await startClient(mx, startOpts);
+    return mx;
+  } catch (error) {
+    stopClient(mx);
+    throw error;
+  }
 };
 
 /**
@@ -121,18 +139,17 @@ const waitForSync = (mx: MatrixClient): Promise<void> =>
   });
 
 export function BackgroundNotifications() {
-  const clientConfig = useClientConfig();
   const sessions = useAtomValue(sessionsAtom);
   const [activeSessionId, setActiveSessionId] = useAtom(activeSessionIdAtom);
   const [showNotifications] = useSetting(settingsAtom, 'useInAppNotifications');
-  const [usePushNotifications] = useSetting(settingsAtom, 'usePushNotifications');
+  const [backgroundPushEnabled] = useSetting(settingsAtom, 'backgroundPushEnabled');
   const [notificationSound] = useSetting(settingsAtom, 'isNotificationSounds');
   const [showMessageContent] = useSetting(settingsAtom, 'showMessageContentInNotifications');
   const [showEncryptedMessageContent] = useSetting(
     settingsAtom,
     'showMessageContentInEncryptedNotifications'
   );
-  const shouldRunBackgroundNotifications = showNotifications || usePushNotifications;
+  const shouldRunBackgroundNotifications = showNotifications || backgroundPushEnabled;
   const nicknames = useAtomValue(nicknamesAtom);
   const nicknamesRef = useRef(nicknames);
   nicknamesRef.current = nicknames;
@@ -196,9 +213,30 @@ export function BackgroundNotifications() {
     }
 
     const { current } = clientsRef;
+    let disposed = false;
     const activeIds = new Set(inactiveSessions.map((s) => s.userId));
+    const retryTimers: ReturnType<typeof setTimeout>[] = [];
 
     async function sendNotification(opts: NotifyOptions): Promise<void> {
+      if (isDesktopTauri()) {
+        try {
+          const { getTauriNotificationsApi, buildNotificationExtra } =
+            await import('$features/settings/notifications/TauriNotificationsApiClient');
+          const api = await getTauriNotificationsApi();
+          // Attach routing payload so the tap deep-links via NativeNotificationClickRouting.
+          await api.sendNotification({
+            id: nextDesktopNotificationId(),
+            title: opts.title,
+            body: opts.body,
+            silent: opts.silent ?? false,
+            extra: buildNotificationExtra(opts.data),
+          });
+          return;
+        } catch (err) {
+          log.error('failed to show native desktop notification', err);
+          // Fall through to the web Notification path as a best-effort fallback.
+        }
+      }
       // Prefer ServiceWorkerRegistration.showNotification so that taps are handled
       // by the SW notificationclick event. This routes through HandleNotificationClick
       // (postMessage path) which does the account switch + deep link reliably on all
@@ -255,14 +293,26 @@ export function BackgroundNotifications() {
     // Using a named function (vs. inline .then) lets the .catch() schedule a
     // fresh retry referencing the latest session from inactiveSessionsRef.
     const startSession = (session: Session, attempt = 0): void => {
+      if (disposed || current.has(session.userId)) return;
+
       let sessionMx: MatrixClient | undefined;
-      startBackgroundClient(session, clientConfig.slidingSync)
+      startBackgroundClient(session)
         .then(async (mx) => {
           sessionMx = mx;
+          if (disposed) {
+            stopClient(mx);
+            return;
+          }
           current.set(session.userId, mx);
           Sentry.metrics.gauge('sable.background.client_count', current.size);
 
           await waitForSync(mx);
+
+          if (disposed) return;
+          if (current.get(session.userId) !== mx) {
+            stopClient(mx);
+            return;
+          }
 
           // Wait for m.direct account data to load. This is critical for DM detection.
           // Without it, rooms in /direct/ won't be recognized as DMs, causing notifications to fail.
@@ -287,7 +337,13 @@ export function BackgroundNotifications() {
             });
           }
 
-          const pushProcessor = new PushProcessor(mx);
+          if (disposed) return;
+          if (current.get(session.userId) !== mx) {
+            stopClient(mx);
+            return;
+          }
+
+          const pushProcessor = mx.pushProcessor;
 
           const handleAccountData = (event: MatrixEvent) => {
             if (event.getType() === (EventType.Direct as string)) {
@@ -316,7 +372,7 @@ export function BackgroundNotifications() {
             if (!eventId) return;
 
             const eventType = mEvent.getType();
-            const isEncryptedType = eventType === 'm.room.encrypted';
+            const isEncryptedType = eventType === (EventType.RoomMessageEncrypted as string);
 
             // For encrypted events that haven't been decrypted yet, wait for decryption
             // before processing the notification. The SDK's Timeline re-emission after
@@ -483,7 +539,7 @@ export function BackgroundNotifications() {
             // Show in-app banner when app is visible, mobile, and in-app notifications enabled
             const canShowInAppBanner =
               document.visibilityState === 'visible' &&
-              mobileOrTablet() &&
+              isMobileOrTablet() &&
               showNotificationsRef.current;
 
             if (canShowInAppBanner) {
@@ -499,6 +555,8 @@ export function BackgroundNotifications() {
                 roomName: room.name ?? room.getCanonicalAlias() ?? undefined,
                 senderName,
                 body: notificationPayload.options.body,
+                room,
+                event: mEvent,
                 icon: notificationPayload.options.icon,
                 onClick: notifOnClick,
               });
@@ -532,6 +590,7 @@ export function BackgroundNotifications() {
           });
         })
         .catch((err) => {
+          if (disposed) return;
           log.error('failed to start background client for', session.userId, err);
           debugLog.error('notification', 'Failed to start background client', {
             userId: session.userId,
@@ -553,14 +612,17 @@ export function BackgroundNotifications() {
           // Retry with exponential backoff, up to 5 attempts (5s, 10s, 20s, 40s, 60s cap).
           if (attempt < 5) {
             const retryDelay = Math.min(5_000 * 2 ** attempt, 60_000);
-            setTimeout(() => {
-              const latestSession = inactiveSessionsRef.current.find(
-                (s) => s.userId === session.userId
-              );
-              if (latestSession && !current.has(session.userId)) {
-                startSession(latestSession, attempt + 1);
-              }
-            }, retryDelay);
+            retryTimers.push(
+              setTimeout(() => {
+                if (disposed) return;
+                const latestSession = inactiveSessionsRef.current.find(
+                  (s) => s.userId === session.userId
+                );
+                if (latestSession && !current.has(session.userId)) {
+                  startSession(latestSession, attempt + 1);
+                }
+              }, retryDelay)
+            );
           }
         });
     };
@@ -578,20 +640,18 @@ export function BackgroundNotifications() {
     });
 
     const cleanupMap = clientCleanupRef.current;
-    const activeUserIds = new Set(inactiveSessions.map((s) => s.userId));
     return () => {
+      disposed = true;
       staggerTimers.forEach(clearTimeout);
+      retryTimers.forEach(clearTimeout);
       current.forEach((mx, userId) => {
-        if (!activeUserIds.has(userId)) {
-          cleanupMap.get(userId)?.();
-          cleanupMap.delete(userId);
-          stopClient(mx);
-          current.delete(userId);
-        }
+        cleanupMap.get(userId)?.();
+        cleanupMap.delete(userId);
+        stopClient(mx);
+        current.delete(userId);
       });
     };
   }, [
-    clientConfig.slidingSync,
     inactiveSessions,
     shouldRunBackgroundNotifications,
     setActiveSessionId,

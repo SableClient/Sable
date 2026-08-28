@@ -1,14 +1,8 @@
+import type { ReactNode } from 'react';
 import { useCallback, useEffect } from 'react';
-import { Box, Chip, Header, Scroll, Spinner, Text, color } from 'folds';
-import {
-  Outlet,
-  generatePath,
-  matchPath,
-  useLocation,
-  useNavigate,
-  useParams,
-  useSearchParams,
-} from 'react-router-dom';
+import { Box, Chip, Header, IconButton, Scroll, Spinner, Text, color } from 'folds';
+import { ArrowClockwiseIcon } from '@phosphor-icons/react';
+import { Outlet, matchPath, useLocation, useNavigate, useSearchParams } from 'react-router';
 import classNames from 'classnames';
 
 import * as PatternsCss from '$styles/Patterns.css';
@@ -20,13 +14,18 @@ import { SpecVersionsProvider } from '$hooks/useSpecVersions';
 import { AutoDiscoveryInfoProvider } from '$hooks/useAutoDiscoveryInfo';
 import { AuthFlowsLoader } from '$components/AuthFlowsLoader';
 import { AuthFlowsProvider } from '$hooks/useAuthFlows';
+import type { AuthFlows } from '$hooks/useAuthFlows';
 import { AuthServerProvider } from '$hooks/useAuthServer';
-import { LOGIN_PATH, REGISTER_PATH, RESET_PASSWORD_PATH } from '$pages/paths';
+import { LOGIN_PATH, REGISTER_PATH, RESET_PASSWORD_PATH, SERVER_SEARCH_PARAM } from '$pages/paths';
 import { getHomePath } from '$pages/pathUtils';
+import { fetch } from '$utils/fetch';
+import { sizedIcon } from '$components/icons/phosphor';
 import { AutoDiscoveryAction, autoDiscovery } from '../../cs-api';
+import type { SpecVersions } from '../../cs-api';
 import { ServerPicker } from './ServerPicker';
 import * as css from './styles.css';
 import { AuthFooter } from './AuthFooter';
+import { usePathWithOrigin } from '$hooks/usePathWithOrigin';
 
 const currentAuthPath = (pathname: string): string => {
   if (matchPath(LOGIN_PATH, pathname)) {
@@ -41,6 +40,16 @@ const currentAuthPath = (pathname: string): string => {
   return LOGIN_PATH;
 };
 
+const authPathWithServer = (
+  pathname: string,
+  searchParams: URLSearchParams,
+  server: string
+): string => {
+  const params = new URLSearchParams(searchParams);
+  params.set(SERVER_SEARCH_PARAM, server);
+  return `${currentAuthPath(pathname)}?${params}`;
+};
+
 function AuthLayoutLoading({ message }: { message: string }) {
   return (
     <Box justifyContent="Center" alignItems="Center" gap="200">
@@ -52,29 +61,86 @@ function AuthLayoutLoading({ message }: { message: string }) {
   );
 }
 
-function AuthLayoutError({ message }: { message: string }) {
+function AuthLayoutError({ message, retry }: { message: string; retry: () => void }) {
   return (
     <Box justifyContent="Center" alignItems="Center" gap="200">
       <Text align="Center" style={{ color: color.Critical.Main }} size="T300">
         {message}
       </Text>
+      <IconButton
+        type="button"
+        size="300"
+        variant="Critical"
+        fill="None"
+        onClick={retry}
+        aria-label="Retry"
+        radii="300"
+      >
+        {sizedIcon(ArrowClockwiseIcon, '100')}
+      </IconButton>
     </Box>
+  );
+}
+
+function AuthHomeserverConnectFallback({ baseUrl }: { baseUrl: string }) {
+  return <AuthLayoutLoading message={`Connecting to ${baseUrl}`} />;
+}
+
+function authHomeserverConnectError(_error: unknown, retry: () => void) {
+  return (
+    <AuthLayoutError
+      message="Failed to connect. Either homeserver is unavailable at this moment or does not exist."
+      retry={retry}
+    />
+  );
+}
+
+function authFlowsLoadingFallback() {
+  return <AuthLayoutLoading message="Loading authentication flow..." />;
+}
+
+function authFlowsError(_error: unknown, retry: () => void) {
+  return <AuthLayoutError message="Failed to get authentication flow information." retry={retry} />;
+}
+
+function AuthFlowsOutlet({ authFlows }: { authFlows: AuthFlows }) {
+  return (
+    <AuthFlowsProvider value={authFlows}>
+      <Outlet />
+    </AuthFlowsProvider>
+  );
+}
+
+function AuthSpecVersionsContent({
+  specVersions,
+  renderAuthFlows,
+}: {
+  specVersions: SpecVersions;
+  renderAuthFlows: (authFlows: AuthFlows) => ReactNode;
+}) {
+  return (
+    <SpecVersionsProvider value={specVersions}>
+      <AuthFlowsLoader fallback={authFlowsLoadingFallback} error={authFlowsError}>
+        {renderAuthFlows}
+      </AuthFlowsLoader>
+    </SpecVersionsProvider>
   );
 }
 
 export function AuthLayout() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { server: urlEncodedServer } = useParams();
   const [searchParams] = useSearchParams();
+  const urlServer = searchParams.get(SERVER_SEARCH_PARAM) ?? undefined;
 
   const isAddingAccount = searchParams.get('addAccount') === '1';
 
   const clientConfig = useClientConfig();
 
+  const homeUrl = usePathWithOrigin(getHomePath());
+
   const defaultServer = clientDefaultServer(clientConfig);
-  const decodedServer = urlEncodedServer && decodeURIComponent(urlEncodedServer);
-  let server: string = decodedServer ?? defaultServer;
+  let server: string = urlServer ?? defaultServer;
 
   if (!clientAllowedServer(clientConfig, server)) {
     server = defaultServer;
@@ -89,21 +155,18 @@ export function AuthLayout() {
       };
     }, [])
   );
+  const retryHomeserverDiscovery = () => discoverServer(server);
 
   useEffect(() => {
     if (server) discoverServer(server);
   }, [discoverServer, server]);
 
-  // if server is mismatched with path server, update path — preserve all search params
+  // if server is mismatched with url server, update url — preserve all search params
   useEffect(() => {
-    if (!urlEncodedServer || decodeURIComponent(urlEncodedServer) !== server) {
-      const basePath = generatePath(currentAuthPath(location.pathname), {
-        server: encodeURIComponent(server),
-      });
-      const search = searchParams.toString();
-      navigate(`${basePath}${search ? `?${search}` : ''}`, { replace: true });
+    if (urlServer !== server) {
+      navigate(authPathWithServer(location.pathname, searchParams, server), { replace: true });
     }
-  }, [urlEncodedServer, navigate, location, server, searchParams]);
+  }, [urlServer, navigate, location, server, searchParams]);
 
   const selectServer = useCallback(
     (newServer: string) => {
@@ -112,17 +175,32 @@ export function AuthLayout() {
         discoverServer(server);
         return;
       }
-      const basePath = generatePath(currentAuthPath(location.pathname), {
-        server: encodeURIComponent(newServer),
-      });
-      const search = searchParams.toString();
-      navigate(`${basePath}${search ? `?${search}` : ''}`);
+      navigate(authPathWithServer(location.pathname, searchParams, newServer));
     },
     [navigate, location, discoveryState, server, discoverServer, searchParams]
   );
 
   const [autoDiscoveryError, autoDiscoveryInfo] =
     discoveryState.status === AsyncStatus.Success ? discoveryState.data.response : [];
+
+  const homeserverBaseUrl = autoDiscoveryInfo?.['m.homeserver']?.base_url;
+
+  const renderHomeserverConnectFallback = useCallback(() => {
+    if (!homeserverBaseUrl) return null;
+    return <AuthHomeserverConnectFallback baseUrl={homeserverBaseUrl} />;
+  }, [homeserverBaseUrl]);
+
+  const renderAuthFlows = useCallback(
+    (authFlows: AuthFlows) => <AuthFlowsOutlet authFlows={authFlows} />,
+    []
+  );
+
+  const renderSpecVersions = useCallback(
+    (specVersions: SpecVersions) => (
+      <AuthSpecVersionsContent specVersions={specVersions} renderAuthFlows={renderAuthFlows} />
+    ),
+    [renderAuthFlows]
+  );
 
   return (
     <Scroll variant="Background" visibility="Hover" size="300" hideTrack>
@@ -144,11 +222,7 @@ export function AuthLayout() {
                 <Text size="T200" priority="300">
                   Adding account
                 </Text>
-                <Chip
-                  variant="Surface"
-                  radii="300"
-                  onClick={() => window.location.assign(getHomePath())}
-                >
+                <Chip variant="Surface" radii="300" onClick={() => window.location.assign(homeUrl)}>
                   <Text size="T200">Cancel</Text>
                 </Chip>
               </Box>
@@ -170,48 +244,32 @@ export function AuthLayout() {
               <AuthLayoutLoading message="Looking for homeserver..." />
             )}
             {discoveryState.status === AsyncStatus.Error && (
-              <AuthLayoutError message="Failed to find homeserver." />
+              <AuthLayoutError
+                message="Failed to find homeserver."
+                retry={retryHomeserverDiscovery}
+              />
             )}
             {autoDiscoveryError?.action === AutoDiscoveryAction.FAIL_PROMPT && (
               <AuthLayoutError
                 message={`Failed to connect. Homeserver configuration found with ${autoDiscoveryError.host} appears unusable.`}
+                retry={retryHomeserverDiscovery}
               />
             )}
             {autoDiscoveryError?.action === AutoDiscoveryAction.FAIL_ERROR && (
-              <AuthLayoutError message="Failed to connect. Homeserver configuration base_url appears invalid." />
+              <AuthLayoutError
+                message="Failed to connect. Homeserver configuration base_url appears invalid."
+                retry={retryHomeserverDiscovery}
+              />
             )}
             {discoveryState.status === AsyncStatus.Success && autoDiscoveryInfo && (
               <AuthServerProvider value={discoveryState.data.serverName}>
                 <AutoDiscoveryInfoProvider value={autoDiscoveryInfo}>
                   <SpecVersionsLoader
                     baseUrl={autoDiscoveryInfo['m.homeserver'].base_url}
-                    fallback={() => (
-                      <AuthLayoutLoading
-                        message={`Connecting to ${autoDiscoveryInfo['m.homeserver'].base_url}`}
-                      />
-                    )}
-                    error={() => (
-                      <AuthLayoutError message="Failed to connect. Either homeserver is unavailable at this moment or does not exist." />
-                    )}
+                    fallback={renderHomeserverConnectFallback}
+                    error={authHomeserverConnectError}
                   >
-                    {(specVersions) => (
-                      <SpecVersionsProvider value={specVersions}>
-                        <AuthFlowsLoader
-                          fallback={() => (
-                            <AuthLayoutLoading message="Loading authentication flow..." />
-                          )}
-                          error={() => (
-                            <AuthLayoutError message="Failed to get authentication flow information." />
-                          )}
-                        >
-                          {(authFlows) => (
-                            <AuthFlowsProvider value={authFlows}>
-                              <Outlet />
-                            </AuthFlowsProvider>
-                          )}
-                        </AuthFlowsLoader>
-                      </SpecVersionsProvider>
-                    )}
+                    {renderSpecVersions}
                   </SpecVersionsLoader>
                 </AutoDiscoveryInfoProvider>
               </AuthServerProvider>

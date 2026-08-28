@@ -1,4 +1,5 @@
-import type { InlineElement } from './slate';
+import type { InlineToken } from './model';
+import { BlockType } from './types';
 import {
   parseMatrixToRoom,
   parseMatrixToRoomEvent,
@@ -7,7 +8,6 @@ import {
 } from '$plugins/matrix-to';
 import type { MentionResolveOptions } from './utils';
 import {
-  createMentionElement,
   getMarkdownCodeSpanRanges,
   isInsideMarkdownCodeSpan,
   resolveRoomMentionHighlight,
@@ -23,39 +23,44 @@ export const mentionFromMatrixToMarkdownLink = (
   label: string,
   href: string,
   options?: MentionResolveOptions
-): InlineElement | null => {
+): InlineToken | null => {
   const trimmedHref = href.trim();
   if (!isMatrixToMentionHref(trimmedHref)) return null;
 
   const userId = parseMatrixToUser(trimmedHref);
   if (userId) {
-    return createMentionElement(
-      userId,
-      resolveUserMentionName(userId, options),
-      resolveUserMentionHighlight(userId, options)
-    );
+    return {
+      type: BlockType.Mention,
+      id: userId,
+      name: resolveUserMentionName(userId, options),
+      highlight: resolveUserMentionHighlight(userId, options),
+      children: [{ text: '' }],
+    };
   }
 
   const roomEvent = parseMatrixToRoomEvent(trimmedHref);
   if (roomEvent) {
-    return createMentionElement(
-      roomEvent.roomIdOrAlias,
-      resolveRoomMentionName(roomEvent.roomIdOrAlias, label, options),
-      resolveRoomMentionHighlight(roomEvent.roomIdOrAlias, options),
-      roomEvent.eventId,
-      roomEvent.viaServers
-    );
+    return {
+      type: BlockType.Mention,
+      id: roomEvent.roomIdOrAlias,
+      name: resolveRoomMentionName(roomEvent.roomIdOrAlias, label, options),
+      highlight: resolveRoomMentionHighlight(roomEvent.roomIdOrAlias, options),
+      eventId: roomEvent.eventId,
+      viaServers: roomEvent.viaServers,
+      children: [{ text: '' }],
+    };
   }
 
   const room = parseMatrixToRoom(trimmedHref);
   if (room) {
-    return createMentionElement(
-      room.roomIdOrAlias,
-      resolveRoomMentionName(room.roomIdOrAlias, label, options),
-      resolveRoomMentionHighlight(room.roomIdOrAlias, options),
-      undefined,
-      room.viaServers
-    );
+    return {
+      type: BlockType.Mention,
+      id: room.roomIdOrAlias,
+      name: resolveRoomMentionName(room.roomIdOrAlias, label, options),
+      highlight: resolveRoomMentionHighlight(room.roomIdOrAlias, options),
+      viaServers: room.viaServers,
+      children: [{ text: '' }],
+    };
   }
 
   return null;
@@ -64,9 +69,9 @@ export const mentionFromMatrixToMarkdownLink = (
 export const expandMatrixMentionMarkdownInText = (
   text: string,
   options?: MentionResolveOptions
-): InlineElement[] => {
+): InlineToken[] => {
   const codeSpanRanges = getMarkdownCodeSpanRanges(text);
-  const parts: InlineElement[] = [];
+  const parts: InlineToken[] = [];
   let last = 0;
 
   MD_INLINE_LINK.lastIndex = 0;

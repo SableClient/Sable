@@ -1,58 +1,29 @@
-import type { MouseEventHandler } from 'react';
-import { useMemo, useState } from 'react';
-import type { RectCords } from 'folds';
-import { Box, Button, config, Icon, Icons, Menu, MenuItem, PopOut, Text } from 'folds';
-import FocusTrap from 'focus-trap-react';
+import { useMemo } from 'react';
+import { Button, Text } from 'folds';
+import { CaretDown, sizedIcon } from '$components/icons/phosphor';
 import { ImageUsage } from '$plugins/custom-emoji';
-import { stopPropagation } from '$utils/keyboard';
+import {
+  SettingMenuSelector,
+  type SettingMenuOption,
+} from '$components/setting-menu-selector/SettingMenuSelector';
 
-export const useUsageStr = (): ((usage: ImageUsage[]) => string) => {
-  const getUsageStr = (usage: ImageUsage[]): string => {
-    const sticker = usage.includes(ImageUsage.Sticker);
-    const emoticon = usage.includes(ImageUsage.Emoticon);
+const getUsageStr = (usage: ImageUsage[]): string => {
+  const sticker = usage.includes(ImageUsage.Sticker);
+  const emoticon = usage.includes(ImageUsage.Emoticon);
 
-    if (sticker && emoticon) return 'Both';
-    if (sticker) return 'Sticker';
-    if (emoticon) return 'Emoji';
-    return 'Both';
-  };
-  return getUsageStr;
+  if (sticker && emoticon) return 'Both';
+  if (sticker) return 'Sticker';
+  if (emoticon) return 'Emoji';
+  return 'Both';
 };
 
-type UsageSelectorProps = {
-  selected: ImageUsage[];
-  onChange: (usage: ImageUsage[]) => void;
-};
-export function UsageSelector({ selected, onChange }: UsageSelectorProps) {
-  const getUsageStr = useUsageStr();
+export const useUsageStr = (): ((usage: ImageUsage[]) => string) => getUsageStr;
 
-  const selectedUsageStr = getUsageStr(selected);
-  const isSelected = (usage: ImageUsage[]) => getUsageStr(usage) === selectedUsageStr;
-
-  const allUsages: ImageUsage[][] = useMemo(
-    () => [[ImageUsage.Emoticon], [ImageUsage.Sticker], [ImageUsage.Sticker, ImageUsage.Emoticon]],
-    []
-  );
-
-  return (
-    <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-      {allUsages.map((usage) => (
-        <MenuItem
-          key={getUsageStr(usage)}
-          size="300"
-          variant={isSelected(usage) ? 'SurfaceVariant' : 'Surface'}
-          aria-selected={isSelected(usage)}
-          radii="300"
-          onClick={() => onChange(usage)}
-        >
-          <Box grow="Yes">
-            <Text size="T300">{getUsageStr(usage)}</Text>
-          </Box>
-        </MenuItem>
-      ))}
-    </Box>
-  );
-}
+const ALL_USAGES: ImageUsage[][] = [
+  [ImageUsage.Emoticon],
+  [ImageUsage.Sticker],
+  [ImageUsage.Sticker, ImageUsage.Emoticon],
+];
 
 type UsageSwitcherProps = {
   usage: ImageUsage[];
@@ -60,59 +31,41 @@ type UsageSwitcherProps = {
   onChange: (usage: ImageUsage[]) => void;
 };
 export function UsageSwitcher({ usage, onChange, canEdit }: UsageSwitcherProps) {
-  const getUsageStr = useUsageStr();
+  const formatUsageStr = useUsageStr();
 
-  const [menuCords, setMenuCords] = useState<RectCords>();
+  const options: SettingMenuOption<string>[] = useMemo(
+    () => ALL_USAGES.map((usg) => ({ value: formatUsageStr(usg), label: formatUsageStr(usg) })),
+    [formatUsageStr]
+  );
 
-  const handleSelectUsage: MouseEventHandler<HTMLButtonElement> = (event) => {
-    setMenuCords(event.currentTarget.getBoundingClientRect());
+  const handleSelect = (usageStr: string) => {
+    const selectedUsage = ALL_USAGES.find((usg) => formatUsageStr(usg) === usageStr);
+    if (selectedUsage) onChange(selectedUsage);
   };
 
   return (
-    <>
-      <Button
-        variant="Secondary"
-        fill="Soft"
-        size="300"
-        radii="300"
-        type="button"
-        outlined
-        aria-disabled={!canEdit}
-        after={canEdit && <Icon src={Icons.ChevronBottom} size="100" />}
-        onClick={canEdit ? handleSelectUsage : undefined}
-      >
-        <Text size="B300">{getUsageStr(usage)}</Text>
-      </Button>
-      <PopOut
-        anchor={menuCords}
-        offset={5}
-        position="Bottom"
-        align="End"
-        content={
-          <FocusTrap
-            focusTrapOptions={{
-              initialFocus: false,
-              onDeactivate: () => setMenuCords(undefined),
-              clickOutsideDeactivates: true,
-              isKeyForward: (evt: KeyboardEvent) =>
-                evt.key === 'ArrowDown' || evt.key === 'ArrowRight',
-              isKeyBackward: (evt: KeyboardEvent) =>
-                evt.key === 'ArrowUp' || evt.key === 'ArrowLeft',
-              escapeDeactivates: stopPropagation,
-            }}
-          >
-            <Menu>
-              <UsageSelector
-                selected={usage}
-                onChange={(usg) => {
-                  setMenuCords(undefined);
-                  onChange(usg);
-                }}
-              />
-            </Menu>
-          </FocusTrap>
-        }
-      />
-    </>
+    <SettingMenuSelector
+      value={formatUsageStr(usage)}
+      options={options}
+      onSelect={handleSelect}
+      renderTrigger={({ openMenu }) => (
+        <Button
+          variant="Secondary"
+          fill="Soft"
+          size="300"
+          radii="300"
+          type="button"
+          outlined
+          aria-disabled={!canEdit}
+          after={canEdit && sizedIcon(CaretDown, '100')}
+          onClick={canEdit ? openMenu : undefined}
+        >
+          <Text size="B300">{formatUsageStr(usage)}</Text>
+        </Button>
+      )}
+      renderOption={({ option, selected }) => (
+        <Text size="T300">{selected ? <b>{option.label}</b> : option.label}</Text>
+      )}
+    />
   );
 }

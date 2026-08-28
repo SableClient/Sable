@@ -1,10 +1,21 @@
 import type { ReactNode } from 'react';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
+import { Box, Spinner } from 'folds';
 import type { IThumbnailContent } from '$types/matrix/common';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { decryptFile, downloadEncryptedMedia, mxcUrlToHttp } from '$utils/matrix';
+import {
+  decryptFile,
+  downloadEncryptedMedia,
+  mxcUrlToHttp,
+  rewriteAuthenticatedMediaUrl,
+} from '$utils/matrix';
+import { prepareLoopbackImageSource } from '$utils/mediaUrl';
+import { setMediaEncryption } from '$utils/tauriMediaEncryption';
+import { isTauri } from '@tauri-apps/api/core';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
+import { useCreateObjectURL } from '$hooks/useObjectURL';
 import { FALLBACK_MIMETYPE } from '$utils/mimeTypes';
 
 export type ThumbnailContentProps = {
@@ -15,31 +26,60 @@ export function ThumbnailContent({ info, renderImage }: ThumbnailContentProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
 
+  const encInfo = info.thumbnail_file;
+  const thumbMxcUrl = encInfo?.url ?? info.thumbnail_url;
+
+  const rawMediaUrl = useMemo(() => {
+    if (typeof thumbMxcUrl !== 'string') return undefined;
+    return mxcUrlToHttp(mx, thumbMxcUrl, useAuthentication) ?? undefined;
+  }, [mx, thumbMxcUrl, useAuthentication]);
+
+  const tauri = isTauri();
+  // Tauri resolves the source inside `loadThumbSrc` instead.
+  const resolvedMediaUrl = useRenderableMediaUrl(encInfo || tauri ? undefined : rawMediaUrl);
+
+  const createObjectURL = useCreateObjectURL();
+
   const [thumbSrcState, loadThumbSrc] = useAsyncCallback(
     useCallback(async () => {
       const thumbInfo = info.thumbnail_info;
-      const thumbMxcUrl = info.thumbnail_file?.url ?? info.thumbnail_url;
-      const encInfo = info.thumbnail_file;
-      if (typeof thumbMxcUrl !== 'string' || typeof thumbInfo?.mimetype !== 'string') {
+      // Only the URL is required: `mimetype` is a decryption hint that already falls back,
+      // and other clients routinely omit it.
+      if (typeof thumbMxcUrl !== 'string') {
         throw new Error('Failed to load thumbnail');
       }
-
-      const mediaUrl = mxcUrlToHttp(mx, thumbMxcUrl, useAuthentication);
-      if (!mediaUrl) throw new Error('Invalid media URL');
       if (encInfo) {
-        const fileContent = await downloadEncryptedMedia(mediaUrl, (encBuf) =>
-          decryptFile(encBuf, thumbInfo.mimetype ?? FALLBACK_MIMETYPE, encInfo)
+        if (!rawMediaUrl) throw new Error('Invalid media URL');
+        if (tauri) {
+          await setMediaEncryption(rawMediaUrl, encInfo, thumbInfo?.mimetype ?? FALLBACK_MIMETYPE);
+          return rewriteAuthenticatedMediaUrl(rawMediaUrl)!;
+        }
+        return createObjectURL(
+          downloadEncryptedMedia(rawMediaUrl, (encBuf) =>
+            decryptFile(encBuf, thumbInfo?.mimetype ?? FALLBACK_MIMETYPE, encInfo)
+          )
         );
-        return URL.createObjectURL(fileContent);
       }
-
-      return mediaUrl;
-    }, [mx, info, useAuthentication])
+      if (tauri && rawMediaUrl) return prepareLoopbackImageSource(rawMediaUrl);
+      return resolvedMediaUrl ?? rawMediaUrl ?? thumbMxcUrl;
+    }, [info, thumbMxcUrl, rawMediaUrl, resolvedMediaUrl, tauri, encInfo, createObjectURL])
   );
 
   useEffect(() => {
-    loadThumbSrc();
+    // The failure is already reflected in `thumbSrcState`; swallow the rejection so it
+    // does not surface as an unhandled promise rejection.
+    loadThumbSrc().catch(() => undefined);
   }, [loadThumbSrc]);
 
-  return thumbSrcState.status === AsyncStatus.Success ? renderImage(thumbSrcState.data) : null;
+  if (thumbSrcState.status === AsyncStatus.Success) return renderImage(thumbSrcState.data);
+
+  if (thumbSrcState.status === AsyncStatus.Loading) {
+    return (
+      <Box alignItems="Center" justifyContent="Center">
+        <Spinner variant="Secondary" />
+      </Box>
+    );
+  }
+
+  return null;
 }

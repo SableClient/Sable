@@ -2,7 +2,10 @@ import * as prefix from '$unstable/prefixes';
 
 export const CustomAccountDataEvent = {
   CinnySpaces: prefix.MATRIX_CINNY_UNSTABLE_ACCOUNT_SPACES_PROPERTY_NAME,
-  ElementRecentEmoji: prefix.MATRIX_ELEMENT_UNSTABLE_ACCOUNT_RECENT_EMOJIS_PROPERTY_NAME,
+  LegacyElementRecentEmoji:
+    prefix.MATRIX_LEGACY_ELEMENT_UNSTABLE_ACCOUNT_RECENT_EMOJIS_PROPERTY_NAME,
+  RecentEmoji: prefix.MATRIX_ACCOUNT_RECENT_EMOJIS_PROPERTY_NAME,
+  ImagePackRooms: prefix.MATRIX_ACCOUNT_EMOTE_ROOMS_PROPERTY_NAME,
   PoniesUserEmotes: prefix.MATRIX_UNSTABLE_ACCOUNT_USER_EMOTES_PROPERTY_NAME,
   PoniesEmoteRooms: prefix.MATRIX_UNSTABLE_ACCOUNT_EMOTE_ROOMS_PROPERTY_NAME,
   SableNicknames: prefix.MATRIX_SABLE_UNSTABLE_ACCOUNT_NICKNAMES_PROPERTY_NAME,
@@ -10,11 +13,15 @@ export const CustomAccountDataEvent = {
   SablePerProfileMessageProfiles:
     prefix.MATRIX_SABLE_UNSTABLE_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME,
   SableSettings: prefix.MATRIX_SABLE_UNSTABLE_ACCOUNT_SETTINGS_PROPERTY_NAME,
+  SableDismissedInvites: prefix.MATRIX_SABLE_UNSTABLE_DISMISSED_INVITES,
+  SableAddedServers: prefix.MATRIX_SABLE_UNSTABLE_ACCOUNT_ADDED_SERVERS_PROPERTY_NAME,
 } as const;
 export type CustomAccountDataEvent =
   (typeof CustomAccountDataEvent)[keyof typeof CustomAccountDataEvent];
 
-export type MDirectContent = Record<string, string[]>;
+export type AddedServersContent = {
+  servers: string[];
+};
 
 export type SecretStorageDefaultKeyContent = {
   key: string;

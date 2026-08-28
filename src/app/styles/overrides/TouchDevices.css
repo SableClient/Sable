@@ -1,0 +1,44 @@
+/*
+ * Overrides for touch-only devices.
+ *   - Tapping a button no longer scales or translates to avoid weird ghost press effects.
+ *   - Hover/active no longer swaps the background color, so a held finger doesn't
+ *     "highlight" the button that happens to be under it
+ */
+
+@media (hover: none) {
+  html body button:active,
+  html body [role='button']:active,
+  html body [class*='Button']:active,
+  html body [class*='Chip']:active,
+  html body [class*='MenuItem']:active {
+    transform: none !important;
+  }
+
+  html body button:hover,
+  html body [role='button']:hover,
+  html body [class*='Button']:hover,
+  html body [class*='Chip']:hover,
+  html body [class*='MenuItem']:hover {
+    transform: none !important;
+  }
+
+  html body input,
+  html body button,
+  html body label,
+  html body [role='button'],
+  html body [role='switch'],
+  html body [class*='Switch'] {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  html body label[htmlFor],
+  html body [role='switch'],
+  html body [class*='Switch'] {
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  html body [data-message-id][data-message-item]:hover {
+    background-color: transparent !important;
+  }
+}

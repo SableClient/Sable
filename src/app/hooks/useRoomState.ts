@@ -1,6 +1,7 @@
-import type { MatrixEvent, Room, RoomStateEventHandlerMap } from '$types/matrix-sdk';
-import { Direction, RoomStateEvent, EventType } from '$types/matrix-sdk';
-import { useCallback, useEffect, useState } from 'react';
+import type { MatrixEvent, Room } from '$types/matrix-sdk';
+import { Direction, RoomStateEvent } from '$types/matrix-sdk';
+import { useCallback, useMemo, useState } from 'react';
+import { useMatrixEvent } from '$hooks/useMatrixEvent';
 
 export type StateKeyToEvents = Map<string, MatrixEvent>;
 export type StateTypeToState = Map<string, StateKeyToEvents>;
@@ -13,10 +14,6 @@ export const useRoomState = (room: Room): StateTypeToState => {
     if (!roomState) return state;
 
     roomState.events.forEach((stateKeyToEvents, eventType) => {
-      if (eventType === (EventType.RoomMember as string)) {
-        // Ignore room members from state on purpose;
-        return;
-      }
       const kToE: StateKeyToEvents = new Map();
       stateKeyToEvents.forEach((mEvent, stateKey) => kToE.set(stateKey, mEvent));
 
@@ -28,17 +25,12 @@ export const useRoomState = (room: Room): StateTypeToState => {
 
   const [state, setState] = useState(getState);
 
-  useEffect(() => {
-    const roomState = room.getLiveTimeline().getState(Direction.Forward);
-    const handler: RoomStateEventHandlerMap[RoomStateEvent.Events] = () => {
-      setState(getState());
-    };
+  const roomState = useMemo(() => room.getLiveTimeline().getState(Direction.Forward), [room]);
+  const handler = useCallback(() => {
+    setState(getState());
+  }, [getState]);
 
-    roomState?.on(RoomStateEvent.Events, handler);
-    return () => {
-      roomState?.removeListener(RoomStateEvent.Events, handler);
-    };
-  }, [room, getState]);
+  useMatrixEvent(roomState, RoomStateEvent.Events, handler);
 
   return state;
 };

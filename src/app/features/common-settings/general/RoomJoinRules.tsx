@@ -1,6 +1,5 @@
 import { useCallback, useMemo } from 'react';
-import { color, Text } from 'folds';
-import type { MatrixError, RoomJoinRulesEventContent, StateEvents } from '$types/matrix-sdk';
+import type { RoomJoinRulesEventContent, StateEvents } from '$types/matrix-sdk';
 import { JoinRule, RestrictedAllowType, EventType } from '$types/matrix-sdk';
 import { useAtomValue } from 'jotai';
 import type { ExtendedJoinRules } from '$components/JoinRulesSwitcher';
@@ -9,8 +8,7 @@ import {
   useJoinRuleIcons,
   useRoomJoinRuleLabel,
 } from '$components/JoinRulesSwitcher';
-import { SequenceCard } from '$components/sequence-card';
-import { SequenceCardStyle } from '$features/room-settings/styles.css';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useRoom } from '$hooks/useRoom';
@@ -18,7 +16,8 @@ import { useRoom } from '$hooks/useRoom';
 import { useStateEvent } from '$hooks/useStateEvent';
 import { useSpaceOptionally } from '$hooks/useSpace';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { getStateEvents } from '$utils/room';
+import { getStateEvents } from '$utils/room/hierarchy';
+import { AsyncError } from '$components/AsyncError';
 import { useRecursiveChildSpaceScopeFactory, useSpaceChildren } from '$state/hooks/roomList';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { roomToParentsAtom } from '$state/room/roomToParents';
@@ -138,11 +137,7 @@ export function RoomJoinRules({ permissions }: RoomJoinRulesProps) {
           />
         }
       >
-        {submitState.status === AsyncStatus.Error && (
-          <Text style={{ color: color.Critical.Main }} size="T200">
-            {(submitState.error as MatrixError).message}
-          </Text>
-        )}
+        <AsyncError state={submitState} />
       </SettingTile>
     </SequenceCard>
   );

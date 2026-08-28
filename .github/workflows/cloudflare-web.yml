@@ -1,0 +1,147 @@
+name: Cloudflare Infra
+
+on:
+  push:
+    branches: [dev]
+    tags: ['v*']
+  pull_request:
+    paths:
+      - 'infra/web/**'
+      - '.github/workflows/cloudflare-web.yml'
+      - '.github/actions/prepare-tofu/**'
+      - '.github/actions/setup/**'
+  workflow_dispatch:
+    inputs:
+      git_tag:
+        description: 'Git tag to deploy (e.g. v1.2.3). Empty = deploy current HEAD as dev build.'
+        required: false
+        type: string
+
+env:
+  CLOUDFLARE_API_TOKEN: ${{ secrets.TF_CLOUDFLARE_API_TOKEN }}
+  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  TF_VAR_account_id: ${{ secrets.TF_VAR_ACCOUNT_ID }}
+  TF_VAR_zone_id: ${{ secrets.TF_VAR_ZONE_ID }}
+  TF_HTTP_USERNAME: ${{ secrets.TF_HTTP_USERNAME }}
+  TF_HTTP_PASSWORD: ${{ secrets.TF_HTTP_PASSWORD }}
+  TF_VAR_workers_message: ${{ github.event_name == 'pull_request' && github.event.pull_request.title || github.ref_name }}
+  TF_HTTP_LOCK_METHOD: 'POST'
+  TF_HTTP_UNLOCK_METHOD: 'DELETE'
+  TF_HTTP_RETRY_WAIT_MIN: '5'
+
+jobs:
+  detect:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      environment: ${{ steps.env.outputs.environment }}
+      sentry_environment: ${{ steps.env.outputs.sentry_environment }}
+      build_flavor: ${{ steps.version.outputs.build_flavor }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - uses: ./.github/actions/resolve-release-meta
+        id: version
+        with:
+          input-tag: ${{ inputs.git_tag }}
+
+      - name: Detect environment
+        id: env
+        env:
+          REF_NAME: ${{ github.ref_name }}
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_GIT_TAG: ${{ inputs.git_tag }}
+        run: |
+          if [[ "${REF_NAME}" == "dev" && "${EVENT_NAME}" != "workflow_dispatch" ]] || [[ "${EVENT_NAME}" == "workflow_dispatch" && "${INPUT_GIT_TAG}" == "" ]]; then
+            echo "environment=development" >> "$GITHUB_OUTPUT"
+            echo "sentry_environment=development" >> "$GITHUB_OUTPUT"
+          else
+            echo "environment=production" >> "$GITHUB_OUTPUT"
+            echo "sentry_environment=production" >> "$GITHUB_OUTPUT"
+          fi
+
+  plan:
+    needs: detect
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    environment:
+      name: ${{ needs.detect.outputs.environment }}
+    env:
+      TF_HTTP_ADDRESS: ${{ vars.TF_HTTP_ADDRESS }}
+      TF_HTTP_LOCK_ADDRESS: ${{ vars.TF_HTTP_LOCK_ADDRESS }}
+      TF_HTTP_UNLOCK_ADDRESS: ${{ vars.TF_HTTP_UNLOCK_ADDRESS }}
+      TF_VAR_custom_domain: ${{ vars.TF_VAR_CUSTOM_DOMAIN }}
+      TF_VAR_worker_name: ${{ vars.TF_VAR_WORKER_NAME }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.git_tag || '' }}
+
+      - uses: ./.github/actions/prepare-tofu
+        with:
+          build-flavor: ${{ needs.detect.outputs.build_flavor }}
+        env:
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_SENTRY_ENVIRONMENT: ${{ needs.detect.outputs.sentry_environment }}
+          VITE_APP_VERSION: ${{ needs.detect.outputs.version }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
+
+      - name: Plan infrastructure
+        working-directory: infra/web
+        run: mise run opentofu -- plan -input=false -no-color
+
+      - name: Comment PR plan
+        if: github.event_name == 'pull_request'
+        uses: dflook/tofu-plan@cdb4f4d604c9fa695e457744dd1f802853397ce7 # v3.0.0
+        with:
+          path: infra/web
+          label: ${{ needs.detect.outputs.environment }}
+
+  apply:
+    needs: [detect, plan]
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    environment:
+      name: ${{ needs.detect.outputs.environment }}
+      url: https://${{ vars.TF_VAR_CUSTOM_DOMAIN }}
+    env:
+      TF_HTTP_ADDRESS: ${{ vars.TF_HTTP_ADDRESS }}
+      TF_HTTP_LOCK_ADDRESS: ${{ vars.TF_HTTP_LOCK_ADDRESS }}
+      TF_HTTP_UNLOCK_ADDRESS: ${{ vars.TF_HTTP_UNLOCK_ADDRESS }}
+      TF_VAR_custom_domain: ${{ vars.TF_VAR_CUSTOM_DOMAIN }}
+      TF_VAR_worker_name: ${{ vars.TF_VAR_WORKER_NAME }}
+    concurrency:
+      group: cloudflare-infra-${{ needs.detect.outputs.environment }}
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ github.event_name == 'workflow_dispatch' && inputs.git_tag || '' }}
+
+      - uses: ./.github/actions/prepare-tofu
+        with:
+          build-flavor: ${{ needs.detect.outputs.build_flavor }}
+        env:
+          VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+          VITE_SENTRY_ENVIRONMENT: ${{ needs.detect.outputs.sentry_environment }}
+          VITE_APP_VERSION: ${{ needs.detect.outputs.version }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: ${{ vars.SENTRY_ORG }}
+          SENTRY_PROJECT: ${{ vars.SENTRY_PROJECT }}
+
+      - name: Apply infrastructure
+        working-directory: infra/web
+        run: mise run opentofu -- apply -input=false -auto-approve

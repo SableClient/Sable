@@ -1,16 +1,20 @@
 import { useMemo } from 'react';
 import { Box, Text, color } from 'folds';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router';
 import { SSOAction } from '$types/matrix-sdk';
 import { useAuthServer } from '$hooks/useAuthServer';
 import { RegisterFlowStatus, useAuthFlows } from '$hooks/useAuthFlows';
 import { useParsedLoginFlows } from '$hooks/useParsedLoginFlows';
+import { useAutoDiscoveryInfo } from '$hooks/useAutoDiscoveryInfo';
 import { SupportedUIAFlowsLoader } from '$components/SupportedUIAFlowsLoader';
-import { getLoginPath } from '$pages/pathUtils';
+import { getLoginPath, withSearchParam } from '$pages/pathUtils';
 import { usePathWithOrigin } from '$hooks/usePathWithOrigin';
 import type { RegisterPathSearchParams } from '$pages/paths';
 import { SSOLogin } from '$pages/auth/SSOLogin';
+import { isTauri } from '@tauri-apps/api/core';
+import { buildTauriSsoRedirectUrl } from '$pages/auth/SSOTauri';
 import { OrDivider } from '$pages/auth/OrDivider';
+import { OidcLoginButton } from '$pages/auth/login/OidcLogin';
 import { PasswordRegisterForm, SUPPORTED_REGISTER_STAGES } from './PasswordRegisterForm';
 
 const useRegisterSearchParams = (searchParams: URLSearchParams): RegisterPathSearchParams =>
@@ -25,13 +29,46 @@ const useRegisterSearchParams = (searchParams: URLSearchParams): RegisterPathSea
 
 export function Register() {
   const server = useAuthServer();
-  const { loginFlows, registerFlows } = useAuthFlows();
+  const { loginFlows, registerFlows, authMetadata } = useAuthFlows();
+  const discovery = useAutoDiscoveryInfo();
+  const baseUrl = discovery['m.homeserver'].base_url;
   const [searchParams] = useSearchParams();
   const registerSearchParams = useRegisterSearchParams(searchParams);
   const { sso } = useParsedLoginFlows(loginFlows.flows);
 
-  // redirect to /login because only that path handle m.login.token
-  const ssoRedirectUrl = usePathWithOrigin(getLoginPath(server));
+  // redirect to /login because only that path handle m.login.token and the OIDC callback
+  const webSsoRedirectUrl = usePathWithOrigin(getLoginPath(server));
+  const ssoRedirectUrl = isTauri() ? buildTauriSsoRedirectUrl(server) : webSsoRedirectUrl;
+  const oidcRedirectUri = usePathWithOrigin(getLoginPath(server), { ignoreHashRouter: true });
+
+  const isAddingAccount = searchParams.get('addAccount') === '1';
+  const loginUrl = isAddingAccount
+    ? withSearchParam(getLoginPath(server), { addAccount: '1' })
+    : getLoginPath(server);
+
+  const showOidc = authMetadata?.prompt_values_supported?.includes('create') === true;
+
+  if (showOidc) {
+    return (
+      <Box direction="Column" gap="500">
+        <Text size="H2" priority="400">
+          Register
+        </Text>
+        <OidcLoginButton
+          authMetadata={authMetadata}
+          homeserverUrl={baseUrl}
+          redirectUri={oidcRedirectUri}
+          label={`Continue with ${server}`}
+          prompt="create"
+          server={server}
+        />
+        <span data-spacing-node />
+        <Text align="Center">
+          Already have an account? <Link to={loginUrl}>Login</Link>
+        </Text>
+      </Box>
+    );
+  }
 
   return (
     <Box direction="Column" gap="500">
@@ -91,7 +128,7 @@ export function Register() {
         </>
       )}
       <Text align="Center">
-        Already have an account? <Link to={getLoginPath(server)}>Login</Link>
+        Already have an account? <Link to={loginUrl}>Login</Link>
       </Text>
     </Box>
   );

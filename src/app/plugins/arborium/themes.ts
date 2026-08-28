@@ -1,6 +1,8 @@
 export type ArboriumThemeKind = 'light' | 'dark';
 
-export const ARBORIUM_CDN_VERSION = '2.16.0';
+// Keep this literal aligned with the installed package. The theme test compares it with
+// Arborium's runtime export without pulling the syntax highlighter into the startup bundle.
+export const ARBORIUM_CDN_VERSION = '2.18.1';
 
 const ARBORIUM_THEME_DEFINITIONS = [
   { id: 'alabaster', label: 'Alabaster', kind: 'light' },
@@ -33,6 +35,7 @@ const ARBORIUM_THEME_DEFINITIONS = [
   { id: 'zenburn', label: 'Zenburn', kind: 'dark' },
   { id: 'cobalt2', label: 'Cobalt2', kind: 'dark' },
   { id: 'ef-melissa-dark', label: 'Ef Melissa Dark', kind: 'dark' },
+  { id: 'evergarden-fall', label: 'Evergarden Fall', kind: 'dark' },
   { id: 'rustdoc-dark', label: 'Rustdoc Dark', kind: 'dark' },
   { id: 'rustdoc-ayu', label: 'Rustdoc Ayu', kind: 'dark' },
 ] as const;

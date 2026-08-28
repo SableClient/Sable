@@ -2,7 +2,7 @@ import type { MatrixEvent, Room } from '$types/matrix-sdk';
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
 import { produce } from 'immer';
 
-import { getStateEvent } from '$utils/room';
+import { getStateEvent } from '$utils/room/hierarchy';
 import { useStateEvent } from './useStateEvent';
 import { useStateEventCallback } from './useStateEventCallback';
 import { useMatrixClient } from './useMatrixClient';
@@ -75,7 +75,7 @@ export function usePowerLevels(room: Room): IPowerLevels {
   return powerLevels;
 }
 
-export const PowerLevelsContext = createContext<IPowerLevels | null>(null);
+const PowerLevelsContext = createContext<IPowerLevels | null>(null);
 
 export const PowerLevelsContextProvider = PowerLevelsContext.Provider;
 
@@ -85,20 +85,29 @@ export const usePowerLevelsContext = (): IPowerLevels => {
   return pl;
 };
 
+const buildRoomsPowerLevels = (rooms: Room[]): Map<string, IPowerLevels> => {
+  const rToPl = new Map<string, IPowerLevels>();
+
+  rooms.forEach((room) => {
+    const mEvent = getStateEvent(room, EventType.RoomPowerLevels, '');
+    rToPl.set(room.roomId, getPowersLevelFromMatrixEvent(mEvent));
+  });
+
+  return rToPl;
+};
+
 export const useRoomsPowerLevels = (rooms: Room[]): Map<string, IPowerLevels> => {
   const mx = useMatrixClient();
-  const getRoomsPowerLevels = useCallback(() => {
-    const rToPl = new Map<string, IPowerLevels>();
+  const [roomToPowerLevels, setRoomToPowerLevels] = useState(() => buildRoomsPowerLevels(rooms));
+  const [derivedFrom, setDerivedFrom] = useState(rooms);
 
-    rooms.forEach((room) => {
-      const mEvent = getStateEvent(room, EventType.RoomPowerLevels, '');
-      rToPl.set(room.roomId, getPowersLevelFromMatrixEvent(mEvent));
-    });
-
-    return rToPl;
-  }, [rooms]);
-
-  const [roomToPowerLevels, setRoomToPowerLevels] = useState(() => getRoomsPowerLevels());
+  // Rooms arriving after mount — a space hierarchy resolving, or state loading
+  // lazily under sliding sync — must re-derive, or their permissions are stuck
+  // at the defaults until a reload.
+  if (derivedFrom !== rooms) {
+    setDerivedFrom(rooms);
+    setRoomToPowerLevels(buildRoomsPowerLevels(rooms));
+  }
 
   useStateEventCallback(
     mx,
@@ -107,14 +116,16 @@ export const useRoomsPowerLevels = (rooms: Room[]): Map<string, IPowerLevels> =>
         const roomId = event.getRoomId();
         if (
           roomId &&
-          event.getType() === (EventType.RoomPowerLevels as string) &&
+          [EventType.RoomPowerLevels as string, EventType.RoomCreate as string].includes(
+            event.getType()
+          ) &&
           event.getStateKey() === '' &&
-          rooms.find((r) => r.roomId === roomId)
+          rooms.some((r) => r.roomId === roomId)
         ) {
-          setRoomToPowerLevels(getRoomsPowerLevels());
+          setRoomToPowerLevels(buildRoomsPowerLevels(rooms));
         }
       },
-      [rooms, getRoomsPowerLevels]
+      [rooms]
     )
   );
 
@@ -209,8 +220,12 @@ export type PermissionLocation =
 
 export const getPermissionPower = (
   powerLevels: IPowerLevels,
-  location: PermissionLocation
+  location: PermissionLocation | PermissionLocation[]
 ): number => {
+  if (Array.isArray(location)) {
+    return Math.max(...location.map((loc) => getPermissionPower(powerLevels, loc)));
+  }
+
   if ('user' in location) {
     return readPowerLevel.user(powerLevels, location.key);
   }
@@ -229,9 +244,17 @@ export const getPermissionPower = (
 
 export const applyPermissionPower = (
   powerLevels: IPowerLevels,
-  location: PermissionLocation,
+  location: PermissionLocation | PermissionLocation[],
   power: number
 ): IPowerLevels => {
+  if (Array.isArray(location)) {
+    let result = powerLevels;
+    location.forEach((loc) => {
+      result = applyPermissionPower(result, loc, power);
+    });
+    return result;
+  }
+
   if ('user' in location) {
     if (typeof location.key === 'string') {
       const users = powerLevels.users ?? {};

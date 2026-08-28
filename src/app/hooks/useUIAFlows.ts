@@ -1,5 +1,4 @@
 import type { IAuthData, MatrixError, UIAFlow } from '$types/matrix-sdk';
-import { AuthType } from '$types/matrix-sdk';
 import { useCallback, useMemo } from 'react';
 import {
   getSupportedUIAFlows,
@@ -10,15 +9,6 @@ import {
   getUIASession,
 } from '$utils/matrix-uia';
 
-export const SUPPORTED_FLOW_TYPES = [
-  AuthType.Dummy,
-  AuthType.Password,
-  AuthType.Email,
-  AuthType.Terms,
-  AuthType.Recaptcha,
-  AuthType.RegistrationToken,
-] as const;
-
 export const useSupportedUIAFlows = (uiaFlows: UIAFlow[], supportedStages: string[]): UIAFlow[] =>
   useMemo(() => getSupportedUIAFlows(uiaFlows, supportedStages), [uiaFlows, supportedStages]);
 
@@ -28,14 +18,12 @@ export const useUIACompleted = (authData: IAuthData): string[] =>
 export const useUIAParams = (authData: IAuthData) =>
   useMemo(() => getUIAParams(authData), [authData]);
 
-export const useUIASession = (authData: IAuthData) =>
-  useMemo(() => getUIASession(authData), [authData]);
+const useUIASession = (authData: IAuthData) => useMemo(() => getUIASession(authData), [authData]);
 
-export const useUIAErrorCode = (authData: IAuthData) =>
+const useUIAErrorCode = (authData: IAuthData) =>
   useMemo(() => getUIAErrorCode(authData), [authData]);
 
-export const useUIAError = (authData: IAuthData) =>
-  useMemo(() => getUIAError(authData), [authData]);
+const useUIAError = (authData: IAuthData) => useMemo(() => getUIAError(authData), [authData]);
 
 export type StageInfo = Record<string, unknown>;
 export type AuthStageData = {

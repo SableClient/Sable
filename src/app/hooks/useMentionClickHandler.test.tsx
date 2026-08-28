@@ -30,7 +30,7 @@ vi.mock('$features/settings/useOpenSettings', () => ({
   useOpenSettings: () => mockOpenSettings,
 }));
 
-vi.mock('react-router-dom', () => ({
+vi.mock('react-router', () => ({
   useNavigate: () => vi.fn<() => void>(),
 }));
 

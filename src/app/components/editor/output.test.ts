@@ -85,7 +85,7 @@ describe('toMatrixCustomHTML matrix.to', () => {
     expect(html).not.toMatch(/<a\b[^>]*matrix\.to/i);
   });
 
-  it('serializes user mentions using room membership display name, not private Slate node.name', () => {
+  it('serializes user mentions using room membership display name, not private token names', () => {
     const room = roomWithMember('@alice:example.org', 'Alice');
     const html = trimCustomHtml(
       toMatrixCustomHTML(
@@ -232,7 +232,7 @@ describe('toMatrixCustomHTML angle bracket escapes', () => {
 });
 
 describe('toMatrixCustomHTML single-newline markdown blocks', () => {
-  it('parses -# on a second Slate paragraph joined with a single newline', () => {
+  it('parses -# on a second editor paragraph joined with a single newline', () => {
     const html = trimCustomHtml(
       toMatrixCustomHTML(
         [

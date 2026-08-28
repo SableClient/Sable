@@ -1,5 +1,5 @@
-export const SABLE_LOCAL_THEME_PREFIX = 'sable-import://theme/';
-export const SABLE_LOCAL_TWEAK_PREFIX = 'sable-import://tweak/';
+const SABLE_LOCAL_THEME_PREFIX = 'sable-import://theme/';
+const SABLE_LOCAL_TWEAK_PREFIX = 'sable-import://tweak/';
 
 export function isLocalImportThemeUrl(url: string): boolean {
   return url.startsWith(SABLE_LOCAL_THEME_PREFIX);

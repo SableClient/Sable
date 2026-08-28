@@ -1,6 +1,7 @@
 import type { ReactEventHandler } from 'react';
 import { useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
+import type { Position, RectCords } from 'folds';
 import { isRoomId, isUserId } from '$utils/matrix';
 import { getHomeRoomPath, withSearchParam } from '$pages/pathUtils';
 import { isSettingsSectionId } from '$features/settings/routes';
@@ -11,7 +12,11 @@ import { useMatrixClient } from './useMatrixClient';
 import { useRoomNavigate } from './useRoomNavigate';
 import { useSpaceOptionally } from './useSpace';
 
-export const useMentionClickHandler = (roomId: string): ReactEventHandler<HTMLElement> => {
+export const useMentionClickHandler = (
+  roomId: string,
+  profileAnchor?: RectCords,
+  profilePosition?: Position
+): ReactEventHandler<HTMLElement> => {
   const mx = useMatrixClient();
   const { navigateRoom, navigateSpace } = useRoomNavigate();
   const navigate = useNavigate();
@@ -21,6 +26,7 @@ export const useMentionClickHandler = (roomId: string): ReactEventHandler<HTMLEl
 
   const handleClick: ReactEventHandler<HTMLElement> = useCallback(
     (evt) => {
+      if (!window.getSelection()?.isCollapsed) return;
       evt.stopPropagation();
       evt.preventDefault();
       const target = evt.currentTarget;
@@ -37,7 +43,14 @@ export const useMentionClickHandler = (roomId: string): ReactEventHandler<HTMLEl
       if (typeof mentionId !== 'string') return;
 
       if (isUserId(mentionId)) {
-        openProfile(roomId, space?.roomId, mentionId, target.getBoundingClientRect());
+        openProfile(
+          roomId,
+          space?.roomId,
+          mentionId,
+          undefined,
+          profileAnchor ?? target.getBoundingClientRect(),
+          profilePosition
+        );
         return;
       }
 
@@ -53,7 +66,18 @@ export const useMentionClickHandler = (roomId: string): ReactEventHandler<HTMLEl
 
       navigate(viaServers ? withSearchParam(path, { viaServers }) : path);
     },
-    [mx, navigate, navigateRoom, navigateSpace, openProfile, openSettings, roomId, space]
+    [
+      mx,
+      navigate,
+      navigateRoom,
+      navigateSpace,
+      openProfile,
+      openSettings,
+      profileAnchor,
+      profilePosition,
+      roomId,
+      space,
+    ]
   );
 
   return handleClick;

@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+//MISE hide=true
+//MISE description="Normalize import paths across the codebase"
 /* oxlint-disable no-console */
 
 import fs from 'node:fs/promises';

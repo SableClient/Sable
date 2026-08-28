@@ -1,9 +1,11 @@
+import type { CSSProperties, JSX } from 'react';
 import { memo, useMemo, useCallback } from 'react';
-import type { IPreviewUrlResponse } from '$types/matrix-sdk';
+import type { IPreviewUrlResponse, MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
 import { MsgType } from '$types/matrix-sdk';
 import { parseSettingsLink } from '$features/settings/settingsLink';
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import { testMatrixTo } from '$plugins/matrix-to';
+import { testMatrixUri } from '$plugins/matrix-uri';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom, CaptionPosition } from '$state/settings';
 import type { HTMLReactParserOptions } from 'html-react-parser';
@@ -23,11 +25,13 @@ import {
   MNotice,
   MText,
   MVideo,
+  MGallery,
   ReadPdfFile,
   ReadTextFile,
   RenderBody,
   ThumbnailContent,
   UnsupportedContent,
+  UploadedSableCssContent,
   VideoContent,
 } from './message';
 import {
@@ -39,12 +43,29 @@ import {
   youtubeUrl,
 } from './url-preview';
 import { isHttpsFullSableCssUrl } from '../theme/previewUrls';
+import { isSableCssAttachmentFileName } from '../theme/processThemeImport';
 import { Image, MediaControl, PersistedVolumeVideo } from './media';
 import { ImageViewer } from './image-viewer';
 import { PdfViewer } from './Pdf-viewer';
 import { TextViewer } from './text-viewer';
 import { ClientSideHoverFreeze } from './ClientSideHoverFreeze';
 import { CuteEventType, MCuteEvent } from './message/MCuteEvent';
+import { PollEvent } from './message/PollEvent';
+import { M_POLL_START, M_TEXT } from 'matrix-js-sdk';
+import type { IImageInfo, IGalleryContent } from '$types/matrix/common';
+import { GALLERY_MSGTYPE } from '$types/matrix/common';
+import { parseExternalGif } from '$utils/externalGif';
+import { parseLegacyKlipyGif } from '$utils/klipy';
+import {
+  MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME,
+  MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME,
+} from '$unstable/prefixes';
+import {
+  convertBeeperFormatToOurPerMessageProfile,
+  type PerMessageProfileBeeperFormat,
+  stripPerMessageProfileFormattedBody,
+  stripPerMessageProfilePlainBody,
+} from '$hooks/usePerMessageProfile';
 
 type RenderMessageContentProps = {
   displayName: string;
@@ -56,11 +77,17 @@ type RenderMessageContentProps = {
   bundledPreview?: boolean;
   urlPreview?: boolean;
   clientUrlPreview?: boolean;
+  isGallery?: boolean;
+  showMaps?: boolean;
   highlightRegex?: RegExp;
   htmlReactParserOptions: HTMLReactParserOptions;
   linkifyOpts: Opts;
   outlineAttachment?: boolean;
   hideCaption?: boolean;
+  mEvent?: MatrixEvent;
+  mx?: MatrixClient;
+  room?: Room;
+  onOpenMedia?: (mEvent: MatrixEvent) => boolean;
 };
 
 const getMediaType = (url: string) => {
@@ -75,7 +102,9 @@ const isSableChatEmbedCandidate = (url: string): boolean =>
   /^https:\/\//i.test(url) &&
   (/\.preview\.sable\.css(\?|#|$)/i.test(url) || isHttpsFullSableCssUrl(url));
 
-const CAPTION_STYLE = { marginTop: config.space.S200 };
+const CAPTION_STYLE: CSSProperties = { marginTop: config.space.S200, maxWidth: '100%' };
+const TEXT_STYLE: CSSProperties = { maxWidth: '100%' };
+const EXTERNAL_GIF_MAX_SIZE = 400;
 
 function RenderMessageContentInternal({
   displayName,
@@ -84,14 +113,20 @@ function RenderMessageContentInternal({
   edited,
   getContent,
   mediaAutoLoad,
+  isGallery,
   bundledPreview,
   urlPreview,
   clientUrlPreview,
+  showMaps,
   highlightRegex,
   htmlReactParserOptions,
   linkifyOpts,
   outlineAttachment,
   hideCaption,
+  mEvent,
+  mx,
+  room,
+  onOpenMedia,
 }: RenderMessageContentProps) {
   const content = useMemo(() => getContent() as Record<string, unknown>, [getContent]);
 
@@ -99,6 +134,23 @@ function RenderMessageContentInternal({
   const [captionPosition] = useSetting(settingsAtom, 'captionPosition');
   const [themeChatSableWidgets] = useSetting(settingsAtom, 'themeChatSableWidgetsEnabled');
   const [multiplePreviews] = useSetting(settingsAtom, 'multiplePreviews');
+  const [externalGifAutoLoadEncrypted] = useSetting(settingsAtom, 'externalGifAutoLoadEncrypted');
+  const externalGif = useMemo(
+    () =>
+      msgType === (MsgType.Text as string)
+        ? parseExternalGif(content)
+        : msgType === (MsgType.Image as string)
+          ? parseLegacyKlipyGif(content)
+          : undefined,
+    [content, msgType]
+  );
+  const roomEncryptionKnown =
+    room !== undefined && typeof room.hasEncryptionStateEvent === 'function';
+  const isEncryptedRoom = roomEncryptionKnown ? room.hasEncryptionStateEvent() : false;
+  const externalGifAutoLoad =
+    roomEncryptionKnown &&
+    (!isEncryptedRoom || externalGifAutoLoadEncrypted) &&
+    (mediaAutoLoad ?? true);
   const settingsLinkBaseUrl = useSettingsLinkBaseUrl();
   const captionPositionMap = {
     [CaptionPosition.Above]: 'column-reverse',
@@ -124,7 +176,8 @@ function RenderMessageContentInternal({
   const renderUrlsPreview = useCallback(
     (urls: string[]) => {
       const filteredUrls = urls.filter(
-        (url) => !testMatrixTo(url) && !parseSettingsLink(settingsLinkBaseUrl, url)
+        (url) =>
+          !testMatrixTo(url) && !testMatrixUri(url) && !parseSettingsLink(settingsLinkBaseUrl, url)
       );
       if (filteredUrls.length === 0) return undefined;
 
@@ -155,18 +208,16 @@ function RenderMessageContentInternal({
             <TweakPreviewUrlCard key={`tweak:${url}`} url={url} />
           ))}
           {toRender.map((item) => {
-            const { url, type } = item;
+            const { url } = item;
             if (themeToRender.includes(url)) return null;
             if (tweakCandidateUrls.includes(url)) return null;
-            if (type) {
-              return <UrlPreviewCard urlPreview key={url} url={url} ts={ts} mediaType={type} />;
-            }
+
             if (!themeChatSableWidgets && isSableChatEmbedCandidate(url)) return null;
             if (clientUrlPreview && youtubeUrl(url)) {
               return <ClientPreview key={url} url={url} />;
             }
             if (urlPreview) {
-              return <UrlPreviewCard urlPreview key={url} url={url} ts={ts} mediaType={type} />;
+              return <UrlPreviewCard urlPreview key={url} url={url} ts={ts} />;
             }
             return null;
           })}
@@ -190,16 +241,22 @@ function RenderMessageContentInternal({
     ),
     [urlPreview]
   );
-  const messageUrlsPreview = urlPreview || themeChatSableWidgets ? renderUrlsPreview : undefined;
-  const messageBundlePreview = bundledPreview ? renderBundledPreviews : undefined;
+  const hasExternalGifMetadata = !!externalGif;
+  const messageUrlsPreview =
+    !hasExternalGifMetadata && (urlPreview || themeChatSableWidgets)
+      ? renderUrlsPreview
+      : undefined;
+  const messageBundlePreview =
+    !hasExternalGifMetadata && bundledPreview ? renderBundledPreviews : undefined;
 
   const renderCaption = () => {
     const hasCaption = content.body && (content.body as string).trim().length > 0;
     if (captionPosition === CaptionPosition.Hidden || hideCaption) return null;
     if (
       hasCaption &&
-      (content as { filename?: string }).filename &&
-      (content as { filename?: string }).filename !== content.body
+      (((content as { filename?: string }).filename &&
+        (content as { filename?: string }).filename !== content.body) ||
+        msgType === GALLERY_MSGTYPE)
     ) {
       if (captionPosition !== CaptionPosition.Inline)
         return (
@@ -216,6 +273,7 @@ function RenderMessageContentInternal({
         <Box
           style={{
             padding: config.space.S200,
+            paddingRight: config.space.S0,
             wordBreak: 'break-word',
             maxWidth: '100%',
             display: 'flex',
@@ -230,6 +288,7 @@ function RenderMessageContentInternal({
             renderBody={renderBody}
             renderUrlsPreview={messageUrlsPreview}
             renderBundledPreviews={messageBundlePreview}
+            style={TEXT_STYLE}
           />
         </Box>
       );
@@ -237,16 +296,82 @@ function RenderMessageContentInternal({
     return null;
   };
 
-  function renderCaptionedAttachment(attachment: JSX.Element): JSX.Element {
+  if (externalGif) {
+    const markedAsSpoiler = content[MATRIX_UNSTABLE_SPOILER_PROPERTY_NAME] === true;
+    const externalGifWidth =
+      externalGif.h >= externalGif.w
+        ? `${(EXTERNAL_GIF_MAX_SIZE * externalGif.w) / externalGif.h}px`
+        : undefined;
+    return (
+      <Box direction="Column" style={{ maxWidth: '100%' }}>
+        {msgType === (MsgType.Text as string) && typeof content.body === 'string' && (
+          <Box
+            style={{
+              marginBottom: config.space.S200,
+              maxWidth: '100%',
+              wordBreak: 'break-word',
+            }}
+          >
+            <MText edited={edited} content={content} renderBody={renderBody} style={TEXT_STYLE} />
+          </Box>
+        )}
+        <ImageContent
+          url={externalGif.media_url}
+          body={externalGif.title}
+          info={{
+            w: externalGif.w,
+            h: externalGif.h,
+            mimetype: externalGif.mimetype,
+            size: externalGif.size,
+            [MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME]: externalGif.blurhash,
+          }}
+          autoPlay={externalGifAutoLoad && !markedAsSpoiler}
+          markedAsSpoiler={markedAsSpoiler}
+          favoriteShareUrl={
+            msgType === (MsgType.Text as string) && typeof content.body === 'string'
+              ? content.body
+              : externalGif.media_url
+          }
+          loadLabel="Load GIF"
+          loadDescription={`External GIF from ${externalGif.provider.toUpperCase()}`}
+          deferMediaLoad
+          style={{
+            borderRadius: config.radii.R300,
+            overflow: 'hidden',
+            width: externalGifWidth,
+            maxWidth: `min(100%, ${EXTERNAL_GIF_MAX_SIZE}px)`,
+            maxHeight: `${EXTERNAL_GIF_MAX_SIZE}px`,
+          }}
+          onOpenViewer={mEvent ? () => onOpenMedia?.(mEvent) ?? false : undefined}
+          renderImage={(p) => {
+            if (!autoplayGifs && p.src) {
+              return (
+                <ClientSideHoverFreeze src={p.src}>
+                  <Image info={p.info} {...p} loading="lazy" />
+                </ClientSideHoverFreeze>
+              );
+            }
+            return <Image info={p.info} {...p} loading="lazy" />;
+          }}
+          renderViewer={(p) => <ImageViewer {...p} />}
+        />
+      </Box>
+    );
+  }
+
+  function renderCaptionedAttachment(attachment: JSX.Element, isInGallery?: boolean): JSX.Element {
     return (
       <div
         style={{
           display: 'flex',
           flexDirection: attachmentDirection,
+          height: '100%',
+          width: '100%',
+          position: 'relative',
         }}
       >
-        <div>{attachment}</div>
-        {renderCaption()}
+        {attachment}
+        {!isInGallery && renderCaption()}
       </div>
     );
   }
@@ -255,13 +380,13 @@ function RenderMessageContentInternal({
     renderCaptionedAttachment(
       <MFile
         content={content as Record<string, never> & { msgtype: MsgType.File }}
-        renderFileContent={({ body, mimeType, info, encInfo, url }) => (
+        renderFileContent={({ fileName, mimeType, info, encInfo, url }) => (
           <FileContent
-            body={body}
+            body={fileName}
             mimeType={mimeType}
             renderAsPdfFile={() => (
               <ReadPdfFile
-                body={body}
+                body={fileName}
                 mimeType={mimeType}
                 url={url}
                 encInfo={encInfo}
@@ -270,7 +395,7 @@ function RenderMessageContentInternal({
             )}
             renderAsTextFile={() => (
               <ReadTextFile
-                body={body}
+                body={fileName}
                 mimeType={mimeType}
                 url={url}
                 encInfo={encInfo}
@@ -278,7 +403,22 @@ function RenderMessageContentInternal({
               />
             )}
           >
-            <DownloadFile body={body} mimeType={mimeType} url={url} encInfo={encInfo} info={info} />
+            {themeChatSableWidgets && isSableCssAttachmentFileName(fileName) && (
+              <UploadedSableCssContent
+                body={fileName}
+                mimeType={mimeType}
+                url={url}
+                encInfo={encInfo}
+                size={info.size}
+              />
+            )}
+            <DownloadFile
+              body={fileName}
+              mimeType={mimeType}
+              url={url}
+              encInfo={encInfo}
+              info={info}
+            />
           </FileContent>
         )}
         outlined={outlineAttachment}
@@ -293,11 +433,27 @@ function RenderMessageContentInternal({
         renderBody={renderBody}
         renderUrlsPreview={messageUrlsPreview}
         renderBundledPreviews={messageBundlePreview}
+        style={TEXT_STYLE}
       />
     );
   }
 
   if (msgType === (MsgType.Emote as string)) {
+    const beeperProfile = content['com.beeper.per_message_profile'] as
+      | PerMessageProfileBeeperFormat
+      | undefined;
+    const pmp = beeperProfile
+      ? convertBeeperFormatToOurPerMessageProfile(beeperProfile)
+      : undefined;
+
+    const strippedContent = pmp
+      ? {
+          ...content,
+          formatted_body: stripPerMessageProfileFormattedBody(content['formatted_body'] as string),
+          body: stripPerMessageProfilePlainBody(content['body'] as string),
+        }
+      : content;
+
     if ((content as { 'fyi.cisnt.headpat'?: boolean })['fyi.cisnt.headpat']) {
       return (
         <MCuteEvent
@@ -311,9 +467,9 @@ function RenderMessageContentInternal({
     }
     return (
       <MEmote
-        displayName={displayName}
+        displayName={pmp?.displayname ?? displayName}
         edited={edited}
-        content={content}
+        content={strippedContent}
         renderBody={renderBody}
         renderUrlsPreview={messageUrlsPreview}
         renderBundledPreviews={messageBundlePreview}
@@ -334,7 +490,7 @@ function RenderMessageContentInternal({
   }
 
   if (msgType === (MsgType.Image as string)) {
-    const info = (content as { info?: { mimetype?: string } }).info;
+    const { info } = content as { info?: IImageInfo };
     const isGif =
       info?.mimetype === 'image/gif' ||
       info?.mimetype === 'image/apng' ||
@@ -350,25 +506,28 @@ function RenderMessageContentInternal({
     return renderCaptionedAttachment(
       <MImage
         content={content as Record<string, never> & { msgtype: MsgType.Image }}
+        fitParent={isGallery}
         renderImageContent={(imageProps) => (
           <ImageContent
             {...imageProps}
+            onOpenViewer={mEvent ? () => onOpenMedia?.(mEvent) ?? false : undefined}
             autoPlay={mediaAutoLoad}
             renderImage={(p) => {
               if (isGif && !autoplayGifs && p.src) {
                 return (
                   <ClientSideHoverFreeze src={p.src}>
-                    <Image {...p} loading="lazy" />
+                    <Image info={info} {...p} loading="lazy" />
                   </ClientSideHoverFreeze>
                 );
               }
-              return <Image {...p} loading="lazy" />;
+              return <Image info={info} {...p} loading="lazy" />;
             }}
             renderViewer={(p) => <ImageViewer {...p} />}
           />
         )}
         outlined={outlineAttachment}
-      />
+      />,
+      isGallery
     );
   }
 
@@ -398,7 +557,8 @@ function RenderMessageContentInternal({
           />
         )}
         outlined={outlineAttachment}
-      />
+      />,
+      isGallery
     );
   }
 
@@ -411,12 +571,38 @@ function RenderMessageContentInternal({
           <AudioContent {...audioProps} renderMediaControl={(p) => <MediaControl {...p} />} />
         )}
         outlined={outlineAttachment}
+        fitParent={isGallery}
       />
     );
   }
 
   if (msgType === (MsgType.File as string)) return renderFile();
-  if (msgType === (MsgType.Location as string)) return <MLocation content={content} />;
+  if (msgType === (MsgType.Location as string))
+    return <MLocation showMaps={showMaps} content={content} />;
+
+  if (msgType === GALLERY_MSGTYPE) {
+    return renderCaptionedAttachment(
+      <MGallery
+        content={content as IGalleryContent}
+        renderItem={(itemContent) => (
+          <RenderMessageContentInternal
+            displayName={displayName}
+            msgType={itemContent.msgtype as string}
+            ts={ts}
+            getContent={() => itemContent}
+            mediaAutoLoad={mediaAutoLoad}
+            urlPreview={urlPreview}
+            highlightRegex={highlightRegex}
+            htmlReactParserOptions={htmlReactParserOptions}
+            linkifyOpts={linkifyOpts}
+            outlineAttachment={outlineAttachment}
+            isGallery={true}
+          />
+        )}
+      />
+    );
+  }
+
   if (msgType === 'm.bad.encrypted') return <MBadEncrypted />;
 
   // cute events
@@ -441,7 +627,21 @@ function RenderMessageContentInternal({
         }
       />
     );
-  return <UnsupportedContent body={(content as { body?: string }).body ?? ''} />;
+  if (content[M_POLL_START.name]) {
+    if (mEvent && mx && room)
+      return <PollEvent content={content} mEvent={mEvent} mx={mx} room={room} />;
+    else return <UnsupportedContent />;
+  }
+  return (
+    <UnsupportedContent
+      body={
+        (content as { body?: string }).body ??
+        (content as { [M_TEXT.name]?: string })[M_TEXT.name] ??
+        (content as { [M_TEXT.name]?: { body: string } })[M_TEXT.name]?.body ??
+        ''
+      }
+    />
+  );
 }
 
 export const RenderMessageContent = memo(RenderMessageContentInternal);

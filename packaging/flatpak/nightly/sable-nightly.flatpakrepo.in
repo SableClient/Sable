@@ -1,0 +1,9 @@
+[Flatpak Repo]
+Title=Sable Nightly
+Url=@REPO_URL@
+Homepage=https://sable.moe
+Comment=Nightly builds of the Sable Matrix client
+Description=Rolling nightly builds of Sable, straight from the development branch. Expect breakage; install the stable version from Flathub for everyday use.
+Icon=https://raw.githubusercontent.com/SableClient/Sable/dev/packaging/flatpak/icons/256x256.png
+DefaultBranch=master
+GPGKey=@GPGKEY@

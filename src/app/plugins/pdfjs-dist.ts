@@ -1,6 +1,9 @@
 import { useCallback } from 'react';
 import type * as PdfJsDist from 'pdfjs-dist';
-import type { GetViewportParameters } from 'pdfjs-dist/types/src/display/api';
+import type {
+  DocumentInitParameters,
+  GetViewportParameters,
+} from 'pdfjs-dist/types/src/display/api';
 import { useAsyncCallback } from '$hooks/useAsyncCallback';
 import { trimTrailingSlash } from '$utils/common';
 
@@ -21,7 +24,10 @@ export const usePdfDocumentLoader = (pdfJS: typeof PdfJsDist | undefined, src: s
       if (!pdfJS) {
         throw new Error('PdfJS is not loaded');
       }
-      const doc = await pdfJS.getDocument(src).promise;
+      const doc = await pdfJS.getDocument({
+        url: src,
+        enableScripting: false,
+      } as DocumentInitParameters & { enableScripting: false }).promise;
       return doc;
     }, [pdfJS, src])
   );
@@ -41,11 +47,11 @@ export const createPage = async (
   canvas.width = pageViewport.width;
   canvas.height = pageViewport.height;
 
-  page.render({
+  await page.render({
     canvas,
     canvasContext: context,
     viewport: pageViewport,
-  });
+  }).promise;
 
   return canvas;
 };

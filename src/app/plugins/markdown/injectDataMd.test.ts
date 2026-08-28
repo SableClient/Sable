@@ -16,7 +16,7 @@ describe('injectDataMd', () => {
 
   it('injects data-md into blockquotes', () => {
     const result = injectDataMd('<blockquote>Quote</blockquote>');
-    expect(result).toContain('data-md=">"');
+    expect(result).toContain('data-md="&gt;"');
   });
 
   it('injects data-md into code blocks', () => {

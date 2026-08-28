@@ -6,6 +6,8 @@
  */
 
 import * as Sentry from '@sentry/react';
+import { versionLabel } from '$utils/platform';
+import { sanitizeDiagnosticsLogs, sanitizeSentryPayload } from './sentryScrubbers';
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 
@@ -14,6 +16,7 @@ export type LogCategory =
   | 'network'
   | 'notification'
   | 'message'
+  | 'media'
   | 'call'
   | 'ui'
   | 'timeline'
@@ -33,6 +36,29 @@ type LogListener = (entry: LogEntry) => void;
 
 const BREADCRUMB_DISABLED_KEY = 'sable_sentry_breadcrumb_disabled';
 
+type ConsoleMethod = 'error' | 'warn' | 'info' | 'log' | 'debug';
+
+const CONSOLE_METHODS: ConsoleMethod[] = ['error', 'warn', 'info', 'log', 'debug'];
+
+const MAX_CONSOLE_MESSAGE_LENGTH = 1000;
+
+const formatConsoleArgs = (args: unknown[]): string => {
+  const text = args
+    .map((arg) => {
+      if (typeof arg === 'string') return arg;
+      if (arg instanceof Error) return arg.stack ?? arg.message;
+      try {
+        return JSON.stringify(arg);
+      } catch {
+        return String(arg);
+      }
+    })
+    .join(' ');
+  return text.length > MAX_CONSOLE_MESSAGE_LENGTH
+    ? `${text.slice(0, MAX_CONSOLE_MESSAGE_LENGTH)}…`
+    : text;
+};
+
 class DebugLoggerService {
   private logs: LogEntry[] = [];
 
@@ -40,11 +66,21 @@ class DebugLoggerService {
 
   private enabled = false;
 
+  private captureActive = false;
+
+  private captureSince: number | undefined;
+
   private listeners: Set<LogListener> = new Set();
 
   private disabledBreadcrumbCategories: Set<LogCategory>;
 
   private sentryStats = { errors: 0, warnings: 0 };
+
+  private originalConsole: Partial<Record<ConsoleMethod, (...args: unknown[]) => void>> = {};
+
+  private consoleIntercepted = false;
+
+  private writingToConsole = false;
 
   constructor() {
     // Check if debug logging is enabled from localStorage
@@ -73,6 +109,65 @@ class DebugLoggerService {
     }
   }
 
+  public isCaptureActive(): boolean {
+    return this.captureActive;
+  }
+
+  public getCaptureSince(): number | undefined {
+    return this.captureSince;
+  }
+
+  public startCapture(): number {
+    this.clear();
+    this.captureActive = true;
+    this.captureSince = Date.now();
+    this.interceptConsole();
+    this.log('info', 'general', 'diagnostics', 'Diagnostic capture started');
+    return this.captureSince;
+  }
+
+  public stopCapture(): number | undefined {
+    if (!this.captureActive) return this.captureSince;
+    this.log('info', 'general', 'diagnostics', 'Diagnostic capture stopped');
+    this.captureActive = false;
+    this.restoreConsole();
+    return this.captureSince;
+  }
+
+  /**
+   * Funnels console output (including matrix-js-sdk's logger, which writes to the
+   * console) into the capture buffer for the duration of a diagnostics session.
+   */
+  private interceptConsole(): void {
+    if (this.consoleIntercepted) return;
+    this.consoleIntercepted = true;
+    CONSOLE_METHODS.forEach((method) => {
+      const original = console[method] as (...args: unknown[]) => void;
+      this.originalConsole[method] = original;
+      console[method] = (...args: unknown[]) => {
+        original.apply(console, args);
+        if (this.writingToConsole) return;
+        const level: LogLevel = method === 'log' ? 'debug' : method;
+        this.log(
+          level,
+          level === 'error' ? 'error' : 'general',
+          'console',
+          formatConsoleArgs(args)
+        );
+      };
+    });
+  }
+
+  private restoreConsole(): void {
+    if (!this.consoleIntercepted) return;
+    this.consoleIntercepted = false;
+    CONSOLE_METHODS.forEach((method) => {
+      const original = this.originalConsole[method];
+      if (original) console[method] = original;
+    });
+    this.originalConsole = {};
+  }
+
   public addListener(listener: LogListener): () => void {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
@@ -96,9 +191,22 @@ class DebugLoggerService {
     message: string,
     data?: unknown
   ): void {
-    if (!this.enabled && level !== 'error') return;
+    const operationalCategory =
+      category === 'sync' ||
+      category === 'network' ||
+      category === 'notification' ||
+      category === 'media' ||
+      category === 'call' ||
+      category === 'error';
+    if (
+      !this.enabled &&
+      !this.captureActive &&
+      level !== 'error' &&
+      !(operationalCategory && level === 'warn')
+    )
+      return;
 
-    const entry: LogEntry = {
+    const rawEntry: LogEntry = {
       timestamp: Date.now(),
       level,
       category,
@@ -106,12 +214,24 @@ class DebugLoggerService {
       message,
       data,
     };
+    // Omit arbitrary data before serialization; it may be circular or contain BigInts.
+    const sanitized = sanitizeDiagnosticsLogs(
+      JSON.stringify({ logs: [{ ...rawEntry, data: undefined }] })
+    );
+    if (!sanitized) return;
+    const parsed = JSON.parse(sanitized) as { logs?: LogEntry[] };
+    const entry = parsed.logs?.[0];
+    if (!entry) return;
+    // Preserve the original Error for Sentry exception capture.
+    if (rawEntry.data instanceof Error) entry.data = rawEntry.data;
 
     // Add to circular buffer
     if (this.logs.length >= this.maxLogs) {
       this.logs.shift(); // Remove oldest entry
     }
     this.logs.push(entry);
+
+    if (!this.enabled && level !== 'error') return;
 
     // Notify listeners
     this.notifyListeners(entry);
@@ -122,7 +242,12 @@ class DebugLoggerService {
     // Also log to console for developer convenience
     const prefix = `[sable:${category}:${namespace}]`;
     const consoleLevel = level === 'debug' ? 'log' : level;
-    console[consoleLevel](prefix, message, data !== undefined ? data : '');
+    this.writingToConsole = true;
+    try {
+      console[consoleLevel](prefix, message, data !== undefined ? data : '');
+    } finally {
+      this.writingToConsole = false;
+    }
   }
 
   public getBreadcrumbCategoryEnabled(category: LogCategory): boolean {
@@ -160,13 +285,26 @@ class DebugLoggerService {
     };
     const sentryLevel: Sentry.SeverityLevel = sentryLevelMap[entry.level] ?? 'error';
 
+    let sanitizedData: unknown;
+    if (entry.data !== undefined && !(entry.data instanceof Error)) {
+      try {
+        sanitizedData = sanitizeSentryPayload(entry.data);
+      } catch {
+        // Sentry data is best-effort and must not break logging.
+        sanitizedData = undefined;
+      }
+    }
+
     // Add breadcrumb for all logs (helps with debugging in Sentry), unless category is disabled
     if (!this.disabledBreadcrumbCategories.has(entry.category))
       Sentry.addBreadcrumb({
         category: `${entry.category}.${entry.namespace}`,
         message: entry.message,
         level: sentryLevel,
-        data: entry.data ? { data: entry.data } : undefined,
+        data:
+          sanitizedData !== undefined && sanitizedData !== null
+            ? { data: sanitizedData }
+            : undefined,
         timestamp: entry.timestamp / 1000, // Sentry expects seconds
       });
 
@@ -174,8 +312,8 @@ class DebugLoggerService {
     const logMsg = `[${entry.category}:${entry.namespace}] ${entry.message}`;
     // Flatten primitive values from entry.data so they become searchable attributes in Sentry Logs
     const logDataAttrs: Record<string, string | number | boolean> = {};
-    if (entry.data && typeof entry.data === 'object' && !(entry.data instanceof Error)) {
-      Object.entries(entry.data).forEach(([k, v]) => {
+    if (sanitizedData && typeof sanitizedData === 'object' && !(sanitizedData instanceof Error)) {
+      Object.entries(sanitizedData as Record<string, unknown>).forEach(([k, v]) => {
         if (typeof v === 'string' || typeof v === 'number' || typeof v === 'boolean') {
           logDataAttrs[k] = v;
         }
@@ -226,7 +364,7 @@ class DebugLoggerService {
           },
           contexts: {
             debugLog: {
-              data: entry.data,
+              data: sanitizedData,
               timestamp: new Date(entry.timestamp).toISOString(),
             },
           },
@@ -243,7 +381,7 @@ class DebugLoggerService {
         },
         contexts: {
           debugLog: {
-            data: entry.data,
+            data: sanitizedData,
             timestamp: new Date(entry.timestamp).toISOString(),
           },
         },
@@ -282,14 +420,16 @@ class DebugLoggerService {
     this.logs = [];
   }
 
-  public exportLogs(): string {
+  public exportLogs(options?: { since?: number }): string {
+    const logs = options?.since ? this.getFilteredLogs({ since: options.since }) : this.logs;
     return JSON.stringify(
       {
         exportedAt: new Date().toISOString(),
-        build: `v${APP_VERSION}${BUILD_HASH ? ` (${BUILD_HASH})` : ''}`,
-        logsCount: this.logs.length,
-        logs: this.logs.map((log) => ({
+        build: versionLabel({ includeNightly: false }),
+        logsCount: logs.length,
+        logs: logs.map((log) => ({
           ...log,
+          ...(log.data instanceof Error ? { data: undefined } : {}),
           timestamp: new Date(log.timestamp).toISOString(),
         })),
       },
@@ -337,8 +477,8 @@ class DebugLoggerService {
     // Also add as extra data for better visibility in Sentry UI
     Sentry.getCurrentScope().setExtra('debugLogs', logsData);
 
-    // Add as attachment for download
     const logsText = JSON.stringify(logsData, null, 2);
+    // Add as attachment for download
     Sentry.getCurrentScope().addAttachment({
       filename: 'debug-logs.json',
       data: logsText,

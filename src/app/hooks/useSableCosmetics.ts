@@ -8,10 +8,16 @@ import { useRoomCreatorsTag } from './useRoomCreatorsTag';
 import { usePowerLevelTags } from './usePowerLevelTags';
 import { useTheme } from './useTheme';
 import { useUserProfile } from './useUserProfile';
+import { useAccessibleNameColor } from './useAccessibleNameColor';
 
-export function useSableCosmetics(userId: string, room: Room, isUserHero?: boolean) {
+export function useSableCosmetics(
+  userId: string,
+  room: Room,
+  isUserHero?: boolean,
+  fetchProfile = true
+) {
   const theme = useTheme();
-  const profile = useUserProfile(userId, room);
+  const profile = useUserProfile(userId, room, undefined, false, fetchProfile);
 
   const powerLevels = usePowerLevels(room);
   const creators = useRoomCreators(room);
@@ -20,11 +26,14 @@ export function useSableCosmetics(userId: string, room: Room, isUserHero?: boole
   const getPowerTag = useGetMemberPowerTag(room, creators, powerLevels);
 
   const accessibleTagColors = useAccessiblePowerTagColors(theme.kind, creatorsTag, powerLevelTags);
+  const accessibleNameColor = useAccessibleNameColor(theme.kind);
 
   return useMemo(() => {
     if (!room || !userId) return { color: undefined, font: undefined };
 
-    let finalColor = isUserHero ? profile.heroNameColor : profile.resolvedColor;
+    let finalColor = accessibleNameColor(
+      isUserHero ? profile.heroNameColor : profile.resolvedColor
+    );
     if (!finalColor) {
       const memberPowerTag = getPowerTag(userId);
       finalColor = memberPowerTag?.color
@@ -46,5 +55,6 @@ export function useSableCosmetics(userId: string, room: Room, isUserHero?: boole
     profile.resolvedFont,
     getPowerTag,
     accessibleTagColors,
+    accessibleNameColor,
   ]);
 }

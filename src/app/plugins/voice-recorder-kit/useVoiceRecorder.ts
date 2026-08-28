@@ -20,6 +20,10 @@ function getSharedAudioContext(): AudioContext {
   return sharedAudioContext;
 }
 
+function stopMediaStream(stream: MediaStream): void {
+  stream.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+}
+
 // downsample an array of samples to a target count by averaging blocks of samples together
 function downsampleWaveform(samples: number[], targetCount: number): number[] {
   if (samples.length === 0) return Array.from({ length: targetCount }, () => 0.15);
@@ -90,6 +94,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
   const isResumingRef = useRef(false);
   const isRestartingRef = useRef(false);
   const isTemporaryStopRef = useRef(false);
+  const startGenerationRef = useRef(0);
   const temporaryPreviewUrlRef = useRef<string | null>(null);
   /**
    * waveform samples collected during recording, used to generate waveform on stop.
@@ -106,7 +111,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
 
   const cleanupStream = useCallback(() => {
     if (streamRef.current) {
-      streamRef.current.getTracks().forEach((track: MediaStreamTrack) => track.stop());
+      stopMediaStream(streamRef.current);
       streamRef.current = null;
     }
   }, []);
@@ -165,6 +170,33 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
       timerRef.current = null;
     }
   }, []);
+
+  const invalidatePendingStart = useCallback(() => {
+    startGenerationRef.current += 1;
+  }, []);
+
+  const cleanupRecordingResources = useCallback(() => {
+    cleanupAudioContext();
+    cleanupStream();
+    cleanupMediaRecorder();
+    stopTimer();
+  }, [cleanupAudioContext, cleanupMediaRecorder, cleanupStream, stopTimer]);
+
+  const stopMediaRecorder = useCallback(
+    (mediaRecorder: MediaRecorder) => {
+      let stopThrew = false;
+      try {
+        mediaRecorder.stop();
+      } catch {
+        stopThrew = true;
+      }
+
+      if (stopThrew || !mediaRecorder.onstop) {
+        cleanupRecordingResources();
+      }
+    },
+    [cleanupRecordingResources]
+  );
 
   const startRecordingTimer = useCallback(() => {
     startTimeRef.current = Date.now() - pausedTimeRef.current * 1000;
@@ -315,15 +347,20 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
       return;
     }
 
+    const startGeneration = ++startGenerationRef.current;
     setError(null);
     isResumingRef.current = false;
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (startGeneration !== startGenerationRef.current) {
+        stopMediaStream(stream);
+        return;
+      }
       const codec = getSupportedAudioCodec();
       if (!codec) {
         setError('No supported audio codec found for recording.');
-        cleanupStream();
+        stopMediaStream(stream);
         return;
       }
       streamRef.current = stream;
@@ -418,6 +455,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
       setIsStopped(false);
       pausedTimeRef.current = 0;
     } catch {
+      if (startGeneration !== startGenerationRef.current) return;
       setError('Microphone access denied or an error occurred.');
       cleanupAudioContext();
       cleanupStream();
@@ -467,6 +505,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
   }, [seconds, stopTimer]);
 
   const handleStopTemporary = useCallback(() => {
+    invalidatePendingStart();
     const mediaRecorder = mediaRecorderRef.current;
 
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
@@ -481,11 +520,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
         }
       }
 
-      try {
-        mediaRecorder.stop();
-      } catch {
-        // ignore
-      }
+      stopMediaRecorder(mediaRecorder);
 
       // Let cleanupStream() be handled by mediaRecorder.onstop
       // Calling it synchronously here can kill the stream before Safari finishes emitting data
@@ -517,11 +552,14 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
     cleanupMediaRecorder,
     cleanupStream,
     emitStopPayload,
+    invalidatePendingStart,
     stopTimer,
+    stopMediaRecorder,
     waveform,
   ]);
 
   const handleStop = useCallback(() => {
+    invalidatePendingStart();
     const mediaRecorder = mediaRecorderRef.current;
 
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
@@ -536,11 +574,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
         }
       }
 
-      try {
-        mediaRecorder.stop();
-      } catch {
-        // ignore
-      }
+      stopMediaRecorder(mediaRecorder);
 
       // Let cleanupStream() be handled by mediaRecorder.onstop
       // Calling it synchronously here can kill the stream before Safari finishes emitting data
@@ -572,7 +606,9 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
     cleanupMediaRecorder,
     cleanupStream,
     emitStopPayload,
+    invalidatePendingStart,
     stopTimer,
+    stopMediaRecorder,
     waveform,
   ]);
 
@@ -707,11 +743,16 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
       return;
     }
 
+    const startGeneration = ++startGenerationRef.current;
     setError(null);
     isResumingRef.current = true;
 
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      if (startGeneration !== startGenerationRef.current) {
+        stopMediaStream(stream);
+        return;
+      }
       streamRef.current = stream;
       const recordedStream = setupAudioGraph(stream);
 
@@ -795,6 +836,7 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
       // So it keeps the correct total time from previous Pause
       startTimeRef.current = Date.now() - pausedTimeRef.current * 1000;
     } catch {
+      if (startGeneration !== startGenerationRef.current) return;
       setError('Microphone access denied or an error occurred.');
       cleanupAudioContext();
       cleanupStream();
@@ -816,9 +858,10 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
   ]);
 
   const handleDelete = useCallback(() => {
+    invalidatePendingStart();
     const mediaRecorder = mediaRecorderRef.current;
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-      mediaRecorder.stop();
+      stopMediaRecorder(mediaRecorder);
     }
 
     if (audioRef.current) {
@@ -852,14 +895,23 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
     if (onDelete) {
       onDelete();
     }
-  }, [cleanupAudioContext, cleanupMediaRecorder, cleanupStream, onDelete, stopTimer]);
+  }, [
+    cleanupAudioContext,
+    cleanupMediaRecorder,
+    cleanupStream,
+    invalidatePendingStart,
+    onDelete,
+    stopMediaRecorder,
+    stopTimer,
+  ]);
 
   const handleRestart = useCallback(() => {
+    invalidatePendingStart();
     isRestartingRef.current = true;
     const mediaRecorder = mediaRecorderRef.current;
 
     if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-      mediaRecorder.stop();
+      stopMediaRecorder(mediaRecorder);
     }
 
     if (audioRef.current) {
@@ -900,16 +952,25 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
     setAudioUrl(null);
     setAudioFile(null);
     internalStartRecording();
-  }, [cleanupAudioContext, cleanupMediaRecorder, cleanupStream, internalStartRecording, stopTimer]);
+  }, [
+    cleanupAudioContext,
+    cleanupMediaRecorder,
+    cleanupStream,
+    internalStartRecording,
+    invalidatePendingStart,
+    stopMediaRecorder,
+    stopTimer,
+  ]);
 
   useEffect(() => {
     if (autoStart) {
       internalStartRecording();
     }
     return () => {
+      invalidatePendingStart();
       const mediaRecorder = mediaRecorderRef.current;
       if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-        mediaRecorder.stop();
+        stopMediaRecorder(mediaRecorder);
       } else {
         cleanupMediaRecorder();
       }
@@ -935,6 +996,8 @@ export function useVoiceRecorder(options: UseVoiceRecorderOptions = {}): UseVoic
     cleanupMediaRecorder,
     cleanupStream,
     internalStartRecording,
+    invalidatePendingStart,
+    stopMediaRecorder,
     stopTimer,
   ]);
 

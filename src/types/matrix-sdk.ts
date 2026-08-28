@@ -22,6 +22,7 @@ export * from 'matrix-js-sdk/lib/models/user';
 export * from 'matrix-js-sdk/lib/models/search-result';
 export * from 'matrix-js-sdk/lib/models/event-timeline';
 export * from 'matrix-js-sdk/lib/models/event-timeline-set';
+export { EventEmitterEvents } from 'matrix-js-sdk/lib/models/typed-event-emitter';
 export { Relations, RelationsEvent } from 'matrix-js-sdk/lib/models/relations';
 
 export * from 'matrix-js-sdk/lib/store/indexeddb';
@@ -44,7 +45,9 @@ export * from 'matrix-js-sdk/lib/@types/read_receipts';
 export * from 'matrix-js-sdk/lib/@types/membership';
 export * from 'matrix-js-sdk/lib/@types/registration';
 
-export * from 'matrix-js-sdk/lib/oidc/validate';
+export * from 'matrix-js-sdk/lib/feature';
+
+export * from 'matrix-js-sdk/lib/oauth';
 export { VerificationMethod } from 'matrix-js-sdk/lib/types';
 export * from 'matrix-js-sdk/lib/pushprocessor';
 export * from 'matrix-js-sdk/lib/common-crypto/CryptoBackend';
@@ -52,5 +55,8 @@ export * from 'matrix-js-sdk/lib/common-crypto/CryptoBackend';
 export * from 'matrix-js-sdk/lib/matrixrtc/CallMembership';
 export * from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSession';
 export * from 'matrix-js-sdk/lib/matrixrtc/MatrixRTCSessionManager';
+export { type CallMembershipIdentityParts } from 'matrix-js-sdk/lib/matrixrtc/EncryptionManager';
+export { type LivekitTransportConfig } from 'matrix-js-sdk/lib/matrixrtc/LivekitTransport';
+export { type Transport } from 'matrix-js-sdk/lib/matrixrtc/types';
 
 export * from 'matrix-js-sdk/lib/models/thread';

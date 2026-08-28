@@ -1,5 +1,11 @@
 import { style } from '@vanilla-extract/css';
-import { DefaultReset, color, config } from 'folds';
+import { DefaultReset, color, config, toRem } from 'folds';
+
+// The viewer is a fullscreen overlay, so it sits outside the app shell's safe-area strips.
+export const safeAreaTop = 'var(--safe-area-inset-top, env(safe-area-inset-top, 0px))';
+const safeAreaBottom = 'var(--safe-area-inset-bottom, env(safe-area-inset-bottom, 0px))';
+export const safeAreaLeft = 'var(--safe-area-inset-left, env(safe-area-inset-left, 0px))';
+export const safeAreaRight = 'var(--safe-area-inset-right, env(safe-area-inset-right, 0px))';
 
 export const ImageViewer = style([
   DefaultReset,
@@ -16,17 +22,95 @@ export const ImageViewerHeader = style([
     borderBottomWidth: config.borderWidth.B300,
     flexShrink: 0,
     gap: config.space.S200,
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    height: 'auto',
+    minHeight: config.space.S400,
+    paddingTop: config.space.S100,
+    paddingBottom: config.space.S100,
+    '@media': {
+      '(max-width: 600px)': {
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        right: 0,
+        zIndex: 1,
+        borderBottomWidth: 0,
+        color: '#fff',
+        flexWrap: 'nowrap',
+        paddingLeft: `calc(${config.space.S200} + ${safeAreaLeft})`,
+        paddingRight: `calc(${config.space.S200} + ${safeAreaRight})`,
+      },
+    },
   },
 ]);
+
+const scrimStops = (from: string) =>
+  `linear-gradient(to ${from}, rgba(0,0,0,0.58) 0%, rgba(0,0,0,0.5) 22%, rgba(0,0,0,0.33) 46%, rgba(0,0,0,0.15) 72%, rgba(0,0,0,0) 100%)`;
+
+export const ImageViewerMobileHeader = style({
+  '::before': {
+    content: '""',
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: `calc(${toRem(132)} + ${safeAreaTop})`,
+    background: scrimStops('bottom'),
+    pointerEvents: 'none',
+    zIndex: -1,
+  },
+});
+
+export const ImageViewerMobileControl = style({
+  backgroundColor: 'transparent',
+  color: '#fff',
+  filter: 'drop-shadow(0 1px 3px rgba(0,0,0,0.6))',
+  selectors: {
+    '&&:hover, &&:focus-visible': {
+      backgroundColor: 'rgba(255,255,255,0.1)',
+    },
+    '&&:active': {
+      backgroundColor: 'rgba(255,255,255,0.16)',
+    },
+  },
+});
+
+export const ImageViewerMobileCaption = style({
+  position: 'absolute',
+  bottom: 0,
+  left: 0,
+  right: 0,
+  zIndex: 1,
+  paddingTop: toRem(48),
+  paddingLeft: `calc(${config.space.S400} + ${safeAreaLeft})`,
+  paddingRight: `calc(${config.space.S400} + ${safeAreaRight})`,
+  paddingBottom: `calc(${config.space.S400} + ${safeAreaBottom})`,
+  background: scrimStops('top'),
+  color: '#fff',
+  pointerEvents: 'none',
+  textShadow: '0 1px 3px rgba(0,0,0,0.6)',
+  display: '-webkit-box',
+  WebkitLineClamp: 2,
+  WebkitBoxOrient: 'vertical',
+  overflow: 'hidden',
+});
 
 export const ImageViewerContent = style([
   DefaultReset,
   {
+    position: 'relative',
     backgroundColor: color.Background.Container,
     color: color.Background.OnContainer,
     overflow: 'hidden',
   },
 ]);
+
+export const ImageViewerContentMobile = style({
+  backgroundColor: '#000',
+  color: '#fff',
+  paddingBottom: safeAreaBottom,
+});
 
 export const ImageViewerInput = style([
   DefaultReset,
@@ -52,10 +136,28 @@ export const ImageViewerImg = style([
     maxHeight: 'none',
     backgroundColor: color.Surface.Container,
     transition: 'transform 100ms linear',
-    willChange: 'transform',
   },
 ]);
 
 export const ImageViewerImgPixelated = style({
   imageRendering: 'pixelated',
+});
+
+const mobileGalleryControl = {
+  position: 'absolute' as const,
+  top: '50%',
+  zIndex: 1,
+  transform: 'translateY(-50%)',
+  backgroundColor: '#0009',
+  color: '#fff',
+};
+
+export const ImageViewerPrevious = style({
+  ...mobileGalleryControl,
+  left: `calc(${config.space.S100} + ${safeAreaLeft})`,
+});
+
+export const ImageViewerNext = style({
+  ...mobileGalleryControl,
+  right: `calc(${config.space.S100} + ${safeAreaRight})`,
 });

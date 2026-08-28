@@ -4,7 +4,7 @@ import type { Room } from '$types/matrix-sdk';
 
 import type { RoomAbbreviationsContent } from '$utils/abbreviations';
 import { buildAbbreviationsMap } from '$utils/abbreviations';
-import { getAllParents, getStateEvent } from '$utils/room';
+import { getAllParents, getStateEvent } from '$utils/room/hierarchy';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { useMatrixClient } from './useMatrixClient';
 import { useStateEvent } from './useStateEvent';

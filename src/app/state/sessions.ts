@@ -1,13 +1,24 @@
-import type { ReactNode } from 'react';
 import { atom } from 'jotai';
+import type { MatrixEvent, Room } from '$types/matrix-sdk';
 import { createLogger } from '$utils/debug';
 import {
   atomWithLocalStorage,
   getLocalStorageItem,
+  setEssentialLocalStorageItem,
   setLocalStorageItem,
 } from './utils/atomWithLocalStorage';
 
 const log = createLogger('sessions');
+
+const notifySessionChanged = (): void => {
+  if (typeof window === 'undefined') return;
+  window.dispatchEvent(new Event('sable-session-changed'));
+};
+
+export type OidcSessionInfo = {
+  issuer: string;
+  clientId: string;
+};
 
 export type Session = {
   baseUrl: string;
@@ -18,6 +29,7 @@ export type Session = {
   refreshToken?: string;
   fallbackSdkStores?: boolean;
   slidingSyncOptIn?: boolean;
+  oidc?: OidcSessionInfo;
 };
 
 export type Sessions = Session[];
@@ -47,12 +59,14 @@ export function setFallbackSession(
   localStorage.setItem('cinny_device_id', deviceId);
   localStorage.setItem('cinny_user_id', userId);
   localStorage.setItem('cinny_hs_base_url', baseUrl);
+  notifySessionChanged();
 }
-export const removeFallbackSession = () => {
+const removeFallbackSession = () => {
   localStorage.removeItem('cinny_hs_base_url');
   localStorage.removeItem('cinny_user_id');
   localStorage.removeItem('cinny_device_id');
   localStorage.removeItem('cinny_access_token');
+  notifySessionChanged();
 };
 export const getFallbackSession = (): Session | undefined => {
   const baseUrl = localStorage.getItem('cinny_hs_base_url');
@@ -117,6 +131,12 @@ export type SessionsAction =
       session: Session;
     }
   | {
+      // Merge a field change into an existing session without clobbering rotated tokens.
+      type: 'UPDATE';
+      userId: string;
+      patch: Partial<Session>;
+    }
+  | {
       type: 'DELETE';
       session: Session;
     };
@@ -139,15 +159,52 @@ export const sessionsAtom = atom<Sessions, [SessionsAction], void>(
       set(baseSessionsAtom, sessions);
       return;
     }
+    if (action.type === 'UPDATE') {
+      const sessions = [...get(baseSessionsAtom)];
+      const sessionIndex = sessions.findIndex((session) => session.userId === action.userId);
+      if (sessionIndex === -1) return;
+      sessions.splice(sessionIndex, 1, { ...sessions[sessionIndex]!, ...action.patch });
+      set(baseSessionsAtom, sessions);
+      return;
+    }
     if (action.type === 'DELETE') {
       log.log('DELETE session', action.session.userId);
       const sessions = get(baseSessionsAtom).filter(
         (session) => session.userId !== action.session.userId
       );
       set(baseSessionsAtom, sessions);
+      notifySessionChanged();
     }
   }
 );
+
+// Runs outside React (token refresher), so it writes localStorage directly; the synthetic storage
+// event makes the mounted atom re-read so its in-memory copy cannot later clobber the new tokens.
+export const updateSessionTokens = (
+  userId: string,
+  tokens: { accessToken: string; refreshToken?: string; expiresInMs?: number }
+): void => {
+  const sessions = getLocalStorageItem<Sessions>(MATRIX_SESSIONS_KEY, []);
+  const index = sessions.findIndex((session) => session.userId === userId);
+  if (index === -1) return;
+  sessions[index] = {
+    ...sessions[index]!,
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken ?? sessions[index]!.refreshToken,
+    expiresInMs: tokens.expiresInMs ?? sessions[index]!.expiresInMs,
+  };
+  setEssentialLocalStorageItem(MATRIX_SESSIONS_KEY, sessions);
+  window.dispatchEvent(new StorageEvent('storage', { key: MATRIX_SESSIONS_KEY }));
+  notifySessionChanged();
+};
+
+export const getStoredSession = (userId: string): Session | undefined =>
+  getLocalStorageItem<Sessions>(MATRIX_SESSIONS_KEY, []).find(
+    (session) => session.userId === userId
+  );
+
+export const getStoredSessionRefreshToken = (userId: string): string | undefined =>
+  getStoredSession(userId)?.refreshToken;
 
 export const ACTIVE_SESSION_KEY = 'matrixActiveSession';
 const baseActiveSessionAtom = atomWithLocalStorage<string | undefined>(
@@ -160,11 +217,13 @@ const baseActiveSessionAtom = atomWithLocalStorage<string | undefined>(
 export const activeSessionIdAtom = atom<string | undefined, [string | undefined], void>(
   (get) => get(baseActiveSessionAtom),
   (_get, set, value) => {
+    const previous = _get(baseActiveSessionAtom);
     set(baseActiveSessionAtom, value);
+    if (previous !== value) notifySessionChanged();
   }
 );
 
-export type PendingNotification = {
+type PendingNotification = {
   roomId: string;
   eventId?: string;
   targetSessionId?: string;
@@ -186,11 +245,9 @@ export type InAppBannerNotification = {
   /** Display name of the sender. */
   senderName?: string;
   body?: string;
-  /**
-   * Pre-rendered rich body with mxc/mention transforms (built in ClientNonUIFeatures).
-   * When present, takes precedence over the plain-text `body` fallback.
-   */
-  bodyNode?: ReactNode;
+  /** Full event context for rendering the same rich preview used elsewhere. */
+  room?: Room;
+  event?: MatrixEvent;
   /** URL of an avatar or room icon to display inside the banner. */
   icon?: string;
   onClick: () => void;

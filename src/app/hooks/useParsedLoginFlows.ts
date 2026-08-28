@@ -1,14 +1,21 @@
 import { useMemo } from 'react';
 import type { ILoginFlow, IPasswordFlow, ISSOFlow, LoginFlow } from '$types/matrix-sdk';
+import { OAUTH_AWARE_PREFERRED_FLOW_FIELD } from '$types/matrix-sdk';
 
-export const getSSOFlow = (loginFlows: LoginFlow[]): ISSOFlow | undefined =>
+const getSSOFlow = (loginFlows: LoginFlow[]): ISSOFlow | undefined =>
   loginFlows.find((flow) => flow.type === 'm.login.sso' || flow.type === 'm.login.cas') as
     | ISSOFlow
     | undefined;
 
-export const getPasswordFlow = (loginFlows: LoginFlow[]): IPasswordFlow | undefined =>
+export const isOauthAwarePreferred = (ssoFlow: ISSOFlow | undefined): boolean =>
+  Boolean(
+    ssoFlow?.[OAUTH_AWARE_PREFERRED_FLOW_FIELD.name] ??
+    ssoFlow?.[OAUTH_AWARE_PREFERRED_FLOW_FIELD.altName]
+  );
+
+const getPasswordFlow = (loginFlows: LoginFlow[]): IPasswordFlow | undefined =>
   loginFlows.find((flow) => flow.type === 'm.login.password') as IPasswordFlow;
-export const getTokenFlow = (loginFlows: LoginFlow[]): LoginFlow | undefined =>
+const getTokenFlow = (loginFlows: LoginFlow[]): LoginFlow | undefined =>
   loginFlows.find((flow) => flow.type === 'm.login.token') as ILoginFlow & {
     type: 'm.login.token';
   };

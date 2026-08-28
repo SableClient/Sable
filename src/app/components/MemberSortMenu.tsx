@@ -1,16 +1,18 @@
 import FocusTrap from 'focus-trap-react';
 import { config, Menu, MenuItem, Text } from 'folds';
 import { stopPropagation } from '$utils/keyboard';
-import { useMemberSortMenu } from '$hooks/useMemberSort';
 
-type MemberSortMenuProps = {
+type MemberMenuItem = {
+  name: string;
+};
+
+type MemberMenuListProps = {
+  items: MemberMenuItem[];
   requestClose: () => void;
   selected: number;
   onSelect: (index: number) => void;
 };
-export function MemberSortMenu({ selected, onSelect, requestClose }: MemberSortMenuProps) {
-  const memberSortMenu = useMemberSortMenu();
-
+export function MemberMenuList({ items, selected, onSelect, requestClose }: MemberMenuListProps) {
   return (
     <FocusTrap
       focusTrapOptions={{
@@ -23,7 +25,7 @@ export function MemberSortMenu({ selected, onSelect, requestClose }: MemberSortM
       }}
     >
       <Menu style={{ padding: config.space.S100 }}>
-        {memberSortMenu.map((menuItem, index) => (
+        {items.map((menuItem, index) => (
           <MenuItem
             key={menuItem.name}
             variant="Surface"

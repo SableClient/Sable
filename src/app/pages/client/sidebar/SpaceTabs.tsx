@@ -1,28 +1,34 @@
 import type { FormEventHandler, MouseEventHandler, ReactNode, RefObject, ChangeEvent } from 'react';
 import { forwardRef, useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import type { RectCords } from 'folds';
+import { useAtom, useAtomValue, useSetAtom } from 'jotai';
+import { useNavigate } from 'react-router';
 import {
   Box,
   Button,
   Dialog,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Line,
   Menu,
   MenuItem,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
-  PopOut,
   Text,
   config,
   toRem,
 } from 'folds';
-import { useAtom, useAtomValue } from 'jotai';
+import {
+  CaretUp,
+  Checks,
+  composerIcon,
+  GearSix,
+  Link,
+  menuIcon,
+  PencilSimple,
+  PushPinSlash,
+  ShareNetwork,
+  UserPlus,
+  X,
+} from '$components/icons/phosphor';
 import type { MatrixClient, Room } from '$types/matrix-sdk';
 import {
   draggable,
@@ -36,7 +42,6 @@ import {
 } from '@atlaskit/pragmatic-drag-and-drop-hitbox/tree-item';
 import { autoScrollForElements } from '@atlaskit/pragmatic-drag-and-drop-auto-scroll/element';
 import { combine } from '@atlaskit/pragmatic-drag-and-drop/combine';
-import FocusTrap from 'focus-trap-react';
 import {
   useOrphanSpaces,
   useRecursiveChildScopeFactory,
@@ -48,7 +53,7 @@ import { allRoomsAtom } from '$state/room-list/roomList';
 import { getSpaceLobbyPath, getSpacePath, joinPathComponent } from '$pages/pathUtils';
 import {
   SidebarAvatar,
-  SidebarItem,
+  SidebarItemLeft,
   SidebarUnreadBadge,
   SidebarItemTooltip,
   SidebarStack,
@@ -58,7 +63,7 @@ import {
 } from '$components/sidebar';
 import { RoomUnreadProvider, RoomsUnreadProvider } from '$components/RoomUnreadProvider';
 import { useSelectedSpace } from '$hooks/router/useSelectedSpace';
-import { getCanonicalAliasOrRoomId, isRoomAlias } from '$utils/matrix';
+import { getCanonicalAliasOrRoomId, isRoomAlias, mxcUrlToHttp } from '$utils/matrix';
 import { RoomAvatar } from '$components/room-avatar';
 import { nameInitials, randomStr } from '$utils/common';
 import type { ISidebarFolder, SidebarItems, TSidebarItem } from '$hooks/useSidebarItems';
@@ -78,18 +83,23 @@ import { useRoomsUnread } from '$state/hooks/unread';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { markAsRead } from '$utils/notifications';
 import { copyToClipboard } from '$utils/dom';
-import { stopPropagation } from '$utils/keyboard';
+import { shareText } from '$utils/share';
 import { getMatrixToRoom } from '$plugins/matrix-to';
 import { getViaServers } from '$plugins/via-servers';
-import { getRoomAvatarUrl } from '$utils/room';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useRoomAvatar } from '$hooks/useRoomMeta';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { useOpenSpaceSettings } from '$state/hooks/spaceSettings';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';
+import { lastVisitedSpaceIdAtom } from '$state/room/lastSpace';
+import { useMobileTapActivation } from '$hooks/useMobileTapActivation';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
+import { useOpenRoomSettings } from '$state/hooks/roomSettings';
+import { ResponsiveMenu } from '$components/ResponsiveMenu';
+import { useMenuAnchor } from '$hooks/useMenuAnchor';
 
 type SpaceMenuProps = {
   room: Room;
@@ -106,7 +116,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
 
     const permissions = useRoomPermissions(creators, powerLevels);
     const canInvite = permissions.action('invite', mx.getSafeUserId());
-    const openSpaceSettings = useOpenSpaceSettings();
+    const openRoomSettings = useOpenRoomSettings();
 
     const [invitePrompt, setInvitePrompt] = useState(false);
 
@@ -118,7 +128,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
     const unread = useRoomsUnread(allChild, roomToUnreadAtom);
 
     const handleMarkAsRead = () => {
-      allChild.forEach((childRoomId) => markAsRead(mx, childRoomId, hideReads));
+      allChild.forEach((childRoomId) => markAsRead(mx, childRoomId, hideReads, true));
       requestClose();
     };
 
@@ -134,12 +144,19 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
       requestClose();
     };
 
+    const handleShareLink = () => {
+      const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, room.roomId);
+      const viaServers = isRoomAlias(roomIdOrAlias) ? undefined : getViaServers(room);
+      shareText(getMatrixToRoom(roomIdOrAlias, viaServers)).catch(() => {});
+      requestClose();
+    };
+
     const handleInvite = () => {
       setInvitePrompt(true);
     };
 
     const handleRoomSettings = () => {
-      openSpaceSettings(room.roomId);
+      openRoomSettings(room.roomId);
       requestClose();
     };
 
@@ -158,7 +175,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
           <MenuItem
             onClick={handleMarkAsRead}
             size="300"
-            after={<Icon size="100" src={Icons.CheckTwice} />}
+            after={menuIcon(Checks)}
             radii="300"
             disabled={!unread}
           >
@@ -167,12 +184,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
             </Text>
           </MenuItem>
           {onUnpin && (
-            <MenuItem
-              size="300"
-              radii="300"
-              onClick={handleUnpin}
-              after={<Icon size="100" src={Icons.Pin} />}
-            >
+            <MenuItem size="300" radii="300" onClick={handleUnpin} after={menuIcon(PushPinSlash)}>
               <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
                 Unpin
               </Text>
@@ -186,7 +198,7 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
             variant="Primary"
             fill="None"
             size="300"
-            after={<Icon size="100" src={Icons.UserPlus} />}
+            after={menuIcon(UserPlus)}
             radii="300"
             aria-pressed={invitePrompt}
             disabled={!canInvite}
@@ -195,22 +207,17 @@ const SpaceMenu = forwardRef<HTMLDivElement, SpaceMenuProps>(
               Invite
             </Text>
           </MenuItem>
-          <MenuItem
-            onClick={handleCopyLink}
-            size="300"
-            after={<Icon size="100" src={Icons.Link} />}
-            radii="300"
-          >
+          <MenuItem onClick={handleCopyLink} size="300" after={menuIcon(Link)} radii="300">
             <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
               Copy Link
             </Text>
           </MenuItem>
-          <MenuItem
-            onClick={handleRoomSettings}
-            size="300"
-            after={<Icon size="100" src={Icons.Setting} />}
-            radii="300"
-          >
+          <MenuItem onClick={handleShareLink} size="300" after={menuIcon(ShareNetwork)} radii="300">
+            <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+              Share Link
+            </Text>
+          </MenuItem>
+          <MenuItem onClick={handleRoomSettings} size="300" after={menuIcon(GearSix)} radii="300">
             <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
               Space Settings
             </Text>
@@ -236,7 +243,7 @@ const FolderMenu = forwardRef<HTMLDivElement, FolderMenuProps>(
             onRename();
             requestClose();
           }}
-          after={<Icon size="100" src={Icons.Pencil} />}
+          after={menuIcon(PencilSimple)}
         >
           <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
             Rename
@@ -273,66 +280,55 @@ function RenameFolderDialog({ mx, folder, onClose, onSave }: Readonly<RenameFold
   };
 
   return (
-    <Overlay open backdrop={<OverlayBackdrop />}>
-      <OverlayCenter>
-        <FocusTrap
-          focusTrapOptions={{
-            initialFocus: false,
-            clickOutsideDeactivates: true,
-            onDeactivate: onClose,
-            escapeDeactivates: stopPropagation,
+    <ModalOverlay requestClose={onClose}>
+      <Dialog variant="Surface">
+        <Header
+          style={{
+            padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
+            borderBottomWidth: config.borderWidth.B300,
           }}
+          variant="Surface"
+          size="500"
         >
-          <Dialog variant="Surface">
-            <Header
-              style={{
-                padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
-                borderBottomWidth: config.borderWidth.B300,
-              }}
-              variant="Surface"
-              size="500"
-            >
-              <Box grow="Yes">
-                <Text size="H4">Rename Folder</Text>
-              </Box>
-              <IconButton size="300" onClick={onClose} radii="300">
-                <Icon src={Icons.Cross} />
-              </IconButton>
-            </Header>
-            <Box
-              as="form"
-              onSubmit={handleSubmit}
-              style={{ padding: config.space.S400 }}
-              direction="Column"
-              gap="400"
-            >
-              <Text priority="400" size="T300">
-                Choose a short label for this folder. Leave empty to show space names again.
-              </Text>
-              <Box direction="Column" gap="100">
-                <Text size="L400">Folder name</Text>
-                <Input
-                  name="folderName"
-                  variant="Background"
-                  value={draft}
-                  maxLength={FOLDER_NAME_MAX_LENGTH}
-                  onChange={(e: ChangeEvent<HTMLInputElement>) => setDraft(e.target.value)}
-                  autoFocus
-                />
-              </Box>
-              <Box direction="Row" gap="200" justifyContent="End">
-                <Button type="button" variant="Secondary" fill="Soft" onClick={onClose}>
-                  <Text size="B400">Cancel</Text>
-                </Button>
-                <Button type="submit" variant="Primary">
-                  <Text size="B400">Save</Text>
-                </Button>
-              </Box>
-            </Box>
-          </Dialog>
-        </FocusTrap>
-      </OverlayCenter>
-    </Overlay>
+          <Box grow="Yes">
+            <Text size="H4">Rename Folder</Text>
+          </Box>
+          <IconButton size="300" onClick={onClose} radii="300">
+            {composerIcon(X)}
+          </IconButton>
+        </Header>
+        <Box
+          as="form"
+          onSubmit={handleSubmit}
+          style={{ padding: config.space.S400 }}
+          direction="Column"
+          gap="400"
+        >
+          <Text priority="400" size="T300">
+            Choose a short label for this folder. Leave empty to show space names again.
+          </Text>
+          <Box direction="Column" gap="100">
+            <Text size="L400">Folder name</Text>
+            <Input
+              name="folderName"
+              variant="Background"
+              value={draft}
+              maxLength={FOLDER_NAME_MAX_LENGTH}
+              onChange={(e: ChangeEvent<HTMLInputElement>) => setDraft(e.target.value)}
+              autoFocus
+            />
+          </Box>
+          <Box direction="Row" gap="200" justifyContent="End">
+            <Button type="button" variant="Secondary" fill="Soft" onClick={onClose}>
+              <Text size="B400">Cancel</Text>
+            </Button>
+            <Button type="submit" variant="Primary">
+              <Text size="B400">Save</Text>
+            </Button>
+          </Box>
+        </Box>
+      </Dialog>
+    </ModalOverlay>
   );
 }
 
@@ -348,11 +344,13 @@ const useDraggableItem = (
   item: SidebarDraggable,
   targetRef: RefObject<HTMLElement | null>,
   onDragging: (item?: SidebarDraggable) => void,
-  dragHandleRef?: RefObject<HTMLElement | null>
+  dragHandleRef?: RefObject<HTMLElement | null>,
+  enabled: boolean = true
 ): boolean => {
   const [dragging, setDragging] = useState(false);
 
   useEffect(() => {
+    if (!enabled) return undefined;
     const target = targetRef.current;
     const dragHandle = dragHandleRef?.current ?? undefined;
 
@@ -371,18 +369,20 @@ const useDraggableItem = (
           },
         })
       : undefined;
-  }, [targetRef, dragHandleRef, item, onDragging]);
+  }, [targetRef, dragHandleRef, item, onDragging, enabled]);
 
   return dragging;
 };
 
 const useDropTarget = (
   item: SidebarDraggable,
-  targetRef: RefObject<HTMLElement | null>
+  targetRef: RefObject<HTMLElement | null>,
+  enabled: boolean = true
 ): Instruction | undefined => {
   const [dropState, setDropState] = useState<Instruction>();
 
   useEffect(() => {
+    if (!enabled) return undefined;
     const target = targetRef.current;
     if (!target) return undefined;
 
@@ -419,7 +419,7 @@ const useDropTarget = (
       onDragLeave: () => setDropState(undefined),
       onDrop: () => setDropState(undefined),
     });
-  }, [item, targetRef]);
+  }, [item, targetRef, enabled]);
 
   return dropState;
 };
@@ -427,11 +427,13 @@ const useDropTarget = (
 function useDropTargetInstruction<T extends InstructionType>(
   item: SidebarDraggable,
   targetRef: RefObject<HTMLElement | null>,
-  instructionType: T
+  instructionType: T,
+  enabled: boolean = true
 ): T | undefined {
   const [dropState, setDropState] = useState<T>();
 
   useEffect(() => {
+    if (!enabled) return undefined;
     const target = targetRef.current;
     if (!target) return undefined;
 
@@ -452,7 +454,7 @@ function useDropTargetInstruction<T extends InstructionType>(
       onDragLeave: () => setDropState(undefined),
       onDrop: () => setDropState(undefined),
     });
-  }, [item, targetRef, instructionType]);
+  }, [item, targetRef, instructionType, enabled]);
 
   return dropState;
 }
@@ -495,10 +497,33 @@ const useDnDMonitor = (
   }, [scrollRef, onDragging, onReorder]);
 };
 
+type SpaceAvatarProps = {
+  space: Room;
+  renderFallback: () => ReactNode;
+};
+function SpaceAvatar({ space, renderFallback }: Readonly<SpaceAvatarProps>) {
+  const mx = useMatrixClient();
+  const useAuthentication = useMediaAuthentication();
+  const avatarMxc = useRoomAvatar(space);
+  const avatarUrl = avatarMxc
+    ? (mxcUrlToHttp(mx, avatarMxc, useAuthentication, 96, 96, 'crop') ?? undefined)
+    : undefined;
+
+  return (
+    <RoomAvatar
+      roomId={space.roomId}
+      uniformIcons
+      src={avatarUrl}
+      alt={space.name}
+      renderFallback={renderFallback}
+    />
+  );
+}
+
 type SpaceTabProps = {
   space: Room;
   selected: boolean;
-  onClick: MouseEventHandler<HTMLButtonElement>;
+  onSelect: (spaceId: string) => void;
   folder?: ISidebarFolder;
   onDragging: (dragItem?: SidebarDraggable) => void;
   disabled?: boolean;
@@ -507,15 +532,23 @@ type SpaceTabProps = {
 function SpaceTab({
   space,
   selected,
-  onClick,
+  onSelect,
   folder,
   onDragging,
   disabled,
   onUnpin,
 }: Readonly<SpaceTabProps>) {
-  const mx = useMatrixClient();
-  const useAuthentication = useMediaAuthentication();
+  const isMobile = useScreenSizeContext() === ScreenSize.Mobile;
   const targetRef = useRef<HTMLDivElement>(null);
+  const menu = useMenuAnchor<HTMLButtonElement>();
+  const mobileTapActivation = useMobileTapActivation(
+    isMobile,
+    () => onSelect(space.roomId),
+    () => {
+      if (menu.consumeLongPressFired() || menu.anchor) return;
+      onSelect(space.roomId);
+    }
+  );
 
   const spaceDraggable: SidebarDraggable = useMemo(
     () =>
@@ -528,25 +561,14 @@ function SpaceTab({
     [folder, space]
   );
 
-  useDraggableItem(spaceDraggable, targetRef, onDragging);
-  const dropState = useDropTarget(spaceDraggable, targetRef);
+  useDraggableItem(spaceDraggable, targetRef, onDragging, undefined, !isMobile);
+  const dropState = useDropTarget(spaceDraggable, targetRef, !isMobile);
   const dropType = dropState?.type;
-
-  const [menuAnchor, setMenuAnchor] = useState<RectCords>();
-
-  const handleContextMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    evt.preventDefault();
-    const cords = evt.currentTarget.getBoundingClientRect();
-    setMenuAnchor((currentState) => {
-      if (currentState) return undefined;
-      return cords;
-    });
-  };
 
   return (
     <RoomUnreadProvider roomId={space.roomId}>
       {(unread) => (
-        <SidebarItem
+        <SidebarItemLeft
           active={selected}
           ref={targetRef}
           aria-disabled={disabled}
@@ -562,14 +584,15 @@ function SpaceTab({
                 data-id={space.roomId}
                 ref={triggerRef}
                 size={folder ? '300' : '400'}
-                onClick={onClick}
-                onContextMenu={handleContextMenu}
+                onContextMenu={menu.triggerProps.onContextMenu}
+                onTouchStart={menu.triggerProps.onTouchStart}
+                onTouchEnd={menu.triggerProps.onTouchEnd}
+                onTouchMove={menu.triggerProps.onTouchMove}
+                onTouchCancel={menu.triggerProps.onTouchCancel}
+                {...mobileTapActivation}
               >
-                <RoomAvatar
-                  roomId={space.roomId}
-                  uniformIcons
-                  src={getRoomAvatarUrl(mx, space, 96, useAuthentication) ?? undefined}
-                  alt={space.name}
+                <SpaceAvatar
+                  space={space}
                   renderFallback={() => (
                     <Text size={folder ? 'H6' : 'H4'}>{nameInitials(space.name, 2)}</Text>
                   )}
@@ -583,33 +606,14 @@ function SpaceTab({
               count={unread.highlight > 0 ? unread.highlight : unread.total}
             />
           )}
-          {menuAnchor && (
-            <PopOut
-              anchor={menuAnchor}
-              position="Right"
-              align="Start"
-              content={
-                <FocusTrap
-                  focusTrapOptions={{
-                    initialFocus: false,
-                    returnFocusOnDeactivate: false,
-                    onDeactivate: () => setMenuAnchor(undefined),
-                    clickOutsideDeactivates: true,
-                    isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
-                    isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
-                    escapeDeactivates: stopPropagation,
-                  }}
-                >
-                  <SpaceMenu
-                    room={space}
-                    requestClose={() => setMenuAnchor(undefined)}
-                    onUnpin={onUnpin}
-                  />
-                </FocusTrap>
-              }
-            />
-          )}
-        </SidebarItem>
+          <ResponsiveMenu
+            anchor={menu.anchor}
+            position="Right"
+            align="Start"
+            requestClose={menu.close}
+            menu={<SpaceMenu room={space} requestClose={menu.close} onUnpin={onUnpin} />}
+          />
+        </SidebarItemLeft>
       )}
     </RoomUnreadProvider>
   );
@@ -627,13 +631,24 @@ function OpenedSpaceFolder({
   onFolderContextMenu,
   children,
 }: Readonly<OpenedSpaceFolderProps>) {
+  const isMobile = useScreenSizeContext() === ScreenSize.Mobile;
   const aboveTargetRef = useRef<HTMLDivElement>(null);
   const belowTargetRef = useRef<HTMLDivElement>(null);
 
   const spaceDraggable: SidebarDraggable = useMemo(() => ({ folder, open: true }), [folder]);
 
-  const orderAbove = useDropTargetInstruction(spaceDraggable, aboveTargetRef, 'reorder-above');
-  const orderBelow = useDropTargetInstruction(spaceDraggable, belowTargetRef, 'reorder-below');
+  const orderAbove = useDropTargetInstruction(
+    spaceDraggable,
+    aboveTargetRef,
+    'reorder-above',
+    !isMobile
+  );
+  const orderBelow = useDropTargetInstruction(
+    spaceDraggable,
+    belowTargetRef,
+    'reorder-below',
+    !isMobile
+  );
 
   return (
     <SidebarFolder
@@ -644,7 +659,7 @@ function OpenedSpaceFolder({
       <SidebarFolderDropTarget ref={aboveTargetRef} position="Top" />
       <SidebarAvatar size="300" onContextMenu={onFolderContextMenu}>
         <IconButton data-id={folder.id} size="300" variant="Background" onClick={onClose}>
-          <Icon size="400" src={Icons.ChevronTop} filled />
+          {composerIcon(CaretUp, { weight: 'fill' })}
         </IconButton>
       </SidebarAvatar>
       {children}
@@ -670,12 +685,12 @@ function ClosedSpaceFolder({
   onFolderContextMenu,
 }: Readonly<ClosedSpaceFolderProps>) {
   const mx = useMatrixClient();
-  const useAuthentication = useMediaAuthentication();
+  const isMobile = useScreenSizeContext() === ScreenSize.Mobile;
   const handlerRef = useRef<HTMLDivElement>(null);
 
   const spaceDraggable: FolderDraggable = useMemo(() => ({ folder }), [folder]);
-  useDraggableItem(spaceDraggable, handlerRef, onDragging);
-  const dropState = useDropTarget(spaceDraggable, handlerRef);
+  useDraggableItem(spaceDraggable, handlerRef, onDragging, undefined, !isMobile);
+  const dropState = useDropTarget(spaceDraggable, handlerRef, !isMobile);
   const dropType = dropState?.type;
 
   const tooltipName = folderDefaultDisplayName(mx, folder);
@@ -683,7 +698,7 @@ function ClosedSpaceFolder({
   return (
     <RoomsUnreadProvider rooms={folder.content}>
       {(unread) => (
-        <SidebarItem
+        <SidebarItemLeft
           active={selected}
           ref={handlerRef}
           aria-disabled={disabled}
@@ -706,11 +721,8 @@ function ClosedSpaceFolder({
 
                   return (
                     <SidebarAvatar key={sId} size="200" radii="300">
-                      <RoomAvatar
-                        roomId={space.roomId}
-                        uniformIcons
-                        src={getRoomAvatarUrl(mx, space, 96, useAuthentication) ?? undefined}
-                        alt={space.name}
+                      <SpaceAvatar
+                        space={space}
                         renderFallback={() => (
                           <Text size="Inherit">
                             <b>{nameInitials(space.name, 2)}</b>
@@ -729,7 +741,7 @@ function ClosedSpaceFolder({
               count={unread.highlight > 0 ? unread.highlight : unread.total}
             />
           )}
-        </SidebarItem>
+        </SidebarItemLeft>
       )}
     </RoomsUnreadProvider>
   );
@@ -747,23 +759,22 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
   const [sidebarItems, localEchoSidebarItem] = useSidebarItems(orphanSpaces);
   const navToActivePath = useAtomValue(useNavToActivePathAtom());
   const [openedFolder, setOpenedFolder] = useAtom(useOpenedSidebarFolderAtom());
+  const setLastSpaceId = useSetAtom(lastVisitedSpaceIdAtom);
   const [draggingItem, setDraggingItem] = useState<SidebarDraggable>();
-  const [folderMenuState, setFolderMenuState] = useState<{
-    folder: ISidebarFolder;
-    anchor: RectCords;
-  }>();
+  const folderMenu = useMenuAnchor<HTMLDivElement>();
+  const [folderMenuTarget, setFolderMenuTarget] = useState<ISidebarFolder>();
   const [renameTargetFolder, setRenameTargetFolder] = useState<ISidebarFolder>();
 
   const handleFolderContextMenu = useCallback(
     (folder: ISidebarFolder): MouseEventHandler =>
       (evt) => {
         evt.preventDefault();
-        setFolderMenuState({
-          folder,
-          anchor: evt.currentTarget.getBoundingClientRect(),
-        });
+        setFolderMenuTarget(folder);
+        // Opening, not toggling: right-clicking a second folder while the first
+        // menu is open must move the menu, not close it.
+        folderMenu.open(evt.currentTarget as HTMLElement);
       },
-    []
+    [folderMenu]
   );
 
   const handleRenameFolderApply = useCallback(
@@ -814,7 +825,7 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
               const folderContent = item.folder.content.filter((s) => s !== item.spaceId);
               if (folderContent.length === 0) {
                 // remove open state from local storage
-                setOpenedFolder({ type: 'DELETE', id: item.folder.id });
+                setOpenedFolder({ type: 'DELETE', value: item.folder.id });
                 return;
               }
               newItems.push({
@@ -914,24 +925,21 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
 
   const selectedSpaceId = useSelectedSpace();
 
-  const handleSpaceClick: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    const target = evt.currentTarget;
-    const targetSpaceId = target.getAttribute('data-id');
-    if (!targetSpaceId) return;
-
-    const spacePath = getSpacePath(getCanonicalAliasOrRoomId(mx, targetSpaceId));
+  const handleSpaceClick = (spaceId: string) => {
+    setLastSpaceId(spaceId);
+    const spacePath = getSpacePath(getCanonicalAliasOrRoomId(mx, spaceId));
     if (screenSize === ScreenSize.Mobile) {
       navigate(spacePath);
       return;
     }
 
-    const activePath = navToActivePath.get(targetSpaceId);
+    const activePath = navToActivePath.get(spaceId);
     if (activePath?.pathname.startsWith(spacePath)) {
       navigate(joinPathComponent(activePath));
       return;
     }
 
-    navigate(getSpaceLobbyPath(getCanonicalAliasOrRoomId(mx, targetSpaceId)));
+    navigate(getSpaceLobbyPath(getCanonicalAliasOrRoomId(mx, spaceId)));
   };
 
   const handleFolderToggle: MouseEventHandler<HTMLButtonElement> = (evt) => {
@@ -941,7 +949,7 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
 
     setOpenedFolder({
       type: openedFolder.has(targetFolderId) ? 'DELETE' : 'PUT',
-      id: targetFolderId,
+      value: targetFolderId,
     });
   };
 
@@ -960,31 +968,26 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
   if (sidebarItems.length === 0) return null;
   return (
     <>
-      {folderMenuState && (
-        <PopOut
-          anchor={folderMenuState.anchor}
-          position="Right"
-          align="Start"
-          content={
-            <FocusTrap
-              focusTrapOptions={{
-                initialFocus: false,
-                returnFocusOnDeactivate: false,
-                onDeactivate: () => setFolderMenuState(undefined),
-                clickOutsideDeactivates: true,
-                isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
-                isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
-                escapeDeactivates: stopPropagation,
+      <ResponsiveMenu
+        anchor={folderMenu.anchor}
+        position="Right"
+        align="Start"
+        requestClose={() => {
+          folderMenu.close();
+          setFolderMenuTarget(undefined);
+        }}
+        menu={
+          folderMenuTarget && (
+            <FolderMenu
+              requestClose={() => {
+                folderMenu.close();
+                setFolderMenuTarget(undefined);
               }}
-            >
-              <FolderMenu
-                requestClose={() => setFolderMenuState(undefined)}
-                onRename={() => setRenameTargetFolder(folderMenuState.folder)}
-              />
-            </FocusTrap>
-          }
-        />
-      )}
+              onRename={() => setRenameTargetFolder(folderMenuTarget)}
+            />
+          )
+        }
+      />
       {renameTargetFolder && (
         <RenameFolderDialog
           mx={mx}
@@ -1016,7 +1019,7 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
                         key={space.roomId}
                         space={space}
                         selected={space.roomId === selectedSpaceId}
-                        onClick={handleSpaceClick}
+                        onSelect={handleSpaceClick}
                         folder={item}
                         onDragging={setDraggingItem}
                         disabled={
@@ -1055,7 +1058,7 @@ export function SpaceTabs({ scrollRef }: Readonly<SpaceTabsProps>) {
               key={space.roomId}
               space={space}
               selected={space.roomId === selectedSpaceId}
-              onClick={handleSpaceClick}
+              onSelect={handleSpaceClick}
               onDragging={setDraggingItem}
               disabled={typeof draggingItem === 'string' ? draggingItem === space.roomId : false}
               onUnpin={orphanSpaces.includes(space.roomId) ? undefined : handleUnpin}

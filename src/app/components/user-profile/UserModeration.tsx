@@ -1,14 +1,16 @@
-import { Box, Button, color, config, Icon, Icons, Spinner, Text, Input } from 'folds';
+import { Box, config, Spinner, Text, Input } from 'folds';
+import { ArrowLeft, ArrowRight, profileIcon, Prohibit } from '$components/icons/phosphor';
 import { useCallback, useRef } from 'react';
 import { useRoom } from '$hooks/useRoom';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
+import { AsyncError } from '$components/AsyncError';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { BreakWord } from '$styles/Text.css';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { timeDayMonYear, timeHourMinute } from '$utils/time';
 import { SettingTile } from '$components/setting-tile';
 import { CutoutCard } from '$components/cutout-card';
+import { Button } from '$components/button';
 
 type UserKickAlertProps = {
   reason?: string;
@@ -78,7 +80,6 @@ export function UserBanAlert({ userId, reason, canUnban, bannedBy, ts }: UserBan
     }, [mx, room, userId])
   );
   const banning = unbanState.status === AsyncStatus.Loading;
-  const error = unbanState.status === AsyncStatus.Error;
 
   return (
     <CutoutCard style={{ padding: config.space.S200 }} variant="Critical">
@@ -108,19 +109,17 @@ export function UserBanAlert({ userId, reason, canUnban, bannedBy, ts }: UserBan
               )}
             </Text>
           </Box>
-          {error && (
-            <Text className={BreakWord} size="T200" style={{ color: color.Critical.Main }}>
-              <b>{unbanState.error.message}</b>
-            </Text>
-          )}
+          <AsyncError state={unbanState} bold />
           {canUnban && (
             <Button
               size="300"
               variant="Critical"
               radii="300"
               onClick={unban}
-              before={banning && <Spinner size="100" variant="Critical" fill="Solid" />}
-              disabled={banning}
+              loading={banning}
+              spinnerSize="100"
+              spinnerVariant="Critical"
+              spinnerFill="Solid"
             >
               <Text size="B300">Unban</Text>
             </Button>
@@ -153,7 +152,6 @@ export function UserInviteAlert({ userId, reason, canKick, invitedBy, ts }: User
     }, [mx, room, userId])
   );
   const kicking = kickState.status === AsyncStatus.Loading;
-  const error = kickState.status === AsyncStatus.Error;
 
   return (
     <CutoutCard style={{ padding: config.space.S200 }} variant="Success">
@@ -183,11 +181,7 @@ export function UserInviteAlert({ userId, reason, canKick, invitedBy, ts }: User
               )}
             </Text>
           </Box>
-          {error && (
-            <Text className={BreakWord} size="T200" style={{ color: color.Critical.Main }}>
-              <b>{kickState.error.message}</b>
-            </Text>
-          )}
+          <AsyncError state={kickState} bold />
           {canKick && (
             <Button
               size="300"
@@ -196,8 +190,10 @@ export function UserInviteAlert({ userId, reason, canKick, invitedBy, ts }: User
               outlined
               radii="300"
               onClick={kick}
-              before={kicking && <Spinner size="100" variant="Success" fill="Soft" />}
-              disabled={kicking}
+              loading={kicking}
+              spinnerSize="100"
+              spinnerVariant="Success"
+              spinnerFill="Soft"
             >
               <Text size="B300">Cancel Invite</Text>
             </Button>
@@ -267,21 +263,9 @@ export function UserModeration({ userId, canKick, canBan, canInvite }: UserModer
             radii="300"
             disabled={disabled}
           />
-          {kickState.status === AsyncStatus.Error && (
-            <Text style={{ color: color.Critical.Main }} className={BreakWord} size="T200">
-              <b>{kickState.error.message}</b>
-            </Text>
-          )}
-          {banState.status === AsyncStatus.Error && (
-            <Text style={{ color: color.Critical.Main }} className={BreakWord} size="T200">
-              <b>{banState.error.message}</b>
-            </Text>
-          )}
-          {inviteState.status === AsyncStatus.Error && (
-            <Text style={{ color: color.Critical.Main }} className={BreakWord} size="T200">
-              <b>{inviteState.error.message}</b>
-            </Text>
-          )}
+          <AsyncError state={kickState} bold />
+          <AsyncError state={banState} bold />
+          <AsyncError state={inviteState} bold />
         </Box>
         <Box shrink="No" gap="200">
           {canInvite && (
@@ -295,7 +279,7 @@ export function UserModeration({ userId, canKick, canBan, canInvite }: UserModer
                 inviteState.status === AsyncStatus.Loading ? (
                   <Spinner size="50" variant="Secondary" fill="Soft" />
                 ) : (
-                  <Icon size="50" src={Icons.ArrowRight} />
+                  profileIcon(ArrowRight)
                 )
               }
               onClick={invite}
@@ -315,7 +299,7 @@ export function UserModeration({ userId, canKick, canBan, canInvite }: UserModer
                 kickState.status === AsyncStatus.Loading ? (
                   <Spinner size="50" variant="Critical" fill="Soft" />
                 ) : (
-                  <Icon size="50" src={Icons.ArrowLeft} />
+                  profileIcon(ArrowLeft)
                 )
               }
               onClick={kick}
@@ -335,7 +319,7 @@ export function UserModeration({ userId, canKick, canBan, canInvite }: UserModer
                 banState.status === AsyncStatus.Loading ? (
                   <Spinner size="50" variant="Critical" fill="Solid" />
                 ) : (
-                  <Icon size="50" src={Icons.Prohibited} />
+                  profileIcon(Prohibit)
                 )
               }
               onClick={ban}

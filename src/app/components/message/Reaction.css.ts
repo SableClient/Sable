@@ -68,6 +68,7 @@ export const ReactionImg = style([
   DefaultReset,
   {
     height: '1em',
+    width: 'auto',
     minWidth: 0,
     maxWidth: toRem(150),
     objectFit: 'contain',

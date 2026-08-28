@@ -1,1 +1,1 @@
-export { BugReportModalRenderer } from './BugReportModal';
+export { BugReportForm, buildGitHubUrl } from './BugReportForm';

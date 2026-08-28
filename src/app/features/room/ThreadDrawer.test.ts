@@ -14,7 +14,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { RelationType } from '$types/matrix-sdk';
-import { getThreadReplyEvents } from './ThreadDrawer';
+import { getThreadReplyEvents } from '$utils/room/relations';
 
 // ── Minimal MatrixEvent factory ───────────────────────────────────────────────
 

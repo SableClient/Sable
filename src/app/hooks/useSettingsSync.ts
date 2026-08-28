@@ -5,10 +5,11 @@ import type { MatrixEvent } from '$types/matrix-sdk';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useAccountDataCallback } from '$hooks/useAccountDataCallback';
 import { settingsAtom } from '$state/settings';
-import { deserializeFromSync, serializeForSync } from '$utils/settingsSync';
+import { deserializeFromSync, prepareSettingsForSync } from '$utils/settingsSync';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';
+import { backfillLocalTweakCss, hydrateSyncedLocalTweakCss } from '../theme/syncedTweakCss';
 
-export type SyncStatus = 'idle' | 'syncing' | 'error';
+export type SyncStatus = 'idle' | 'syncing' | 'partial' | 'error';
 
 /** Milliseconds to wait after a local settings change before uploading. */
 const DEBOUNCE_MS = 2000;
@@ -50,6 +51,7 @@ export function useSettingsSyncEffect(): void {
     const { synctoken: echoField, ...content } = event.getContent();
     const merged = deserializeFromSync(content, settingsRef.current);
     if (merged) {
+      void hydrateSyncedLocalTweakCss(merged.themeRemoteTweakFavorites);
       if (JSON.stringify(merged) !== JSON.stringify(settingsRef.current)) {
         setSettings(merged);
       }
@@ -57,29 +59,27 @@ export function useSettingsSyncEffect(): void {
     }
   }, [mx, syncEnabled, setSettings, setLastSynced]);
 
-  // Echo-detection: track the token of our last upload
-  // When our upload echoes back via ClientEvent.AccountData we skip applying it
-  // (to avoid overwriting settings that changed between upload and echo).
-  const pendingEchoTokenRef = useRef<string | null>(null);
+  const uploadGenerationRef = useRef(0);
+  const ownEchoesRef = useRef(new Map<string, { generation: number; status: SyncStatus }>());
 
   // Live updates from other devices
   const onAccountData = useCallback(
     (event: MatrixEvent) => {
       if (event.getType() !== (CustomAccountDataEvent.SableSettings as string)) return;
-      if (!settingsRef.current.settingsSyncEnabled) return;
-
       const rawContent = event.getContent();
-
-      // If this is the echo of our own upload, just confirm success and skip.
-      if (
-        typeof rawContent.synctoken === 'string' &&
-        rawContent.synctoken === pendingEchoTokenRef.current
-      ) {
-        pendingEchoTokenRef.current = null;
-        setLastSynced(Date.now());
-        setSyncStatus('idle');
+      const ownEcho =
+        typeof rawContent.synctoken === 'string'
+          ? ownEchoesRef.current.get(rawContent.synctoken)
+          : undefined;
+      if (ownEcho) {
+        ownEchoesRef.current.delete(rawContent.synctoken as string);
+        if (ownEcho.generation === uploadGenerationRef.current) {
+          setLastSynced(Date.now());
+          setSyncStatus(ownEcho.status);
+        }
         return;
       }
+      if (!settingsRef.current.settingsSyncEnabled) return;
 
       // Strip internal synctoken field before deserializing so stale tokens from
       // previous sessions (stored on the homeserver) don't bypass the check above
@@ -88,6 +88,7 @@ export function useSettingsSyncEffect(): void {
 
       // Otherwise it came from another device — apply it.
       const merged = deserializeFromSync(content, settingsRef.current);
+      if (merged) void hydrateSyncedLocalTweakCss(merged.themeRemoteTweakFavorites);
       // Skip if nothing actually changed (deserializeFromSync always returns a
       // new object, so compare values to avoid a spurious settings → upload loop).
       if (merged && JSON.stringify(merged) !== JSON.stringify(settingsRef.current)) {
@@ -103,25 +104,51 @@ export function useSettingsSyncEffect(): void {
   useAccountDataCallback(mx, onAccountData);
 
   // Debounced upload whenever settings change
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   useEffect(() => {
-    if (!syncEnabled) return undefined;
-
     clearTimeout(timerRef.current);
+    const generation = ++uploadGenerationRef.current;
+    if (!syncEnabled) {
+      setSyncStatus('idle');
+      return undefined;
+    }
+    let cancelled = false;
     timerRef.current = setTimeout(() => {
-      setSyncStatus('syncing');
-      const token = Math.random().toString(36).slice(2, 10);
-      pendingEchoTokenRef.current = token;
-      const content = { ...serializeForSync(settingsRef.current), synctoken: token };
-      mx.setAccountData(
-        CustomAccountDataEvent.SableSettings,
-        content as Record<string, unknown>
-      ).catch(() => {
-        pendingEchoTokenRef.current = null;
-        setSyncStatus('error');
-      });
+      void (async () => {
+        const current = settingsRef.current;
+        const themeRemoteTweakFavorites = await backfillLocalTweakCss(
+          current.themeRemoteTweakFavorites
+        );
+        if (
+          cancelled ||
+          generation !== uploadGenerationRef.current ||
+          !settingsRef.current.settingsSyncEnabled
+        )
+          return;
+        const prepared = prepareSettingsForSync({ ...current, themeRemoteTweakFavorites });
+        const token = Math.random().toString(36).slice(2, 10);
+        const completionStatus: SyncStatus =
+          prepared.excludedLocalTweakUrls.length > 0 ? 'partial' : 'idle';
+        ownEchoesRef.current.set(token, { generation, status: completionStatus });
+        setSyncStatus('syncing');
+        const content = {
+          ...prepared.content,
+          synctoken: token,
+        };
+        mx.setAccountData(
+          CustomAccountDataEvent.SableSettings,
+          content as Record<string, unknown>
+        ).catch(() => {
+          ownEchoesRef.current.delete(token);
+          if (generation === uploadGenerationRef.current) setSyncStatus('error');
+        });
+      })();
     }, DEBOUNCE_MS);
 
-    return () => clearTimeout(timerRef.current);
+    return () => {
+      cancelled = true;
+      if (generation === uploadGenerationRef.current) uploadGenerationRef.current += 1;
+      clearTimeout(timerRef.current);
+    };
   }, [mx, settings, syncEnabled, setSyncStatus]);
 }

@@ -1,41 +1,71 @@
-import type { ReactNode } from 'react';
-import { useCallback, useEffect, useState } from 'react';
+import type { ReactNode, SyntheticEvent } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Badge,
   Box,
   Button,
   Chip,
-  Icon,
-  Icons,
   Menu,
   MenuItem,
   Spinner,
   Text,
   Tooltip,
-  TooltipProvider,
   as,
   config,
 } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
+import { Eye, EyeSlash, menuIcon, sizedIcon, Play, Warning } from '$components/icons/phosphor';
 import classNames from 'classnames';
+import { isTauri } from '@tauri-apps/api/core';
 import { BlurhashCanvas } from 'react-blurhash';
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
 import type { IThumbnailContent, IVideoInfo } from '$types/matrix/common';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { bytesToSize, millisecondsToMinutesAndSeconds } from '$utils/common';
-import { decryptFile, downloadEncryptedMedia, downloadMedia, mxcUrlToHttp } from '$utils/matrix';
+import {
+  decryptFile,
+  downloadEncryptedMedia,
+  downloadMedia,
+  mxcUrlToHttp,
+  rewriteAuthenticatedMediaUrl,
+} from '$utils/matrix';
+import {
+  addTauriMediaRetryRevision,
+  getTauriMediaRetryTarget,
+  prepareLoopbackMedia,
+} from '$utils/mediaUrl';
+import { setMediaEncryption } from '$utils/tauriMediaEncryption';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useCreateObjectURL } from '$hooks/useObjectURL';
 import { validBlurHash } from '$utils/blurHash';
 import * as css from './style.css';
 import { MATRIX_UNSTABLE_BLUR_HASH_PROPERTY_NAME } from '../../../../unstable/prefixes';
+import { probeSWMediaAuthSupport } from '$utils/swMediaAuth';
+import { createDebugLogger } from '$utils/debugLogger';
+
+const logger = createDebugLogger('videoContent');
+
+// Diagnostics bundles drop the `data` field, so details have to go in the message.
+// URLs are redacted there, hence the scheme only.
+const srcScheme = (src: string): string => src.split(':', 1)[0] ?? 'unknown';
+
+const MEDIA_ERROR_CODES: Record<number, string> = {
+  1: 'ABORTED',
+  2: 'NETWORK',
+  3: 'DECODE',
+  4: 'SRC_NOT_SUPPORTED',
+};
 
 type RenderVideoProps = {
   title: string;
   src: string;
-  onLoadedMetadata: () => void;
-  onError: () => void;
+  // Base SyntheticEvent because ClientPreview renders an <iframe> through this slot.
+  onLoadedMetadata: (event: SyntheticEvent) => void;
+  onError: (event: SyntheticEvent) => void;
   autoPlay: boolean;
   controls: boolean;
+  crossOrigin?: 'anonymous';
 };
 type VideoContentProps = {
   body: string;
@@ -73,8 +103,19 @@ export const VideoContent = as<'div', VideoContentProps>(
 
     const [load, setLoad] = useState(false);
     const [error, setError] = useState(false);
+    // Tauri only: each retry gets a distinct sable-media:// src.
+    const retryRevisionRef = useRef(0);
     const [blurred, setBlurred] = useState(markedAsSpoiler ?? false);
     const [isHovered, setIsHovered] = useState(false);
+
+    const createObjectURL = useCreateObjectURL();
+    // Set when the streaming URL already failed once for this attachment; any
+    // further load uses the token-attached blob path instead of the SW.
+    const preferBlobRef = useRef(false);
+
+    useEffect(() => {
+      preferBlobRef.current = false;
+    }, [url]);
 
     const [srcState, loadSrc] = useAsyncCallback(
       useCallback(async () => {
@@ -82,30 +123,113 @@ export const VideoContent = as<'div', VideoContentProps>(
 
         const mediaUrl = mxcUrlToHttp(mx, url, useAuthentication);
         if (!mediaUrl) throw new Error('Invalid media URL');
-        const fileContent = encInfo
-          ? await downloadEncryptedMedia(mediaUrl, (encBuf) =>
-              decryptFile(encBuf, mimeType, encInfo)
-            )
-          : await downloadMedia(mediaUrl);
-        return URL.createObjectURL(fileContent);
-      }, [mx, url, useAuthentication, mimeType, encInfo])
+        if (!encInfo) {
+          if (isTauri()) {
+            const attemptedTarget = addTauriMediaRetryRevision(mediaUrl, retryRevisionRef.current);
+            return prepareLoopbackMedia(attemptedTarget);
+          }
+          // Stream through the service worker only after it proved media-auth
+          // support; a stale SW build would otherwise serve the bare URL to
+          // the homeserver and the element would fail with a 4xx.
+          if (!preferBlobRef.current && (await probeSWMediaAuthSupport())) return mediaUrl;
+          return createObjectURL(downloadMedia(mediaUrl, { forceDirectAuth: true }));
+        }
+        if (isTauri()) {
+          const attemptedTarget =
+            getTauriMediaRetryTarget(mediaUrl, retryRevisionRef.current) ?? mediaUrl;
+          await setMediaEncryption(attemptedTarget, encInfo, mimeType);
+          const source = rewriteAuthenticatedMediaUrl(attemptedTarget)!;
+          return prepareLoopbackMedia(source);
+        }
+        return createObjectURL(
+          downloadEncryptedMedia(mediaUrl, (encBuf) => decryptFile(encBuf, mimeType, encInfo))
+        );
+      }, [mx, url, useAuthentication, mimeType, encInfo, createObjectURL])
     );
 
-    const handleLoad = () => {
+    // When the source download succeeds, reset video-element error state so the
+    // Retry button doesn't flash before the <video> has had a chance to load.
+    useEffect(() => {
+      if (srcState.status === AsyncStatus.Success) {
+        setError(false);
+        logger.info(
+          'media',
+          `Video source resolved: mime=${mimeType || 'unset'} scheme=${srcScheme(srcState.data)} ` +
+            `encrypted=${Boolean(encInfo)} size=${info.size ?? 'unknown'} ` +
+            `canPlayType=${document.createElement('video').canPlayType(mimeType) || 'no'} ` +
+            `attempt=${retryRevisionRef.current}`
+        );
+      }
+      if (srcState.status === AsyncStatus.Error) {
+        logger.error(
+          'media',
+          `Video source failed: mime=${mimeType || 'unset'} encrypted=${Boolean(encInfo)} ` +
+            `attempt=${retryRevisionRef.current}`,
+          srcState.error instanceof Error ? srcState.error : undefined
+        );
+      }
+    }, [srcState, mimeType, encInfo, info.size]);
+
+    const streamsAuthenticatedMedia =
+      srcState.status === AsyncStatus.Success &&
+      !url.startsWith('http') &&
+      !srcState.data.startsWith('blob:');
+
+    const handleLoad = (event: SyntheticEvent) => {
+      const video = event.currentTarget;
+      if (video instanceof HTMLVideoElement) {
+        logger.info(
+          'media',
+          `Video metadata loaded: mime=${mimeType || 'unset'} ` +
+            `dimensions=${video.videoWidth}x${video.videoHeight} duration=${video.duration}`
+        );
+      }
       setLoad(true);
+      setError(false);
     };
-    const handleError = () => {
-      setLoad(false);
-      setError(true);
+    const handleError = (event: SyntheticEvent) => {
+      const video = event.currentTarget;
+      if (video instanceof HTMLVideoElement) {
+        const code = video.error?.code;
+        logger.error(
+          'media',
+          `Video element error: code=${code ?? 'none'}(${(code && MEDIA_ERROR_CODES[code]) || 'unknown'}) ` +
+            `message=${video.error?.message || 'none'} mime=${mimeType || 'unset'} ` +
+            `scheme=${srcScheme(video.currentSrc || video.src)} encrypted=${Boolean(encInfo)} ` +
+            `readyState=${video.readyState} networkState=${video.networkState} ` +
+            `attempt=${retryRevisionRef.current} sourceStatus=${srcState.status}`
+        );
+      }
+      // Only show the error if the source download already succeeded — if
+      // it's still loading the video element may fire a transient error
+      // before the blob URL is ready.
+      if (srcState.status === AsyncStatus.Success) {
+        // The streaming URL failed (e.g. a stale service worker acknowledged
+        // the probe but still cannot serve the media): retry once through the
+        // blob path, which attaches the access token in JavaScript.
+        if (
+          !preferBlobRef.current &&
+          !isTauri() &&
+          !url.startsWith('http') &&
+          !srcState.data.startsWith('blob:')
+        ) {
+          preferBlobRef.current = true;
+          loadSrc().catch(() => undefined);
+          return;
+        }
+        setLoad(false);
+        setError(true);
+      }
     };
 
     const handleRetry = () => {
       setError(false);
-      loadSrc();
+      retryRevisionRef.current += 1;
+      loadSrc().catch(() => undefined);
     };
 
     useEffect(() => {
-      if (autoPlay) loadSrc();
+      if (autoPlay) loadSrc().catch(() => undefined);
     }, [autoPlay, loadSrc]);
 
     return (
@@ -147,7 +271,7 @@ export const VideoContent = as<'div', VideoContentProps>(
               radii="300"
               size="300"
               onClick={loadSrc}
-              before={<Icon size="Inherit" src={Icons.Play} filled />}
+              before={sizedIcon(Play, 'Inherit', { filled: true })}
             >
               <Text size="B300">Watch</Text>
             </Button>
@@ -162,6 +286,10 @@ export const VideoContent = as<'div', VideoContentProps>(
               onError: handleError,
               autoPlay: false,
               controls: true,
+              // Firefox blocks media Range responses it cannot sniff as audio/video (mozilla bug
+              // 1880289); requesting with CORS opts out. External URLs are left alone since we
+              // cannot assume they send Access-Control-Allow-Origin.
+              crossOrigin: streamsAuthenticatedMedia ? 'anonymous' : undefined,
             })}
           </Box>
         )}
@@ -173,7 +301,7 @@ export const VideoContent = as<'div', VideoContentProps>(
             onClick={() => {
               setBlurred(false);
               if (srcState.status === AsyncStatus.Idle) {
-                loadSrc();
+                loadSrc().catch(() => undefined);
               }
             }}
           >
@@ -185,7 +313,7 @@ export const VideoContent = as<'div', VideoContentProps>(
               onClick={() => {
                 setBlurred(false);
                 if (srcState.status === AsyncStatus.Idle) {
-                  loadSrc();
+                  loadSrc().catch(() => undefined);
                 }
               }}
             >
@@ -199,12 +327,13 @@ export const VideoContent = as<'div', VideoContentProps>(
         )}
         {(srcState.status === AsyncStatus.Loading || srcState.status === AsyncStatus.Success) &&
           !load &&
+          !error &&
           !blurred && (
             <Box className={css.AbsoluteContainer} alignItems="Center" justifyContent="Center">
               <Spinner variant="Secondary" />
             </Box>
           )}
-        {(error || srcState.status === AsyncStatus.Error) && (
+        {!load && (error || srcState.status === AsyncStatus.Error) && (
           <Box
             className={css.AbsoluteContainer}
             alignItems="Center"
@@ -229,7 +358,7 @@ export const VideoContent = as<'div', VideoContentProps>(
                   outlined
                   radii="300"
                   onClick={handleRetry}
-                  before={<Icon size="Inherit" src={Icons.Warning} filled />}
+                  before={sizedIcon(Warning, 'Inherit', { filled: true })}
                 >
                   <Text size="B300">Retry</Text>
                 </Button>
@@ -242,7 +371,6 @@ export const VideoContent = as<'div', VideoContentProps>(
             <Menu style={{ padding: config.space.S0 }}>
               <MenuItem
                 size="300"
-                after={<Icon size="200" src={blurred ? Icons.Eye : Icons.EyeBlind} />}
                 radii="300"
                 fill="Soft"
                 variant="Secondary"
@@ -250,11 +378,13 @@ export const VideoContent = as<'div', VideoContentProps>(
                 onClick={(e) => {
                   e.preventDefault();
                   if (srcState.status === AsyncStatus.Idle) {
-                    loadSrc();
+                    loadSrc().catch(() => undefined);
                     setBlurred(false);
                   } else setBlurred(!blurred);
                 }}
-              />
+              >
+                {menuIcon(blurred ? Eye : EyeSlash)}
+              </MenuItem>
             </Menu>
           </Box>
         )}

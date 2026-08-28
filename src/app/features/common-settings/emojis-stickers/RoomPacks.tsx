@@ -3,24 +3,21 @@ import { useCallback, useMemo, useState } from 'react';
 import {
   Box,
   Text,
-  Button,
-  Icon,
-  Icons,
   Avatar,
   AvatarImage,
   AvatarFallback,
   toRem,
   config,
   Input,
-  Spinner,
   color,
   IconButton,
   Menu,
 } from 'folds';
+import { composerIcon, menuIcon, Plus, Sticker, X } from '$components/icons/phosphor';
 import type { MatrixError } from '$types/matrix-sdk';
-import { SequenceCard } from '$components/sequence-card';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import type { ImagePack, PackAddress, PackContent } from '$plugins/custom-emoji';
-import { ImageUsage, packAddressEqual } from '$plugins/custom-emoji';
+import { getImagePackStateEventTypes, ImageUsage, packAddressEqual } from '$plugins/custom-emoji';
 import { useRoom } from '$hooks/useRoom';
 import { useRoomImagePacks } from '$hooks/useImagePacks';
 import { LineClamp2 } from '$styles/Text.css';
@@ -28,6 +25,7 @@ import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
 import { usePowerLevels } from '$hooks/usePowerLevels';
 
 import { suffixRename } from '$utils/common';
@@ -35,8 +33,13 @@ import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useAlive } from '$hooks/useAlive';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
-import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import { CustomStateEvent } from '$types/matrix/room';
+import { Button } from '$components/button';
+
+function PackAvatarImage({ url }: { url: string }) {
+  const resolved = useRenderableMediaUrl(url);
+  return <AvatarImage style={{ objectFit: 'contain' }} src={resolved ?? url} />;
+}
 
 type CreatePackTileProps = {
   packs: ImagePack[];
@@ -54,7 +57,7 @@ function CreatePackTile({ packs, roomId }: Readonly<CreatePackTileProps>) {
             display_name: name,
           },
         };
-        await mx.sendStateEvent(roomId, CustomStateEvent.PoniesRoomEmotes, content, stateKey);
+        await mx.sendStateEvent(roomId, CustomStateEvent.ImagePack, content, stateKey);
       },
       [mx, roomId]
     )
@@ -124,8 +127,9 @@ function CreatePackTile({ packs, roomId }: Readonly<CreatePackTileProps>) {
             variant="Success"
             radii="300"
             type="submit"
-            disabled={creating}
-            before={creating && <Spinner size="200" variant="Success" fill="Solid" />}
+            loading={creating}
+            spinnerSize="200"
+            spinnerVariant="Success"
           >
             <Text size="B400">Create</Text>
           </Button>
@@ -148,7 +152,7 @@ export function RoomPacks({ onViewPack }: Readonly<RoomPacksProps>) {
   const creators = useRoomCreators(room);
 
   const permissions = useRoomPermissions(creators, powerLevels);
-  const canEdit = permissions.stateEvent(CustomStateEvent.PoniesRoomEmotes, mx.getSafeUserId());
+  const canCreate = permissions.stateEvent(CustomStateEvent.ImagePack, mx.getSafeUserId());
 
   const unfilteredPacks = useRoomImagePacks(room);
   const packs = useMemo(() => unfilteredPacks.filter((pack) => !pack.deleted), [unfilteredPacks]);
@@ -158,12 +162,13 @@ export function RoomPacks({ onViewPack }: Readonly<RoomPacksProps>) {
 
   const [applyState, applyChanges] = useAsyncCallback(
     useCallback(async () => {
-      for (let i = 0; i < removedPacks.length; i += 1) {
-        const addr = removedPacks[i];
-        if (!addr) continue;
-        // oxlint-disable-next-line no-await-in-loop
-        await mx.sendStateEvent(room.roomId, CustomStateEvent.PoniesRoomEmotes, {}, addr.stateKey);
-      }
+      await Promise.all(
+        removedPacks.flatMap((addr) =>
+          getImagePackStateEventTypes(room, addr.stateKey).map((eventType) =>
+            mx.sendStateEvent(room.roomId, eventType, {}, addr.stateKey)
+          )
+        )
+      );
     }, [mx, room, removedPacks])
   );
   const applyingChanges = applyState.status === AsyncStatus.Loading;
@@ -191,6 +196,9 @@ export function RoomPacks({ onViewPack }: Readonly<RoomPacksProps>) {
     const avatarUrl = avatarMxc ? mxcUrlToHttp(mx, avatarMxc, useAuthentication) : undefined;
     const { address } = pack;
     if (!address) return null;
+    const canEdit = getImagePackStateEventTypes(room, address.stateKey).every((eventType) =>
+      permissions.stateEvent(eventType, mx.getSafeUserId())
+    );
     const removed = removedPacks.some((addr) => packAddressEqual(addr, address));
 
     return (
@@ -219,7 +227,7 @@ export function RoomPacks({ onViewPack }: Readonly<RoomPacksProps>) {
                     onClick={() => handleUndoRemove(address)}
                     disabled={applyingChanges}
                   >
-                    <Icon src={Icons.Plus} size="100" />
+                    {menuIcon(Plus)}
                   </IconButton>
                 ) : (
                   <IconButton
@@ -229,16 +237,14 @@ export function RoomPacks({ onViewPack }: Readonly<RoomPacksProps>) {
                     onClick={() => handleRemove(address)}
                     disabled={applyingChanges}
                   >
-                    <Icon src={Icons.Cross} size="100" />
+                    {menuIcon(X)}
                   </IconButton>
                 ))}
               <Avatar size="300" radii="300">
                 {avatarUrl ? (
-                  <AvatarImage style={{ objectFit: 'contain' }} src={avatarUrl} />
+                  <PackAvatarImage url={avatarUrl} />
                 ) : (
-                  <AvatarFallback>
-                    <Icon size="400" src={Icons.Sticker} filled />
-                  </AvatarFallback>
+                  <AvatarFallback>{composerIcon(Sticker, { weight: 'fill' })}</AvatarFallback>
                 )}
               </Avatar>
             </Box>
@@ -266,7 +272,7 @@ export function RoomPacks({ onViewPack }: Readonly<RoomPacksProps>) {
     <>
       <Box direction="Column" gap="100">
         <Text size="L400">Packs</Text>
-        {canEdit && <CreatePackTile roomId={room.roomId} packs={packs} />}
+        {canCreate && <CreatePackTile roomId={room.roomId} packs={packs} />}
         {packs.map(renderPack)}
         {packs.length === 0 && (
           <SequenceCard
@@ -337,7 +343,9 @@ export function RoomPacks({ onViewPack }: Readonly<RoomPacksProps>) {
                 variant="Critical"
                 radii="300"
                 disabled={applyingChanges}
-                before={applyingChanges && <Spinner variant="Critical" fill="Solid" size="100" />}
+                loading={applyingChanges}
+                spinnerVariant="Critical"
+                spinnerSize="100"
                 onClick={handleApplyChanges}
               >
                 <Text size="B300">Delete</Text>

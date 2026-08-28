@@ -6,18 +6,9 @@ import type {
 } from 'react';
 import { useEffect, useRef, useState } from 'react';
 import type { RectCords } from 'folds';
-import {
-  Header,
-  Icon,
-  IconButton,
-  Icons,
-  Input,
-  Menu,
-  MenuItem,
-  PopOut,
-  Text,
-  config,
-} from 'folds';
+import { Header, IconButton, Input, Menu, MenuItem, Text, config } from 'folds';
+import { PopOut } from '$components/overlay-stack';
+import { composerIcon, CaretDown } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 
 import { useDebounce } from '$hooks/useDebounce';
@@ -159,7 +150,7 @@ export function ServerPicker({
               aria-pressed={!!serverMenuAnchor}
               radii="300"
             >
-              <Icon src={Icons.ChevronBottom} />
+              {composerIcon(CaretDown)}
             </IconButton>
           </PopOut>
         )

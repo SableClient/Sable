@@ -1,14 +1,19 @@
 import { useAtom } from 'jotai';
-import type { ReactNode } from 'react';
+import type { TouchEvent } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Box, Icon, IconButton, Icons, Text } from 'folds';
+import { Box, IconButton, Text } from 'folds';
+import { sizedIcon, X } from '$components/icons/phosphor';
 import { createLogger } from '$utils/debug';
 import type { InAppBannerNotification } from '$state/sessions';
 import { inAppBannerAtom } from '$state/sessions';
+import { MessagePreview, useRoomMessagePreviewRenderer } from '$components/message-preview';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
 import * as css from './NotificationBanner.css';
 
 const log = createLogger('NotificationBanner');
 const BANNER_DURATION_MS = 5000;
+const DISMISS_SWIPE_DISTANCE = 150;
 
 // Renders body text capped at a max height with a gradient fade when it overflows.
 function BodyText({ text, hovered }: { text: string; hovered: boolean }) {
@@ -30,56 +35,67 @@ function BodyText({ text, hovered }: { text: string; hovered: boolean }) {
   );
 }
 
-// Same as BodyText but renders a pre-built ReactNode (rich HTML with mxc/mention transforms).
-function BodyNode({ node, hovered }: { node: ReactNode; hovered: boolean }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [overflow, setOverflow] = useState(false);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    setOverflow(el.scrollHeight > el.clientHeight);
-  }, [node]);
-
-  return (
-    <div ref={ref} className={css.BannerBody} data-overflow={overflow} data-hovered={hovered}>
-      <Text size="T200" priority="300">
-        {node}
-      </Text>
-    </div>
-  );
-}
-
 type BannerItemProps = {
   notification: InAppBannerNotification;
   onDismiss: (id: string) => void;
 };
 
+function BannerMessage({ notification }: { notification: InAppBannerNotification }) {
+  const room = notification.room!;
+  const event = notification.event!;
+  const renderContent = useRoomMessagePreviewRenderer(room);
+  const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
+  const [dateFormatString] = useSetting(settingsAtom, 'dateFormatString');
+
+  return (
+    <MessagePreview
+      room={room}
+      event={event}
+      renderContent={renderContent}
+      actions={
+        notification.roomName && (
+          <Text size="T200" priority="300" truncate>
+            #{notification.roomName}
+          </Text>
+        )
+      }
+      hour24Clock={hour24Clock}
+      dateFormatString={dateFormatString}
+    />
+  );
+}
+
+type DismissDirection = 'up' | 'left' | 'right';
+
 function BannerItem({ notification, onDismiss }: BannerItemProps) {
-  const [dismissing, setDismissing] = useState(false);
+  const [dismissing, setDismissing] = useState<DismissDirection | undefined>();
   const [paused, setPaused] = useState(false);
-  const dismissedRef = useRef(false);
   const dismissAnimTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const elapsedRef = useRef(0);
 
-  // Use a ref to guard against double-dismiss without creating a new callback identity.
-  const dismiss = useCallback(() => {
-    if (dismissedRef.current) return;
-    dismissedRef.current = true;
-    setDismissing(true);
-    dismissAnimTimerRef.current = setTimeout(() => onDismiss(notification.id), 200);
-  }, [notification.id, onDismiss]);
+  const [gesture, setGesture] = useState<{ startX: number; startY: number } | undefined>();
+  const [swipeDistance, setSwipeDistance] = useState(0);
 
-  // Auto-dismiss timer — only runs when not paused.
+  // Use a ref to guard against double-dismiss without creating a new callback identity.
+  const dismiss = useCallback(
+    (direction: DismissDirection) => {
+      if (dismissing) return;
+      setDismissing(direction);
+      dismissAnimTimerRef.current = setTimeout(() => onDismiss(notification.id), 200);
+    },
+    [notification.id, onDismiss, dismissing]
+  );
+
+  // Auto-dismiss timer  Eonly runs when not paused.
   useEffect(() => {
     if (paused) return undefined;
     const remaining = BANNER_DURATION_MS - elapsedRef.current;
     if (remaining <= 0) {
-      dismiss();
+      dismiss('up');
       return undefined;
     }
     const startedAt = Date.now();
-    const t = setTimeout(dismiss, remaining);
+    const t = setTimeout(() => dismiss('up'), remaining);
     return () => {
       clearTimeout(t);
       // Accumulate time spent un-paused so we can resume from the right point.
@@ -96,75 +112,142 @@ function BannerItem({ notification, onDismiss }: BannerItemProps) {
 
   const handleClick = () => {
     notification.onClick();
-    dismiss();
+    dismiss('up');
   };
 
   // When hovering, pause the auto-dismiss timer.
-  const handleMouseEnter = () => setPaused(true);
-  const handleMouseLeave = () => setPaused(false);
+  const handleMouseEnter = useCallback(() => setPaused(true), []);
+  const handleMouseLeave = useCallback(() => setPaused(false), []);
+
+  const release = useCallback(
+    (commit: boolean) => {
+      setPaused(false);
+
+      if (commit && Math.abs(swipeDistance) > DISMISS_SWIPE_DISTANCE) {
+        // Continue off the side of the screen
+        dismiss(swipeDistance > 0 ? 'right' : 'left');
+      } else {
+        // Spring back to center
+        setSwipeDistance(0);
+        setGesture(undefined);
+      }
+    },
+    [dismiss, swipeDistance]
+  );
+
+  const handleTouchStart = useCallback(
+    (event: TouchEvent) => {
+      const touch = event.touches[0];
+      if (!touch || event.touches.length !== 1) {
+        release(false);
+        return;
+      }
+
+      setPaused(true);
+
+      setGesture({
+        startX: touch.clientX,
+        startY: touch.clientY,
+      });
+    },
+    [release]
+  );
+  const handleTouchMove = useCallback(
+    (event: TouchEvent) => {
+      if (dismissing) return;
+      const touch = event.touches[0];
+      if (!gesture || !touch) return;
+
+      setSwipeDistance(touch.clientX - gesture.startX);
+    },
+    [dismissing, gesture]
+  );
+  const handleTouchEnd = useCallback(() => {
+    if (dismissing) return;
+    release(true);
+  }, [dismissing, release]);
+  const handleTouchCancel = useCallback(() => {
+    if (dismissing) return;
+    release(false);
+  }, [dismissing, release]);
 
   return (
     <div
-      className={css.Banner}
+      className={css.BannerWrapper}
       data-dismissing={dismissing}
-      onClick={handleClick}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') handleClick();
-        if (e.key === 'Escape') dismiss();
-      }}
+      data-swiping={gesture !== undefined}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchCancel={handleTouchCancel}
+      onTouchEnd={handleTouchEnd}
+      style={{
+        transform: `translateX(${swipeDistance}px)`,
+        willChange: 'transform',
+      }}
     >
-      {notification.icon && (
-        <img
-          src={notification.icon}
-          alt=""
-          className={css.BannerIcon}
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).style.display = 'none';
-          }}
-        />
-      )}
-      <div className={css.BannerContent}>
-        <Text size="T300" truncate className={css.BannerTitle}>
-          {notification.senderName ?? notification.title}
-          {(notification.roomName || notification.serverName) && (
-            <span className={css.BannerSubtitle}>
-              {' (​'}
-              {notification.roomName && `#${notification.roomName}`}
-              {notification.roomName && notification.serverName && ', '}
-              {notification.serverName})
-            </span>
-          )}
-        </Text>
-        {notification.bodyNode ? (
-          <BodyNode node={notification.bodyNode} hovered={paused} />
-        ) : (
-          notification.body && <BodyText text={notification.body} hovered={paused} />
-        )}
-      </div>
-      <Box shrink="No">
-        <IconButton
-          size="300"
-          variant="Surface"
-          fill="None"
-          radii="300"
-          onClick={(e) => {
-            e.stopPropagation();
-            dismiss();
-          }}
-          aria-label="Dismiss notification"
-        >
-          <Icon size="100" src={Icons.Cross} />
-        </IconButton>
-      </Box>
       <div
-        className={css.ProgressBar}
-        data-paused={paused}
-        style={{ animationDuration: `${BANNER_DURATION_MS - elapsedRef.current}ms` }}
-      />
+        className={css.Banner}
+        onClick={handleClick}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') handleClick();
+          if (e.key === 'Escape') dismiss('up');
+        }}
+      >
+        {!notification.event && notification.icon && (
+          <img
+            src={notification.icon}
+            alt=""
+            className={css.BannerIcon}
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).style.display = 'none';
+            }}
+          />
+        )}
+        <div className={css.BannerContent}>
+          {notification.room && notification.event ? (
+            <BannerMessage notification={notification} />
+          ) : (
+            <>
+              <Text size="T300" truncate className={css.BannerTitle}>
+                {notification.senderName ?? notification.title}
+                {(notification.roomName || notification.serverName) && (
+                  <span className={css.BannerSubtitle}>
+                    {' ('}
+                    {notification.roomName && `#${notification.roomName}`}
+                    {notification.roomName && notification.serverName && ', '}
+                    {notification.serverName})
+                  </span>
+                )}
+              </Text>
+              {notification.body && <BodyText text={notification.body} hovered={paused} />}
+            </>
+          )}
+        </div>
+        <Box shrink="No">
+          <IconButton
+            size="300"
+            variant="Surface"
+            fill="None"
+            radii="300"
+            onClick={(e) => {
+              e.stopPropagation();
+              dismiss('up');
+            }}
+            aria-label="Dismiss notification"
+          >
+            {sizedIcon(X, '100')}
+          </IconButton>
+        </Box>
+        <div
+          className={css.ProgressBar}
+          data-paused={paused}
+          style={{ animationDuration: `${BANNER_DURATION_MS}ms` }}
+        />
+      </div>
     </div>
   );
 }
@@ -191,14 +274,13 @@ export function NotificationBanner() {
       if (!container) return;
 
       const visualViewport = window.visualViewport!;
-      // Calculate how much of the screen is covered by the keyboard
-      // When keyboard opens, visualViewport.height shrinks
-      const keyboardHeight = window.innerHeight - visualViewport.height;
+      // The banner is fixed to the layout viewport, so iOS scrolls it off the top when the
+      // keyboard pushes the visual viewport down. offsetTop is that shift.
+      const shift = Math.round(visualViewport.offsetTop);
 
-      // Position the banner down by the keyboard height so it appears at the top of the visible area
-      // This puts it "halfway down the page" when keyboard covers half the screen
-      if (keyboardHeight > 0) {
-        container.style.top = `${keyboardHeight}px`;
+      if (shift > 0) {
+        // Keep the safe-area inset, otherwise the banner slides under the status bar.
+        container.style.top = `calc(var(--safe-area-inset-top, env(safe-area-inset-top, 0px)) + ${shift}px)`;
       } else {
         // Reset to CSS default (env(safe-area-inset-top))
         container.style.top = '';
@@ -226,7 +308,7 @@ export function NotificationBanner() {
         log.log('[Banner] Duplicate banner, skipping:', banner.id);
         return prev;
       }
-      // Keep at most 3 visible at once — drop the oldest if over limit.
+      // Keep at most 3 visible at once  Edrop the oldest if over limit.
       const next = [...prev, banner];
       log.log('[Banner] Adding to queue, new length:', next.length);
       return next.length > 3 ? next.slice(next.length - 3) : next;

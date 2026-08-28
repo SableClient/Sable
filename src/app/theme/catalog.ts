@@ -1,6 +1,7 @@
 import { parseGithubRawBaseUrl, rawFileUrl, type GithubRawParts } from './githubRaw';
+import { fetch } from '$utils/fetch';
 
-export type GithubContentItem = {
+type GithubContentItem = {
   name: string;
   path: string;
   type: 'file' | 'dir';
@@ -21,12 +22,6 @@ export type TweakCatalogEntry = {
 export type ThemeCatalogBundle = {
   themes: ThemePair[];
   tweaks: TweakCatalogEntry[];
-};
-
-export type ThemeCatalogManifest = {
-  version?: number;
-  themes?: ThemePair[];
-  tweaks?: TweakCatalogEntry[];
 };
 
 export type ListThemeCatalogOptions = {
@@ -187,12 +182,4 @@ export async function listThemePairsFromCatalog(
 ): Promise<ThemePair[]> {
   const bundle = await fetchThemeCatalogBundle(baseUrl, options);
   return bundle.themes;
-}
-
-export async function listTweakEntriesFromCatalog(
-  baseUrl: string,
-  options?: ListThemeCatalogOptions
-): Promise<TweakCatalogEntry[]> {
-  const bundle = await fetchThemeCatalogBundle(baseUrl, options);
-  return bundle.tweaks;
 }

@@ -1,10 +1,11 @@
 import type { RefObject } from 'react';
 import { useEffect, useMemo, useRef } from 'react';
-import { Text, Box, Icon, Icons, config, Spinner, IconButton, Line, toRem } from 'folds';
+import { Text, Box, config, Spinner, IconButton, Line, toRem } from 'folds';
+import { CaretUp, ChatCircle, dropzoneIcon, sizedIcon, Info } from '$components/icons/phosphor';
 import { useAtomValue } from 'jotai';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { useInfiniteQuery } from '@tanstack/react-query';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router';
 import { SearchOrderBy } from '$types/matrix-sdk';
 import { PageHero, PageHeroEmpty, PageHeroSection } from '$components/page';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -55,10 +56,6 @@ export function MessageSearch({
   const mx = useMatrixClient();
   const mDirects = useAtomValue(mDirectAtom);
   const allRooms = useRooms(mx, allRoomsAtom, mDirects);
-  const [mediaAutoLoad] = useSetting(settingsAtom, 'mediaAutoLoad');
-  const [urlPreview] = useSetting(settingsAtom, 'urlPreview');
-  const [legacyUsernameColor] = useSetting(settingsAtom, 'legacyUsernameColor');
-
   const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
   const [dateFormatString] = useSetting(settingsAtom, 'dateFormatString');
 
@@ -202,7 +199,7 @@ export function MessageSearch({
           size="300"
           aria-label="Scroll to Top"
         >
-          <Icon src={Icons.ChevronTop} size="300" />
+          {sizedIcon(CaretUp, '300')}
         </IconButton>
       </ScrollTopContainer>
       <Box ref={scrollTopAnchorRef} direction="Column" gap="300">
@@ -230,7 +227,7 @@ export function MessageSearch({
         <PageHeroEmpty>
           <PageHeroSection>
             <PageHero
-              icon={<Icon size="600" src={Icons.Message} />}
+              icon={dropzoneIcon(ChatCircle)}
               title="Search Messages"
               subTitle="Find helpful messages in your community by searching with related keywords."
             />
@@ -245,7 +242,7 @@ export function MessageSearch({
           alignItems="Center"
           gap="200"
         >
-          <Icon size="200" src={Icons.Info} />
+          {sizedIcon(Info, '200')}
           <Text>
             No results found for <b>{`"${msgSearchParams.term}"`}</b>
           </Text>
@@ -294,10 +291,7 @@ export function MessageSearch({
                     room={groupRoom}
                     highlights={highlights}
                     items={group.items}
-                    mediaAutoLoad={mediaAutoLoad}
-                    urlPreview={urlPreview}
                     onOpen={navigateRoom}
-                    legacyUsernameColor={legacyUsernameColor || mDirects.has(groupRoom.roomId)}
                     hour24Clock={hour24Clock}
                     dateFormatString={dateFormatString}
                   />

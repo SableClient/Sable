@@ -1,34 +1,18 @@
-import {
-  Badge,
-  Box,
-  Button,
-  color,
-  config,
-  Dialog,
-  Header,
-  Icon,
-  IconButton,
-  Icons,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
-  Spinner,
-  Text,
-} from 'folds';
-import { useCallback, useState } from 'react';
-import type { MatrixError, StateEvents } from '$types/matrix-sdk';
-import FocusTrap from 'focus-trap-react';
-import { SequenceCard } from '$components/sequence-card';
-import { SequenceCardStyle } from '$features/room-settings/styles.css';
+import { Badge, Text } from 'folds';
+import { useCallback } from 'react';
+import type { StateEvents } from '$types/matrix-sdk';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useRoom } from '$hooks/useRoom';
 import { useStateEvent } from '$hooks/useStateEvent';
-import { stopPropagation } from '$utils/keyboard';
 import type { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
 import { EventType } from '$types/matrix-sdk';
+import { confirm } from '$components/confirm/confirm';
+import { AsyncError } from '$components/AsyncError';
+import { Button } from '$components/button';
 
 const ROOM_ENC_ALGO = 'm.megolm.v1.aes-sha2';
 
@@ -55,11 +39,16 @@ export function RoomEncryption({ permissions }: RoomEncryptionProps) {
 
   const enabling = enableState.status === AsyncStatus.Loading;
 
-  const [prompt, setPrompt] = useState(false);
-
-  const handleEnable = () => {
-    enable();
-    setPrompt(false);
+  const handleEnable = async () => {
+    const ok = await confirm({
+      title: 'Enable Encryption',
+      description: 'Are you sure? Once enabled, encryption cannot be disabled!',
+      action: 'Enable E2E Encryption',
+      variant: 'Primary',
+    });
+    if (ok) {
+      enable();
+    }
   };
 
   return (
@@ -88,59 +77,17 @@ export function RoomEncryption({ permissions }: RoomEncryptionProps) {
               fill="Solid"
               radii="300"
               disabled={!canEnable}
-              onClick={() => setPrompt(true)}
-              before={enabling && <Spinner size="100" variant="Primary" fill="Solid" />}
+              onClick={handleEnable}
+              loading={enabling}
+              spinnerVariant="Primary"
+              spinnerSize="100"
             >
               <Text size="B300">Enable</Text>
             </Button>
           )
         }
       >
-        {enableState.status === AsyncStatus.Error && (
-          <Text style={{ color: color.Critical.Main }} size="T200">
-            {(enableState.error as MatrixError).message}
-          </Text>
-        )}
-        {prompt && (
-          <Overlay open backdrop={<OverlayBackdrop />}>
-            <OverlayCenter>
-              <FocusTrap
-                focusTrapOptions={{
-                  initialFocus: false,
-                  onDeactivate: () => setPrompt(false),
-                  clickOutsideDeactivates: true,
-                  escapeDeactivates: stopPropagation,
-                }}
-              >
-                <Dialog variant="Surface">
-                  <Header
-                    style={{
-                      padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
-                      borderBottomWidth: config.borderWidth.B300,
-                    }}
-                    variant="Surface"
-                    size="500"
-                  >
-                    <Box grow="Yes">
-                      <Text size="H4">Enable Encryption</Text>
-                    </Box>
-                    <IconButton size="300" onClick={() => setPrompt(false)} radii="300">
-                      <Icon src={Icons.Cross} />
-                    </IconButton>
-                  </Header>
-                  <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
-                    <Text priority="400">
-                      Are you sure? Once enabled, encryption cannot be disabled!
-                    </Text>
-                    <Button type="submit" variant="Primary" onClick={handleEnable}>
-                      <Text size="B400">Enable E2E Encryption</Text>
-                    </Button>
-                  </Box>
-                </Dialog>
-              </FocusTrap>
-            </OverlayCenter>
-          </Overlay>
-        )}
+        <AsyncError state={enableState} />
       </SettingTile>
     </SequenceCard>
   );

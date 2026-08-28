@@ -16,7 +16,6 @@ export const RoomViewFollowing = recipe({
       minHeight: toRem(28),
       padding: `0 ${config.space.S400}`,
       width: '100%',
-      backgroundColor: color.Surface.Container,
       color: color.Surface.OnContainer,
       outline: 'none',
       userSelect: 'none',
@@ -26,12 +25,15 @@ export const RoomViewFollowing = recipe({
     clickable: {
       true: {
         cursor: 'pointer',
+        transition: 'opacity 0.1s ease-in-out',
         selectors: {
           '&:hover, &:focus-visible': {
             color: color.Primary.Main,
+            transform: 'none',
           },
           '&:active': {
             color: color.Primary.Main,
+            opacity: 0.6,
           },
         },
       },

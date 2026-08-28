@@ -1,0 +1,100 @@
+id: moe.sable.client.Nightly
+
+runtime: org.freedesktop.Platform
+runtime-version: '25.08'
+sdk: org.freedesktop.Sdk
+
+base: org.electronjs.Electron2.BaseApp
+base-version: '25.08'
+
+command: sable
+
+finish-args:
+  - --socket=x11
+  - --share=ipc
+  - --device=dri
+  - --share=network
+  - --socket=pulseaudio
+  - --device=all
+  - --talk-name=org.freedesktop.secrets
+  - --talk-name=org.freedesktop.Notifications
+  - --talk-name=org.kde.StatusNotifierWatcher
+  - --filesystem=xdg-download
+  - --env=XCURSOR_PATH=/run/host/user-share/icons:/run/host/share/icons
+
+modules:
+  - name: xdg-utils
+    buildsystem: simple
+    build-commands:
+      - autoreconf -fi
+      - ./configure --prefix=${FLATPAK_DEST}
+      - touch scripts/xdg-mime.txt
+      - make -C scripts xdg-mime
+      - install -Dm755 scripts/xdg-mime ${FLATPAK_DEST}/bin/xdg-mime
+    sources:
+      - type: git
+        url: https://gitlab.freedesktop.org/xdg/xdg-utils.git
+        tag: v1.2.1
+        commit: 356c380ad6fecc9ce6bea1f6a77986ba67402c80
+
+  - name: desktop-file-utils
+    buildsystem: meson
+    sources:
+      - type: archive
+        url: https://www.freedesktop.org/software/desktop-file-utils/releases/desktop-file-utils-0.28.tar.xz
+        sha256: 4401d4e231d842c2de8242395a74a395ca468cd96f5f610d822df33594898a70
+
+  - name: sable
+    buildsystem: simple
+    build-commands:
+      - install -Dm755 apply_extra ${FLATPAK_DEST}/bin/apply_extra
+      - install -Dm755 sable.sh ${FLATPAK_DEST}/bin/sable
+      - install -Dm644 LICENSE ${FLATPAK_DEST}/share/licenses/${FLATPAK_ID}/LICENSE
+      - install -Dm644 moe.sable.client.Nightly.metainfo.xml ${FLATPAK_DEST}/share/metainfo/${FLATPAK_ID}.metainfo.xml
+      - install -Dm644 moe.sable.client.Nightly.desktop ${FLATPAK_DEST}/share/applications/${FLATPAK_ID}.desktop
+      - install -Dm644 32x32.png ${FLATPAK_DEST}/share/icons/hicolor/32x32/apps/${FLATPAK_ID}.png
+      - install -Dm644 64x64.png ${FLATPAK_DEST}/share/icons/hicolor/64x64/apps/${FLATPAK_ID}.png
+      - install -Dm644 128x128.png ${FLATPAK_DEST}/share/icons/hicolor/128x128/apps/${FLATPAK_ID}.png
+      - install -Dm644 256x256.png ${FLATPAK_DEST}/share/icons/hicolor/256x256/apps/${FLATPAK_ID}.png
+    sources:
+      - type: extra-data
+        filename: sable.tar.gz
+        url: https://github.com/SableClient/Sable/releases/download/nightly/Sable-@VERSION@-linux-x86_64.tar.gz
+        sha256: '@SHA256_X86_64@'
+        size: @SIZE_X86_64@
+        only-arches: [x86_64]
+      - type: extra-data
+        filename: sable.tar.gz
+        url: https://github.com/SableClient/Sable/releases/download/nightly/Sable-@VERSION@-linux-aarch64.tar.gz
+        sha256: '@SHA256_AARCH64@'
+        size: @SIZE_AARCH64@
+        only-arches: [aarch64]
+      - type: script
+        dest-filename: apply_extra
+        commands:
+          - set -eu
+          - mkdir -p sable
+          - tar --no-same-owner -xzf sable.tar.gz -C sable
+          - mv sable/runtime/* sable/
+          - rmdir sable/runtime
+          - rm sable.tar.gz
+      - type: file
+        path: ../sable.sh
+      - type: file
+        path: ../../../LICENSE
+      - type: file
+        path: moe.sable.client.Nightly.desktop
+      - type: file
+        path: moe.sable.client.Nightly.metainfo.xml
+      - type: file
+        path: ../icons/32x32.png
+        dest-filename: 32x32.png
+      - type: file
+        path: ../icons/64x64.png
+        dest-filename: 64x64.png
+      - type: file
+        path: ../icons/128x128.png
+        dest-filename: 128x128.png
+      - type: file
+        path: ../icons/256x256.png
+        dest-filename: 256x256.png

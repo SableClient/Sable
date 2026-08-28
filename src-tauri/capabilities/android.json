@@ -1,0 +1,19 @@
+{
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "identifier": "android-capability",
+  "platforms": ["android"],
+  "windows": ["main"],
+  "permissions": [
+    "android-fs:allow-show-open-file-picker",
+    "android-fs:allow-get-metadata",
+    "android-fs:allow-read-file",
+    "android-fs:allow-check-public-files-permission",
+    "android-fs:allow-create-new-public-file",
+    "android-fs:allow-create-new-public-image-file",
+    "android-fs:allow-request-public-files-permission",
+    "android-fs:allow-write-file",
+    "android-fs:allow-set-public-file-pending",
+    "android-fs:allow-scan-public-file",
+    "android-fs:allow-remove-file"
+  ]
+}

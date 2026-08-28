@@ -1,6 +1,6 @@
 import type { TokenizerExtension, RendererExtension } from 'marked';
 
-/** Delimiters for round-tripping Matrix emoticons from HTML through markdown into the Slate composer. */
+/** Delimiters for round-tripping Matrix emoticons from HTML through markdown into the editor. */
 export const MX_EMOTICON_MD_START = '\uE000';
 export const MX_EMOTICON_MD_SEP = '\uE001';
 export const MX_EMOTICON_MD_END = '\uE002';

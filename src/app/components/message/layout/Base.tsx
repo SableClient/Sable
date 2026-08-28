@@ -4,12 +4,32 @@ import * as css from './layout.css';
 
 export const MessageBase = as<'div', css.MessageBaseVariants>(
   (
-    { className, highlight, notifyHighlight, selected, collapse, autoCollapse, space, ...props },
+    {
+      className,
+      highlight,
+      notifyHighlight,
+      selected,
+      isMarked,
+      collapse,
+      autoCollapse,
+      space,
+      mobile,
+      ...props
+    },
     ref
   ) => (
     <div
       className={classNames(
-        css.MessageBase({ highlight, notifyHighlight, selected, collapse, autoCollapse, space }),
+        css.MessageBase({
+          highlight,
+          notifyHighlight,
+          isMarked,
+          selected,
+          collapse,
+          autoCollapse,
+          space,
+          mobile,
+        }),
         className
       )}
       {...props}

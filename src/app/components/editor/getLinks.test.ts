@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import type { Descendant } from 'slate';
-import { getLinks, toPlainText } from './output';
-import type { ParagraphElement } from './slate';
+import { getDocumentLinks, toPlainText } from './output';
+import type { EditorDocument } from './model';
+import type { EditorParagraph as ParagraphElement } from './model';
 import { BlockType } from './types';
 
 describe('getLinks', () => {
@@ -10,7 +10,7 @@ describe('getLinks', () => {
       type: BlockType.Paragraph,
       children: [{ text: 'Check out https://example.com for more info' }],
     };
-    const links = getLinks([node]);
+    const links = getDocumentLinks([node]);
     expect(links).toContain('https://example.com');
   });
 
@@ -19,7 +19,7 @@ describe('getLinks', () => {
       type: BlockType.Paragraph,
       children: [{ text: 'Check out <https://example.com> for more info' }],
     };
-    const links = getLinks([node]);
+    const links = getDocumentLinks([node]);
     expect(links).toEqual([]);
   });
 
@@ -28,7 +28,7 @@ describe('getLinks', () => {
       type: BlockType.Paragraph,
       children: [{ text: 'Check [my link](https://example.com) for more info' }],
     };
-    const links = getLinks([node]);
+    const links = getDocumentLinks([node]);
     expect(links).toContain('https://example.com');
   });
 
@@ -37,7 +37,7 @@ describe('getLinks', () => {
       type: BlockType.Paragraph,
       children: [{ text: '[https://example.com/](https://example.com/)' }],
     };
-    const links = getLinks([node]);
+    const links = getDocumentLinks([node]);
     expect(links).toEqual(['https://example.com/']);
   });
 
@@ -46,17 +46,17 @@ describe('getLinks', () => {
       type: BlockType.Paragraph,
       children: [{ text: 'Do not visit `https://example.com` please' }],
     };
-    const links = getLinks([node]);
+    const links = getDocumentLinks([node]);
     expect(links).toEqual([]);
   });
 
   it('excludes URLs inside markdown code blocks spanning multiple paragraphs', () => {
-    const nodes: Descendant[] = [
+    const nodes: EditorDocument = [
       { type: BlockType.Paragraph, children: [{ text: '```' }] },
       { type: BlockType.Paragraph, children: [{ text: 'https://example.com' }] },
       { type: BlockType.Paragraph, children: [{ text: '```' }] },
     ];
-    const links = getLinks(nodes);
+    const links = getDocumentLinks(nodes);
     expect(links).toEqual([]);
   });
 });
@@ -91,7 +91,7 @@ describe('toPlainText spoiler handling', () => {
         },
       ],
     };
-    const links = getLinks([node]);
+    const links = getDocumentLinks([node]);
     expect(links).toContain('https://visible.com');
     expect(links).not.toContain('https://hidden.com');
   });

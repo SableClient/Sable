@@ -5,7 +5,6 @@ import {
   Button,
   Dialog,
   Input,
-  Overlay,
   OverlayBackdrop,
   OverlayCenter,
   Spinner,
@@ -13,7 +12,8 @@ import {
   color,
   config,
 } from 'folds';
-import { useNavigate } from 'react-router-dom';
+import { Overlay } from '$components/overlay-stack';
+import { useNavigate } from 'react-router';
 import FocusTrap from 'focus-trap-react';
 import type { AuthDict, MatrixError } from '$types/matrix-sdk';
 import { AuthType, createClient } from '$types/matrix-sdk';
@@ -28,6 +28,7 @@ import { EmailStageDialog } from '$components/uia-stages';
 import { getLoginPath, withSearchParam } from '$pages/pathUtils';
 import { getUIAError, getUIAErrorCode } from '$utils/matrix-uia';
 import { FieldError } from '$pages/auth/FiledError';
+import { fetch } from '$utils/fetch';
 import type { ResetPasswordResult } from './resetPasswordUtil';
 import { resetPassword } from './resetPasswordUtil';
 
@@ -85,7 +86,7 @@ export function PasswordResetForm({ defaultEmail }: PasswordResetFormProps) {
 
   const serverDiscovery = useAutoDiscoveryInfo();
   const baseUrl = serverDiscovery['m.homeserver'].base_url;
-  const mx = useMemo(() => createClient({ baseUrl }), [baseUrl]);
+  const mx = useMemo(() => createClient({ baseUrl, fetchFn: fetch }), [baseUrl]);
 
   const [formData, setFormData] = useState<FormData>();
 

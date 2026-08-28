@@ -1,9 +1,8 @@
 import type { MouseEventHandler } from 'react';
-import { useState } from 'react';
-import type { RectCords } from 'folds';
-import { Box, Button, Chip, config, Icon, Icons, Menu, PopOut, Text, toRem } from 'folds';
-import FocusTrap from 'focus-trap-react';
-import { stopPropagation } from '$utils/keyboard';
+import { Box, Button, Chip, config, Menu, Text, toRem } from 'folds';
+import { CaretDown, CaretUp, sizedIcon } from '$components/icons/phosphor';
+import { ResponsiveMenu } from '$components/ResponsiveMenu';
+import { useMenuAnchor } from '$hooks/useMenuAnchor';
 import { SettingTile } from '$components/setting-tile';
 import { SequenceCard } from '$components/sequence-card';
 
@@ -18,14 +17,14 @@ export function RoomVersionSelector({
   onChange: (value: string) => void;
   disabled?: boolean;
 }) {
-  const [menuCords, setMenuCords] = useState<RectCords>();
+  const menuAnchor = useMenuAnchor<HTMLButtonElement>();
 
   const handleMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    setMenuCords(evt.currentTarget.getBoundingClientRect());
+    menuAnchor.openAt(evt.currentTarget);
   };
 
   const handleSelect = (version: string) => {
-    setMenuCords(undefined);
+    menuAnchor.close();
     onChange(version);
   };
 
@@ -39,51 +38,40 @@ export function RoomVersionSelector({
       <SettingTile
         title="Version"
         after={
-          <PopOut
-            anchor={menuCords}
+          <ResponsiveMenu
+            anchor={menuAnchor.anchor}
+            requestClose={menuAnchor.close}
             offset={5}
             position="Bottom"
             align="End"
-            content={
-              <FocusTrap
-                focusTrapOptions={{
-                  initialFocus: false,
-                  onDeactivate: () => setMenuCords(undefined),
-                  clickOutsideDeactivates: true,
-                  isKeyForward: (evt: KeyboardEvent) =>
-                    evt.key === 'ArrowDown' || evt.key === 'ArrowRight',
-                  isKeyBackward: (evt: KeyboardEvent) =>
-                    evt.key === 'ArrowUp' || evt.key === 'ArrowLeft',
-                  escapeDeactivates: stopPropagation,
-                }}
-              >
-                <Menu>
-                  <Box
-                    direction="Column"
-                    gap="200"
-                    style={{ padding: config.space.S200, maxWidth: toRem(300) }}
-                  >
-                    <Text size="L400">Versions</Text>
-                    <Box wrap="Wrap" gap="100">
-                      {versions.map((version) => (
-                        <Chip
-                          key={version}
-                          variant={value === version ? 'Primary' : 'SurfaceVariant'}
-                          aria-pressed={value === version}
-                          outlined={value === version}
-                          radii="300"
-                          onClick={() => handleSelect(version)}
-                          type="button"
-                        >
-                          <Text truncate size="T300">
-                            {version}
-                          </Text>
-                        </Chip>
-                      ))}
-                    </Box>
+            mobile="dialog"
+            menu={
+              <Menu>
+                <Box
+                  direction="Column"
+                  gap="200"
+                  style={{ padding: config.space.S200, maxWidth: toRem(300) }}
+                >
+                  <Text size="L400">Versions</Text>
+                  <Box wrap="Wrap" gap="100">
+                    {versions.map((version) => (
+                      <Chip
+                        key={version}
+                        variant={value === version ? 'Primary' : 'SurfaceVariant'}
+                        aria-pressed={value === version}
+                        outlined={value === version}
+                        radii="300"
+                        onClick={() => handleSelect(version)}
+                        type="button"
+                      >
+                        <Text truncate size="T300">
+                          {version}
+                        </Text>
+                      </Chip>
+                    ))}
                   </Box>
-                </Menu>
-              </FocusTrap>
+                </Box>
+              </Menu>
             }
           >
             <Button
@@ -93,13 +81,13 @@ export function RoomVersionSelector({
               variant="Secondary"
               fill="Soft"
               radii="300"
-              aria-pressed={!!menuCords}
-              before={<Icon size="50" src={menuCords ? Icons.ChevronTop : Icons.ChevronBottom} />}
+              aria-pressed={!!menuAnchor.anchor}
+              before={sizedIcon(menuAnchor.anchor ? CaretUp : CaretDown, '50')}
               disabled={disabled}
             >
               <Text size="B300">{value}</Text>
             </Button>
-          </PopOut>
+          </ResponsiveMenu>
         }
       />
     </SequenceCard>

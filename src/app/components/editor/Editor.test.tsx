@@ -1,543 +1,310 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { useState } from 'react';
-import { Transforms } from 'slate';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { useEditor, CustomEditor } from './Editor';
-import { BlockType } from './types';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+import { CustomEditor } from './Editor';
+import { ProseMirrorEditorController } from './prosemirrorController';
 import * as css from './Editor.css';
 
-let shouldWrapToggleHarness = false;
-let measurementCacheScrollHeightReads = 0;
+const platformState = vi.hoisted(() => ({ isIosApp: false, isMobile: false }));
+let nativeClipboardText = '';
 
-function EditorHarness() {
-  const editor = useEditor();
+vi.mock(import('$utils/platform'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  iosApp: () => platformState.isIosApp,
+  isMobileOrTablet: () => platformState.isMobile,
+}));
 
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => {
-          Transforms.insertNodes(editor, {
-            type: BlockType.Paragraph,
-            children: [{ text: 'Second line' }],
-          });
-        }}
-      >
-        Make multiline
-      </button>
-      <CustomEditor
-        editableName="EditorHarness"
-        editor={editor}
-        before={<button type="button">Attach</button>}
-        after={<button type="button">Send</button>}
-        responsiveAfter={<div data-testid="recorder">Recorder</div>}
-      />
-    </>
-  );
-}
+vi.mock(import('$utils/dom'), async (importOriginal) => ({
+  ...(await importOriginal()),
+  readClipboardText: () => Promise.resolve(nativeClipboardText),
+}));
 
-function ToggleRecorderHarness() {
-  const editor = useEditor();
-  const [showRecorder, setShowRecorder] = useState(false);
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => {
-          Transforms.insertText(editor, 'Some text that still fits before recording');
-        }}
-      >
-        Add text
-      </button>
-      <button
-        type="button"
-        onClick={() => {
-          shouldWrapToggleHarness = true;
-          setShowRecorder(true);
-        }}
-      >
-        Start recorder
-      </button>
-      <CustomEditor
-        editableName="ToggleRecorderHarness"
-        editor={editor}
-        before={<button type="button">Attach</button>}
-        after={<button type="button">Send</button>}
-        responsiveAfter={
-          showRecorder ? <div data-testid="toggle-recorder">Recorder</div> : undefined
-        }
-      />
-    </>
-  );
-}
-
-function ForcedFooterHarness() {
-  const editor = useEditor();
-
-  return (
-    <CustomEditor
-      editableName="ForcedFooterHarness"
-      editor={editor}
-      before={<button type="button">Attach</button>}
-      after={<button type="button">Send</button>}
-      responsiveAfter={<div data-testid="forced-footer-recorder">Recorder</div>}
-      forceMultilineLayout
-    />
-  );
-}
-
-function PasteWrapHarness() {
-  const editor = useEditor();
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => {
-          Transforms.insertText(editor, 'sadasdasdsadasdasdsadasdasd');
-        }}
-      >
-        Paste wrapped text
-      </button>
-      <CustomEditor editableName="PasteWrapHarness" editor={editor} />
-    </>
-  );
-}
-
-function NearThresholdWrapHarness() {
-  const editor = useEditor();
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => {
-          Transforms.insertText(editor, 'near-threshold wrap text');
-        }}
-      >
-        Paste near-threshold wrap
-      </button>
-      <CustomEditor editableName="NearThresholdWrapHarness" editor={editor} />
-    </>
-  );
-}
-
-function TrailingSpacesWrapHarness() {
-  const editor = useEditor();
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => {
-          Transforms.insertText(editor, 'trailing spaces ');
-        }}
-      >
-        Paste trailing spaces
-      </button>
-      <CustomEditor editableName="TrailingSpacesWrapHarness" editor={editor} />
-    </>
-  );
-}
-
-function PasteNoWrapHarness() {
-  const editor = useEditor();
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => {
-          Transforms.insertText(editor, 'short pasted text');
-        }}
-      >
-        Paste short text
-      </button>
-      <CustomEditor editableName="PasteNoWrapHarness" editor={editor} />
-    </>
-  );
-}
-
-function MeasurementCacheHarness() {
-  const editor = useEditor();
-
-  return (
-    <>
-      <button
-        type="button"
-        onClick={() => {
-          Transforms.insertText(editor, 'sadasdasdsadasdasdsadasdasd');
-        }}
-      >
-        Add cached text
-      </button>
-      <CustomEditor editableName="MeasurementCacheHarness" editor={editor} />
-    </>
-  );
-}
-
-const createResizeObserverStub = (
-  observedElements: Set<Element>,
-  onCreate: (callback: ResizeObserverCallback) => void
-) =>
-  function ResizeObserverStub(callback: ResizeObserverCallback) {
-    onCreate(callback);
-
-    return {
-      observe(target: Element) {
-        observedElements.add(target);
-      },
-      unobserve(target: Element) {
-        observedElements.delete(target);
-      },
-      disconnect() {
-        observedElements.clear();
-      },
-    };
-  } as unknown as typeof ResizeObserver;
-
-const nativeScrollHeight = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'scrollHeight');
-const nativeOffsetWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'offsetWidth');
-const nativeClientWidth = Object.getOwnPropertyDescriptor(HTMLElement.prototype, 'clientWidth');
-const nativeRequestAnimationFrame = window.requestAnimationFrame;
-const nativeCancelAnimationFrame = window.cancelAnimationFrame;
-const nativeGlobalRequestAnimationFrame = globalThis.requestAnimationFrame;
-const nativeGlobalCancelAnimationFrame = globalThis.cancelAnimationFrame;
-const nativeResizeObserver = globalThis.ResizeObserver;
+const emptyClientRects = () => [] as unknown as DOMRectList;
+beforeAll(() => {
+  Element.prototype.getClientRects ??= emptyClientRects;
+  (Text.prototype as unknown as Element).getClientRects ??= emptyClientRects;
+});
 
 beforeEach(() => {
-  shouldWrapToggleHarness = false;
-  measurementCacheScrollHeightReads = 0;
-
-  Object.defineProperty(HTMLElement.prototype, 'scrollHeight', {
-    configurable: true,
-    get() {
-      if (this instanceof HTMLElement) {
-        const measurerName = this.getAttribute('data-editor-measurer');
-        const measuredText = this.textContent ?? '';
-        const hasMeasuredText = measuredText.length > 0;
-        const isSingleLineProbe = measuredText === 'M';
-
-        if (measurerName === 'ToggleRecorderHarness') {
-          if (!hasMeasuredText || isSingleLineProbe) return 20;
-          return shouldWrapToggleHarness ? 40 : 20;
-        }
-
-        if (measurerName === 'PasteWrapHarness') {
-          if (isSingleLineProbe) return 20;
-          return hasMeasuredText ? 40 : 20;
-        }
-
-        if (measurerName === 'NearThresholdWrapHarness') {
-          if (!hasMeasuredText || isSingleLineProbe) return 20;
-          return this.style.width === '319px' ? 29 : 20;
-        }
-
-        if (measurerName === 'TrailingSpacesWrapHarness') {
-          if (!hasMeasuredText || isSingleLineProbe) return 20;
-          return measuredText.endsWith('\u200B') ? 29 : 20;
-        }
-
-        if (measurerName === 'PasteNoWrapHarness') {
-          if (!hasMeasuredText || isSingleLineProbe) return 20;
-          return 20;
-        }
-
-        if (measurerName === 'MeasurementCacheHarness') {
-          if (!hasMeasuredText || isSingleLineProbe) return 20;
-          measurementCacheScrollHeightReads += 1;
-          return 40;
-        }
-      }
-
-      return nativeScrollHeight?.get?.call(this) ?? 0;
-    },
-  });
-
-  Object.defineProperty(HTMLElement.prototype, 'offsetWidth', {
-    configurable: true,
-    get() {
-      if (this instanceof HTMLElement && this.classList.contains(css.EditorRow)) {
-        return 320;
-      }
-      return nativeOffsetWidth?.get?.call(this) ?? 0;
-    },
-  });
-
-  Object.defineProperty(HTMLElement.prototype, 'clientWidth', {
-    configurable: true,
-    get() {
-      if (this instanceof HTMLElement && this.classList.contains(css.EditorTextareaScroll)) {
-        if (this.querySelector('[data-editable-name="NearThresholdWrapHarness"]')) {
-          return 319;
-        }
-
-        return 320;
-      }
-
-      return nativeClientWidth?.get?.call(this) ?? 0;
-    },
-  });
+  platformState.isIosApp = false;
+  platformState.isMobile = false;
+  nativeClipboardText = '';
 });
 
-afterEach(() => {
-  shouldWrapToggleHarness = false;
-  measurementCacheScrollHeightReads = 0;
-  window.requestAnimationFrame = nativeRequestAnimationFrame;
-  window.cancelAnimationFrame = nativeCancelAnimationFrame;
-  globalThis.requestAnimationFrame = nativeGlobalRequestAnimationFrame;
-  globalThis.cancelAnimationFrame = nativeGlobalCancelAnimationFrame;
-  globalThis.ResizeObserver = nativeResizeObserver;
-  if (nativeScrollHeight) {
-    Object.defineProperty(HTMLElement.prototype, 'scrollHeight', nativeScrollHeight);
-  } else {
-    Reflect.deleteProperty(HTMLElement.prototype, 'scrollHeight');
-  }
+// vanilla-extract composed styles resolve to several class names, so a plain
+// `.${style}` selector would read as a descendant selector.
+const byStyle = (container: HTMLElement, className: string) =>
+  container.querySelector(`.${className.trim().split(/\s+/).join('.')}`);
 
-  if (nativeOffsetWidth) {
-    Object.defineProperty(HTMLElement.prototype, 'offsetWidth', nativeOffsetWidth);
-  } else {
-    Reflect.deleteProperty(HTMLElement.prototype, 'offsetWidth');
-  }
+const renderEditor = (props: Partial<Parameters<typeof CustomEditor>[0]> = {}) => {
+  const editor = props.editor ?? new ProseMirrorEditorController();
+  const result = render(
+    <CustomEditor
+      editableName="TestEditor"
+      editor={editor}
+      placeholder="Write a message"
+      {...props}
+    />
+  );
+  return { editor, ...result };
+};
 
-  if (nativeClientWidth) {
-    Object.defineProperty(HTMLElement.prototype, 'clientWidth', nativeClientWidth);
-  } else {
-    Reflect.deleteProperty(HTMLElement.prototype, 'clientWidth');
-  }
-});
+const row = (container: HTMLElement) => byStyle(container, css.EditorRow)!;
+const maxHeightOf = (container: HTMLElement) =>
+  (byStyle(container, css.EditorTextareaScroll) as HTMLElement).style.maxHeight;
 
 describe('CustomEditor', () => {
-  it('moves responsive after content into the multiline footer without keeping the textarea max height', async () => {
-    render(<EditorHarness />);
-    const editable = document.querySelector('[data-editable-name="EditorHarness"]');
-    const scroll = editable?.parentElement as HTMLElement | null;
-    const editorRoot = scroll?.parentElement?.parentElement as HTMLElement | null;
-    const measurer = document.querySelector('[data-editor-measurer="EditorHarness"]');
+  it('mounts a ProseMirror editable surface with the placeholder', () => {
+    const { container } = renderEditor();
 
-    expect(scroll).not.toBeNull();
-    expect(editorRoot).not.toBeNull();
-    expect(editorRoot?.contains(measurer)).toBe(true);
-    expect(measurer?.parentElement).not.toBe(document.body);
-    expect(scroll?.style.maxHeight).toBe('50vh');
-    expect(screen.getByText('Attach')).toBeVisible();
-    expect(screen.getByText('Send')).toBeVisible();
-    expect(screen.getByTestId('recorder').parentElement).toHaveClass(css.EditorOptions);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Make multiline' }));
-
-    await waitFor(() => {
-      expect(screen.getByTestId('recorder').parentElement).toHaveClass(
-        css.EditorResponsiveAfterMultiline
-      );
-      expect(scroll?.style.maxHeight).toBe('');
-    });
-
-    expect(screen.getByText('Attach')).toBeVisible();
-    expect(screen.getByText('Send')).toBeVisible();
+    expect(container.querySelector('[aria-label="Write a message"]')).toBeTruthy();
+    expect(container.querySelector('.ProseMirror')).toBeTruthy();
   });
 
-  it('recomputes multiline layout when inline responsive content makes existing text wrap', async () => {
-    render(<ToggleRecorderHarness />);
+  it('keeps focus on the editable when the document is cleared', () => {
+    const { container, editor } = renderEditor();
+    const editable = container.querySelector('.ProseMirror') as HTMLElement;
+    editable.focus();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Add text' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Start recorder' }));
+    act(() => editor.insertText('some text'));
+    act(() => editor.clear());
 
-    await waitFor(() => {
-      expect(screen.getByTestId('toggle-recorder').parentElement).toHaveClass(
-        css.EditorResponsiveAfterMultiline
-      );
-    });
+    expect(editor.isEmpty()).toBe(true);
+    expect(document.activeElement).toBe(editable);
   });
 
-  it('supports forcing multiline layout so responsive content moves into the footer immediately', () => {
-    render(<ForcedFooterHarness />);
+  it('notifies document-change consumers when cleared so autocomplete closes', () => {
+    const { editor } = renderEditor();
+    const changes: string[] = [];
+    editor.subscribe(() => changes.push(editor.getText()));
 
-    expect(screen.getByTestId('forced-footer-recorder').parentElement).toHaveClass(
-      css.EditorResponsiveAfterMultiline
+    act(() => editor.insertText('hello'));
+    expect(editor.getAutocompleteQuery(['h', 'he'])).toBeDefined();
+
+    act(() => editor.clear());
+
+    expect(changes).toEqual(['hello', '']);
+    expect(editor.getAutocompleteQuery(['h', 'he'])).toBeUndefined();
+  });
+});
+
+describe('CustomEditor layout', () => {
+  it('keeps buttons inline for a single line', () => {
+    const { container } = renderEditor({ after: <button type="button">Send</button> });
+
+    expect(row(container)).not.toHaveClass(css.EditorRowMultiline);
+  });
+
+  it('moves buttons below text when a single line wraps', async () => {
+    const { container, editor } = renderEditor({ after: <button type="button">Send</button> });
+    Object.defineProperty(row(container), 'clientWidth', { configurable: true, value: 100 });
+    const measurer = container.querySelector('[data-editor-measurer]')!;
+    Object.defineProperty(measurer, 'scrollHeight', {
+      configurable: true,
+      get: () => (measurer.textContent === 'M' ? 20 : 40),
+    });
+
+    act(() => editor.insertText('text long enough to wrap several times over in the composer'));
+
+    await waitFor(() => expect(row(container)).toHaveClass(css.EditorRowMultiline));
+  });
+
+  it('keeps buttons inline across many paragraphs', async () => {
+    const { container, editor } = renderEditor({ after: <button type="button">Send</button> });
+
+    act(() => editor.insertText('one'));
+    act(() => editor.insertNewline());
+    act(() => editor.insertText('two'));
+
+    await waitFor(() => expect(editor.getText()).toBe('one\ntwo'));
+    await waitFor(() => expect(row(container)).toHaveClass(css.EditorRowMultiline));
+  });
+
+  it('installs a hidden measurer for text layout', () => {
+    const { container, editor } = renderEditor({ after: <button type="button">Send</button> });
+
+    act(() => editor.insertText('some text'));
+
+    expect(container.querySelector('[data-editor-measurer]')).toBeInTheDocument();
+  });
+
+  it('stacks the layout and moves responsive content into the footer when forced', () => {
+    const { container } = renderEditor({
+      after: <button type="button">Send</button>,
+      responsiveAfter: <div data-testid="recorder">Recorder</div>,
+      forceMultilineLayout: true,
+    });
+
+    expect(row(container)).toHaveClass(css.EditorRowMultiline);
+    expect(row(container)).toHaveClass(css.EditorRowMultilineWithResponsiveAfter);
+    expect(byStyle(container, css.EditorResponsiveAfterMultiline)).toContainElement(
+      screen.getByTestId('recorder')
     );
+    expect(maxHeightOf(container)).toBe('');
   });
 
-  it('detects pasted text that exceeds the single-line width after the deferred layout measurement', async () => {
-    render(<PasteWrapHarness />);
-    const editable = document.querySelector('[data-editable-name="PasteWrapHarness"]');
-    const scroll = editable?.parentElement as HTMLElement | null;
-
-    expect(scroll).not.toBeNull();
-    expect(scroll).not.toHaveClass(css.EditorTextareaScrollMultiline);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Paste wrapped text' }));
-
-    await waitFor(() => {
-      expect(scroll).toHaveClass(css.EditorTextareaScrollMultiline);
+  it('keeps responsive content inline when not forced', () => {
+    const { container } = renderEditor({
+      after: <button type="button">Send</button>,
+      responsiveAfter: <div data-testid="recorder">Recorder</div>,
     });
+
+    expect(byStyle(container, css.EditorResponsiveAfterMultiline)).toBeNull();
+    expect(screen.getByTestId('recorder')).toBeInTheDocument();
+    expect(maxHeightOf(container)).toBe('50dvh');
+  });
+});
+
+const pasteWith = (container: HTMLElement, clipboardData: Record<string, string>) => {
+  fireEvent.paste(container.querySelector('.ProseMirror')!, {
+    clipboardData: {
+      getData: (format: string) => clipboardData[format] ?? '',
+      files: [],
+      types: Object.keys(clipboardData),
+    },
+  });
+};
+
+// prosemirror's capturePaste schedules a 50ms `view.focus()`; run it out before
+// teardown so it cannot fire against a destroyed document.
+const flushPasteTimer = () =>
+  act(async () => {
+    await new Promise((resolve) => setTimeout(resolve, 60));
   });
 
-  it('does not oscillate back to single-line when multiline layout slightly increases the available width', async () => {
-    const queuedFrames = new Map<number, FrameRequestCallback>();
-    let nextFrameId = 1;
-    let resizeObserverCallback: ResizeObserverCallback | undefined;
-    const observedElements = new Set<Element>();
-    const flushQueuedFrames = () => {
-      const pendingFrames = Array.from(queuedFrames.entries());
-      queuedFrames.clear();
-      pendingFrames.forEach(([, callback]) => {
-        callback(performance.now());
-      });
-    };
+describe('CustomEditor paste', () => {
+  it('reads the native clipboard when the ios webview delivers an empty paste event', async () => {
+    platformState.isIosApp = true;
+    nativeClipboardText = 'from the native clipboard';
+    const { container, editor } = renderEditor();
 
-    const requestAnimationFrameStub = ((callback: FrameRequestCallback) => {
-      const frameId = nextFrameId;
-      nextFrameId += 1;
-      queuedFrames.set(frameId, callback);
-      return frameId;
-    }) as typeof window.requestAnimationFrame;
-    const cancelAnimationFrameStub = ((frameId: number) => {
-      queuedFrames.delete(frameId);
-    }) as typeof window.cancelAnimationFrame;
+    pasteWith(container, { 'text/plain': '' });
 
-    window.requestAnimationFrame = requestAnimationFrameStub;
-    window.cancelAnimationFrame = cancelAnimationFrameStub;
-    globalThis.requestAnimationFrame = requestAnimationFrameStub;
-    globalThis.cancelAnimationFrame = cancelAnimationFrameStub;
-    globalThis.ResizeObserver = createResizeObserverStub(observedElements, (callback) => {
-      resizeObserverCallback = callback;
-    });
-
-    render(<NearThresholdWrapHarness />);
-    const editable = document.querySelector('[data-editable-name="NearThresholdWrapHarness"]');
-    const scroll = editable?.parentElement as HTMLElement | null;
-
-    expect(scroll).not.toBeNull();
-    expect(scroll).not.toHaveClass(css.EditorTextareaScrollMultiline);
-
-    fireEvent.click(screen.getByRole('button', { name: 'Paste near-threshold wrap' }));
-
-    await waitFor(() => {
-      expect(scroll).toHaveClass(css.EditorTextareaScrollMultiline);
-    });
-    expect(resizeObserverCallback).toBeDefined();
-
-    act(() => {
-      resizeObserverCallback?.(
-        Array.from(observedElements).map((target) => ({ target }) as ResizeObserverEntry),
-        {} as ResizeObserver
-      );
-    });
-
-    act(() => {
-      flushQueuedFrames();
-    });
-
-    expect(scroll).toHaveClass(css.EditorTextareaScrollMultiline);
+    await waitFor(() => expect(editor.getText()).toBe('from the native clipboard'));
+    await flushPasteTimer();
   });
 
-  it('counts trailing spaces toward the single-line wrap threshold', async () => {
-    render(<TrailingSpacesWrapHarness />);
-    const editable = document.querySelector('[data-editable-name="TrailingSpacesWrapHarness"]');
-    const scroll = editable?.parentElement as HTMLElement | null;
+  it('leaves an empty paste event alone outside the ios webview', async () => {
+    platformState.isIosApp = false;
+    nativeClipboardText = 'from the native clipboard';
+    const { container, editor } = renderEditor();
 
-    expect(scroll).not.toBeNull();
-    expect(scroll).not.toHaveClass(css.EditorTextareaScrollMultiline);
+    pasteWith(container, { 'text/plain': '' });
 
-    fireEvent.click(screen.getByRole('button', { name: 'Paste trailing spaces' }));
-
-    await waitFor(() => {
-      expect(scroll).toHaveClass(css.EditorTextareaScrollMultiline);
-    });
+    await Promise.resolve();
+    expect(editor.getText()).toBe('');
+    await flushPasteTimer();
   });
 
-  it('keeps fitting pasted text in single-line mode without deferring to the next frame', () => {
-    const queuedFrames = new Map<number, FrameRequestCallback>();
-    let nextFrameId = 1;
+  it('does not read the native clipboard when the event already carries text', async () => {
+    platformState.isIosApp = true;
+    nativeClipboardText = 'from the native clipboard';
+    const { container, editor } = renderEditor();
 
-    const requestAnimationFrameStub = ((callback: FrameRequestCallback) => {
-      const frameId = nextFrameId;
-      nextFrameId += 1;
-      queuedFrames.set(frameId, callback);
-      return frameId;
-    }) as typeof window.requestAnimationFrame;
-    const cancelAnimationFrameStub = ((frameId: number) => {
-      queuedFrames.delete(frameId);
-    }) as typeof window.cancelAnimationFrame;
-    window.requestAnimationFrame = requestAnimationFrameStub;
-    window.cancelAnimationFrame = cancelAnimationFrameStub;
-    globalThis.requestAnimationFrame = requestAnimationFrameStub;
-    globalThis.cancelAnimationFrame = cancelAnimationFrameStub;
+    pasteWith(container, { 'text/plain': 'real clipboard text' });
 
-    render(<PasteNoWrapHarness />);
-    const editable = document.querySelector('[data-editable-name="PasteNoWrapHarness"]');
-    const scroll = editable?.parentElement as HTMLElement | null;
-
-    expect(scroll).not.toBeNull();
-    expect(scroll).not.toHaveClass(css.EditorTextareaScrollMultiline);
-
-    act(() => {
-      fireEvent.click(screen.getByRole('button', { name: 'Paste short text' }));
-    });
-
-    expect(queuedFrames.size).toBe(0);
-    expect(scroll).not.toHaveClass(css.EditorTextareaScrollMultiline);
+    await Promise.resolve();
+    expect(editor.getText()).not.toBe('from the native clipboard');
+    await flushPasteTimer();
   });
 
-  it('reuses the cached measurement when resize observer fires without changing the single-line width', async () => {
-    const queuedFrames = new Map<number, FrameRequestCallback>();
-    let nextFrameId = 1;
-    let resizeObserverCallback: ResizeObserverCallback | undefined;
-    const observedElements = new Set<Element>();
-    const flushQueuedFrames = () => {
-      let safetyCounter = 0;
-      while (queuedFrames.size > 0 && safetyCounter < 10) {
-        const pendingFrames = Array.from(queuedFrames.entries());
-        queuedFrames.clear();
-        pendingFrames.forEach(([, callback]) => {
-          callback(performance.now());
-        });
-        safetyCounter += 1;
-      }
-    };
-
-    const requestAnimationFrameStub = ((callback: FrameRequestCallback) => {
-      const frameId = nextFrameId;
-      nextFrameId += 1;
-      queuedFrames.set(frameId, callback);
-      return frameId;
-    }) as typeof window.requestAnimationFrame;
-    const cancelAnimationFrameStub = ((frameId: number) => {
-      queuedFrames.delete(frameId);
-    }) as typeof window.cancelAnimationFrame;
-
-    window.requestAnimationFrame = requestAnimationFrameStub;
-    window.cancelAnimationFrame = cancelAnimationFrameStub;
-    globalThis.requestAnimationFrame = requestAnimationFrameStub;
-    globalThis.cancelAnimationFrame = cancelAnimationFrameStub;
-    globalThis.ResizeObserver = createResizeObserverStub(observedElements, (callback) => {
-      resizeObserverCallback = callback;
+  it('lets a consumer handler pre-empt the native clipboard fallback', async () => {
+    platformState.isIosApp = true;
+    nativeClipboardText = 'from the native clipboard';
+    const { container, editor } = renderEditor({
+      onPaste: (event) => event.preventDefault(),
     });
 
-    render(<MeasurementCacheHarness />);
+    pasteWith(container, { 'text/plain': '' });
 
-    act(() => {
-      fireEvent.click(screen.getByRole('button', { name: 'Add cached text' }));
-    });
+    await Promise.resolve();
+    expect(editor.getText()).toBe('');
+    await flushPasteTimer();
+  });
+});
 
-    await waitFor(() => {
-      expect(measurementCacheScrollHeightReads).toBe(1);
-    });
-    expect(resizeObserverCallback).toBeDefined();
+const focusableRival = () => document.body.appendChild(document.createElement('button'));
 
-    act(() => {
-      resizeObserverCallback?.(
-        Array.from(observedElements).map((target) => ({ target }) as ResizeObserverEntry),
-        {} as ResizeObserver
-      );
-    });
+describe('CustomEditor mobile keyboard', () => {
+  it('refocuses the editor when focus moves within the composer on mobile', () => {
+    platformState.isMobile = true;
+    const { container, editor } = renderEditor({ after: <button type="button">Send</button> });
+    const focusSpy = vi.spyOn(editor, 'focus');
+    const editable = container.querySelector('.ProseMirror') as HTMLElement;
+    const composerButton = screen.getByRole('button', { name: 'Send' });
+    editable.focus();
+    composerButton.focus();
+    expect(focusSpy).toHaveBeenCalledOnce();
+  });
 
-    act(() => {
-      flushQueuedFrames();
-    });
+  it('yields focus when it moves outside the composer on mobile', () => {
+    platformState.isMobile = true;
+    const { container, editor } = renderEditor();
+    const focusSpy = vi.spyOn(editor, 'focus');
+    const editable = container.querySelector('.ProseMirror') as HTMLElement;
+    const rival = focusableRival();
+    try {
+      editable.focus();
+      rival.focus();
+      expect(focusSpy).not.toHaveBeenCalled();
+    } finally {
+      rival.remove();
+    }
+  });
 
-    expect(measurementCacheScrollHeightReads).toBe(1);
+  it('does not refocus on desktop', () => {
+    const { container, editor } = renderEditor();
+    const focusSpy = vi.spyOn(editor, 'focus');
+    const editable = container.querySelector('.ProseMirror') as HTMLElement;
+    const rival = focusableRival();
+    try {
+      editable.focus();
+      rival.focus();
+      expect(focusSpy).not.toHaveBeenCalled();
+    } finally {
+      rival.remove();
+    }
+  });
+
+  it('keeps a programmatic blur so sheets can dismiss the keyboard', () => {
+    platformState.isMobile = true;
+    const { container, editor } = renderEditor();
+    const focusSpy = vi.spyOn(editor, 'focus');
+    const editable = container.querySelector('.ProseMirror') as HTMLElement;
+    editable.focus();
+    editable.blur();
+    expect(focusSpy).not.toHaveBeenCalled();
+    expect(document.activeElement).not.toBe(editable);
+  });
+
+  it('does not refocus while the composer suppresses it', () => {
+    platformState.isMobile = true;
+    const { container, editor } = renderEditor({ suppressBlurRefocusRef: { current: true } });
+    const focusSpy = vi.spyOn(editor, 'focus');
+    const editable = container.querySelector('.ProseMirror') as HTMLElement;
+    const rival = focusableRival();
+    try {
+      editable.focus();
+      rival.focus();
+      expect(focusSpy).not.toHaveBeenCalled();
+    } finally {
+      rival.remove();
+    }
+  });
+
+  it('refocuses when an autocomplete menu holds focus so picking a suggestion keeps the keyboard', () => {
+    platformState.isMobile = true;
+    const { container, editor } = renderEditor();
+    const focusSpy = vi.spyOn(editor, 'focus');
+    const editable = container.querySelector('.ProseMirror') as HTMLElement;
+    const menuItem = document.createElement('button');
+    menuItem.dataset.autocompleteMenu = 'true';
+    document.body.appendChild(menuItem);
+    try {
+      editable.focus();
+      menuItem.focus();
+      expect(focusSpy).toHaveBeenCalledOnce();
+    } finally {
+      menuItem.remove();
+    }
   });
 });

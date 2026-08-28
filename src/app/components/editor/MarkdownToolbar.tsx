@@ -1,37 +1,39 @@
 import FocusTrap from 'focus-trap-react';
-import type { IconSrc, RectCords } from 'folds';
-import {
-  Badge,
-  Box,
-  config,
-  Icon,
-  IconButton,
-  Icons,
-  Line,
-  Menu,
-  PopOut,
-  Scroll,
-  Text,
-  Tooltip,
-  TooltipProvider,
-  toRem,
-} from 'folds';
+import type { RectCords } from 'folds';
+import { Badge, Box, config, IconButton, Line, Menu, Scroll, Text, Tooltip, toRem } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
+import { PopOut } from '$components/overlay-stack';
 import type { MouseEventHandler, ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { ReactEditor, useSlate } from 'slate-react';
-import { isMacOS } from '$utils/user-agent';
-import { KeySymbol } from '$utils/key-symbol';
 import { stopPropagation } from '$utils/keyboard';
 import { floatingToolbar } from '$styles/overrides/Composer.css';
-import {
-  applyMarkdownBlockPrefix,
-  applyMarkdownInline,
-  BLOCK_HOTKEYS,
-  INLINE_HOTKEYS,
-} from './keyboard';
+import { BLOCK_PREFIXES, INLINE_MARKERS } from './keyboard';
+import type { ShortcutId, ShortcutOverrides } from '../../keyboard/shortcuts';
+import { formatShortcut, getShortcutBinding } from '../../keyboard/shortcuts';
 import * as css from './Editor.css';
+import type { ProseMirrorEditorController } from './prosemirrorController';
+import {
+  CaretDown,
+  Code,
+  CodeBlock,
+  composerIcon,
+  EyeSlash,
+  sizedIcon,
+  ListBullets,
+  ListNumbers,
+  Quotes,
+  TextAa,
+  TextB,
+  TextHOne,
+  TextHThree,
+  TextHTwo,
+  TextItalic,
+  TextStrikethrough,
+  TextUnderline,
+  type PhosphorIcon,
+} from '$components/icons/phosphor';
 
 function BtnTooltip({ text, shortCode }: { text: string; shortCode?: string }) {
   return (
@@ -50,18 +52,20 @@ function BtnTooltip({ text, shortCode }: { text: string; shortCode?: string }) {
   );
 }
 
+const shortcutLabel = (id: ShortcutId, overrides: ShortcutOverrides) =>
+  formatShortcut(getShortcutBinding(id, overrides));
+
 type MarkdownInlineButtonProps = {
+  actions: MarkdownEditorActions;
   marker: string;
-  icon: IconSrc;
+  icon: PhosphorIcon;
   tooltip: ReactNode;
 };
 
-function MarkdownInlineButton({ marker, icon, tooltip }: MarkdownInlineButtonProps) {
-  const editor = useSlate();
-
+function MarkdownInlineButton({ actions, marker, icon, tooltip }: MarkdownInlineButtonProps) {
   const handleClick = () => {
-    applyMarkdownInline(editor, marker);
-    ReactEditor.focus(editor);
+    actions.applyInline(marker);
+    actions.focus();
   };
 
   return (
@@ -74,7 +78,7 @@ function MarkdownInlineButton({ marker, icon, tooltip }: MarkdownInlineButtonPro
           size="400"
           radii="300"
         >
-          <Icon size="200" src={icon} />
+          {sizedIcon(icon, '200')}
         </IconButton>
       )}
     </TooltipProvider>
@@ -82,17 +86,16 @@ function MarkdownInlineButton({ marker, icon, tooltip }: MarkdownInlineButtonPro
 }
 
 type MarkdownBlockButtonProps = {
+  actions: MarkdownEditorActions;
   prefix: string;
-  icon: IconSrc;
+  icon: PhosphorIcon;
   tooltip: ReactNode;
 };
 
-function MarkdownBlockButton({ prefix, icon, tooltip }: MarkdownBlockButtonProps) {
-  const editor = useSlate();
-
+function MarkdownBlockButton({ actions, prefix, icon, tooltip }: MarkdownBlockButtonProps) {
   const handleClick = () => {
-    applyMarkdownBlockPrefix(editor, prefix);
-    ReactEditor.focus(editor);
+    actions.applyBlock(prefix);
+    actions.focus();
   };
 
   return (
@@ -105,22 +108,21 @@ function MarkdownBlockButton({ prefix, icon, tooltip }: MarkdownBlockButtonProps
           size="400"
           radii="300"
         >
-          <Icon size="200" src={icon} />
+          {sizedIcon(icon, '200')}
         </IconButton>
       )}
     </TooltipProvider>
   );
 }
 
-function MarkdownHeadingButton() {
-  const editor = useSlate();
+function MarkdownHeadingButton({ actions }: { actions: MarkdownEditorActions }) {
   const [anchor, setAnchor] = useState<RectCords>();
-  const modKey = isMacOS() ? KeySymbol.Command : 'Ctrl';
+  const [shortcutOverrides] = useSetting(settingsAtom, 'shortcutOverrides');
 
   const handleMenuSelect = (prefix: string) => {
     setAnchor(undefined);
-    applyMarkdownBlockPrefix(editor, prefix);
-    ReactEditor.focus(editor);
+    actions.applyBlock(prefix);
+    actions.focus();
   };
 
   const handleMenuOpen: MouseEventHandler<HTMLButtonElement> = (evt) => {
@@ -147,7 +149,12 @@ function MarkdownHeadingButton() {
           <Menu style={{ padding: config.space.S100 }}>
             <Box gap="100">
               <TooltipProvider
-                tooltip={<BtnTooltip text="Heading 1" shortCode={`${modKey} + 1`} />}
+                tooltip={
+                  <BtnTooltip
+                    text="Heading 1"
+                    shortCode={shortcutLabel('composer.heading1', shortcutOverrides)}
+                  />
+                }
                 delay={500}
               >
                 {(triggerRef) => (
@@ -157,12 +164,17 @@ function MarkdownHeadingButton() {
                     size="400"
                     radii="300"
                   >
-                    <Icon size="200" src={Icons.Heading1} />
+                    {sizedIcon(TextHOne, '200')}
                   </IconButton>
                 )}
               </TooltipProvider>
               <TooltipProvider
-                tooltip={<BtnTooltip text="Heading 2" shortCode={`${modKey} + 2`} />}
+                tooltip={
+                  <BtnTooltip
+                    text="Heading 2"
+                    shortCode={shortcutLabel('composer.heading2', shortcutOverrides)}
+                  />
+                }
                 delay={500}
               >
                 {(triggerRef) => (
@@ -172,12 +184,17 @@ function MarkdownHeadingButton() {
                     size="400"
                     radii="300"
                   >
-                    <Icon size="200" src={Icons.Heading2} />
+                    {sizedIcon(TextHTwo, '200')}
                   </IconButton>
                 )}
               </TooltipProvider>
               <TooltipProvider
-                tooltip={<BtnTooltip text="Heading 3" shortCode={`${modKey} + 3`} />}
+                tooltip={
+                  <BtnTooltip
+                    text="Heading 3"
+                    shortCode={shortcutLabel('composer.heading3', shortcutOverrides)}
+                  />
+                }
                 delay={500}
               >
                 {(triggerRef) => (
@@ -187,7 +204,7 @@ function MarkdownHeadingButton() {
                     size="400"
                     radii="300"
                   >
-                    <Icon size="200" src={Icons.Heading3} />
+                    {sizedIcon(TextHThree, '200')}
                   </IconButton>
                 )}
               </TooltipProvider>
@@ -205,75 +222,141 @@ function MarkdownHeadingButton() {
         aria-haspopup="menu"
         aria-expanded={!!anchor}
       >
-        <Icon size="200" src={Icons.Heading1} />
-        <Icon size="200" src={Icons.ChevronBottom} />
+        {sizedIcon(TextHOne, '200')}
+        {sizedIcon(CaretDown, '200')}
       </IconButton>
     </PopOut>
   );
 }
 
-export function MarkdownToolbar() {
-  const modKey = isMacOS() ? KeySymbol.Command : 'Ctrl';
+type MarkdownEditorActions = {
+  applyBlock: (prefix: string) => void;
+  applyInline: (marker: string) => void;
+  focus: () => void;
+};
+
+function MarkdownToolbar({ actions }: { actions: MarkdownEditorActions }) {
+  const [shortcutOverrides] = useSetting(settingsAtom, 'shortcutOverrides');
 
   return (
     <Box className={`${css.EditorToolbarBase} ${floatingToolbar}`}>
-      <Scroll direction="Horizontal" size="0">
+      <Scroll direction="Horizontal" size="0" data-gestures="scroll">
         <Box className={css.EditorToolbar} alignItems="Center" gap="300">
           <Box shrink="No" gap="100">
             <MarkdownInlineButton
-              marker={INLINE_HOTKEYS['mod+b']!}
-              icon={Icons.Bold}
-              tooltip={<BtnTooltip text="Bold" shortCode={`${modKey} + B`} />}
+              actions={actions}
+              marker={INLINE_MARKERS['composer.bold']}
+              icon={TextB}
+              tooltip={
+                <BtnTooltip
+                  text="Bold"
+                  shortCode={shortcutLabel('composer.bold', shortcutOverrides)}
+                />
+              }
             />
             <MarkdownInlineButton
-              marker={INLINE_HOTKEYS['mod+i']!}
-              icon={Icons.Italic}
-              tooltip={<BtnTooltip text="Italic" shortCode={`${modKey} + I`} />}
+              actions={actions}
+              marker={INLINE_MARKERS['composer.italic']}
+              icon={TextItalic}
+              tooltip={
+                <BtnTooltip
+                  text="Italic"
+                  shortCode={shortcutLabel('composer.italic', shortcutOverrides)}
+                />
+              }
             />
             <MarkdownInlineButton
-              marker={INLINE_HOTKEYS['mod+u']!}
-              icon={Icons.Underline}
-              tooltip={<BtnTooltip text="Underline" shortCode={`${modKey} + U`} />}
+              actions={actions}
+              marker={INLINE_MARKERS['composer.underline']}
+              icon={TextUnderline}
+              tooltip={
+                <BtnTooltip
+                  text="Underline"
+                  shortCode={shortcutLabel('composer.underline', shortcutOverrides)}
+                />
+              }
             />
             <MarkdownInlineButton
-              marker={INLINE_HOTKEYS['mod+s']!}
-              icon={Icons.Strike}
-              tooltip={<BtnTooltip text="Strike Through" shortCode={`${modKey} + S`} />}
+              actions={actions}
+              marker={INLINE_MARKERS['composer.strikethrough']}
+              icon={TextStrikethrough}
+              tooltip={
+                <BtnTooltip
+                  text="Strike Through"
+                  shortCode={shortcutLabel('composer.strikethrough', shortcutOverrides)}
+                />
+              }
             />
             <MarkdownInlineButton
-              marker={INLINE_HOTKEYS['mod+[']!}
-              icon={Icons.Code}
-              tooltip={<BtnTooltip text="Inline Code" shortCode={`${modKey} + [`} />}
+              actions={actions}
+              marker={INLINE_MARKERS['composer.inlineCode']}
+              icon={Code}
+              tooltip={
+                <BtnTooltip
+                  text="Inline Code"
+                  shortCode={shortcutLabel('composer.inlineCode', shortcutOverrides)}
+                />
+              }
             />
             <MarkdownInlineButton
-              marker={INLINE_HOTKEYS['mod+h']!}
-              icon={Icons.EyeBlind}
-              tooltip={<BtnTooltip text="Spoiler" shortCode={`${modKey} + H`} />}
+              actions={actions}
+              marker={INLINE_MARKERS['composer.spoiler']}
+              icon={EyeSlash}
+              tooltip={
+                <BtnTooltip
+                  text="Spoiler"
+                  shortCode={shortcutLabel('composer.spoiler', shortcutOverrides)}
+                />
+              }
             />
           </Box>
           <Line variant="SurfaceVariant" direction="Vertical" style={{ height: toRem(12) }} />
           <Box shrink="No" gap="100">
             <MarkdownBlockButton
-              prefix={BLOCK_HOTKEYS["mod+'"]!}
-              icon={Icons.BlockQuote}
-              tooltip={<BtnTooltip text="Block Quote" shortCode={`${modKey} + '`} />}
+              actions={actions}
+              prefix={BLOCK_PREFIXES['composer.blockquote']}
+              icon={Quotes}
+              tooltip={
+                <BtnTooltip
+                  text="Block Quote"
+                  shortCode={shortcutLabel('composer.blockquote', shortcutOverrides)}
+                />
+              }
             />
             <MarkdownBlockButton
-              prefix={BLOCK_HOTKEYS['mod+;']!}
-              icon={Icons.BlockCode}
-              tooltip={<BtnTooltip text="Block Code" shortCode={`${modKey} + ;`} />}
+              actions={actions}
+              prefix={BLOCK_PREFIXES['composer.codeBlock']}
+              icon={CodeBlock}
+              tooltip={
+                <BtnTooltip
+                  text="Block Code"
+                  shortCode={shortcutLabel('composer.codeBlock', shortcutOverrides)}
+                />
+              }
             />
             <MarkdownBlockButton
-              prefix={BLOCK_HOTKEYS['mod+7']!}
-              icon={Icons.OrderList}
-              tooltip={<BtnTooltip text="Ordered List" shortCode={`${modKey} + 7`} />}
+              actions={actions}
+              prefix={BLOCK_PREFIXES['composer.orderedList']}
+              icon={ListNumbers}
+              tooltip={
+                <BtnTooltip
+                  text="Ordered List"
+                  shortCode={shortcutLabel('composer.orderedList', shortcutOverrides)}
+                />
+              }
             />
             <MarkdownBlockButton
-              prefix={BLOCK_HOTKEYS['mod+8']!}
-              icon={Icons.UnorderList}
-              tooltip={<BtnTooltip text="Unordered List" shortCode={`${modKey} + 8`} />}
+              actions={actions}
+              prefix={BLOCK_PREFIXES['composer.unorderedList']}
+              icon={ListBullets}
+              tooltip={
+                <BtnTooltip
+                  text="Unordered List"
+                  shortCode={shortcutLabel('composer.unorderedList', shortcutOverrides)}
+                />
+              }
             />
-            <MarkdownHeadingButton />
+            <MarkdownHeadingButton actions={actions} />
           </Box>
         </Box>
       </Scroll>
@@ -310,12 +393,16 @@ export function MarkdownFormattingToolbarToggle({
       aria-label={composerToolbarOpen ? 'Hide formatting toolbar' : 'Show formatting toolbar'}
       onClick={() => setComposerToolbarOpen(!composerToolbarOpen)}
     >
-      <Icon src={composerToolbarOpen ? Icons.AlphabetUnderline : Icons.Alphabet} />
+      {composerToolbarOpen ? composerIcon(TextUnderline) : composerIcon(TextAa)}
     </IconButton>
   );
 }
 
-export function MarkdownFormattingToolbarBottom() {
+export function MarkdownFormattingToolbarBottom({
+  controller,
+}: {
+  controller: ProseMirrorEditorController;
+}) {
   const [editorToolbar] = useSetting(settingsAtom, 'editorToolbar');
   const [composerToolbarOpen] = useSetting(settingsAtom, 'composerToolbarOpen');
 
@@ -324,7 +411,13 @@ export function MarkdownFormattingToolbarBottom() {
   return (
     <div>
       <Line variant="SurfaceVariant" size="300" />
-      <MarkdownToolbar />
+      <MarkdownToolbar
+        actions={{
+          applyInline: (marker) => controller.applyMarkdownInline(marker),
+          applyBlock: (prefix) => controller.applyMarkdownBlockPrefix(prefix),
+          focus: () => controller.focus(),
+        }}
+      />
     </div>
   );
 }

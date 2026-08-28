@@ -13,6 +13,9 @@
   "[json]": {
     "editor.defaultFormatter": "oxc.oxc-vscode"
   },
+  "[rust]": {
+    "editor.defaultFormatter": "rust-lang.rust-analyzer"
+  },
   "nixEnvSelector.nixFile": "${workspaceFolder}/flake.nix",
   "nixEnvSelector.useFlakes": true,
   "explorer.fileNesting.enabled": true,
@@ -24,5 +27,6 @@
     ".env": ".env.*",
     "flake.nix": "flake.lock",
     ".gitattributes": ".gitignore"
-  }
+  },
+  "i18n-ally.localesPaths": ["public/locales"]
 }

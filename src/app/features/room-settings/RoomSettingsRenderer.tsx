@@ -1,4 +1,4 @@
-import { Modal500 } from '$components/Modal500';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 import { useCloseRoomSettings, useRoomSettingsState } from '$state/hooks/roomSettings';
 import { useAllJoinedRoomsSet, useGetRoom } from '$hooks/useGetRoom';
 import type { RoomSettingsState } from '$state/roomSettings';
@@ -10,23 +10,27 @@ type RenderSettingsProps = {
   state: RoomSettingsState;
 };
 function RenderSettings({ state }: RenderSettingsProps) {
-  const { roomId, spaceId, page } = state;
+  const { roomId, spaceId, page, openedViaSwipe } = state;
   const closeSettings = useCloseRoomSettings();
   const allJoinedRooms = useAllJoinedRoomsSet();
   const getRoom = useGetRoom(allJoinedRooms);
   const room = getRoom(roomId);
-  const space = spaceId ? getRoom(spaceId) : undefined;
+  const space = spaceId && spaceId !== roomId ? getRoom(spaceId) : undefined;
 
   if (!room) return null;
 
   return (
-    <Modal500 requestClose={closeSettings}>
+    <ModalOverlay requestClose={closeSettings} mobile="fullscreen" size="500">
       <SpaceProvider value={space ?? null}>
         <RoomProvider value={room}>
-          <RoomSettings initialPage={page} requestClose={closeSettings} />
+          <RoomSettings
+            initialPage={page}
+            openedViaSwipe={openedViaSwipe}
+            requestClose={closeSettings}
+          />
         </RoomProvider>
       </SpaceProvider>
-    </Modal500>
+    </ModalOverlay>
   );
 }
 

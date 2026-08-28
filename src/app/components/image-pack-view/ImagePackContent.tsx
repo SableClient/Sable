@@ -19,7 +19,7 @@ import { UsageSwitcher } from './UsageSwitcher';
 import { ImagePackProfile, ImagePackProfileEdit } from './PackMeta';
 import * as css from './style.css';
 
-export type ImagePackContentProps = {
+type ImagePackContentProps = {
   imagePack: ImagePack;
   canEdit?: boolean;
   onUpdate?: (packContent: PackContent) => Promise<void>;
@@ -110,7 +110,13 @@ export const ImagePackContent = as<'div', ImagePackContentProps>(
 
     const handleUploadComplete = useCallback(
       async (data: UploadSuccess) => {
-        const imgEl = await loadImageElement(getImageFileUrl(data.file));
+        const imgUrl = getImageFileUrl(data.file);
+        let imgEl: HTMLImageElement;
+        try {
+          imgEl = await loadImageElement(imgUrl);
+        } finally {
+          URL.revokeObjectURL(imgUrl);
+        }
         const packImage: PackImage = {
           url: data.mxc,
           info: getImageInfo(imgEl, data.file),

@@ -11,14 +11,6 @@ const SlideOutLeft = keyframes({
   '100%': { transform: 'translateX(-100%)', opacity: 0 },
 });
 
-const Shake = keyframes({
-  '0%, 100%': { transform: 'translateX(0)' },
-  '20%': { transform: 'translateX(-4px)' },
-  '40%': { transform: 'translateX(4px)' },
-  '60%': { transform: 'translateX(-4px)' },
-  '80%': { transform: 'translateX(4px)' },
-});
-
 export const Container = style([
   DefaultReset,
   {
@@ -26,17 +18,12 @@ export const Container = style([
     maxWidth: toRem(280),
     minWidth: 0,
     overflow: 'hidden',
-    touchAction: 'pan-y',
     userSelect: 'none',
   },
 ]);
 
 export const ContainerCanceling = style({
   animation: `${SlideOutLeft} 200ms ease-out forwards`,
-});
-
-export const ContainerShake = style({
-  animation: `${Shake} 300ms ease-out`,
 });
 
 export const RecDot = style([
@@ -83,28 +70,6 @@ export const Timer = style([
     fontWeight: 600,
   },
 ]);
-
-export const CancelHint = style([
-  DefaultReset,
-  {
-    position: 'absolute',
-    left: config.space.S200,
-    top: 0,
-    bottom: 0,
-    display: 'flex',
-    alignItems: 'center',
-    color: color.Critical.Main,
-    fontSize: toRem(12),
-    fontWeight: 600,
-    opacity: 0,
-    transition: 'opacity 100ms ease-out',
-    pointerEvents: 'none',
-  },
-]);
-
-export const CancelHintVisible = style({
-  opacity: 1,
-});
 
 export const SrOnly = style([
   DefaultReset,

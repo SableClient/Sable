@@ -1,6 +1,7 @@
 import type { FormEventHandler, ReactNode } from 'react';
 import { useMemo, useState } from 'react';
-import { Badge, Box, Button, Chip, Icon, Icons, Input, Text } from 'folds';
+import { Badge, Box, Button, Chip, Input, Text } from 'folds';
+import { sizedIcon, Trash } from '$components/icons/phosphor';
 import { mxcUrlToHttp } from '$utils/matrix';
 import type { ImageUsage } from '$plugins/custom-emoji';
 import { imageUsageEqual, PackImageReader } from '$plugins/custom-emoji';
@@ -10,6 +11,7 @@ import type { TUploadAtom } from '$state/upload';
 import { createUploadAtom } from '$state/upload';
 import { replaceSpaceWithDash } from '$utils/common';
 import { SettingTile } from '$components/setting-tile';
+import { Image as MediaImage } from '$components/media';
 import * as css from './style.css';
 import { UsageSwitcher, useUsageStr } from './UsageSwitcher';
 
@@ -39,9 +41,9 @@ export function ImageTile({
   return (
     <SettingTile
       before={
-        <img
+        <MediaImage
           className={css.ImagePackImage}
-          src={mxcUrlToHttp(mx, image.url, useAuthentication) ?? ''}
+          src={mxcUrlToHttp(mx, image.url, useAuthentication) ?? undefined}
           alt={image.shortcode}
           loading="lazy"
         />
@@ -74,7 +76,7 @@ export function ImageTile({
               radii="Pill"
               onClick={() => onDeleteToggle?.(defaultShortcode)}
             >
-              {deleted ? <Text size="B300">Undo</Text> : <Icon size="50" src={Icons.Delete} />}
+              {deleted ? <Text size="B300">Undo</Text> : sizedIcon(Trash, '50')}
             </Chip>
             {!deleted && (
               <Chip
@@ -101,7 +103,7 @@ export function ImageTileUpload({ file, children }: ImageTileUploadProps) {
   const uploadAtom = useMemo(() => createUploadAtom(file), [file]);
 
   return (
-    <SettingTile before={<img className={css.ImagePackImage} src={url} alt={file.name} />}>
+    <SettingTile before={<MediaImage className={css.ImagePackImage} src={url} alt={file.name} />}>
       {children(uploadAtom)}
     </SettingTile>
   );
@@ -163,9 +165,9 @@ export function ImageTileEdit({
   return (
     <SettingTile
       before={
-        <img
+        <MediaImage
           className={css.ImagePackImage}
-          src={mxcUrlToHttp(mx, image.url, useAuthentication) ?? ''}
+          src={mxcUrlToHttp(mx, image.url, useAuthentication) ?? undefined}
           alt={image.shortcode}
           loading="lazy"
         />

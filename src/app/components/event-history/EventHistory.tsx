@@ -3,9 +3,7 @@ import {
   Avatar,
   Box,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Menu,
   MenuItem,
   Scroll,
@@ -15,7 +13,7 @@ import {
   config,
 } from 'folds';
 import type { IContent, MatrixEvent, Room } from '$types/matrix-sdk';
-import { getMemberDisplayName } from '$utils/room';
+import { getAvatarUrl, getMemberDisplayName } from '$utils/room/display';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
@@ -25,6 +23,15 @@ import { getMouseEventCords } from '$utils/dom';
 import { useAtomValue, useSetAtom } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import { UserAvatar } from '$components/user-avatar';
+import {
+  userFallbackIcon,
+  ArrowBendUpLeftIcon,
+  ChatTeardropDots,
+  composerIcon,
+  menuIcon,
+  Trash,
+  X,
+} from '$components/icons/phosphor';
 import { RenderBody, Time } from '$components/message';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
@@ -41,9 +48,9 @@ import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 
 import { useSettingsLinkBaseUrl } from '$features/settings/useSettingsLinkBaseUrl';
 import * as css from './EventHistory.css';
-import { EventType } from '$types/matrix-sdk';
+import { EventType, RelationType } from '$types/matrix-sdk';
 
-export type EventHistoryProps = {
+type EventHistoryProps = {
   room: Room;
   mEvents: MatrixEvent[];
   requestClose: () => void;
@@ -63,9 +70,7 @@ export const EventHistory = as<'div', EventHistoryProps>(
     const readerId = mEvents[0]?.event.sender ?? '';
     const name = getName(readerId ?? '');
     const avatarMxcUrl = room.getMember(readerId ?? '')?.getMxcAvatarUrl();
-    const avatarUrl = avatarMxcUrl
-      ? mx.mxcUrlToHttp(avatarMxcUrl, 100, 100, 'crop', undefined, false, useAuthentication)
-      : undefined;
+    const avatarUrl = getAvatarUrl(mx, avatarMxcUrl, 100, useAuthentication);
 
     const [hour24Clock] = useSetting(settingsAtom, 'hour24Clock');
     const [dateFormatString] = useSetting(settingsAtom, 'dateFormatString');
@@ -99,7 +104,7 @@ export const EventHistory = as<'div', EventHistoryProps>(
         const formattedBody =
           content?.['m.new_content']?.formatted_body ?? content?.formatted_body ?? '';
         const { 'm.relates_to': relation } = startThread
-          ? { 'm.relates_to': { rel_type: 'm.thread', event_id: replyId } }
+          ? { 'm.relates_to': { rel_type: RelationType.Thread, event_id: replyId } }
           : replyEvt.getWireContent();
         const senderId = replyEvt.getSender();
         if (senderId) {
@@ -131,7 +136,7 @@ export const EventHistory = as<'div', EventHistoryProps>(
         <Menu className={css.MenuOptions}>
           <MenuItem
             size="300"
-            after={<Icon size="100" src={Icons.ReplyArrow} />}
+            after={menuIcon(ArrowBendUpLeftIcon)}
             radii="300"
             fill="None"
             variant="Secondary"
@@ -146,7 +151,7 @@ export const EventHistory = as<'div', EventHistoryProps>(
           />
           <MenuItem
             size="300"
-            after={<Icon size="100" src={Icons.ThreadReply} />}
+            after={menuIcon(ChatTeardropDots)}
             radii="300"
             fill="None"
             variant="Secondary"
@@ -162,7 +167,7 @@ export const EventHistory = as<'div', EventHistoryProps>(
           {canDelete && (
             <MenuItem
               size="300"
-              after={<Icon size="100" src={Icons.Delete} />}
+              after={menuIcon(Trash)}
               radii="300"
               fill="None"
               variant="Critical"
@@ -230,7 +235,7 @@ export const EventHistory = as<'div', EventHistoryProps>(
             <Text size="H3">Message version history</Text>
           </Box>
           <IconButton size="300" onClick={requestClose}>
-            <Icon src={Icons.Cross} />
+            {composerIcon(X)}
           </IconButton>
         </Header>
         <Header>
@@ -248,6 +253,7 @@ export const EventHistory = as<'div', EventHistoryProps>(
                 room.roomId,
                 space?.roomId,
                 readerId,
+                undefined,
                 getMouseEventCords(event.nativeEvent),
                 'Bottom'
               );
@@ -258,7 +264,7 @@ export const EventHistory = as<'div', EventHistoryProps>(
                   userId={readerId ?? ''}
                   src={avatarUrl ?? undefined}
                   alt={name}
-                  renderFallback={() => <Icon size="50" src={Icons.User} filled />}
+                  renderFallback={() => userFallbackIcon('sm')}
                 />
               </Avatar>
             }

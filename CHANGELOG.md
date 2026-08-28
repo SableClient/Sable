@@ -1,5 +1,305 @@
 # Sable Client Changelog
 
+## 1.21.0 (2026-08-17)
+
+### Features
+
+* Add the `forum` room type with a dedicated forum view that presents threads as topics. by @smokku in #980
+* New composer commands: `/gif` opens the GIF picker and `/rainbowme` sends rainbow-formatted action messages (#1109). by @eleboucher in #1573
+* Add selectable app icons on Android and iOS. by @eleboucher in #1594
+* Add MSC4466 profile sync controls for supported homeservers. by @7w1 in #1117
+* Add experimental new calls using LiveKit on web, desktop, and supported mobile devices, enabled by a single setting with Element Call as the fallback. by @eleboucher in #1575
+* Add toggleable, reorderable composer trigger buttons (emoji, gif, sticker) with a drag-and-drop settings list. by @eleboucher in #1261
+* Settings improvements: search the settings sidebar and customize keyboard shortcuts (#1121). by @eleboucher in #1660
+* Add an accessibility settings tab with color correction filters. by @j0lol in #1664
+* Persona improvements: pick a persona directly in the editor, an account-wide persona toggle, latching shorthands, persona name colors, and a redesigned persona settings menu (#1223, #1264, #1368, #1369, #1435, #1462). by @j0lol in #1171
+* Style tables in formatted messages. by @Steffo99 in #1580
+* New bottom sheets across the app: attach files and pick emoji from sheets in the composer, plus a room details sheet on small screens (#1173, #1433). by @eleboucher in #1234
+* Update the device display name after login to reflect the current client and build flavor. by @hazre in #1458
+* Replaced the connection status top bar with a small styled popup and added a variant that shows sliding sync initial progress. by @7w1 in #1200
+* Add per-message profiles (MSC4461): a different name and avatar in each room, with PluralKit import, shorthands, backup and restore, editing sent messages, and profile info on user profiles (#1352, #1479, #1586, #1611, #1651, #1701). by @j0lol in #1589
+* The notifications inbox is now built from push rules evaluated on this device instead of the server's `/notifications` endpoint, so mentions in encrypted rooms are detected correctly. by @eleboucher in #1372
+* Add beta desktop and mobile builds with a greatly improved mobile experience, UnifiedPush support and more reliable notifications, better desktop shortcuts, updates and window controls, and improved native media handling and sharing. by @eleboucher in #1103
+
+### Fixes
+
+* Publish an `obtainium.json` app config with every release so Android builds can be installed and auto-updated through Obtainium. by @eleboucher in #1616
+* Performance: faster startup and warm syncs by caching room metadata, profile data, and device verification, plus lower memory use by pruning inactive room history (#1127, #1184, #1305, #1466). by @7w1 in #1118
+* Login and account fixes: full-URL homeservers no longer land on an empty room, a retry button when discovery fails, OAuth device verification no longer hangs, identity reset completes, key backup restores on verified devices, and account switch or logout from the offline screen (#1115, #1270, #1348, #1379, #1380). by @eleboucher in #1582
+* Media fixes: encrypted images and GIFs render again, playback works on Firefox, better loading on slow connections, decrypted media is freed from memory, gzipped Lottie support, stickers send reliably, and notification sounds no longer play as media (#1104, #1296, #1331, #1332, #1334, #1353, #1381). by @eleboucher in #1271
+* Fix link previews leaving empty space in a message until it is reloaded by @eleboucher in #1827
+* Message formatting fixes: checklists no longer render as raw HTML, spoilers work with proxy tags, maps with malformed coordinates no longer crash the app, and membership reasons are wrapped in parentheses (#1248, #1307, #1470). by @eleboucher in #1354
+* Fix context menus closing instead of opening, keep the room options sheet open, and let sidebar, space, and image viewer menus open on long-press as well as right-click (#1336, #1358). by @eleboucher in #1431
+* Assorted fixes: popups on start appear one at a time, room leave updates immediately, accepted invites stop reappearing, synced CSS tweaks are restored, the scheduled-messages chip shows again, faster recovery from network switches, plus small visual and formatting fixes (#1114, #1120, #1146, #1200, #1220, #1284, #1514, #1656). by @eleboucher in #1399
+* Profile fixes: hero colours and full scrolling restored on profile sheets, local time respects the 24-hour setting, devices stay sorted when last-active times are missing, and no crash in room cosmetics before members load (#1298, #1579, #1793). by @eleboucher in #1503
+* Fix sliding sync issues: missing or stale display names, bridged avatars, blank space icons, sticker and emote packs, subspaces, call updates, and incomplete member lists (#1111, #1112, #1119, #1173, #1530, #1554). by @7w1 in #1170
+* Notification and unread fixes: rooms no longer stay unread after a thread reply or restart, the inbox shows real message previews, the page title shows the mention count, and tapping a notification navigates correctly (#1245, #1390). by @eleboucher in #1816
+* Timeline fixes: reliably follow new messages, stop loading a room's whole history on open, unstuck pagination, restored polls, and fixed thread rendering, reactions, and replies (#1113, #1358, #1363, #1367, #1373, #1425). by @eleboucher in #1105
+* Fix voice recordings continuing after cancel or rapid taps, and stop the microphone when a recording is interrupted before the permission prompt resolves (#1428). by @eleboucher in #1252
+* Add option to always keep the last line of the text editor "inline" with the UI buttons. by @lunar-seal in #1218
+* Mobile polish: smoother swipe navigation and drawer, steady keyboard while editing, better touch feedback, chat input and account panel, swipe-to-edit on messages, and fixed swiping in attachments (#1103, #1130, #1131, #1144, #1173, #1267, #1303, #1382, #1754). by @eleboucher in #1166
+
+## 1.20.0 (2026-07-17)
+
+### Security
+
+* This release includes an important security fix. Please update as soon as possible. Sensitive Matrix account data is not exposed by this issue. ([#1107](<https://github.com/SableClient/Sable/pull/1107>) by @7w1)
+
+### Features
+
+* Add Native OIDC (OAuth 2.0) login so you can sign in to and register on homeservers that use delegated authentication, such as continuwuity and Synapse with the Matrix Authentication Service. Sessions stay signed in through automatic token refresh, and signing out revokes the tokens on the server. ([#1071](<https://github.com/SableClient/Sable/pull/1071>) by @eleboucher)
+* Show the unread mention count in the page title. ([#1093](<https://github.com/SableClient/Sable/pull/1093>) by @eleboucher)
+
+#### Improve sliding sync. ([#1069](<https://github.com/SableClient/Sable/pull/1069>) by @7w1, @eleboucher)
+
+- Make sliding sync easier to enable during login or loading and from settings.
+- Move the sliding sync toggle from Experimental to the bottom of General settings.
+- Start faster and restore rooms and spaces sooner.
+- Reduce unnecessary background room data.
+- Improve room details, memberships, presence, and unread indicators.
+- Make startup loading smoother for both sliding and classic sync.
+- It's fast now :3
+
+### Fixes
+
+* Use attachment filenames instead of captions when downloading files and harden unsafe download names. ([#1086](<https://github.com/SableClient/Sable/pull/1086>) by @7w1)
+* Allow users to send messages in encrypted rooms when they have permission to send `m.room.encrypted` events. ([#1098](<https://github.com/SableClient/Sable/pull/1098>) by @7w1)
+* Allow users without a locally configured LiveKit focus to join calls started by others. ([#1099](<https://github.com/SableClient/Sable/pull/1099>) by @7w1)
+* Fix the new messages divider not appearing when the read receipt points at an event hidden from the timeline (reaction, edit, thread reply). ([#1101](<https://github.com/SableClient/Sable/pull/1101>) by @eleboucher)
+* Fix the new messages divider staying at the room-open position instead of re-anchoring at the last read when the window loses focus. ([#1095](<https://github.com/SableClient/Sable/pull/1095>) by @eleboucher)
+* Fix redacted messages rendering as "Unsupported message (no body)" instead of "Message deleted" with sliding sync. ([#1089](<https://github.com/SableClient/Sable/pull/1089>) by @eleboucher)
+* Display redacted state events (membership, room name/topic/avatar, pins and other state events) as a "deleted" tombstone in the timeline instead of rendering them with empty/redacted content or hiding them, so the reply-to of a redaction highlights the redacted event. ([#1090](<https://github.com/SableClient/Sable/pull/1090>) by @eleboucher)
+* Fix joining spaces with sliding sync enabled. ([#1085](<https://github.com/SableClient/Sable/pull/1085>) by @eleboucher)
+* Display the explicit room name for non-direct channels with two members. ([#1098](<https://github.com/SableClient/Sable/pull/1098>) by @7w1)
+* Fix resetting animal identity ([#1070](<https://github.com/SableClient/Sable/pull/1070>) by @nushea)
+* Fix the sliding-sync presence fallback consuming one-time-key updates and to-device messages without processing them. ([#1078](<https://github.com/SableClient/Sable/pull/1078>) by @7w1)
+* Fix clickable handles ([#1068](<https://github.com/SableClient/Sable/pull/1068>) by @nushea)
+* Hide the "Register" link on the login page when the homeserver has registration disabled and offers no SSO to register through, so you are no longer sent to a dead-end registration page. ([#1073](<https://github.com/SableClient/Sable/pull/1073>) by @eleboucher)
+* Add uploaded Sable CSS theme loading, automatic catalog updates, and a cleaner theme browser with full CSS viewing. ([#1087](<https://github.com/SableClient/Sable/pull/1087>) by @7w1)
+* Show room members in developer tools. ([#1088](<https://github.com/SableClient/Sable/pull/1088>) by @7w1)
+
+## 1.19.4 (2026-07-12)
+
+### Fixes
+
+* Fix some image embeds not creating embeds. ([#1062](<https://github.com/SableClient/Sable/pull/1062>) by @7w1)
+* Allow rooms with empty local parts to be viewed. ([#1062](<https://github.com/SableClient/Sable/pull/1062>) by @7w1)
+* Fix the account button showing you 0 sessions active and the verify this device showing when you have zero devices to verify ([#1064](<https://github.com/SableClient/Sable/pull/1064>) by @nushea)
+* Various performance optimizations ([#1062](<https://github.com/SableClient/Sable/pull/1062>) by @7w1)
+* Fixed the entire timeline being rerendered every time you scroll :P ([#1055](<https://github.com/SableClient/Sable/pull/1055>) by @7w1)
+
+### Notes
+
+* Added a new workflow that automatically previews dev on [dev.sable.moe](https://dev.sable.moe) ([#1059](<https://github.com/SableClient/Sable/pull/1059>) by @7w1)
+
+## 1.19.3 (2026-07-09)
+
+### Fixes
+
+* Fix crash with some embed links. ([#1047](<https://github.com/SableClient/Sable/pull/1047>) by @7w1)
+* Fix even more visual stuffs. ([#1049](<https://github.com/SableClient/Sable/pull/1049>) by @nushea)
+
+## 1.19.2 (2026-07-09)
+
+### Fixes
+
+* Fix right click menu not closing when viewing reactions. ([#1045](<https://github.com/SableClient/Sable/pull/1045>) by @7w1)
+* Send gifs with proper file extensions in body. ([#1045](<https://github.com/SableClient/Sable/pull/1045>) by @7w1)
+* Fix crash in autocomplete menu when editing messages. ([#1045](<https://github.com/SableClient/Sable/pull/1045>) by @7w1)
+* Ensure call buttons appear/disappear when relevant state events occur. ([#1045](<https://github.com/SableClient/Sable/pull/1045>) by @7w1)
+* Fix format for recent emojis and related crash. ([#1045](<https://github.com/SableClient/Sable/pull/1045>) by @7w1)
+* Fix sliding sync debug saying sliding when it is in fact not sliding. ([#1045](<https://github.com/SableClient/Sable/pull/1045>) by @7w1)
+* Fix very small little visual issues you probably didnt even notice 🙏 ([#1038](<https://github.com/SableClient/Sable/pull/1038>) by @nushea)
+
+## 1.19.1 (2026-07-09)
+
+### Fixes
+
+* Fix sliding sync being enabled when setting is disabled. ([#1036](<https://github.com/SableClient/Sable/pull/1036>) by @7w1)
+
+## 1.19.0 (2026-07-09)
+
+### Features
+
+* Added a GIF search functionality ([#970](<https://github.com/SableClient/Sable/pull/970>) by @7w1, @nikiwastaken)
+* Change unverified device flow. ([#1017](<https://github.com/SableClient/Sable/pull/1017>) by @nikiwastaken, @nushea)
+* Change animal identity to allow arbitrary animals ([#984](<https://github.com/SableClient/Sable/pull/984>) by @nushea)
+* Add a new Mobile Context ([#946](<https://github.com/SableClient/Sable/pull/946>) by @7w1, @nushea)
+* Add bookmark functionality using account data ([#1000](<https://github.com/SableClient/Sable/pull/1000>) by @nikiwastaken, @nushea)
+* Add Copy Message button to copy unformatted version. ([#1001](<https://github.com/SableClient/Sable/pull/1001>) by @nushea)
+* Change profile handle part to a button that copies it ([#981](<https://github.com/SableClient/Sable/pull/981>) by @nushea)
+* Add reactions to arbitrary events ([#946](<https://github.com/SableClient/Sable/pull/946>) by @7w1, @nushea)
+* Added a gallery support as per msc4274 ([#1019](<https://github.com/SableClient/Sable/pull/1019>) by @nikiwastaken, @nushea)
+* Add a context menu for copying and downloading images. ([#994](<https://github.com/SableClient/Sable/pull/994>) by @nikiwastaken, @nushea)
+* Add search message keybind and combine sidebar items. ([#943](<https://github.com/SableClient/Sable/pull/943>) by @nushea)
+* Add option for showing icons only when available and changed default to it ([#978](<https://github.com/SableClient/Sable/pull/978>) by @nushea)
+* Add CTRL+E shortcut to editor to bring sticker menu up ([#982](<https://github.com/SableClient/Sable/pull/982>) by @nushea)
+* Redesign the user menu tab ([#990](<https://github.com/SableClient/Sable/pull/990>) by @nikiwastaken, @nushea)
+* Modify large parts of the mobile view of Sable! ([#1017](<https://github.com/SableClient/Sable/pull/1017>) by @nikiwastaken, @nushea)
+* Improved sliding sync (only requests specific room state data), cleaned up and fixed most flickering issues, and added buttons in developer tools to request full state. ([#1020](<https://github.com/SableClient/Sable/pull/1020>) by @7w1)
+
+#### Revamped the calling experience in Sable! ([#841](<https://github.com/SableClient/Sable/pull/841>) by @7w1)
+
+- Pulled the latest Element Call updates.
+- Style improvements to the call widget so it uses the Sable theme and fonts.
+- Added support for custom ringtones and ringbacks.
+- Added call permissions.
+- Fixed various bugs around call ending, declining, and joining.
+
+### Fixes
+
+* Allow favoriting all animated attachment types ([#1029](<https://github.com/SableClient/Sable/pull/1029>) by @nikiwastaken)
+* Updated emojis to use stable 1.19 identifiers ([#1034](<https://github.com/SableClient/Sable/pull/1034>) by @7w1)
+* Swap to using the stable identifier `m.recent_emoji` for recent emojis and add migration logic. ([#1009](<https://github.com/SableClient/Sable/pull/1009>) by @7w1)
+* Add a direct link to room/space settings when the current sticker list is empty ([#1016](<https://github.com/SableClient/Sable/pull/1016>) by @7w1, @ellieplayswow)
+* Fix leaving modal looking outsized ([#991](<https://github.com/SableClient/Sable/pull/991>) by @nushea)
+* Fix cat status not being present on its own. ([#971](<https://github.com/SableClient/Sable/pull/971>) by @nikiwastaken)
+* Fix encrypted thread messages not appearing until reopened. ([#975](<https://github.com/SableClient/Sable/pull/975>) by @7w1)
+* Fix codebase issues with gadient themes ([#1007](<https://github.com/SableClient/Sable/pull/1007>) by @nushea)
+* Fix account switcher's add account button redirecting to the wrong path when hashRouter is enabled ([#993](<https://github.com/SableClient/Sable/pull/993>) by @EphemeralFog)
+* Fix the image viewer header not being fully visible on smaller phone screens. ([#1035](<https://github.com/SableClient/Sable/pull/1035>) by @7w1)
+* Fix mentions not sending in non-textual replies ([#1004](<https://github.com/SableClient/Sable/pull/1004>) by @nushea)
+* Fixed oidc device delete key being incorrect. ([#1030](<https://github.com/SableClient/Sable/pull/1030>) by @7w1)
+* Fix crash when opening pins with stickers. ([#972](<https://github.com/SableClient/Sable/pull/972>) by @7w1)
+* Fix pixelated image scaling not pixelating when zoomed in. ([#1033](<https://github.com/SableClient/Sable/pull/1033>) by @7w1)
+* Fix registration not working when accessed from add account button ([#992](<https://github.com/SableClient/Sable/pull/992>) by @EphemeralFog)
+* Reverse the order of message header elements in the right aligned bubbles layout. ([#967](<https://github.com/SableClient/Sable/pull/967>) by @EphemeralFog)
+* Fixed outdated Firefox versions and some Safari versions not being able to send messages. ([#1010](<https://github.com/SableClient/Sable/pull/1010>) by @7w1)
+* Fix timeline sorting order regression when "show hidden events" is enabled. ([#974](<https://github.com/SableClient/Sable/pull/974>) by @7w1)
+* Fix ghost quickmenu ([#946](<https://github.com/SableClient/Sable/pull/946>) by @7w1, @nushea)
+* Fix Collapsed mode showing the wrong icon ([#978](<https://github.com/SableClient/Sable/pull/978>) by @nushea)
+* Fix poll crashing sable if interacted with different clients ([#969](<https://github.com/SableClient/Sable/pull/969>) by @nushea)
+* Fix video player sometimes not working ([#1031](<https://github.com/SableClient/Sable/pull/1031>) by @nushea)
+* Add support for searching users via nicknames in the autocomplete menu. ([#1028](<https://github.com/SableClient/Sable/pull/1028>) by @7w1)
+* Update `@sableclient/twemoji-font` to fix missing Twemoji emoji coverage. ([#964](<https://github.com/SableClient/Sable/pull/964>) by @7w1)
+
+## 1.18.3 (2026-06-17)
+
+### Fixes
+
+* Fixed broken Twemoji rendering and updated emoji picker, autocomplete, and jumbo detection for new emojis. ([#957](<https://github.com/SableClient/Sable/pull/957>) by @7w1)
+* Updated various dependencies. ([#957](<https://github.com/SableClient/Sable/pull/957>) by @7w1)
+
+## 1.18.2 (2026-06-17)
+
+### Fixes
+
+* Adding servers in the explore tab now persist in account data and are actually added to the list. ([#953](<https://github.com/SableClient/Sable/pull/953>) by @7w1)
+* Added a button to leave all rooms/subspaces within a space in the leave space confirmation dialog. Also has text to show number of children. ([#953](<https://github.com/SableClient/Sable/pull/953>) by @7w1)
+* Added a setting to play notification sounds when tab is in background, enabled by default. ([#953](<https://github.com/SableClient/Sable/pull/953>) by @7w1)
+* Centered the notification bell icon in the room list. ([#954](<https://github.com/SableClient/Sable/pull/954>) by @7w1)
+* Fixed edit diffs not properly scaling with zoom. ([#951](<https://github.com/SableClient/Sable/pull/951>) by @7w1)
+* Fixed icons not scaling with zoom. ([#951](<https://github.com/SableClient/Sable/pull/951>) by @7w1)
+* Fixed invalid language tag when no locale set for some systems. ([#953](<https://github.com/SableClient/Sable/pull/953>) by @7w1)
+* Fixed replying to reaction/edit events not replying. ([#942](<https://github.com/SableClient/Sable/pull/942>) by @7w1)
+* Fix sending thread messages sometimes sending in the general timeline ([#944](<https://github.com/SableClient/Sable/pull/944>) by @nushea)
+
+#### Updates Twemoji to from v15 to v17 🫪 ([#950](<https://github.com/SableClient/Sable/pull/950>) by @7w1, @hazre)
+
+You can check here for emoji changes:
+
+- https://www.unicode.org/emoji/charts-16.0/emoji-released.html
+- https://www.unicode.org/emoji/charts-17.0/emoji-released.html
+
+## 1.18.1 (2026-06-14)
+
+### Fixes
+
+* Added some icon size settings. ([#941](<https://github.com/SableClient/Sable/pull/941>) by @7w1)
+* Add 'Show Results' to show their poll's result before casting an answer ([#939](<https://github.com/SableClient/Sable/pull/939>) by @nushea)
+* Fix edit events collapsing with normal messages. ([#941](<https://github.com/SableClient/Sable/pull/941>) by @7w1)
+* Make more Icon changes ([#940](<https://github.com/SableClient/Sable/pull/940>) by @nushea)
+* Fix missing the mark icon on Map, and the mark moving around when clicked ([#937](<https://github.com/SableClient/Sable/pull/937>) by @nushea)
+* Hide membership events in read only rooms now also hides reactions and reaction redactions. ([#941](<https://github.com/SableClient/Sable/pull/941>) by @7w1)
+
+## 1.18.0 (2026-06-14)
+
+### Features
+
+* Added configurable max pronoun pill count and max pill length rendering settings. ([#904](<https://github.com/SableClient/Sable/pull/904>) by @7w1)
+* Adds the ability to hover/tap over `...` to see the rest of someone's pronouns. ([#904](<https://github.com/SableClient/Sable/pull/904>) by @7w1)
+* Support rendering `matrix:` URIs in incoming messages. ([#935](<https://github.com/SableClient/Sable/pull/935>) by @7w1)
+* Added an inline add-reaction button at the end of message reaction lists. ([#934](<https://github.com/SableClient/Sable/pull/934>) by @7w1)
+* Add button to silently dismiss Invite ([#936](<https://github.com/SableClient/Sable/pull/936>) by @nushea)
+* Highlight message that you are about to reply to! ([#897](<https://github.com/SableClient/Sable/pull/897>) by @nushea)
+* Add Location styling with a modal! ([#927](<https://github.com/SableClient/Sable/pull/927>) by @nushea)
+
+#### Added more hidden timeline events with settings and rendering. ([#934](<https://github.com/SableClient/Sable/pull/934>) by @7w1)
+
+##### Settings
+
+- Added a master Show Hidden Events toggle with per-type sub-toggles for message edits, redactions, reactions, and other unrecognized events
+- Sub-toggles stay visible beneath the master toggle and are disabled while hidden events are off
+
+##### Timeline rendering
+
+- Show message edits as timeline events with reply navigation and an inline word/line diff between versions
+- Show reactions, message redactions, and reaction redactions as timeline events
+- Keep redacted reactions in the timeline as tombstones with redaction events linking back to them when possible
+- Improve reply-chip previews for edits, redactions, reactions, and redacted targets
+
+##### Safeguards
+
+- Hide forward, delete, and other message actions on timeline meta events that cannot be forwarded or meaningfully deleted
+- Disallow forwarding deleted messages and other non-message event types
+
+#### Add polls! ([#916](<https://github.com/SableClient/Sable/pull/916>) by @nushea)
+
+##### Add Polls with a new Menu for adding items
+
+- The polls have a simple style for showing and interfacing with poll events
+- There is now a simple interface for creating polls which integrates the spec
+- Now the Plus button on the bottom left can open a menu for selecting what to send, which will be useful for future options as well
+- For the people that prefer to only add files with that button they can disable the menu and still create polls with the /poll command
+- You can see who voted for what in a clear menu
+
+### Fixes
+
+* Change image rendering to allow enabling anti-aliasing in the image viewer ([#919](<https://github.com/SableClient/Sable/pull/919>) by @nushea)
+* Fix crash during scrubbing before duration duration appears. ([#902](<https://github.com/SableClient/Sable/pull/902>) by @7w1)
+* Fixed lists rendering `p` html tags on new lines. ([#906](<https://github.com/SableClient/Sable/pull/906>) by @7w1)
+* Fix math parsing inside of color blocks not being parsed properly. ([#910](<https://github.com/SableClient/Sable/pull/910>) by @7w1)
+* Fixed nested lists having wrong indentation levels when editing. ([#906](<https://github.com/SableClient/Sable/pull/906>) by @7w1)
+* Fix missing filename breaking edits, and missing a fallback, and codeblock titles overflowing ([#917](<https://github.com/SableClient/Sable/pull/917>) by @nushea)
+* Fix unset User Profile cards having incorectly colored text. ([#896](<https://github.com/SableClient/Sable/pull/896>) by @nushea)
+* Migrated all icons to Phosphor Icons and added a setting to display globe/lock icon instead of the hash tag for the room sidebar. ([#934](<https://github.com/SableClient/Sable/pull/934>) by @7w1)
+
+## 1.17.0 (2026-05-22)
+
+### Features
+
+* Add support for misskey-flavored markdown color definitions. E.g. `$[fg.color=f00 bg.color=00ff00 red on green]`. ([#860](<https://github.com/SableClient/Sable/pull/860>) by @7w1)
+* Add per Space setting for when to show room icons in sidebar ([#851](<https://github.com/SableClient/Sable/pull/851>) by @nushea)
+* Add toggle to list all rooms inside of the home sidebar. ([#866](<https://github.com/SableClient/Sable/pull/866>) by @nushea)
+
+#### Change Image Viewer to feel more natural to use. ([#686](<https://github.com/SableClient/Sable/pull/686>) by @7w1, @nushea, @Septicity)
+
+- Fixed zoom gestures generally not working on mobile.
+- Changed the % number in the top right to reflect the zoom of the original image as opposed to the change from it fitting the container.
+- Made the zoom pill allow entering custom values.
+- Added a button that zooms you to the original size of the image, and a button to return to the size that fills the container.
+- Added a pixelated image scaling setting: choose Both, Chat, Image viewer (default), or Neither for crisp nearest-neighbor rendering.
+- Transitions are now disabled for manual panning to improve responsiveness.
+
+### Fixes
+
+* Fixed starting lists at arbitrary numbers and list markers extending off screen with long numbers. ([#860](<https://github.com/SableClient/Sable/pull/860>) by @7w1)
+* Fix single new lines after block quotes being block-quoted. ([#860](<https://github.com/SableClient/Sable/pull/860>) by @7w1)
+* Fix emojis not rendering in reply chips. ([#860](<https://github.com/SableClient/Sable/pull/860>) by @7w1)
+* Hardened html parsing in standard input box, should no longer randomly delete text in arrow brackets (unless valid, properly closed, legal html). ([#860](<https://github.com/SableClient/Sable/pull/860>) by @7w1)
+* Fixed the message loading spinner flickering instead of continuing during large pagination chunks. ([#895](<https://github.com/SableClient/Sable/pull/895>) by @7w1)
+* Fix matrix.to links getting arrow brackets inserted when editing messages. ([#860](<https://github.com/SableClient/Sable/pull/860>) by @7w1)
+* Fix mentions breaking after editing messages with mentions. ([#860](<https://github.com/SableClient/Sable/pull/860>) by @7w1)
+* Fix account switching and logging in with multiple (SSO) accounts silently failing ([#882](<https://github.com/SableClient/Sable/pull/882>) by @770grappenmaker)
+* Removed the arbitrary bio limit from the bio editor. ([#863](<https://github.com/SableClient/Sable/pull/863>) by @7w1)
+* Remove target and rel attributes from outgoing html links. ([#891](<https://github.com/SableClient/Sable/pull/891>) by @7w1)
+* Fix tablet layouts having the sidebar fill up the screen. ([#864](<https://github.com/SableClient/Sable/pull/864>) by @7w1)
+* Add support for stable mutual rooms endpoint, manually ported from [this commit](https://github.com/cinnyapp/cinny/commit/bef267257a28b3be8a96852fed1718f63cf570f9) by ajbura upstream. ([#852](<https://github.com/SableClient/Sable/pull/852>) by @7w1)
+
+### Documentation
+
+* Docker build tags have been updated: `latest` now tracks the latest versioned release and `dev` now tracks the dev branch. ([#892](<https://github.com/SableClient/Sable/pull/892>) by @7w1)
+
 ## 1.16.1 (2026-05-15)
 
 ### Fixes

@@ -1,5 +1,12 @@
 import type { MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
-import { ClientEvent, KnownMembership, MatrixEventEvent, RoomStateEvent } from '$types/matrix-sdk';
+import {
+  ClientEvent,
+  EventType,
+  KnownMembership,
+  MatrixEventEvent,
+  RoomStateEvent,
+} from '$types/matrix-sdk';
+import { invoke } from '@tauri-apps/api/core';
 import type { IRoomEvent, IWidget, WidgetDriver } from 'matrix-widget-api';
 import {
   ClientWidgetApi,
@@ -10,13 +17,30 @@ import {
 } from 'matrix-widget-api';
 import { CallWidgetDriver } from './CallWidgetDriver';
 import { trimTrailingSlash } from '../../utils/common';
+import { getWindowOrigin, iosApp, isAndroidTauri } from '../../utils/platform';
 import type { ElementCallThemeKind, ElementMediaStateDetail } from './types';
+import { color, config } from 'folds';
 import { ElementCallIntent, ElementWidgetActions } from './types';
 import { CallControl } from './CallControl';
 import { CallControlState } from './CallControlState';
 import { createDebugLogger } from '../../utils/debugLogger';
+import { getSlidingSyncManager } from '$client/initMatrix';
 
 const debugLog = createDebugLogger('CallEmbed');
+
+const resolveCssVar = (variable: string): string => {
+  const match = variable.match(/var\((--[^,)]+)/);
+  if (match && match[1]) {
+    const bodyVal = window.getComputedStyle(document.body).getPropertyValue(match[1]).trim();
+    if (bodyVal) return bodyVal;
+    const docElVal = window
+      .getComputedStyle(document.documentElement)
+      .getPropertyValue(match[1])
+      .trim();
+    if (docElVal) return docElVal;
+  }
+  return variable;
+};
 
 export class CallEmbed {
   private mx: MatrixClient;
@@ -29,6 +53,10 @@ export class CallEmbed {
 
   public joined = false;
 
+  private initialMediaStateReceived = false;
+
+  private nativeCallRuntimeActive = false;
+
   public readonly control: CallControl;
 
   private readonly container: HTMLElement;
@@ -40,26 +68,60 @@ export class CallEmbed {
   private readonly disposables: Array<() => void> = [];
 
   static getIntent(dm: boolean, ongoing: boolean, video: boolean | undefined): ElementCallIntent {
-    if (!dm) {
-      return video ? ElementCallIntent.JoinExisting : ElementCallIntent.JoinExistingDMVoice;
-    }
-
     if (ongoing) {
-      return video ? ElementCallIntent.JoinExistingDM : ElementCallIntent.JoinExistingDMVoice;
+      if (dm) {
+        return video ? ElementCallIntent.JoinExistingDM : ElementCallIntent.JoinExistingDMVoice;
+      }
+      return video ? ElementCallIntent.JoinExisting : ElementCallIntent.JoinExistingVoice;
     }
 
-    return video ? ElementCallIntent.StartCallDM : ElementCallIntent.StartCallDMVoice;
+    if (dm) {
+      return video ? ElementCallIntent.StartCallDM : ElementCallIntent.StartCallDMVoice;
+    }
+
+    return video ? ElementCallIntent.StartCall : ElementCallIntent.StartCallVoice;
+  }
+
+  static dmCall(intent: ElementCallIntent): boolean {
+    return (
+      intent === ElementCallIntent.JoinExistingDM ||
+      intent === ElementCallIntent.JoinExistingDMVoice ||
+      intent === ElementCallIntent.StartCallDM ||
+      intent === ElementCallIntent.StartCallDMVoice
+    );
+  }
+
+  static startingCall(intent: ElementCallIntent): boolean {
+    return (
+      intent === ElementCallIntent.StartCallDM ||
+      intent === ElementCallIntent.StartCallDMVoice ||
+      intent === ElementCallIntent.StartCall ||
+      intent === ElementCallIntent.StartCallVoice
+    );
+  }
+
+  // Widget-mode discovery can't reach a transport (no access token, iframe
+  // fetch restrictions), so forward the ongoing call's own transport.
+  private static getOngoingCallLivekitServiceUrl(mx: MatrixClient, room: Room): string | undefined {
+    const session = mx.matrixRTC.getRoomSession(room);
+    const oldest = session.getOldestMembership();
+    if (!oldest) return undefined;
+    const transport = session.memberships.map((m) => m.getTransport(oldest)).find(Boolean);
+    return transport?.type === 'livekit'
+      ? (transport as { livekit_service_url?: string }).livekit_service_url
+      : undefined;
   }
 
   static getWidget(
     mx: MatrixClient,
     room: Room,
     intent: ElementCallIntent,
-    themeKind: ElementCallThemeKind
+    themeKind: ElementCallThemeKind,
+    elementCallUrl?: string
   ): Widget {
     const userId = mx.getSafeUserId();
     const deviceId = mx.getDeviceId() ?? '';
-    const clientOrigin = window.location.origin;
+    const clientOrigin = getWindowOrigin();
     const widgetId = 'call-embed';
 
     const params = new URLSearchParams({
@@ -77,12 +139,44 @@ export class CallEmbed {
       perParticipantE2EE: room.hasEncryptionStateEvent().toString(),
       lang: 'en-EN',
       theme: themeKind,
+      background: 'solid',
+      header: 'none',
     });
 
-    const widgetUrl = new URL(
-      `${trimTrailingSlash(import.meta.env.BASE_URL)}/public/element-call/index.html`,
-      window.location.origin
-    );
+    const ongoingLivekitServiceUrl = CallEmbed.getOngoingCallLivekitServiceUrl(mx, room);
+    if (ongoingLivekitServiceUrl) {
+      params.append('livekitServiceUrl', ongoingLivekitServiceUrl);
+    }
+
+    if (!room.isCallRoom() && CallEmbed.startingCall(intent)) {
+      params.append('sendNotificationType', CallEmbed.dmCall(intent) ? 'ring' : 'notification');
+      params.append('waitForCallPickup', CallEmbed.dmCall(intent) ? 'true' : 'false');
+    }
+
+    let widgetUrl: URL;
+    if (elementCallUrl && elementCallUrl.trim()) {
+      try {
+        widgetUrl = new URL(elementCallUrl, clientOrigin);
+      } catch (error) {
+        debugLog.warn(
+          'call',
+          'Invalid elementCallUrl in client config, falling back to bundled call app',
+          {
+            elementCallUrl,
+            error: error instanceof Error ? error.message : String(error),
+          }
+        );
+        widgetUrl = new URL(
+          `${trimTrailingSlash(import.meta.env.BASE_URL)}/public/element-call/index.html`,
+          clientOrigin
+        );
+      }
+    } else {
+      widgetUrl = new URL(
+        `${trimTrailingSlash(import.meta.env.BASE_URL)}/public/element-call/index.html`,
+        clientOrigin
+      );
+    }
     widgetUrl.search = params.toString();
 
     const options: IWidget = {
@@ -100,14 +194,14 @@ export class CallEmbed {
     return widget;
   }
 
-  static getIframe(url: string): HTMLIFrameElement {
+  static getIframe(): HTMLIFrameElement {
     const iframe = document.createElement('iframe');
 
     iframe.title = 'Call Embed';
     iframe.sandbox =
       'allow-forms allow-scripts allow-same-origin allow-popups allow-modals allow-downloads';
-    iframe.allow = 'microphone; camera; display-capture; autoplay; clipboard-write;';
-    iframe.src = url;
+    iframe.allow =
+      'microphone; camera; display-capture; autoplay; clipboard-write; local-network-access;';
 
     iframe.style.width = '100%';
     iframe.style.height = '100%';
@@ -125,13 +219,14 @@ export class CallEmbed {
   ) {
     debugLog.info('call', 'Initializing call embed', { roomId: room.roomId });
 
-    const iframe = CallEmbed.getIframe(
-      widget.getCompleteUrl({ currentUserId: mx.getSafeUserId() })
-    );
+    const iframe = CallEmbed.getIframe();
     container.append(iframe);
 
     const callWidgetDriver: WidgetDriver = new CallWidgetDriver(mx, room.roomId);
     const call: ClientWidgetApi = new ClientWidgetApi(widget, iframe, callWidgetDriver);
+
+    // Load after the transport is listening, or a fast iframe's contentLoaded is missed.
+    iframe.src = widget.getCompleteUrl({ currentUserId: mx.getSafeUserId() });
 
     this.mx = mx;
     this.call = call;
@@ -141,6 +236,13 @@ export class CallEmbed {
 
     const controlState = initialControlState ?? new CallControlState(true, false, true);
     this.control = new CallControl(controlState, call, iframe);
+
+    // MatrixRTC ignores a call membership when the member's m.room.member
+    // event is absent from the local roster (sliding sync only ships $ME/$LAZY
+    // here). Subscribe the room with a full member wildcard so the host SDK
+    // accepts the other participants' memberships for the embed's lifetime.
+    const callRoomSubscription = getSlidingSyncManager(mx)?.subscribeToCallRoom(room.roomId);
+    if (callRoomSubscription) this.disposables.push(callRoomSubscription);
 
     this.disposables.push(
       this.listenAction(WidgetApiFromWidgetAction.UpdateAlwaysOnScreen, (evt) => {
@@ -164,7 +266,9 @@ export class CallEmbed {
         this.call.transport.reply(evt.detail as IWidgetApiRequest, {});
         if (initialMediaEvent) {
           initialMediaEvent = false;
+          this.initialMediaStateReceived = true;
           this.control.applyState();
+          this.startNativeCallRuntime();
           return;
         }
         this.control.onMediaState(evt as CustomEvent<ElementMediaStateDetail>);
@@ -228,10 +332,45 @@ export class CallEmbed {
       this.readUpToMap[room.roomId] = roomEvent.getId()!;
     });
 
-    // Attach listeners for feeding events - the underlying widget classes handle permissions for us.
-    // Bind once and store via disposables so the same function reference is used for removal.
-    // Using .bind(this) at call-site would create a new function every time, making .off() a no-op
-    // and causing MaxListeners warnings when the embed is recreated during sync retries.
+    // Feed the room's state to the widget after capabilities are negotiated;
+    // feedStateUpdate silently drops events before the widget is ready.
+    const feedInitialState = () => {
+      const myUserId = this.mx.getSafeUserId();
+      this.room.currentState.events.forEach((stateKeyMap) => {
+        stateKeyMap.forEach((ev) => {
+          const raw = ev.getEffectiveEvent() as IRoomEvent | undefined;
+          if (raw === undefined) return;
+          this.call.feedStateUpdate(raw).catch((e) => {
+            console.error('Error feeding initial state to widget: ', e);
+          });
+        });
+      });
+
+      // Sliding sync may not have delivered m.room.member yet.
+      if (!this.room.currentState.getStateEvents(EventType.RoomMember, myUserId)) {
+        const membership = this.room.getMyMembership();
+        if (membership) {
+          const memberRaw = {
+            type: EventType.RoomMember,
+            state_key: myUserId,
+            room_id: this.roomId,
+            sender: myUserId,
+            content: { membership },
+            event_id: `$sable:${Date.now()}`,
+            origin_server_ts: Date.now(),
+            unsigned: {},
+          } as unknown as IRoomEvent;
+          this.call.feedStateUpdate(memberRaw).catch((e) => {
+            console.error('Error feeding member state to widget: ', e);
+          });
+        }
+      }
+    };
+
+    this.disposables.push(this.onCapabilitiesNotified(feedInitialState));
+
+    // Bind handlers once and route removal through `disposables` so listeners can be
+    // cleanly torn down when the embed is recreated.
     const boundOnEvent = this.onEvent.bind(this);
     const boundOnEventDecrypted = this.onEventDecrypted.bind(this);
     const boundOnStateUpdate = this.onStateUpdate.bind(this);
@@ -255,6 +394,22 @@ export class CallEmbed {
    */
   public dispose(): void {
     debugLog.info('call', 'Disposing call widget', { roomId: this.roomId });
+    if (this.nativeCallRuntimeActive && isAndroidTauri()) {
+      void invoke('stop_call_foreground_service').catch((error) => {
+        debugLog.error('call', 'Failed to stop call foreground service', {
+          roomId: this.roomId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+    } else if (this.nativeCallRuntimeActive && iosApp()) {
+      void invoke('deactivate_call_audio_session').catch((error) => {
+        debugLog.error('call', 'Failed to deactivate call audio session', {
+          roomId: this.roomId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+    }
+    this.nativeCallRuntimeActive = false;
     this.disposables.forEach((disposable) => {
       disposable();
     });
@@ -273,21 +428,384 @@ export class CallEmbed {
     this.call.transport.reply(evt.detail as IWidgetApiRequest, {});
     debugLog.info('call', 'Call joined', { roomId: this.roomId });
     this.joined = true;
+    this.startNativeCallRuntime();
     this.applyStyles();
     this.control.startObserving();
+  }
+
+  private startNativeCallRuntime(): void {
+    if (!this.joined || !this.initialMediaStateReceived || this.nativeCallRuntimeActive) return;
+
+    if (isAndroidTauri()) {
+      this.nativeCallRuntimeActive = true;
+      void invoke('start_call_foreground_service').catch((error) => {
+        this.nativeCallRuntimeActive = false;
+        debugLog.error('call', 'Failed to start call foreground service', {
+          roomId: this.roomId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+    } else if (iosApp()) {
+      this.nativeCallRuntimeActive = true;
+      void invoke('activate_call_audio_session').catch((error) => {
+        this.nativeCallRuntimeActive = false;
+        debugLog.error('call', 'Failed to activate call audio session', {
+          roomId: this.roomId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+    }
   }
 
   private applyStyles(): void {
     const doc = this.document;
     if (!doc) return;
 
+    doc.documentElement.style.setProperty('background', 'none', 'important');
     doc.body.style.setProperty('background', 'none', 'important');
-    const controls = doc.body.querySelector('[data-testid="incall_leave"]')?.parentElement
-      ?.parentElement;
-    if (controls) {
-      controls.style.setProperty('position', 'absolute');
-      controls.style.setProperty('visibility', 'hidden');
-    }
+
+    // Copy stylesheets from parent just in case
+    const syncStyles = () => {
+      Array.from(document.styleSheets).forEach((sheet) => {
+        try {
+          if (!sheet.href) {
+            const rules = Array.from(sheet.cssRules)
+              .map((r) => r.cssText)
+              .join('\n');
+            if (rules && !doc.head.innerHTML.includes(rules.substring(0, 50))) {
+              const styleEl = doc.createElement('style');
+              styleEl.textContent = rules;
+              doc.head.append(styleEl);
+            }
+          } else {
+            const link = doc.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = sheet.href;
+            doc.head.append(link);
+          }
+        } catch {
+          // Ignore CORS errors
+        }
+      });
+    };
+    syncStyles();
+
+    const updateInjectedCSS = () => {
+      const styleId = 'sable-call-embed-styles';
+      let styleEl = doc.getElementById(styleId);
+      if (!styleEl) {
+        styleEl = doc.createElement('style');
+        styleEl.id = styleId;
+        doc.head.append(styleEl);
+      }
+
+      const appFontFamily = window.getComputedStyle(document.body).fontFamily;
+
+      styleEl.textContent = `
+        :root {
+          /* Backgrounds */
+          --cpd-color-bg-canvas-default: ${resolveCssVar(color.Background.Container)} !important;
+          --cpd-color-bg-canvas-solid: ${resolveCssVar(color.Background.Container)} !important;
+          --cpd-color-bg-surface-default: ${resolveCssVar(color.SurfaceVariant.Container)} !important;
+          --cpd-color-bg-surface-solid: ${resolveCssVar(color.SurfaceVariant.Container)} !important;
+          --cpd-color-bg-surface-raised: ${resolveCssVar(color.Surface.Container)} !important;
+          
+          /* Soft Fills for normal buttons */
+          --cpd-color-bg-subtle-primary: ${resolveCssVar(color.SurfaceVariant.Container)} !important;
+          --cpd-color-bg-subtle-secondary: ${resolveCssVar(color.SurfaceVariant.Container)} !important;
+          --cpd-color-bg-action-secondary-rest: ${resolveCssVar(color.SurfaceVariant.Container)} !important;
+          --cpd-color-bg-action-secondary-hovered: ${resolveCssVar(color.SurfaceVariant.ContainerHover)} !important;
+          --cpd-color-bg-action-secondary-pressed: ${resolveCssVar(color.SurfaceVariant.ContainerActive)} !important;
+
+          --cpd-color-bg-action-tertiary-rest: transparent !important;
+          --cpd-color-bg-action-tertiary-hovered: ${resolveCssVar(color.SurfaceVariant.ContainerHover)} !important;
+          --cpd-color-bg-action-tertiary-pressed: ${resolveCssVar(color.SurfaceVariant.ContainerActive)} !important;
+          
+          /* Soft Fills for primary/active buttons */
+          --cpd-color-bg-action-primary-rest: ${resolveCssVar(color.Primary.Container)} !important;
+          --cpd-color-bg-action-primary-hovered: ${resolveCssVar(color.Primary.ContainerHover)} !important;
+          --cpd-color-bg-action-primary-pressed: ${resolveCssVar(color.Primary.ContainerActive)} !important;
+          
+          /* Soft Fills for critical buttons (Hangup) */
+          --cpd-color-bg-critical-primary: ${resolveCssVar(color.Critical.Main)} !important;
+          --cpd-color-bg-action-critical-rest: ${resolveCssVar(color.Critical.Main)} !important;
+          --cpd-color-bg-action-critical-hovered: ${resolveCssVar(color.Critical.MainHover)} !important;
+          --cpd-color-bg-action-critical-pressed: ${resolveCssVar(color.Critical.MainActive)} !important;
+          
+          /* Borders */
+          --cpd-color-border-interactive-primary: ${resolveCssVar(color.Primary.Main)} !important;
+          --cpd-color-border-interactive-secondary: ${resolveCssVar(color.Surface.ContainerLine)} !important;
+          --cpd-color-border-focused: ${resolveCssVar(color.Primary.Main)} !important;
+
+          /* Typography and Icons */
+          --cpd-font-family-sans: ${appFontFamily} !important;
+          --cpd-color-text-primary: ${resolveCssVar(color.Background.OnContainer)} !important;
+          --cpd-color-text-secondary: ${resolveCssVar(color.Surface.OnContainer)} !important;
+          --cpd-color-icon-primary: ${resolveCssVar(color.Background.OnContainer)} !important;
+          --cpd-color-icon-secondary: ${resolveCssVar(color.Surface.OnContainer)} !important;
+          --cpd-color-icon-tertiary: ${resolveCssVar(color.SurfaceVariant.OnContainer)} !important;
+          
+          /* Icons/Text on Soft Fill Backgrounds */
+          --cpd-color-icon-on-solid-primary: ${resolveCssVar(color.Primary.OnContainer)} !important;
+          --cpd-color-text-on-solid-primary: ${resolveCssVar(color.Primary.OnContainer)} !important;
+          --cpd-color-icon-critical-primary: ${resolveCssVar(color.Critical.OnMain)} !important;
+          --cpd-color-text-critical-primary: ${resolveCssVar(color.Critical.OnMain)} !important;
+          
+          /* Accent/Primary Colors for Checkboxes/Switches */
+          --cpd-color-text-action-accent: ${resolveCssVar(color.Primary.Main)} !important;
+          --stopgap-color-on-solid-accent: ${resolveCssVar(color.Primary.OnMain)} !important;
+        }
+
+        /* Enforce rounded rectangles instead of circles */
+        [class*="button_"], [class*="Button_"], button {
+          border-radius: ${resolveCssVar(config.radii.R400)} !important;
+        }
+
+        /* Make the main room background transparent to inherit CallView's background */
+        [class*="_inRoom_"] {
+          background: transparent !important;
+        }
+        
+        /* Completely dismantle Element Call's grouping pills to match Sable's discrete buttons */
+        [data-testid="footer-container"] [class*="_container_"] {
+          background-color: transparent !important;
+          border: none !important;
+          gap: ${resolveCssVar(config.space.S100)} !important;
+        }
+        
+        /* Explicitly style normal primary (muted) buttons to use Sable's colors and disable Compound's overlays */
+        [class*="button_"][data-kind="primary"]:not([class*="_destructive_"]), button[data-kind="primary"]:not([class*="_destructive_"]) {
+          background-color: ${resolveCssVar(color.Primary.Container)} !important;
+          border: 1px solid ${resolveCssVar(color.Primary.ContainerLine)} !important;
+          color: ${resolveCssVar(color.Primary.OnContainer)} !important;
+          box-sizing: border-box !important;
+        }
+        [class*="button_"][data-kind="primary"]:not([class*="_destructive_"]) svg,
+        [class*="button_"][data-kind="primary"]:not([class*="_destructive_"]) *,
+        button[data-kind="primary"]:not([class*="_destructive_"]) svg,
+        button[data-kind="primary"]:not([class*="_destructive_"]) * {
+          color: ${resolveCssVar(color.Primary.OnContainer)} !important;
+        }
+        [class*="button_"][data-kind="primary"]:not([class*="_destructive_"])::before,
+        [class*="button_"][data-kind="primary"]:not([class*="_destructive_"])::after,
+        button[data-kind="primary"]:not([class*="_destructive_"])::before,
+        button[data-kind="primary"]:not([class*="_destructive_"])::after {
+          background-color: transparent !important;
+          border: none !important;
+          box-sizing: border-box !important;
+        }
+        [class*="button_"][data-kind="primary"]:not([class*="_destructive_"]):hover,
+        button[data-kind="primary"]:not([class*="_destructive_"]):hover {
+          background-color: ${resolveCssVar(color.Primary.ContainerHover)} !important;
+        }
+        [class*="button_"][data-kind="primary"]:not([class*="_destructive_"]):active,
+        button[data-kind="primary"]:not([class*="_destructive_"]):active {
+          background-color: ${resolveCssVar(color.Primary.ContainerActive)} !important;
+        }
+        [class*="button_"][data-kind="primary"][class*="_destructive_"] {
+          background-color: ${resolveCssVar(color.Critical.Main)} !important;
+          border: 1px solid ${resolveCssVar(color.Critical.MainLine)} !important;
+          color: ${resolveCssVar(color.Critical.OnMain)} !important;
+          box-sizing: border-box !important;
+        }
+        [class*="button_"][data-kind="primary"][class*="_destructive_"] svg,
+        [class*="button_"][data-kind="primary"][class*="_destructive_"] * {
+          color: ${resolveCssVar(color.Critical.OnMain)} !important;
+        }
+        [class*="button_"][data-kind="primary"][class*="_destructive_"]::before,
+        [class*="button_"][data-kind="primary"][class*="_destructive_"]::after {
+          background-color: transparent !important;
+          border: 1px solid ${resolveCssVar(color.Critical.MainLine)} !important;
+          box-sizing: border-box !important;
+        }
+        [class*="button_"][data-kind="primary"][class*="_destructive_"]:hover {
+          background-color: ${resolveCssVar(color.Critical.MainHover)} !important;
+        }
+        [class*="button_"][data-kind="primary"][class*="_destructive_"]:active {
+          background-color: ${resolveCssVar(color.Critical.MainActive)} !important;
+        }
+        
+        /* Fix secondary buttons inside the footer to have Sable's exact container styling */
+        [data-testid="footer-container"] button[data-kind="secondary"],
+        [data-testid="footer-container"] button[aria-haspopup="menu"] {
+          background: ${resolveCssVar(color.SurfaceVariant.Container)} !important;
+          border: 1px solid ${resolveCssVar(color.Surface.ContainerLine)} !important;
+          color: var(--cpd-color-icon-secondary) !important;
+        }
+        
+        /* Disable Compound's hover backgrounds on the pseudo-elements for these buttons so our background shows through */
+        [data-testid="footer-container"] button[data-kind="secondary"]::before,
+        [data-testid="footer-container"] button[aria-haspopup="menu"]::before {
+          background: none !important;
+        }
+
+        [data-testid="footer-container"] button[data-kind="secondary"]:hover,
+        [data-testid="footer-container"] button[aria-haspopup="menu"]:hover {
+          background: ${resolveCssVar(color.SurfaceVariant.ContainerHover)} !important;
+        }
+        
+        [class*="button_"]::before, [class*="Button_"]::before, button::before,
+        [class*="button_"]::after, [class*="Button_"]::after, button::after,
+        [data-testid="footer-container"] [class*="_container_"]::before,
+        [data-testid="footer-container"] [class*="_container_"]::after {
+          border-radius: inherit !important;
+        }
+        
+        /* Tile styling */
+        [class*="_tile_"] {
+          border-radius: ${resolveCssVar(config.radii.R500)} !important;
+        }
+
+        [class*="_tile_"][class*="_speaking_"]::before {
+          background: ${resolveCssVar(color.Primary.Main)} !important;
+          opacity: 0.8 !important;
+        }
+
+        /* Avatar background */
+        [class*="_tile_"] > [class*="_bg_"] {
+          background-color: ${resolveCssVar(color.SurfaceVariant.Container)} !important;
+        }
+        
+        /* Remove the dark gradient overlay from the tile foreground */
+        [class*="_fg_"] {
+          background: none !important;
+        }
+        
+        /* Ensure the options button in the tile remains visible without the gradient */
+        [class*="_fg_"] button {
+          background-color: ${resolveCssVar(color.Surface.Container)} !important;
+          border: 1px solid ${resolveCssVar(color.Surface.ContainerLine)} !important;
+          color: ${resolveCssVar(color.Surface.OnContainer)} !important;
+        }
+        [class*="_fg_"] button:hover {
+          background-color: ${resolveCssVar(color.Surface.ContainerHover)} !important;
+        }
+
+        /* Nametag styling */
+        [class*="_nameTag_"] {
+          background-color: ${resolveCssVar(color.Surface.Container)} !important;
+          border: 1px solid ${resolveCssVar(color.Surface.ContainerLine)} !important;
+          color: ${resolveCssVar(color.Surface.OnContainer)} !important;
+          border-radius: ${resolveCssVar(config.radii.R300)} !important;
+        }
+
+        /* Settings 3-dots button overrides */
+        [data-testid="settings-bottom-left"] {
+          --cpd-icon-button-size: 48px !important;
+          background-color: ${resolveCssVar(color.SurfaceVariant.Container)} !important;
+          border-radius: ${resolveCssVar(config.radii.R400)} !important;
+        }
+
+        /* Layout switcher overrides */
+        fieldset[class*="_toggle_"] {
+          background-color: ${resolveCssVar(color.SurfaceVariant.Container)} !important;
+          border: 1px solid ${resolveCssVar(color.Surface.ContainerLine)} !important;
+          border-radius: ${resolveCssVar(config.radii.R400)} !important;
+        }
+        fieldset[class*="_toggle_"] input:checked + svg {
+          background-color: ${resolveCssVar(color.Primary.Container)} !important;
+          color: ${resolveCssVar(color.Primary.OnContainer)} !important;
+          border-radius: ${resolveCssVar(config.radii.R300)} !important;
+        }
+
+        /* Overlay styling */
+        [class*="_overlay_"] {
+          background-color: var(--cpd-color-bg-canvas-default) !important;
+        }
+
+        /* Slider overrides */
+        [role="slider"], [class*="handle"] {
+          background-color: ${resolveCssVar(color.Primary.Main)} !important;
+          box-shadow: 0 0 0 2px ${resolveCssVar(color.Surface.Container)} !important;
+        }
+        [class*="highlight"] {
+          background-color: ${resolveCssVar(color.Primary.Main)} !important;
+        }
+        [class*="track"] {
+          background-color: ${resolveCssVar(color.Surface.ContainerLine)} !important;
+          outline: none !important;
+        }
+
+        /* Scrollbars */
+        ::-webkit-scrollbar {
+          width: 16px;
+          height: 16px;
+        }
+        ::-webkit-scrollbar-track,
+        ::-webkit-scrollbar-thumb {
+          background-color: transparent;
+          border-radius: ${resolveCssVar(config.radii.Pill)} !important;
+          border: 4px solid transparent;
+          background-clip: padding-box;
+        }
+        ::-webkit-scrollbar-thumb {
+          min-height: 35px;
+        }
+        :hover::-webkit-scrollbar-thumb, :has(*:hover)::-webkit-scrollbar-thumb {
+          background-color: ${resolveCssVar(color.SurfaceVariant.ContainerLine)} !important;
+        }
+        :hover::-webkit-scrollbar-track, :has(*:hover)::-webkit-scrollbar-track {
+          background-color: ${resolveCssVar(color.SurfaceVariant.ContainerActive)} !important;
+        }
+
+        /* Modal Dialog overrides */
+        [role="dialog"] {
+          border-radius: ${resolveCssVar(config.radii.R400)} !important;
+        }
+
+        /* Tooltips and Menus */
+        [role="tooltip"], .cpd-tooltip, [data-radix-popper-content-wrapper] > div, div[class*="_tooltip_"] {
+          background-color: ${resolveCssVar(color.Surface.Container)} !important;
+          color: ${resolveCssVar(color.Surface.OnContainer)} !important;
+          border: 1px solid ${resolveCssVar(color.Surface.ContainerLine)} !important;
+          border-radius: ${resolveCssVar(config.radii.R400)} !important;
+          padding: ${resolveCssVar(config.space.S200)} ${resolveCssVar(config.space.S300)} !important;
+          font-size: ${resolveCssVar(config.fontSize.B300)} !important;
+          box-shadow: 0 4px 6px ${resolveCssVar(color.Other.Shadow)} !important;
+        }
+        
+        /* Ensure tooltip text inside wrapper inherits correctly */
+        [role="tooltip"] *, .cpd-tooltip *, [data-radix-popper-content-wrapper] * {
+          color: inherit !important;
+        }
+        /* Use parent app's font for emojis/reactions */
+        [class*="reaction" i], [class*="emoji" i], [class*="reaction" i] * {
+          font-family: ${appFontFamily} !important;
+        }
+      `;
+      if (doc.head.lastChild !== styleEl) doc.head.appendChild(styleEl);
+    };
+
+    // Sync theme classes from parent html/body
+    const syncThemeClasses = () => {
+      doc.documentElement.className = document.documentElement.className;
+      doc.body.className = document.body.className;
+
+      const theme = document.documentElement.getAttribute('data-theme');
+      if (theme) doc.documentElement.setAttribute('data-theme', theme);
+
+      // Re-evaluate vars and update CSS on theme change
+      updateInjectedCSS();
+    };
+
+    // Initial injection
+    syncThemeClasses();
+
+    const observer = new MutationObserver(syncThemeClasses);
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ['class', 'data-theme', 'style'],
+    });
+    observer.observe(document.body, {
+      attributes: true,
+      attributeFilter: ['class', 'data-theme', 'style'],
+    });
+    observer.observe(document.head, { childList: true, subtree: true });
+    this.disposables.push(() => observer.disconnect());
+
+    const iframeHeadObserver = new MutationObserver(syncThemeClasses);
+    iframeHeadObserver.observe(doc.head, { childList: true });
+    this.disposables.push(() => iframeHeadObserver.disconnect());
   }
 
   private onEvent(ev: MatrixEvent): void {
@@ -303,6 +821,16 @@ export class CallEmbed {
     if (this.call === null) return;
     const raw = ev.getEffectiveEvent();
     this.call.feedStateUpdate(raw as IRoomEvent).catch((e) => {
+      console.error('Error sending state update to widget: ', e);
+    });
+  }
+
+  private feedStateUpdateForTimelineEvent(ev: MatrixEvent): void {
+    if (this.call === null) return;
+    if (!ev.isState()) return;
+    const raw = ev.getEffectiveEvent() as IRoomEvent | undefined;
+    if (raw === undefined) return;
+    this.call.feedStateUpdate(raw).catch((e) => {
       console.error('Error sending state update to widget: ', e);
     });
   }
@@ -364,7 +892,7 @@ export class CallEmbed {
       return true;
     }
 
-    // We can't say for sure whether the widget has seen the event; let's
+    // We can't say for sure whether the widget has seen the event
     // just assume that it has
     return false;
   }
@@ -411,7 +939,10 @@ export class CallEmbed {
         this.call.feedEvent(raw as IRoomEvent).catch((e) => {
           console.error('Error sending event to widget: ', e);
         });
+        this.feedStateUpdateForTimelineEvent(ev);
       }
+    } else if (ev.isState()) {
+      this.feedStateUpdateForTimelineEvent(ev);
     }
   }
 

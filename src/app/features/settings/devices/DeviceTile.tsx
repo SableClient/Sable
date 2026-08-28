@@ -1,35 +1,19 @@
 import type { FormEventHandler, ReactNode } from 'react';
 import { useCallback, useEffect, useState } from 'react';
-import {
-  Box,
-  Text,
-  IconButton,
-  Icon,
-  Icons,
-  Chip,
-  Input,
-  Button,
-  color,
-  Spinner,
-  toRem,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
-} from 'folds';
+import { Box, Text, IconButton, Chip, Input, Button, color, Spinner, toRem } from 'folds';
+import { CaretDown, CaretRight, chipIcon, Trash } from '$components/icons/phosphor';
 import type { CryptoApi, IMyDevice, MatrixError } from '$types/matrix-sdk';
-import FocusTrap from 'focus-trap-react';
 import { SettingTile } from '$components/setting-tile';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { timeDayMonYear, timeHourMinute, today, yesterday } from '$utils/time';
 import { BreakWord } from '$styles/Text.css';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { SequenceCard } from '$components/sequence-card';
-import { LogoutDialog } from '$components/LogoutDialog';
-import { stopPropagation } from '$utils/keyboard';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
+import { LogoutDialogOverlay } from '$components/LogoutDialogOverlay';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { SequenceCardStyle } from '$features/settings/styles.css';
 import { toSettingsFocusIdPart } from '$features/settings/settingsLink';
+import { deviceDisplayName } from '$app/utils/platform';
 
 export function DeviceTilePlaceholder() {
   return (
@@ -138,8 +122,8 @@ function DeviceRename({ device, onCancel, onRename, refreshDeviceList }: DeviceR
     const target = evt.target as HTMLFormElement | undefined;
     const nameInput = target?.nameInput as HTMLInputElement | undefined;
     if (!nameInput) return;
-    const deviceName = nameInput.value.trim();
-    if (!deviceName || deviceName === device.display_name) return;
+    let deviceName = nameInput.value.trim() || deviceDisplayName();
+    if (deviceName === device.display_name) return;
 
     rename(deviceName);
   };
@@ -155,8 +139,8 @@ function DeviceRename({ device, onCancel, onRename, refreshDeviceList }: DeviceR
             variant="Secondary"
             radii="300"
             defaultValue={device.display_name}
+            placeholder={deviceDisplayName()}
             autoFocus
-            required
             readOnly={renaming}
           />
         </Box>
@@ -206,21 +190,7 @@ export function DeviceLogoutBtn() {
       <Chip variant="Secondary" fill="Soft" radii="Pill" onClick={() => setPrompt(true)}>
         <Text size="B300">Logout</Text>
       </Chip>
-      {prompt && (
-        <Overlay open backdrop={<OverlayBackdrop />}>
-          <OverlayCenter>
-            <FocusTrap
-              focusTrapOptions={{
-                onDeactivate: handleClose,
-                clickOutsideDeactivates: true,
-                escapeDeactivates: stopPropagation,
-              }}
-            >
-              <LogoutDialog handleClose={handleClose} />
-            </FocusTrap>
-          </OverlayCenter>
-        </Overlay>
-      )}
+      {prompt && <LogoutDialogOverlay requestClose={handleClose} />}
     </>
   );
 }
@@ -255,7 +225,7 @@ export function DeviceDeleteBtn({
       onClick={() => onDeleteToggle(deviceId)}
       disabled={disabled}
     >
-      <Icon size="50" src={Icons.Delete} />
+      {chipIcon(Trash)}
     </Chip>
   );
 }
@@ -296,7 +266,7 @@ export function DeviceTile({
             radii="300"
             onClick={() => setDetails(!details)}
           >
-            <Icon size="50" src={details ? Icons.ChevronBottom : Icons.ChevronRight} />
+            {chipIcon(details ? CaretDown : CaretRight)}
           </IconButton>
         }
         after={

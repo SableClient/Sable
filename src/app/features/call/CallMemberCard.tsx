@@ -1,11 +1,18 @@
-import type { CallMembership, SessionMembershipData } from '$types/matrix-sdk';
+import type { CallMembership } from '$types/matrix-sdk';
 import { useState } from 'react';
-import { Avatar, Box, Icon, Icons, Text } from 'folds';
+import { Avatar, Box, Text } from 'folds';
+import {
+  CaretDown,
+  CaretUp,
+  sizedIcon,
+  userFallbackIcon,
+  VideoCameraSlash,
+} from '$components/icons/phosphor';
 import { useMatrixClient } from '../../hooks/useMatrixClient';
 import { useMediaAuthentication } from '../../hooks/useMediaAuthentication';
 import { useOpenUserRoomProfile } from '../../state/hooks/userRoomProfile';
 import { SequenceCard } from '../../components/sequence-card';
-import { getMemberAvatarMxc, getMemberDisplayName } from '../../utils/room';
+import { getMemberAvatarMxc, getMemberDisplayName } from '../../utils/room/display';
 import { useRoom } from '../../hooks/useRoom';
 import { getMxIdLocalPart, mxcUrlToHttp } from '../../utils/matrix';
 import { UserAvatar } from '../../components/user-avatar';
@@ -13,7 +20,7 @@ import { getMouseEventCords } from '../../utils/dom';
 import * as css from './styles.css';
 
 interface MemberWithMembershipData {
-  membershipData?: SessionMembershipData & {
+  membershipData?: Record<string, unknown> & {
     'm.call.intent': 'video' | 'audio';
   };
 }
@@ -21,7 +28,7 @@ interface MemberWithMembershipData {
 type CallMemberCardProps = {
   member: CallMembership;
 };
-export function CallMemberCard({ member }: CallMemberCardProps) {
+function CallMemberCard({ member }: CallMemberCardProps) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
   const room = useRoom();
@@ -52,6 +59,7 @@ export function CallMemberCard({ member }: CallMemberCardProps) {
           room.roomId,
           undefined,
           userId,
+          undefined,
           getMouseEventCords(evt.nativeEvent),
           'Right'
         )
@@ -63,7 +71,7 @@ export function CallMemberCard({ member }: CallMemberCardProps) {
             userId={userId}
             src={avatarUrl}
             alt={name}
-            renderFallback={() => <Icon size="50" src={Icons.User} filled />}
+            renderFallback={() => userFallbackIcon('sm')}
           />
         </Avatar>
         <Box grow="Yes">
@@ -71,7 +79,7 @@ export function CallMemberCard({ member }: CallMemberCardProps) {
             {name}
           </Text>
         </Box>
-        {audioOnly && <Icon src={Icons.VideoCameraMute} size="100" />}
+        {audioOnly && sizedIcon(VideoCameraSlash, '100')}
       </Box>
     </SequenceCard>
   );
@@ -113,7 +121,7 @@ export function CallMemberRenderer({
               </Text>
             )}
           </Box>
-          <Icon src={viewMore ? Icons.ChevronTop : Icons.ChevronBottom} size="100" />
+          {sizedIcon(viewMore ? CaretUp : CaretDown, '100')}
         </SequenceCard>
       )}
     </>

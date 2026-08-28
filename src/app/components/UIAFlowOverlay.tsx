@@ -1,17 +1,8 @@
 import type { ReactNode } from 'react';
-import {
-  Overlay,
-  OverlayBackdrop,
-  Box,
-  config,
-  Text,
-  TooltipProvider,
-  Tooltip,
-  Icons,
-  Icon,
-  Chip,
-  IconButton,
-} from 'folds';
+import { OverlayBackdrop, Box, config, Text, Tooltip, Chip, IconButton } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
+import { Overlay } from '$components/overlay-stack';
+import { sizedIcon, X } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 
 export type UIAFlowOverlayProps = {
@@ -60,7 +51,7 @@ export function UIAFlowOverlay({
                   radii="Pill"
                   outlined
                 >
-                  <Icon size="50" src={Icons.Cross} />
+                  {sizedIcon(X, '50')}
                 </IconButton>
               )}
             </TooltipProvider>

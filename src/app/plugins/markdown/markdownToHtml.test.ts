@@ -35,6 +35,8 @@ describe('markdownToHtml', () => {
   it('converts links', () => {
     const result = markdownToHtml('[link](https://example.com)');
     expect(result).toContain('<a href="https://example.com"');
+    expect(result).not.toContain('target=');
+    expect(result).not.toContain('rel=');
   });
 
   it('converts spoiler syntax', () => {
@@ -161,6 +163,12 @@ describe('markdownToHtml', () => {
       expect(html).toContain('<blockquote>');
       expect(html).toContain('line one');
       expect(html).toContain('line two');
+      expect((html.match(/<blockquote/g) ?? []).length).toBe(1);
+    });
+
+    it('keeps three or more consecutive blockquote lines in one blockquote', () => {
+      const html = markdownToHtml('> test\n> test\n> test');
+      expect((html.match(/<blockquote/g) ?? []).length).toBe(1);
     });
 
     it('does not promote -# inside fenced code when the fence follows a single newline', () => {
@@ -207,6 +215,18 @@ describe('markdownToHtml', () => {
     const result = markdownToHtml('$$\\frac{a}{b}$$');
     expect(result).toContain('data-mx-maths');
     expect(result).toContain('<div');
+  });
+
+  it('keeps task list markers as literal text instead of checkbox inputs', () => {
+    const result = markdownToHtml('- [ ] one\n- [x] two');
+    expect(result).not.toContain('input');
+    expect(result).toBe('<ul>\n<li>[ ] one</li>\n<li>[x] two</li>\n</ul>\n');
+  });
+
+  it('round-trips task list markers back to markdown', () => {
+    expect(htmlToMarkdown(markdownToHtml('- [ ] one\n- [x] two')).trim()).toBe(
+      '- [ ] one\n- [x] two'
+    );
   });
 
   it('does not parse k. as a list', () => {

@@ -1,4 +1,4 @@
-import type { IconName, IconSrc } from 'folds';
+import { File, Image, Play, VideoCamera, type PhosphorIcon } from '$components/icons/phosphor';
 
 export const bytesToSize = (bytes: number): string => {
   const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
@@ -31,25 +31,19 @@ export const secondsToMinutesAndSeconds = (seconds: number): string => {
   return `${mm}:${ss < 10 ? '0' : ''}${ss}`;
 };
 
-export const getFileTypeIcon = (icons: Record<IconName, IconSrc>, fileType: string): IconSrc => {
+export const getFileTypeIconComponent = (fileType: string): PhosphorIcon => {
   const type = fileType.toLowerCase();
   if (type.startsWith('audio')) {
-    return icons.Play;
+    return Play;
   }
   if (type.startsWith('video')) {
-    return icons.Vlc;
+    return VideoCamera;
   }
   if (type.startsWith('image')) {
-    return icons.Photo;
+    return Image;
   }
-  return icons.File;
+  return File;
 };
-
-export const fulfilledPromiseSettledResult = <T>(prs: PromiseSettledResult<T>[]): T[] =>
-  prs.reduce<T[]>((values, pr) => {
-    if (pr.status === 'fulfilled') values.push(pr.value);
-    return values;
-  }, []);
 
 export const promiseFulfilledResult = <T>(
   settledResult: PromiseSettledResult<T>
@@ -145,4 +139,8 @@ export const splitWithSpace = (content: string): string[] => {
   const trimmedContent = content.trim();
   if (trimmedContent === '') return [];
   return trimmedContent.split(' ');
+};
+
+export const xor = (left: unknown, right: unknown): boolean => {
+  return !left !== !right;
 };

@@ -5,25 +5,39 @@ import { createClient } from '$types/matrix-sdk';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useAutoDiscoveryInfo } from '$hooks/useAutoDiscoveryInfo';
 import { promiseFulfilledResult, promiseRejectedResult } from '$utils/common';
-import type { AuthFlows, RegisterFlowsResponse } from '$hooks/useAuthFlows';
-import { RegisterFlowStatus, parseRegisterErrResp } from '$hooks/useAuthFlows';
+import {
+  isUsableOAuthMetadata,
+  type AuthFlows,
+  RegisterFlowStatus,
+  parseRegisterErrResp,
+  type RegisterFlowsResponse,
+} from '$hooks/useAuthFlows';
+import { fetch } from '$utils/fetch';
 
 type AuthFlowsLoaderProps = {
   fallback?: () => ReactNode;
-  error?: (err: unknown) => ReactNode;
+  error?: (err: unknown, retry: () => void) => ReactNode;
   children: (authFlows: AuthFlows) => ReactNode;
 };
 export function AuthFlowsLoader({ fallback, error, children }: AuthFlowsLoaderProps) {
   const autoDiscoveryInfo = useAutoDiscoveryInfo();
   const baseUrl = autoDiscoveryInfo['m.homeserver'].base_url;
 
-  const mx = useMemo(() => createClient({ baseUrl }), [baseUrl]);
+  const mx = useMemo(() => createClient({ baseUrl, fetchFn: fetch }), [baseUrl]);
 
   const [state, load] = useAsyncCallback(
     useCallback(async () => {
-      const result = await Promise.allSettled([mx.loginFlows(), mx.registerRequest({})]);
+      const result = await Promise.allSettled([
+        mx.loginFlows(),
+        mx.registerRequest({}),
+        mx.getAuthMetadata(),
+      ]);
       const loginFlows = promiseFulfilledResult(result[0]);
       const registerResp = promiseRejectedResult(result[1]) as MatrixError | undefined;
+      const discoveredAuthMetadata = promiseFulfilledResult(result[2]);
+      const authMetadata = isUsableOAuthMetadata(discoveredAuthMetadata)
+        ? discoveredAuthMetadata
+        : undefined;
       let registerFlows: RegisterFlowsResponse = {
         status: RegisterFlowStatus.InvalidRequest,
       };
@@ -32,16 +46,17 @@ export function AuthFlowsLoader({ fallback, error, children }: AuthFlowsLoaderPr
         registerFlows = parseRegisterErrResp(registerResp);
       }
 
-      if (!loginFlows) {
+      const validLoginFlows = loginFlows && !('errcode' in loginFlows) ? loginFlows : undefined;
+
+      // OIDC-only servers reject GET /login; that is fine when the OAuth 2.0 API is available.
+      if (!validLoginFlows && !authMetadata) {
         throw new Error('Missing auth flow!');
-      }
-      if ('errcode' in loginFlows) {
-        throw new Error('Failed to load auth flow!');
       }
 
       const authFlows: AuthFlows = {
-        loginFlows,
+        loginFlows: validLoginFlows ?? { flows: [] },
         registerFlows,
+        authMetadata,
       };
 
       return authFlows;
@@ -57,7 +72,7 @@ export function AuthFlowsLoader({ fallback, error, children }: AuthFlowsLoaderPr
   }
 
   if (state.status === AsyncStatus.Error) {
-    return error?.(state.error);
+    return error?.(state.error, load);
   }
 
   return children(state.data);

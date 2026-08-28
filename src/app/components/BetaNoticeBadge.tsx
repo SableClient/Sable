@@ -1,4 +1,5 @@
-import { TooltipProvider, Tooltip, Box, Text, Badge, toRem } from 'folds';
+import { Tooltip, Box, Text, Badge, toRem } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
 
 export function BetaNoticeBadge() {
   return (

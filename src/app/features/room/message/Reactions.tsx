@@ -1,17 +1,18 @@
 import type { MouseEventHandler } from 'react';
-import { useCallback, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import {
   Box,
   Modal,
-  Overlay,
   OverlayBackdrop,
   OverlayCenter,
   Text,
   Tooltip,
-  TooltipProvider,
   as,
   toRem,
+  type RectCords,
 } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
+import { Overlay, PopOut } from '$components/overlay-stack';
 import classNames from 'classnames';
 import type { Room } from '$types/matrix-sdk';
 import { type Relations } from '$types/matrix-sdk';
@@ -19,9 +20,14 @@ import FocusTrap from 'focus-trap-react';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { factoryEventSentBy } from '$utils/matrix';
 import { Reaction, ReactionTooltipMsg } from '$components/message';
+import { EmojiBoard } from '$components/emoji-board';
+import { isMobileOrTablet } from '$utils/platform';
+import { sizedIcon, Smiley } from '$components/icons/phosphor';
 import { useRelations } from '$hooks/useRelations';
 import { stopPropagation } from '$utils/keyboard';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { useDismissOnBack } from '$utils/androidBack';
+import { useMobileLongPress } from '$hooks/useMobileLongPress';
 import { ReactionViewer } from '$features/room/reaction-viewer';
 import * as css from './styles.css';
 
@@ -31,6 +37,7 @@ export type ReactionsProps = {
   canSendReaction: boolean;
   canDeleteOwn: boolean;
   relations: Relations;
+  imagePackRooms?: Room[];
   onReactionToggle: (targetEventId: string, key: string, shortcode?: string) => void;
 };
 export const Reactions = as<'div', ReactionsProps>(
@@ -43,6 +50,7 @@ export const Reactions = as<'div', ReactionsProps>(
       canSendReaction,
       canDeleteOwn,
       onReactionToggle,
+      imagePackRooms,
       ...props
     },
     ref
@@ -50,6 +58,13 @@ export const Reactions = as<'div', ReactionsProps>(
     const mx = useMatrixClient();
     const useAuthentication = useMediaAuthentication();
     const [viewer, setViewer] = useState<boolean | string>(false);
+    const [emojiBoardAnchor, setEmojiBoardAnchor] = useState<RectCords>();
+    const pressedReactionKey = useRef<string | undefined>(undefined);
+    const reactionLongPress = useMobileLongPress(() => {
+      if (pressedReactionKey.current) setViewer(pressedReactionKey.current);
+    });
+    // Android back closes the mobile emoji board instead of navigating away.
+    useDismissOnBack(() => setEmojiBoardAnchor(undefined), emojiBoardAnchor !== undefined);
     const myUserId = mx.getUserId();
     const reactions = useRelations(
       relations,
@@ -62,6 +77,12 @@ export const Reactions = as<'div', ReactionsProps>(
       const key = evt.currentTarget.getAttribute('data-reaction-key');
       if (!key) setViewer(true);
       else setViewer(key);
+    };
+
+    const handleOpenEmojiBoard: MouseEventHandler<HTMLButtonElement> = (evt) => {
+      evt.stopPropagation();
+      evt.preventDefault();
+      setEmojiBoardAnchor(evt.currentTarget.getBoundingClientRect());
     };
 
     return (
@@ -100,8 +121,26 @@ export const Reactions = as<'div', ReactionsProps>(
                   mx={mx}
                   reaction={key}
                   count={events.size}
-                  onClick={canToggle ? () => onReactionToggle(mEventId, key) : undefined}
+                  onClick={
+                    canToggle
+                      ? () => {
+                          if (reactionLongPress.firedRef.current) {
+                            reactionLongPress.firedRef.current = false;
+                            return;
+                          }
+                          onReactionToggle(mEventId, key);
+                        }
+                      : undefined
+                  }
                   onContextMenu={handleViewReaction}
+                  onTouchStart={(evt) => {
+                    evt.stopPropagation();
+                    pressedReactionKey.current = key;
+                    reactionLongPress.onTouchStart(evt);
+                  }}
+                  onTouchEnd={reactionLongPress.onTouchEnd}
+                  onTouchMove={reactionLongPress.onTouchMove}
+                  onTouchCancel={reactionLongPress.onTouchCancel}
                   aria-disabled={!canToggle}
                   useAuthentication={useAuthentication}
                 />
@@ -109,6 +148,83 @@ export const Reactions = as<'div', ReactionsProps>(
             </TooltipProvider>
           );
         })}
+        {canSendReaction &&
+          reactions.length > 0 &&
+          (() => {
+            const emojiBoard = (
+              <EmojiBoard
+                imagePackRooms={imagePackRooms ?? []}
+                returnFocusOnDeactivate={false}
+                allowTextCustomEmoji
+                isFullWidth={isMobileOrTablet()}
+                onEmojiSelect={(key) => {
+                  onReactionToggle(mEventId, key);
+                  setEmojiBoardAnchor(undefined);
+                }}
+                onCustomEmojiSelect={(mxc, shortcode) => {
+                  onReactionToggle(mEventId, mxc, shortcode);
+                  setEmojiBoardAnchor(undefined);
+                }}
+                requestClose={() => setEmojiBoardAnchor(undefined)}
+              />
+            );
+            const trigger = (
+              <TooltipProvider
+                position="Top"
+                tooltip={
+                  <Tooltip>
+                    <Text size="T300">Add Reaction</Text>
+                  </Tooltip>
+                }
+              >
+                {(targetRef) => (
+                  <Box
+                    as="button"
+                    ref={targetRef}
+                    type="button"
+                    className={css.ReactionAdd}
+                    aria-label="Add Reaction"
+                    aria-pressed={!!emojiBoardAnchor}
+                    onClick={handleOpenEmojiBoard}
+                  >
+                    {sizedIcon(Smiley, '100', { filled: !!emojiBoardAnchor })}
+                  </Box>
+                )}
+              </TooltipProvider>
+            );
+            if (isMobileOrTablet()) {
+              return (
+                <>
+                  {trigger}
+                  <Overlay open={emojiBoardAnchor !== undefined} backdrop={<OverlayBackdrop />}>
+                    <div
+                      style={{
+                        position: 'fixed',
+                        left: 0,
+                        right: 0,
+                        bottom: 0,
+                        display: 'flex',
+                        justifyContent: 'center',
+                      }}
+                    >
+                      {emojiBoard}
+                    </div>
+                  </Overlay>
+                </>
+              );
+            }
+            return (
+              <PopOut
+                position="Top"
+                align="Start"
+                offset={4}
+                anchor={emojiBoardAnchor}
+                content={emojiBoard}
+              >
+                {trigger}
+              </PopOut>
+            );
+          })()}
         {reactions.length > 0 && (
           <Overlay
             onContextMenu={(evt: React.MouseEvent) => {

@@ -1,43 +1,27 @@
 import type { Room } from '$types/matrix-sdk';
 import { MatrixRTCSession, MatrixRTCSessionEvent } from '$types/matrix-sdk';
 import type { CallMembership } from '$types/matrix-sdk';
-import { useEffect, useState } from 'react';
-import { MatrixRTCSessionManagerEvents } from '$types/matrix-sdk';
+import { useEffect, useMemo, useState } from 'react';
 import { useMatrixClient } from './useMatrixClient';
+import { useActiveRTCSessionIds } from './useMatrixRTCSession';
 
 export const useCallSession = (room: Room): MatrixRTCSession => {
   const mx = useMatrixClient();
-
-  const [session, setSession] = useState(mx.matrixRTC.getRoomSession(room));
-
-  useEffect(() => {
-    const start = (roomId: string) => {
-      if (roomId !== room.roomId) return;
-      setSession(mx.matrixRTC.getRoomSession(room));
-    };
-    const end = (roomId: string) => {
-      if (roomId !== room.roomId) return;
-      setSession(mx.matrixRTC.getRoomSession(room));
-    };
-    mx.matrixRTC.on(MatrixRTCSessionManagerEvents.SessionStarted, start);
-    mx.matrixRTC.on(MatrixRTCSessionManagerEvents.SessionEnded, end);
-    return () => {
-      mx.matrixRTC.off(MatrixRTCSessionManagerEvents.SessionStarted, start);
-      mx.matrixRTC.off(MatrixRTCSessionManagerEvents.SessionEnded, end);
-    };
-  }, [mx, room]);
-
-  return session;
+  const activeRoomIds = useActiveRTCSessionIds();
+  // Re-derive the session whenever the active-session set changes. The returned
+  // session object is stable across renders unless the set changes.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  return useMemo(() => mx.matrixRTC.getRoomSession(room), [mx, room, activeRoomIds]);
 };
 
 export const useCallMembers = (room: Room, session: MatrixRTCSession): CallMembership[] => {
-  const [memberships, setMemberships] = useState(
-    MatrixRTCSession.sessionMembershipsForRoom(room, session.sessionDescription)
-  );
+  const [memberships, setMemberships] = useState<CallMembership[]>([]);
 
   useEffect(() => {
     const updateMemberships = () => {
-      setMemberships(MatrixRTCSession.sessionMembershipsForRoom(room, session.sessionDescription));
+      MatrixRTCSession.sessionMembershipsForSlot(room, session.slotDescription).then(
+        setMemberships
+      );
     };
 
     updateMemberships();

@@ -1,21 +1,29 @@
 import type { EventTimeline, MatrixEvent, Room } from '$types/matrix-sdk';
 import { Direction } from '$types/matrix-sdk';
-import {
-  isThreadRelationEvent,
-  reactionOrEditEvent,
-  roomHaveNotification,
-  roomHaveUnread,
-} from '$utils/room';
+import { roomHaveNotification, roomHaveUnread } from '$utils/room/unread';
 
 export const PAGINATION_LIMIT = 60;
 
 export const getLiveTimeline = (room: Room): EventTimeline =>
   room.getUnfilteredTimelineSet().getLiveTimeline();
 
+/** True when `eventId` is the newest event the live timeline holds. */
+export const isNewestLiveEvent = (room: Room, eventId: string): boolean => {
+  const events = getLiveTimeline(room).getEvents?.() ?? [];
+  return events[events.length - 1]?.getId?.() === eventId;
+};
+
 export const getEventTimeline = (room: Room, eventId: string): EventTimeline | undefined => {
   const timelineSet = room.getUnfilteredTimelineSet();
   return timelineSet.getTimelineForEvent(eventId) ?? undefined;
 };
+
+/** Resolves against the displayed chain's own set, which for a jump is not the room's. */
+export const getDisplayedEventTimeline = (
+  linkedTimelines: EventTimeline[],
+  eventId: string
+): EventTimeline | undefined =>
+  linkedTimelines[0]?.getTimelineSet().getTimelineForEvent(eventId) ?? undefined;
 
 export const getFirstLinkedTimeline = (
   timeline: EventTimeline,
@@ -38,7 +46,7 @@ export const getLinkedTimelines = (timeline: EventTimeline): EventTimeline[] => 
   return result;
 };
 
-export const timelineToEventsCount = (t: EventTimeline) => {
+const timelineToEventsCount = (t: EventTimeline) => {
   if (!t) return 0;
   const events = t.getEvents();
   return events ? events.length : 0;
@@ -50,48 +58,6 @@ export const getTimelinesEventsCount = (timelines: EventTimeline[]): number => {
   return (timelines || [])
     .filter(Boolean)
     .reduce((accumulator, element) => timelineEventCountReducer(accumulator, element), 0);
-};
-
-export const getTimelineAndBaseIndex = (
-  timelines: EventTimeline[],
-  index: number
-): [EventTimeline | undefined, number] => {
-  const validTimelines = (timelines || []).filter(Boolean);
-
-  const result = validTimelines.reduce<{
-    found?: EventTimeline;
-    baseIndex: number;
-  }>(
-    (acc, timeline) => {
-      if (acc.found) return acc;
-
-      const events = timeline.getEvents();
-      const len = events ? events.length : 0;
-
-      if (index < acc.baseIndex + len) {
-        acc.found = timeline;
-        return acc;
-      }
-
-      acc.baseIndex += len;
-      return acc;
-    },
-    { baseIndex: 0 }
-  );
-
-  return [result.found, result.found ? result.baseIndex : 0];
-};
-
-export const getTimelineRelativeIndex = (absoluteIndex: number, timelineBaseIndex: number) =>
-  absoluteIndex - timelineBaseIndex;
-
-export const getTimelineEvent = (
-  timeline: EventTimeline,
-  index: number
-): MatrixEvent | undefined => {
-  if (!timeline) return undefined;
-  const events = timeline.getEvents();
-  return events ? events[index] : undefined;
 };
 
 export const getEventIdAbsoluteIndex = (
@@ -155,20 +121,4 @@ export const getRoomUnreadInfo = (room: Room, scrollTo = false) => {
     inLiveTimeline: latestTimeline === room.getLiveTimeline(),
     scrollTo,
   };
-};
-
-export const getThreadReplyCount = (room: Room, mEventId: string): number => {
-  const thread = room.getThread(mEventId);
-  if (thread) return thread.length;
-
-  const linkedTimelines = getLinkedTimelines(getLiveTimeline(room));
-  return linkedTimelines.reduce((acc, tl) => {
-    const threadEvents = tl
-      .getEvents()
-      .filter(
-        (ev) =>
-          ev.getId() !== mEventId && !reactionOrEditEvent(ev) && isThreadRelationEvent(ev, mEventId)
-      );
-    return acc + threadEvents.length;
-  }, 0);
 };

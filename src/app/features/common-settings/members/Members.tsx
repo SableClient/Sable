@@ -1,23 +1,21 @@
 import type { ChangeEventHandler, MouseEventHandler } from 'react';
 import { useCallback, useMemo, useRef, useState } from 'react';
 import type { RectCords } from 'folds';
+import { Box, Chip, config, IconButton, Input, Scroll, Spinner, Text, toRem } from 'folds';
+import { PopOut } from '$components/overlay-stack';
 import {
-  Box,
-  Chip,
-  config,
-  Icon,
-  IconButton,
-  Icons,
-  Input,
-  PopOut,
-  Scroll,
-  Spinner,
-  Text,
-  toRem,
-} from 'folds';
+  ArrowsDownUp,
+  CaretUp,
+  chipIcon,
+  composerIcon,
+  Funnel,
+  MagnifyingGlass,
+  menuIcon,
+  X,
+} from '$components/icons/phosphor';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import type { RoomMember } from '$types/matrix-sdk';
-import { Page, PageContent, PageHeader } from '$components/page';
+import { PageContent, SettingsSectionPage } from '$components/page';
 import { useRoom } from '$hooks/useRoom';
 import { useRoomMembers } from '$hooks/useRoomMembers';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -30,14 +28,13 @@ import { ServerBadge } from '$components/server-badge';
 import { useDebounce } from '$hooks/useDebounce';
 import type { SearchItemStrGetter, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
 import { useAsyncSearch } from '$hooks/useAsyncSearch';
-import { getMemberSearchStr } from '$utils/room';
+import { getMemberSearchStr } from '$utils/room/display';
 import { useMembershipFilter, useMembershipFilterMenu } from '$hooks/useMemberFilter';
 import { useMemberPowerSort, useMemberSort, useMemberSortMenu } from '$hooks/useMemberSort';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { UseStateProvider } from '$components/UseStateProvider';
-import { MembershipFilterMenu } from '$components/MembershipFilterMenu';
-import { MemberSortMenu } from '$components/MemberSortMenu';
+import { MemberMenuList } from '$components/MemberSortMenu';
 import { ScrollTopContainer } from '$components/scroll-top-container';
 import { useOpenUserRoomProfile, useUserRoomProfileState } from '$state/hooks/userRoomProfile';
 import { useSpaceOptionally } from '$hooks/useSpace';
@@ -45,6 +42,8 @@ import { useFlattenPowerTagMembers, useGetMemberPowerTag } from '$hooks/useMembe
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { getMouseEventCords } from '$utils/dom';
 import { getMxIdServer } from '$utils/mxIdHelper';
+import { useAtomValue } from 'jotai';
+import { nicknamesAtom } from '$state/nicknames';
 
 const SEARCH_OPTIONS: UseAsyncSearchOptions = {
   limit: 1000,
@@ -57,14 +56,14 @@ const SEARCH_OPTIONS: UseAsyncSearchOptions = {
 };
 
 const mxIdToName = (mxId: string) => getMxIdLocalPart(mxId) ?? mxId;
-const getRoomMemberStr: SearchItemStrGetter<RoomMember> = (m, query) =>
-  getMemberSearchStr(m, query, mxIdToName);
 
 type MembersProps = {
+  requestBack?: () => void;
   requestClose: () => void;
 };
-export function Members({ requestClose }: MembersProps) {
+export function Members({ requestBack, requestClose }: MembersProps) {
   const mx = useMatrixClient();
+  const nicknames = useAtomValue(nicknamesAtom);
   const useAuthentication = useMediaAuthentication();
   const room = useRoom();
   const members = useRoomMembers(mx, room.roomId);
@@ -80,8 +79,10 @@ export function Members({ requestClose }: MembersProps) {
 
   const [membershipFilterIndex, setMembershipFilterIndex] = useState(0);
   const [sortFilterIndex, setSortFilterIndex] = useSetting(settingsAtom, 'memberSortFilterIndex');
-  const membershipFilter = useMembershipFilter(membershipFilterIndex, useMembershipFilterMenu());
-  const memberSort = useMemberSort(sortFilterIndex, useMemberSortMenu());
+  const membershipFilterMenu = useMembershipFilterMenu();
+  const sortFilterMenu = useMemberSortMenu();
+  const membershipFilter = useMembershipFilter(membershipFilterIndex, membershipFilterMenu);
+  const memberSort = useMemberSort(sortFilterIndex, sortFilterMenu);
   const memberPowerSort = useMemberPowerSort(creators, getPowerLevel);
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -95,6 +96,11 @@ export function Members({ requestClose }: MembersProps) {
         .toSorted(memberSort.sortFn)
         .sort(memberPowerSort),
     [members, membershipFilter, memberSort, memberPowerSort]
+  );
+
+  const getRoomMemberStr = useCallback<SearchItemStrGetter<RoomMember>>(
+    (m, query) => getMemberSearchStr(m, query, mxIdToName, nicknames),
+    [nicknames]
   );
 
   const [result, search, resetSearch] = useAsyncSearch(
@@ -136,26 +142,22 @@ export function Members({ requestClose }: MembersProps) {
     const btn = evt.currentTarget as HTMLButtonElement;
     const userId = btn.getAttribute('data-user-id');
     if (userId) {
-      openProfile(room.roomId, space?.roomId, userId, getMouseEventCords(evt.nativeEvent));
+      openProfile(
+        room.roomId,
+        space?.roomId,
+        userId,
+        undefined,
+        getMouseEventCords(evt.nativeEvent)
+      );
     }
   };
 
   return (
-    <Page>
-      <PageHeader outlined={false}>
-        <Box grow="Yes" gap="200">
-          <Box grow="Yes" alignItems="Center" gap="200">
-            <Text size="H3" truncate>
-              {room.getJoinedMemberCount()} Members
-            </Text>
-          </Box>
-          <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
-            </IconButton>
-          </Box>
-        </Box>
-      </PageHeader>
+    <SettingsSectionPage
+      title={`${room.getJoinedMemberCount()} Members`}
+      requestBack={requestBack}
+      requestClose={requestClose}
+    >
       <Box grow="Yes" style={{ position: 'relative' }}>
         <Scroll ref={scrollRef} hideTrack visibility="Hover">
           <PageContent>
@@ -168,7 +170,7 @@ export function Members({ requestClose }: MembersProps) {
                 <Input
                   ref={searchInputRef}
                   onChange={handleSearchChange}
-                  before={<Icon size="200" src={Icons.Search} />}
+                  before={menuIcon(MagnifyingGlass)}
                   variant="SurfaceVariant"
                   size="500"
                   placeholder="Search"
@@ -182,7 +184,7 @@ export function Members({ requestClose }: MembersProps) {
                         radii="Pill"
                         aria-pressed
                         onClick={handleSearchReset}
-                        after={<Icon size="50" src={Icons.Cross} />}
+                        after={chipIcon(X)}
                       >
                         <Text size="B300">
                           {result.items.length === 0
@@ -203,7 +205,8 @@ export function Members({ requestClose }: MembersProps) {
                       align="Start"
                       offset={4}
                       content={
-                        <MembershipFilterMenu
+                        <MemberMenuList
+                          items={membershipFilterMenu}
                           selected={membershipFilterIndex}
                           onSelect={setMembershipFilterIndex}
                           requestClose={() => setAnchor(undefined)}
@@ -220,7 +223,7 @@ export function Members({ requestClose }: MembersProps) {
                         variant="SurfaceVariant"
                         size="400"
                         radii="300"
-                        before={<Icon src={Icons.Filter} size="50" />}
+                        before={chipIcon(Funnel)}
                       >
                         <Text size="T200">{membershipFilter.name}</Text>
                       </Chip>
@@ -235,7 +238,8 @@ export function Members({ requestClose }: MembersProps) {
                       align="End"
                       offset={4}
                       content={
-                        <MemberSortMenu
+                        <MemberMenuList
+                          items={sortFilterMenu}
                           selected={sortFilterIndex}
                           onSelect={setSortFilterIndex}
                           requestClose={() => setAnchor(undefined)}
@@ -252,7 +256,7 @@ export function Members({ requestClose }: MembersProps) {
                         variant="SurfaceVariant"
                         size="400"
                         radii="300"
-                        after={<Icon src={Icons.Sort} size="50" />}
+                        after={chipIcon(ArrowsDownUp)}
                       >
                         <Text size="T200">{memberSort.name}</Text>
                       </Chip>
@@ -273,7 +277,7 @@ export function Members({ requestClose }: MembersProps) {
                   size="300"
                   aria-label="Scroll to Top"
                 >
-                  <Icon src={Icons.ChevronTop} size="300" />
+                  {composerIcon(CaretUp)}
                 </IconButton>
               </ScrollTopContainer>
               {fetchingMembers && (
@@ -356,6 +360,6 @@ export function Members({ requestClose }: MembersProps) {
           </PageContent>
         </Scroll>
       </Box>
-    </Page>
+    </SettingsSectionPage>
   );
 }

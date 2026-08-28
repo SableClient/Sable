@@ -5,14 +5,36 @@
  * of the Sentry initialisation side-effects.
  */
 
+/** Hosts that identify the app shell, not a user's homeserver. Never redacted. */
+const LOCAL_HOSTS = new Set(['localhost', '127.0.0.1', '0.0.0.0', '[::1]', 'tauri.localhost']);
+
+// Also preserve the app's own origin so Sentry can show which page an error occurred on.
+if (typeof window !== 'undefined' && window.location) {
+  try {
+    const appHost = new URL(window.location.origin).hostname.toLowerCase();
+    if (appHost) LOCAL_HOSTS.add(appHost);
+  } catch {
+    /* invalid origin, ignore */
+  }
+}
+
+/** Replace the origin of any external http(s) URL with [HOMESERVER], keeping path/query/hash. */
+export function scrubExternalHosts(value: string): string {
+  return value.replace(/\bhttps?:\/\/[^/?#\s]+/gi, (match) => {
+    const schemeEnd = match.indexOf('://') + 3;
+    const hostname = (match.slice(schemeEnd).split(':')[0] ?? '').toLowerCase();
+    if (LOCAL_HOSTS.has(hostname)) return match;
+    return `${match.slice(0, schemeEnd)}[HOMESERVER]`;
+  });
+}
+
 /**
- * Scrub Matrix entity IDs and credential tokens from a plain string value.
- * Handles the sigil-prefixed forms: !roomId:server, @userId:server, $eventId,
- * #alias:server, and common credential token query-string / JSON patterns.
- * Used for structured log attribute values and breadcrumb data fields.
+ * Scrub Matrix entity IDs, credential tokens, and external http(s) hosts from a
+ * plain string value. Used for structured log attribute values and breadcrumb
+ * data fields.
  */
 export function scrubMatrixIds(value: string): string {
-  return value
+  return scrubExternalHosts(value)
     .replace(
       /(access_token|password|token|refresh_token|session_id|sync_token|next_batch)([=:\s]+)([^\s&]+)/gi,
       '$1$2[REDACTED]'
@@ -38,6 +60,43 @@ export function scrubDataObject(data: unknown): unknown {
   return data;
 }
 
+/** Structured fields that should never be sent to Sentry, even redacted. */
+const SENTRY_IDENTIFIER_KEYS = new Set([
+  'roomId',
+  'notificationEventId',
+  'refEventId',
+  'senderId',
+  'declineEventId',
+  'eventId',
+  'userId',
+  'targetEventId',
+  'deviceId',
+  'activeNotificationId',
+  'activeRefEventId',
+  'callerId',
+  'recipientId',
+]);
+
+/** Drop identifier-bearing keys before values are scrubbed for Sentry export. */
+export function omitSentryIdentifierFields(data: unknown): unknown {
+  if (Array.isArray(data)) {
+    return data.map(omitSentryIdentifierFields);
+  }
+  if (data !== null && typeof data === 'object') {
+    return Object.fromEntries(
+      Object.entries(data as Record<string, unknown>)
+        .filter(([key]) => !SENTRY_IDENTIFIER_KEYS.has(key))
+        .map(([key, value]) => [key, omitSentryIdentifierFields(value)])
+    );
+  }
+  return data;
+}
+
+/** Full sanitization pass for Sentry breadcrumbs, logs, and contexts. */
+export function sanitizeSentryPayload(data: unknown): unknown {
+  return scrubDataObject(omitSentryIdentifierFields(data));
+}
+
 /**
  * Scrub Matrix-specific identifiers from URLs that appear in Sentry spans, breadcrumbs,
  * transaction names, and page URLs. Covers both Matrix API paths and client-side app routes.
@@ -46,7 +105,7 @@ export function scrubDataObject(data: unknown): unknown {
  */
 export function scrubMatrixUrl(url: string): string {
   return (
-    url
+    scrubExternalHosts(url)
       // ── Matrix Client-Server API paths ──────────────────────────────────────────────
       // /rooms/!roomId:server/...
       .replace(/\/rooms\/![^/?#\s]*/g, '/rooms/![ROOM_ID]')
@@ -107,5 +166,96 @@ export function scrubMatrixUrl(url: string): string {
       // The ?url= query parameter on preview_url contains the full external URL being
       // previewed — strip the entire query string so browsing habits cannot be inferred.
       .replace(/(\/preview_url)\?[^#\s]*/gi, '$1')
+      // ── Auth callback credentials ────────────────────────────────────────────────────
+      // OAuth code/state and the legacy SSO loginToken are single-use login credentials.
+      .replace(/([?&#](?:code|state|loginToken)=)[^&#\s]+/gi, '$1[REDACTED]')
   );
 }
+
+type DiagnosticsJsonValue =
+  | null
+  | boolean
+  | number
+  | string
+  | DiagnosticsJsonObject
+  | DiagnosticsJsonValue[];
+type DiagnosticsJsonObject = { [key: string]: DiagnosticsJsonValue };
+
+const DIAGNOSTICS_REDACTED = '[REDACTED]';
+const DIAGNOSTICS_REDACTED_CREDENTIAL = '[REDACTED_CREDENTIAL]';
+const DIAGNOSTICS_REDACTED_MATRIX_ID = '[REDACTED_MATRIX_ID]';
+const DIAGNOSTICS_REDACTED_PATH = '[REDACTED_PATH]';
+const DIAGNOSTICS_REDACTED_URL = '[REDACTED_URL]';
+
+const DIAGNOSTICS_SENSITIVE_KEY_PATTERN =
+  /(?:authorization|cookie|token|secret|password|passwd|credential|api[-_]?key)/i;
+const DIAGNOSTICS_URL_PATTERN = /\b[a-z][a-z0-9+.-]{1,15}:\/\/[^\s<>"']+/gi;
+const DIAGNOSTICS_AUTH_PATTERN = /\b(?:Bearer|Basic)\s+[A-Za-z0-9._~+/=-]+/gi;
+const DIAGNOSTICS_SENSITIVE_VALUE_PATTERN =
+  /(["']?(?:authorization|proxy[-_]?authorization|cookie|set[-_]?cookie|access[-_]?token|refresh[-_]?token|id[-_]?token|x[-_]?auth[-_]?token|x[-_]?access[-_]?token|api[-_]?key|client[-_]?secret|password|passwd|secret|credential|token)["']?\s*[:=]\s*)(?:"[^"]*"|'[^']*'|[^\s,;}\]]+)/gi;
+const DIAGNOSTICS_MATRIX_ID_PATTERN = /(?:[@!#$]\S+?:\S+|\$\S+?:\S+)/g;
+const DIAGNOSTICS_ABSOLUTE_PATH_PATTERN =
+  /(?:\/(?:home|Users|tmp|var\/tmp|private\/tmp|var\/folders)\/[^\s<>"']+|[A-Za-z]:[\\/](?:Users|Temp|Windows[\\/]Temp)[^\s<>"']*)/g;
+
+const redactDiagnosticsText = (text: string): string =>
+  text
+    .replace(DIAGNOSTICS_URL_PATTERN, DIAGNOSTICS_REDACTED_URL)
+    .replace(DIAGNOSTICS_AUTH_PATTERN, DIAGNOSTICS_REDACTED_CREDENTIAL)
+    .replace(DIAGNOSTICS_SENSITIVE_VALUE_PATTERN, `$1${DIAGNOSTICS_REDACTED}`)
+    .replace(DIAGNOSTICS_MATRIX_ID_PATTERN, DIAGNOSTICS_REDACTED_MATRIX_ID)
+    .replace(DIAGNOSTICS_ABSOLUTE_PATH_PATTERN, DIAGNOSTICS_REDACTED_PATH);
+
+const sanitizeDiagnosticsHeaders = (value: DiagnosticsJsonValue): DiagnosticsJsonValue => {
+  if (Array.isArray(value)) {
+    return value.map((header) => {
+      if (Array.isArray(header) && header.length >= 2) {
+        return [
+          typeof header[0] === 'string' ? redactDiagnosticsText(header[0]) : 'header',
+          DIAGNOSTICS_REDACTED,
+        ];
+      }
+      return sanitizeDiagnosticsJsonValue(header) ?? null;
+    });
+  }
+  if (value !== null && typeof value === 'object') {
+    return Object.fromEntries(Object.keys(value).map((key) => [key, DIAGNOSTICS_REDACTED]));
+  }
+  return sanitizeDiagnosticsJsonValue(value) ?? null;
+};
+
+const sanitizeDiagnosticsJsonValue = (
+  value: DiagnosticsJsonValue
+): DiagnosticsJsonValue | undefined => {
+  if (typeof value === 'string') return redactDiagnosticsText(value);
+  if (value === null || typeof value === 'boolean' || typeof value === 'number') return value;
+  if (Array.isArray(value))
+    return value.map(sanitizeDiagnosticsJsonValue).filter((item) => item !== undefined);
+
+  const sanitized: DiagnosticsJsonObject = {};
+  for (const [key, child] of Object.entries(value)) {
+    if (key.toLowerCase() === 'data') continue;
+    if (key.toLowerCase() === 'headers') {
+      sanitized[key] = sanitizeDiagnosticsHeaders(child);
+      continue;
+    }
+    if (DIAGNOSTICS_SENSITIVE_KEY_PATTERN.test(key)) {
+      sanitized[key] = DIAGNOSTICS_REDACTED;
+      continue;
+    }
+    const safeChild = sanitizeDiagnosticsJsonValue(child);
+    if (safeChild !== undefined) sanitized[key] = safeChild;
+  }
+  return sanitized;
+};
+
+/** Strict sanitizer for frontend diagnostics exports sent from the web client. */
+export const sanitizeDiagnosticsLogs = (rawLogs: string): string | null => {
+  try {
+    const parsed: unknown = JSON.parse(rawLogs);
+    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+    const sanitized = sanitizeDiagnosticsJsonValue(parsed as DiagnosticsJsonObject);
+    return sanitized === undefined ? null : JSON.stringify(sanitized, null, 2);
+  } catch {
+    return null;
+  }
+};

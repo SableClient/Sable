@@ -1,30 +1,47 @@
 allowBuilds:
+  '@sableclient/tauri-plugin-notifications-api': true
   '@sentry/cli': true
   '@swc/core': true
   cloudflared: true
+  cpu-features: true
   esbuild: true
+  protobufjs: true
   sharp: true
+  ssh2: true
   unrs-resolver: true
   workerd: true
 engineStrict: true
 minimumReleaseAge: 1440
 minimumReleaseAgeExclude:
+  - 'matrix-js-sdk'
+  - '@sableclient/matrixrtc'
   - '@sableclient/sable-call-embedded'
+  - '@sableclient/tauri-plugin-livekit-mobile'
+  - '@sableclient/tauri-plugin-notifications-api'
+  - '@sableclient/twemoji-font'
 
 overrides:
-  brace-expansion: '>=1.1.12'
-  esbuild: '>=0.25.0'
+  # Temporary: matrix-js-sdk#5501
+  '@matrix-org/matrix-sdk-crypto-wasm': '18.4.0'
+  brace-expansion: '>=5.0.9'
+  esbuild: '>=0.28.1'
+  fast-uri: '>=3.1.5'
   flatted: '>=3.4.2'
+  js-yaml: '>=4.3.1'
+  jsdom>undici: '^7.29.0'
   lodash: '>=4.17.23'
   minimatch: '>=10.2.3'
+  nanoid@<6.0.1: '>=3.3.18'
+  postcss: '>=8.5.23'
   rollup: '>=4.59.0'
   serialize-javascript: '>=7.0.3'
-  undici: '>=7.24.0'
+  undici: '>=7.29.0'
+  uuid: '>=11.1.1'
 
 peerDependencyRules:
   allowedVersions:
-    'folds>@vanilla-extract/css': '1.18.0'
+    'folds>@vanilla-extract/css': '1.21.2'
     'folds>@vanilla-extract/recipes': '0.5.7'
     'folds>classnames': '2.5.1'
-    'folds>react': '18.3.1'
-    'folds>react-dom': '18.3.1'
+    'folds>react': '19.2.8'
+    'folds>react-dom': '19.2.8'

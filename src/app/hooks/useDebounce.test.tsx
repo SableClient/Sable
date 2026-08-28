@@ -97,4 +97,33 @@ describe('useDebounce', () => {
     expect(fn).toHaveBeenCalledOnce();
     expect(fn).toHaveBeenCalledWith('go');
   });
+
+  it('cancels a pending callback explicitly', () => {
+    const fn = vi.fn<(arg: string) => void>();
+    const { result } = renderHook(() => useDebounce(fn, { wait: 200 }));
+
+    act(() => {
+      result.current('cancelled');
+      result.current.cancel();
+      vi.advanceTimersByTime(200);
+    });
+
+    expect(fn).not.toHaveBeenCalled();
+  });
+
+  it('cancels a pending callback when unmounted', () => {
+    const fn = vi.fn<(arg: string) => void>();
+    const { result, unmount } = renderHook(() => useDebounce(fn, { wait: 200 }));
+
+    act(() => {
+      result.current('cancelled');
+    });
+    unmount();
+
+    act(() => {
+      vi.advanceTimersByTime(200);
+    });
+
+    expect(fn).not.toHaveBeenCalled();
+  });
 });

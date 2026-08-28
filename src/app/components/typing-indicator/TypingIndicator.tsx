@@ -1,7 +1,7 @@
 import { Box, as, toRem } from 'folds';
 import * as css from './TypingIndicator.css';
 
-export type TypingIndicatorProps = {
+type TypingIndicatorProps = {
   size?: '300' | '400';
   disableAnimation?: boolean;
 };

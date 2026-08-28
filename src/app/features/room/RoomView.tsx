@@ -1,25 +1,24 @@
 import { useCallback, useRef, useState } from 'react';
 import { useAtomValue } from 'jotai';
-import { Transforms } from 'slate';
 import { Box, Text, config } from 'folds';
 import { EventType } from '$types/matrix-sdk';
-import { ReactEditor } from 'slate-react';
 import { isKeyHotkey } from 'is-hotkey';
 import { useStateEvent } from '$hooks/useStateEvent';
 
 import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { useEditor, resetEditor } from '$components/editor';
+import { useEditor } from '$components/editor';
+import { BlockType } from '$components/editor';
 import { Page } from '$components/page';
 import { useKeyDown } from '$hooks/useKeyDown';
 import { editableActiveElement } from '$utils/dom';
+import { isMobileOrTablet } from '$utils/platform';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { SwipeableChatWrapper } from '$components/SwipeableChatWrapper';
-import { BackRouteHandler } from '$components/BackRouteHandler';
 import { useOpenRoomSettings } from '$state/hooks/roomSettings';
 import { useSpaceOptionally } from '$hooks/useSpace';
 import { RoomSettingsPage } from '$state/roomSettings';
@@ -31,6 +30,8 @@ import { callEmbedAtom } from '$state/callEmbed';
 import { useCallJoined } from '$hooks/useCallEmbed';
 import { CallView } from '$features/call/CallView';
 import { useRoom } from '$hooks/useRoom';
+import { useMessageEdit } from '$hooks/useMessageEdit';
+import { useAlive } from '$hooks/useAlive';
 import { RoomViewFollowing, RoomViewFollowingPlaceholder } from './RoomViewFollowing';
 import { RoomInput } from './RoomInput';
 import { RoomTombstone } from './RoomTombstone';
@@ -73,7 +74,7 @@ const shouldFocusMessageField = (evt: KeyboardEvent): boolean => {
 export function RoomView({ eventId }: { eventId?: string }) {
   const roomInputRef = useRef<HTMLDivElement>(null);
   const roomViewRef = useRef<HTMLDivElement>(null);
-  const editLastMessageRef = useRef<(() => void) | undefined>();
+  const editLastMessageRef = useRef<(() => void) | undefined>(undefined);
 
   const [hideReads] = useSetting(settingsAtom, 'hideReads');
   const screenSize = useScreenSizeContext();
@@ -89,19 +90,26 @@ export function RoomView({ eventId }: { eventId?: string }) {
   const creators = useRoomCreators(room);
 
   const permissions = useRoomPermissions(creators, powerLevels);
-  const canMessage = permissions.event(EventType.RoomMessage, mx.getSafeUserId());
+  const canMessage = permissions.message(room.hasEncryptionStateEvent(), mx.getSafeUserId());
 
   const [editorResetKey, setEditorResetKey] = useState(0);
   const handleResetEditor = useCallback(() => setEditorResetKey((prev) => prev + 1), []);
+  const alive = useAlive();
+  const { editId, handleEdit } = useMessageEdit(editor, {
+    onReset: handleResetEditor,
+    alive,
+    focusOnCancel: !isMobileOrTablet(),
+  });
+  const onCancelEdit = useCallback(() => handleEdit(undefined), [handleEdit]);
+  const onEditLastMessage = useCallback(() => editLastMessageRef.current?.(), []);
 
   useDelayedEventsSupport();
   const delayedEventsSupported = useAtomValue(delayedEventsSupportedAtom);
 
   const handleEditMessage = useCallback(
     (body: string) => {
-      resetEditor(editor);
-      if (body) Transforms.insertText(editor, body);
-      ReactEditor.focus(editor);
+      editor.setDocument(body ? [{ type: BlockType.Paragraph, children: [{ text: body }] }] : []);
+      editor.focus();
     },
     [editor]
   );
@@ -116,7 +124,7 @@ export function RoomView({ eventId }: { eventId?: string }) {
           return;
         }
         if (shouldFocusMessageField(evt) || isKeyHotkey('mod+v', evt)) {
-          ReactEditor.focus(editor);
+          editor.focus();
         }
       },
       [editor]
@@ -128,7 +136,7 @@ export function RoomView({ eventId }: { eventId?: string }) {
 
   const handleOpenMembers = useCallback(() => {
     if (screenSize === ScreenSize.Mobile) {
-      openSettings(room.roomId, space?.roomId, RoomSettingsPage.MembersPage);
+      openSettings(room.roomId, space?.roomId, RoomSettingsPage.MembersPage, { viaSwipe: true });
     }
   }, [screenSize, openSettings, room.roomId, space?.roomId]);
 
@@ -139,68 +147,80 @@ export function RoomView({ eventId }: { eventId?: string }) {
   const showCallView = !room.isCallRoom() && (callMembers.length > 0 || isJoinedInThisRoom);
 
   return (
-    <BackRouteHandler>
-      {(onBack) => (
-        <Page ref={roomViewRef}>
-          <SwipeableChatWrapper onOpenSidebar={onBack} onOpenMembers={handleOpenMembers}>
-            <Box grow="Yes" direction="Column">
-              {showCallView && (
-                <Box shrink="No" style={{ width: '100%', position: 'relative' }}>
-                  <CallView resizable />
-                </Box>
-              )}
-              <RoomTimeline
-                key={roomId}
-                room={room}
-                eventId={eventId}
-                editor={editor}
-                onEditorReset={handleResetEditor}
-                onEditLastMessageRef={editLastMessageRef}
+    <Page
+      ref={roomViewRef}
+      style={{
+        position: 'relative',
+        overflow: 'hidden',
+        isolation: 'isolate',
+        minWidth: 0,
+        minHeight: 0,
+        width: '100%',
+      }}
+    >
+      <SwipeableChatWrapper onOpenMembers={handleOpenMembers}>
+        <Box grow="Yes" direction="Column">
+          {showCallView && (
+            <Box shrink="No" style={{ width: '100%', position: 'relative' }}>
+              <CallView resizable />
+            </Box>
+          )}
+          <RoomTimeline
+            key={roomId}
+            room={room}
+            eventId={eventId}
+            editor={editor}
+            onEditorReset={handleResetEditor}
+            onEditLastMessageRef={editLastMessageRef}
+            editId={editId}
+            onEditId={handleEdit}
+          />
+          <div style={{ position: 'relative', flexShrink: 0 }}>
+            <RoomViewTyping room={room} />
+          </div>
+          <GlobalModalManager />
+        </Box>
+        <Box shrink="No" direction="Column">
+          {canMessage && delayedEventsSupported && (
+            <ScheduledMessagesList room={room} onEditMessage={handleEditMessage} />
+          )}
+          <div style={{ padding: `0 ${config.space.S400}` }}>
+            {tombstoneEvent ? (
+              <RoomTombstone
+                roomId={roomId}
+                body={tombstoneEvent.getContent().body}
+                replacementRoomId={tombstoneEvent.getContent().replacement_room}
               />
-              <RoomViewTyping room={room} />
-              <GlobalModalManager />
-            </Box>
-            <Box shrink="No" direction="Column">
-              {canMessage && delayedEventsSupported && (
-                <ScheduledMessagesList room={room} onEditMessage={handleEditMessage} />
-              )}
-              <div style={{ padding: `0 ${config.space.S400}` }}>
-                {tombstoneEvent ? (
-                  <RoomTombstone
+            ) : (
+              <>
+                {canMessage && (
+                  <RoomInput
+                    key={`${roomId}-${editorResetKey}`}
+                    room={room}
+                    editor={editor}
                     roomId={roomId}
-                    body={tombstoneEvent.getContent().body}
-                    replacementRoomId={tombstoneEvent.getContent().replacement_room}
+                    fileDropContainerRef={roomViewRef}
+                    ref={roomInputRef}
+                    onEditLastMessage={onEditLastMessage}
+                    editId={editId}
+                    onCancelEdit={onCancelEdit}
                   />
-                ) : (
-                  <>
-                    {canMessage && (
-                      <RoomInput
-                        key={`${roomId}-${editorResetKey}`}
-                        room={room}
-                        editor={editor}
-                        roomId={roomId}
-                        fileDropContainerRef={roomViewRef}
-                        ref={roomInputRef}
-                        onEditLastMessage={() => editLastMessageRef.current?.()}
-                      />
-                    )}
-                    {!canMessage && (
-                      <RoomInputPlaceholder
-                        style={{ padding: config.space.S200 }}
-                        alignItems="Center"
-                        justifyContent="Center"
-                      >
-                        <Text align="Center">You do not have permission to post in this room</Text>
-                      </RoomInputPlaceholder>
-                    )}
-                  </>
                 )}
-              </div>
-              {hideReads ? <RoomViewFollowingPlaceholder /> : <RoomViewFollowing room={room} />}
-            </Box>
-          </SwipeableChatWrapper>
-        </Page>
-      )}
-    </BackRouteHandler>
+                {!canMessage && (
+                  <RoomInputPlaceholder
+                    style={{ padding: config.space.S200 }}
+                    alignItems="Center"
+                    justifyContent="Center"
+                  >
+                    <Text align="Center">You do not have permission to post in this room</Text>
+                  </RoomInputPlaceholder>
+                )}
+              </>
+            )}
+            {hideReads ? <RoomViewFollowingPlaceholder /> : <RoomViewFollowing room={room} />}
+          </div>
+        </Box>
+      </SwipeableChatWrapper>
+    </Page>
   );
 }

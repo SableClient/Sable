@@ -1,5 +1,6 @@
 import DOMPurify from 'dompurify';
 import { isMatrixHexColor } from './matrixHtml';
+import { testMatrixUri } from '../plugins/matrix-uri';
 
 const MAX_TAG_NESTING = 100;
 const INTERNAL_IMG_SRC_ATTR = 'data-sable-img-src';
@@ -46,7 +47,7 @@ const permittedHtmlTags = [
 
 const permittedTagToAttributes = {
   span: ['data-mx-bg-color', 'data-mx-color', 'data-mx-spoiler', 'data-mx-maths', 'data-md'],
-  a: ['target', 'href', 'data-md'],
+  a: ['href', 'data-md'],
   img: ['width', 'height', 'alt', 'title', 'src', 'data-mx-emoticon'], // data-mx-emoticon is for MSC2545
   ol: ['start', 'data-md'],
   ul: ['data-md'],
@@ -77,7 +78,7 @@ const forbiddenContentTags = ['mx-reply', 'script', 'style', 'textarea', 'option
 
 const codeLanguageClassRegex = /^language-[A-Za-z0-9_-]+$/;
 const orderedListStartRegex = /^-?\d+$/;
-const allowedUriRegex = /^(?:https?|ftp|mailto|magnet|mxc):/i;
+const allowedUriRegex = /^(?:https?|ftp|mailto|magnet|mxc|matrix):/i;
 
 export function sanitizeText(body: string): string {
   const tagsToReplace: Record<string, string> = {
@@ -107,6 +108,10 @@ function isAllowedAbsoluteLink(value: string): boolean {
   }
 }
 
+function isAllowedMatrixUri(value: string): boolean {
+  return testMatrixUri(value);
+}
+
 function isAllowedMxcUri(value: string): boolean {
   try {
     const parsed = new URL(value);
@@ -122,6 +127,30 @@ function isAllowedMxcUri(value: string): boolean {
   } catch {
     return false;
   }
+}
+
+export function getSafeMediaUrl(url: string | undefined): string | undefined {
+  if (!url) return undefined;
+
+  if (url.startsWith('blob:')) {
+    return url;
+  }
+
+  try {
+    const parsed = new URL(url);
+
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      return url;
+    }
+
+    if (isAllowedMxcUri(url)) {
+      return url;
+    }
+  } catch {
+    return undefined;
+  }
+
+  return undefined;
 }
 
 function normalizeCodeClasses(attrValue: string): string | undefined {
@@ -152,7 +181,12 @@ function getValidatedAttributeValue(
     return undefined;
   }
 
-  if (tagName === 'a' && attrName === 'href' && !isAllowedAbsoluteLink(attrValue)) {
+  if (
+    tagName === 'a' &&
+    attrName === 'href' &&
+    !isAllowedAbsoluteLink(attrValue) &&
+    !isAllowedMatrixUri(attrValue)
+  ) {
     return undefined;
   }
 
@@ -273,13 +307,22 @@ const pruneInvalidEmptyElements = (
   });
 };
 
+let purifyInstance: ReturnType<typeof DOMPurify> | undefined;
+function getPurify(): ReturnType<typeof DOMPurify> {
+  if (!purifyInstance) {
+    purifyInstance = DOMPurify(window);
+  }
+  return purifyInstance;
+}
+
 export const sanitizeCustomHtml = (customHtml: string): string => {
   if (typeof window === 'undefined') {
     return sanitizeText(customHtml);
   }
 
   const { protectedHtml, protectedSources } = protectImageSources(customHtml);
-  const purify = DOMPurify(window);
+  const purify = getPurify();
+  purify.removeAllHooks();
   const allowedHtmlAttributes = [...permittedHtmlAttributes, INTERNAL_IMG_SRC_ATTR];
 
   purify.addHook('uponSanitizeAttribute', (currentNode, hookEvent) => {

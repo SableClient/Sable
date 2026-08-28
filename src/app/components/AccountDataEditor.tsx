@@ -3,27 +3,26 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Box,
   Text,
-  Icon,
-  Icons,
   IconButton,
   Input,
-  Button,
   TextArea as TextAreaComponent,
   color,
-  Spinner,
   Chip,
   Scroll,
   config,
 } from 'folds';
+import { ArrowLeft, composerIcon, sizedIcon, X } from '$components/icons/phosphor';
 import type { MatrixError } from '$types/matrix-sdk';
 import { Cursor } from '$plugins/text-area';
 import { syntaxErrorPosition } from '$utils/dom';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
+import { AsyncError } from '$components/AsyncError';
 import { useAlive } from '$hooks/useAlive';
 import { useTextAreaCodeEditor } from '$hooks/useTextAreaCodeEditor';
 import { Page, PageHeader } from './page';
 import { SequenceCard } from './sequence-card';
 import { TextViewerContent } from './text-viewer';
+import { Button } from '$components/button';
 
 const EDITOR_INTENT_SPACE_COUNT = 2;
 
@@ -140,8 +139,10 @@ function AccountDataEdit({
             size="400"
             radii="300"
             type="submit"
-            disabled={submitting}
-            before={submitting && <Spinner variant="Primary" fill="Solid" size="300" />}
+            loading={submitting}
+            spinnerSize="300"
+            spinnerVariant="Primary"
+            spinnerFill="Solid"
           >
             <Text size="B400">Save</Text>
           </Button>
@@ -158,11 +159,7 @@ function AccountDataEdit({
           </Button>
         </Box>
 
-        {submitState.status === AsyncStatus.Error && (
-          <Text size="T200" style={{ color: color.Critical.Main }}>
-            <b>{submitState.error.message}</b>
-          </Text>
-        )}
+        <AsyncError state={submitState} bold />
       </Box>
       <Box grow="Yes" direction="Column" gap="100">
         <Box shrink="No">
@@ -289,14 +286,14 @@ export function AccountDataEditor({
               size="500"
               radii="Pill"
               onClick={requestClose}
-              before={<Icon size="100" src={Icons.ArrowLeft} />}
+              before={sizedIcon(ArrowLeft, '100')}
             >
               <Text size="T300">Developer Tools</Text>
             </Chip>
           </Box>
           <Box shrink="No">
             <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
+              {composerIcon(X)}
             </IconButton>
           </Box>
         </Box>

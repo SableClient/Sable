@@ -1,26 +1,13 @@
 import { useCallback, useMemo, useState } from 'react';
-import FocusTrap from 'focus-trap-react';
-import {
-  Box,
-  Button,
-  config,
-  Dialog,
-  Header,
-  Icon,
-  IconButton,
-  Icons,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
-  Text,
-} from 'folds';
+import { Box, Button, config, Dialog, Header, IconButton, Text } from 'folds';
+import { sizedIcon, X } from '$components/icons/phosphor';
 import { useStore } from 'jotai/react';
 
 import { useOptionalClientConfig } from '$hooks/useClientConfig';
 import { useSetting } from '$state/hooks/settings';
 import { trimTrailingSlash } from '$utils/common';
 import { defaultSettings, settingsAtom } from '$state/settings';
-import { stopPropagation } from '$utils/keyboard';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 import { usePatchSettings } from '$features/settings/cosmetics/themeSettingsPatch';
 import { DEFAULT_THEME_CATALOG_BASE } from '../../theme/catalogDefaults';
@@ -82,82 +69,71 @@ export function ThemeMigrationBanner() {
   if (!visible) return null;
 
   return (
-    <Overlay open backdrop={<OverlayBackdrop />}>
-      <OverlayCenter>
-        <FocusTrap
-          focusTrapOptions={{
-            initialFocus: false,
-            onDeactivate: dismissSafe,
-            clickOutsideDeactivates: false,
-            escapeDeactivates: stopPropagation,
+    <ModalOverlay requestClose={dismissSafe} dismissOnClickOutside={false}>
+      <Dialog variant="Surface" aria-labelledby="theme-migration-title">
+        <Header
+          style={{
+            padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
+            borderBottomWidth: config.borderWidth.B300,
           }}
+          variant="Surface"
+          size="500"
         >
-          <Dialog variant="Surface" aria-labelledby="theme-migration-title">
-            <Header
-              style={{
-                padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
-                borderBottomWidth: config.borderWidth.B300,
-              }}
-              variant="Surface"
-              size="500"
+          <Box grow="Yes">
+            <Text id="theme-migration-title" size="H4">
+              Update your theme selection
+            </Text>
+          </Box>
+          <IconButton
+            size="300"
+            variant="Secondary"
+            fill="Soft"
+            outlined
+            radii="300"
+            onClick={dismissSafe}
+            disabled={busy}
+            aria-label="Close"
+          >
+            {sizedIcon(X, '100')}
+          </IconButton>
+        </Header>
+        <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
+          <Text priority="400">
+            Older bundled color themes are no longer included in the app. Migrate to the same looks
+            from the official catalog (downloaded and cached on this device), or dismiss this
+            reminder.
+          </Text>
+          {error && (
+            <Text size="T300" priority="400" style={{ color: 'var(--sable-error)' }}>
+              {error}
+            </Text>
+          )}
+          <Box direction="Column" gap="200">
+            <Button
+              variant="Primary"
+              fill="Soft"
+              outlined
+              size="300"
+              radii="300"
+              onClick={migrate}
+              disabled={busy}
             >
-              <Box grow="Yes">
-                <Text id="theme-migration-title" size="H4">
-                  Update your theme selection
-                </Text>
-              </Box>
-              <IconButton
-                size="300"
-                variant="Secondary"
-                fill="Soft"
-                outlined
-                radii="300"
-                onClick={dismissSafe}
-                disabled={busy}
-                aria-label="Close"
-              >
-                <Icon src={Icons.Cross} size="100" />
-              </IconButton>
-            </Header>
-            <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
-              <Text priority="400">
-                Older bundled color themes are no longer included in the app. Migrate to the same
-                looks from the official catalog (downloaded and cached on this device), or dismiss
-                this reminder.
-              </Text>
-              {error && (
-                <Text size="T300" priority="400" style={{ color: 'var(--sable-error)' }}>
-                  {error}
-                </Text>
-              )}
-              <Box direction="Column" gap="200">
-                <Button
-                  variant="Primary"
-                  fill="Soft"
-                  outlined
-                  size="300"
-                  radii="300"
-                  onClick={migrate}
-                  disabled={busy}
-                >
-                  <Text size="B400">{busy ? 'Migrating…' : 'Migrate'}</Text>
-                </Button>
-                <Button
-                  variant="Secondary"
-                  fill="Soft"
-                  outlined
-                  size="300"
-                  radii="300"
-                  onClick={dismissSafe}
-                  disabled={busy}
-                >
-                  <Text size="B400">Not now</Text>
-                </Button>
-              </Box>
-            </Box>
-          </Dialog>
-        </FocusTrap>
-      </OverlayCenter>
-    </Overlay>
+              <Text size="B400">{busy ? 'Migrating…' : 'Migrate'}</Text>
+            </Button>
+            <Button
+              variant="Secondary"
+              fill="Soft"
+              outlined
+              size="300"
+              radii="300"
+              onClick={dismissSafe}
+              disabled={busy}
+            >
+              <Text size="B400">Not now</Text>
+            </Button>
+          </Box>
+        </Box>
+      </Dialog>
+    </ModalOverlay>
   );
 }

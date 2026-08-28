@@ -1,34 +1,14 @@
 import type { MouseEventHandler } from 'react';
-import { forwardRef, useCallback, useEffect, useState } from 'react';
-import FocusTrap from 'focus-trap-react';
-import { useAtom, useAtomValue } from 'jotai';
-import type { RectCords } from 'folds';
-import {
-  Box,
-  Avatar,
-  Text,
-  Overlay,
-  OverlayCenter,
-  OverlayBackdrop,
-  IconButton,
-  Icon,
-  Icons,
-  Tooltip,
-  TooltipProvider,
-  Menu,
-  MenuItem,
-  toRem,
-  config,
-  Line,
-  PopOut,
-  Badge,
-  Spinner,
-} from 'folds';
-import { useNavigate } from 'react-router-dom';
-import type { Room, MatrixEvent } from '$types/matrix-sdk';
+import { useEffect, useState } from 'react';
+import { useAtom } from 'jotai';
+import classNames from 'classnames';
+import { Box, Avatar, Text, IconButton, Tooltip, toRem, Badge } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
+import { useNavigate } from 'react-router';
+import type { MatrixEvent } from '$types/matrix-sdk';
 import {
   Direction,
-  EventTimeline,
+  type EventTimeline,
   NotificationCountType,
   ThreadEvent,
   RoomEvent,
@@ -37,6 +17,17 @@ import {
 
 import { useStateEvent } from '$hooks/useStateEvent';
 import { PageHeader } from '$components/page';
+import {
+  ArrowLeft,
+  ChatCircleDots,
+  Chats,
+  composerIcon,
+  DotsThreeOutlineVerticalIcon,
+  GridFour,
+  MagnifyingGlass,
+  PushPin,
+  UserCircle,
+} from '$components/icons/phosphor';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { RoomTopicViewer } from '$components/room-topic-viewer';
@@ -48,54 +39,30 @@ import { settingsAtom } from '$state/settings';
 import { useSpaceOptionally } from '$hooks/useSpace';
 import { getHomeSearchPath, getSpaceSearchPath, withSearchParam } from '$pages/pathUtils';
 import { createLogger } from '$utils/debug';
-import {
-  getCanonicalAliasOrRoomId,
-  isRoomAlias,
-  mxcUrlToHttp,
-  removeRoomIdFromMDirect,
-} from '$utils/matrix';
+import { getCanonicalAliasOrRoomId, mxcUrlToHttp } from '$utils/matrix';
 import { type SearchPathSearchParams } from '$pages/paths';
-import { useRoomUnread } from '$state/hooks/unread';
-import { usePowerLevelsContext } from '$hooks/usePowerLevels';
-import { markAsRead } from '$utils/notifications';
-import { roomToUnreadAtom } from '$state/room/roomToUnread';
-import { copyToClipboard } from '$utils/dom';
-import { LeaveRoomPrompt } from '$components/leave-room-prompt';
 import { useRoomAvatar, useRoomName, useRoomTopic } from '$hooks/useRoomMeta';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
-import { stopPropagation } from '$utils/keyboard';
-import { getMatrixToRoom } from '$plugins/matrix-to';
-import { getViaServers } from '$plugins/via-servers';
+import { ResponsiveMenu } from '$components/ResponsiveMenu';
+import { useMenuAnchor } from '$hooks/useMenuAnchor';
 import { BackRouteHandler } from '$components/BackRouteHandler';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useRoomPinnedEvents } from '$hooks/useRoomPinnedEvents';
 import { useOpenRoomSettings } from '$state/hooks/roomSettings';
-import { RoomNotificationModeSwitcher } from '$components/RoomNotificationSwitcher';
-import {
-  getRoomNotificationMode,
-  getRoomNotificationModeIcon,
-  useRoomsNotificationPreferencesContext,
-} from '$hooks/useRoomsNotificationPreferences';
-import { useRoomNavigate } from '$hooks/useRoomNavigate';
-import { useRoomCreators } from '$hooks/useRoomCreators';
-import { useRoomPermissions } from '$hooks/useRoomPermissions';
-import { InviteUserPrompt } from '$components/invite-user-prompt';
 import { ContainerColor } from '$styles/ContainerColor.css';
 import { useRoomWidgets } from '$hooks/useRoomWidgets';
-import { hasThreadRootAggregation, isThreadRelationEvent } from '$utils/room';
-
-import { DirectInvitePrompt } from '$components/direct-invite-prompt';
-import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { mDirectAtom } from '$state/mDirectList';
+import { hasThreadRootAggregation, isThreadRelationEvent } from '$utils/room/relations';
 import { callChatAtom } from '$state/callEmbed';
 import { RoomSettingsPage } from '$state/roomSettings';
 import { roomIdToThreadBrowserAtomFamily } from '$state/room/roomToThreadBrowser';
 import { roomIdToOpenThreadAtomFamily } from '$state/room/roomToOpenThread';
-import { JumpToTime } from './jump-to-time';
+import { useCallPreferences } from '$state/hooks/callPreferences';
+import { useCallStartCapabilities } from '$features/call/useCallStartCapabilities';
 import { RoomPinMenu } from './room-pin-menu';
 import * as css from './RoomViewHeader.css';
 import { RoomCallButton } from './RoomCallButton';
 import { CustomAccountDataEvent } from '$types/matrix/accountData';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 const log = createLogger('RoomViewHeader');
 
@@ -115,234 +82,7 @@ export interface PinReadMarker {
   last_seen_id: string;
 }
 
-type RoomMenuProps = {
-  room: Room;
-  requestClose: () => void;
-};
-const RoomMenu = forwardRef<HTMLDivElement, RoomMenuProps>(({ room, requestClose }, ref) => {
-  const mx = useMatrixClient();
-  const [hideReads] = useSetting(settingsAtom, 'hideReads');
-  const unread = useRoomUnread(room.roomId, roomToUnreadAtom);
-  const powerLevels = usePowerLevelsContext();
-  const creators = useRoomCreators(room);
-
-  const permissions = useRoomPermissions(creators, powerLevels);
-  const canInvite = permissions.action('invite', mx.getSafeUserId());
-  const mDirects = useAtomValue(mDirectAtom);
-  const isDirectConversation = mDirects.has(room.roomId);
-  const notificationPreferences = useRoomsNotificationPreferencesContext();
-  const notificationMode = getRoomNotificationMode(notificationPreferences, room.roomId);
-  const { navigateRoom } = useRoomNavigate();
-
-  const [invitePrompt, setInvitePrompt] = useState(false);
-  const [directInvitePrompt, setDirectInvitePrompt] = useState(false);
-
-  const handleMarkAsRead = () => {
-    markAsRead(mx, room.roomId, hideReads);
-    requestClose();
-  };
-
-  const handleInvite = () => {
-    if (isDirectConversation) {
-      setDirectInvitePrompt(true);
-      return;
-    }
-    setInvitePrompt(true);
-  };
-
-  const handleInviteDirect = () => {
-    setDirectInvitePrompt(false);
-    setInvitePrompt(true);
-  };
-
-  const [convertState, convertToRoom] = useAsyncCallback<void, Error, []>(
-    useCallback(async () => {
-      await removeRoomIdFromMDirect(mx, room.roomId);
-    }, [mx, room.roomId])
-  );
-
-  const handleConvertAndInvite = () => {
-    if (convertState.status === AsyncStatus.Loading) return;
-    convertToRoom().catch(() => {});
-  };
-
-  useEffect(() => {
-    if (convertState.status === AsyncStatus.Success) {
-      setDirectInvitePrompt(false);
-      setInvitePrompt(true);
-    }
-  }, [convertState.status]);
-
-  const handleCopyLink = () => {
-    const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, room.roomId);
-    const viaServers = isRoomAlias(roomIdOrAlias) ? undefined : getViaServers(room);
-    copyToClipboard(getMatrixToRoom(roomIdOrAlias, viaServers));
-    requestClose();
-  };
-
-  const openSettings = useOpenRoomSettings();
-  const parentSpace = useSpaceOptionally();
-  const handleOpenSettings = () => {
-    openSettings(room.roomId, parentSpace?.roomId);
-    requestClose();
-  };
-
-  return (
-    <Menu ref={ref} style={{ maxWidth: toRem(160), width: '100vw' }}>
-      {invitePrompt && (
-        <InviteUserPrompt
-          room={room}
-          requestClose={() => {
-            setInvitePrompt(false);
-            requestClose();
-          }}
-        />
-      )}
-      {directInvitePrompt && (
-        <DirectInvitePrompt
-          onCancel={() => {
-            setDirectInvitePrompt(false);
-            requestClose();
-          }}
-          onInviteDirect={handleInviteDirect}
-          onConvertAndInvite={handleConvertAndInvite}
-          converting={convertState.status === AsyncStatus.Loading}
-          convertError={
-            convertState.status === AsyncStatus.Error ? convertState.error.message : undefined
-          }
-        />
-      )}
-      <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-        <MenuItem
-          onClick={handleMarkAsRead}
-          size="300"
-          after={<Icon size="100" src={Icons.CheckTwice} />}
-          radii="300"
-          disabled={!unread}
-        >
-          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-            Mark as Read
-          </Text>
-        </MenuItem>
-        <RoomNotificationModeSwitcher roomId={room.roomId} value={notificationMode}>
-          {(handleOpen, opened, changing) => (
-            <MenuItem
-              size="300"
-              after={
-                changing ? (
-                  <Spinner size="100" variant="Secondary" />
-                ) : (
-                  <Icon size="100" src={getRoomNotificationModeIcon(notificationMode)} />
-                )
-              }
-              radii="300"
-              aria-pressed={opened}
-              onClick={handleOpen}
-            >
-              <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-                Notifications
-              </Text>
-            </MenuItem>
-          )}
-        </RoomNotificationModeSwitcher>
-      </Box>
-      <Line variant="Surface" size="300" />
-      <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-        <MenuItem
-          onClick={handleInvite}
-          variant="Primary"
-          fill="None"
-          size="300"
-          after={<Icon size="100" src={Icons.UserPlus} />}
-          radii="300"
-          aria-pressed={invitePrompt}
-          disabled={!canInvite}
-        >
-          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-            Invite
-          </Text>
-        </MenuItem>
-        <MenuItem
-          onClick={handleCopyLink}
-          size="300"
-          after={<Icon size="100" src={Icons.Link} />}
-          radii="300"
-        >
-          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-            Copy Link
-          </Text>
-        </MenuItem>
-        <MenuItem
-          onClick={handleOpenSettings}
-          size="300"
-          after={<Icon size="100" src={Icons.Setting} />}
-          radii="300"
-        >
-          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-            Room Settings
-          </Text>
-        </MenuItem>
-        <UseStateProvider initial={false}>
-          {(promptJump, setPromptJump) => (
-            <>
-              <MenuItem
-                onClick={() => setPromptJump(true)}
-                size="300"
-                after={<Icon size="100" src={Icons.RecentClock} />}
-                radii="300"
-                aria-pressed={promptJump}
-              >
-                <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-                  Jump to Time
-                </Text>
-              </MenuItem>
-              {promptJump && (
-                <JumpToTime
-                  onSubmit={(eventId) => {
-                    setPromptJump(false);
-                    navigateRoom(room.roomId, eventId);
-                    requestClose();
-                  }}
-                  onCancel={() => setPromptJump(false)}
-                />
-              )}
-            </>
-          )}
-        </UseStateProvider>
-      </Box>
-      <Line variant="Surface" size="300" />
-      <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-        <UseStateProvider initial={false}>
-          {(promptLeave, setPromptLeave) => (
-            <>
-              <MenuItem
-                onClick={() => setPromptLeave(true)}
-                variant="Critical"
-                fill="None"
-                size="300"
-                after={<Icon size="100" src={Icons.ArrowGoLeft} />}
-                radii="300"
-                aria-pressed={promptLeave}
-              >
-                <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-                  Leave Room
-                </Text>
-              </MenuItem>
-              {promptLeave && (
-                <LeaveRoomPrompt
-                  roomId={room.roomId}
-                  onDone={requestClose}
-                  onCancel={() => setPromptLeave(false)}
-                />
-              )}
-            </>
-          )}
-        </UseStateProvider>
-      </Box>
-    </Menu>
-  );
-});
-RoomMenu.displayName = 'RoomMenu';
+import { RoomMenu } from './RoomMenu';
 
 export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
   const navigate = useNavigate();
@@ -351,10 +91,11 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
   const screenSize = useScreenSizeContext();
   const room = useRoom();
   const space = useSpaceOptionally();
-  const [menuAnchor, setMenuAnchor] = useState<RectCords>();
-  const [pinMenuAnchor, setPinMenuAnchor] = useState<RectCords>();
+  const optionsMenu = useMenuAnchor<HTMLButtonElement>();
+  const pinMenu = useMenuAnchor<HTMLButtonElement>();
   const direct = useIsDirectRoom();
   const [customDMCards] = useSetting(settingsAtom, 'customDMCards');
+  const { microphone, video, sound } = useCallPreferences();
 
   const [chat, setChat] = useAtom(callChatAtom);
   const [threadBrowserOpen, setThreadBrowserOpen] = useAtom(
@@ -362,10 +103,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
   );
   const [openThreadId, setOpenThread] = useAtom(roomIdToOpenThreadAtomFamily(room.roomId));
 
-  const canUseCalls = room
-    .getLiveTimeline()
-    .getState(EventTimeline.FORWARDS)
-    ?.maySendStateEvent('org.matrix.msc3401.call.member', mx.getUserId()!);
+  const callStartCapabilities = useCallStartCapabilities(room);
   const [alwaysShowCallButton] = useSetting(settingsAtom, 'alwaysShowCallButton');
   const shouldShowCallButton = alwaysShowCallButton || room.getJoinedMemberCount() <= 10;
 
@@ -560,18 +298,15 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
     navigate(withSearchParam(path, searchParams));
   };
 
-  const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    setMenuAnchor(evt.currentTarget.getBoundingClientRect());
-  };
-
   const handleOpenPinMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    setPinMenuAnchor(evt.currentTarget.getBoundingClientRect());
+    pinMenu.openAt(evt.currentTarget);
 
     const updateMarker = async () => {
       if (pinnedIds.length === 0) return;
 
       const hash = await getPinsHash(pinnedIds);
-      await mx.setRoomAccountData(room.roomId, CustomAccountDataEvent.SablePinStatus, {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await mx.setRoomAccountData(room.roomId, CustomAccountDataEvent.SablePinStatus as any, {
         hash,
         count: pinnedIds.length,
         last_seen_id: pinnedIds.at(-1),
@@ -594,17 +329,14 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
   };
 
   return (
-    <PageHeader
-      className={ContainerColor({ variant: 'Surface' })}
-      balance={screenSize === ScreenSize.Mobile}
-    >
+    <PageHeader className={classNames(ContainerColor({ variant: 'Surface' }), css.HeaderBalance)}>
       <Box grow="Yes" gap="300">
         {screenSize === ScreenSize.Mobile && (
           <BackRouteHandler>
             {(onBack) => (
               <Box shrink="No" alignItems="Center">
                 <IconButton fill="None" onClick={onBack}>
-                  <Icon src={Icons.ArrowLeft} />
+                  {composerIcon(ArrowLeft)}
                 </IconButton>
               </Box>
             )}
@@ -618,7 +350,12 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
                 src={avatarUrl}
                 alt={name}
                 renderFallback={() => (
-                  <RoomIcon size="200" joinRule={room.getJoinRule()} roomType={room.getType()} />
+                  <RoomIcon
+                    size="200"
+                    joinRule={room.getJoinRule()}
+                    roomType={room.getType()}
+                    withOverlay={false}
+                  />
                 )}
               />
             </Avatar>
@@ -631,24 +368,13 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
               <UseStateProvider initial={false}>
                 {(viewTopic, setViewTopic) => (
                   <>
-                    <Overlay open={viewTopic} backdrop={<OverlayBackdrop />}>
-                      <OverlayCenter>
-                        <FocusTrap
-                          focusTrapOptions={{
-                            initialFocus: false,
-                            clickOutsideDeactivates: true,
-                            onDeactivate: () => setViewTopic(false),
-                            escapeDeactivates: stopPropagation,
-                          }}
-                        >
-                          <RoomTopicViewer
-                            name={name}
-                            topic={topic}
-                            requestClose={() => setViewTopic(false)}
-                          />
-                        </FocusTrap>
-                      </OverlayCenter>
-                    </Overlay>
+                    <ModalOverlay open={viewTopic} requestClose={() => setViewTopic(false)}>
+                      <RoomTopicViewer
+                        name={name}
+                        topic={topic}
+                        requestClose={() => setViewTopic(false)}
+                      />
+                    </ModalOverlay>
                     <Text
                       as="button"
                       type="button"
@@ -682,73 +408,78 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
                 >
                   {(triggerRef) => (
                     <IconButton fill="None" ref={triggerRef} onClick={handleSearchClick}>
-                      <Icon size="400" src={Icons.Search} />
+                      {composerIcon(MagnifyingGlass)}
                     </IconButton>
                   )}
                 </TooltipProvider>
               )}
-              <TooltipProvider
+              <ResponsiveMenu
+                anchor={pinMenu.anchor}
+                requestClose={pinMenu.close}
                 position="Bottom"
-                offset={4}
-                tooltip={
-                  <Tooltip>
-                    <Text>Pinned Messages</Text>
-                  </Tooltip>
+                align="Center"
+                menu={
+                  <RoomPinMenu room={room} requestClose={pinMenu.close} currentHash={currentHash} />
                 }
               >
-                {(triggerRef) => (
-                  <IconButton
-                    fill="None"
-                    style={{ position: 'relative' }}
-                    onClick={handleOpenPinMenu}
-                    ref={triggerRef}
-                    aria-pressed={!!pinMenuAnchor}
-                  >
-                    {unreadPinsCount > 0 && (
-                      <Badge
-                        style={{
-                          position: 'absolute',
-                          left: toRem(3),
-                          top: toRem(3),
-                        }}
-                        variant="Secondary"
-                        size="400"
-                        fill="Solid"
-                        radii="Pill"
-                      >
-                        <Text as="span" size="L400">
-                          {unreadPinsCount}
-                        </Text>
-                      </Badge>
-                    )}
-                    <Icon size="400" src={Icons.Pin} filled={!!pinMenuAnchor} />
-                  </IconButton>
-                )}
-              </TooltipProvider>
-              {canUseCalls && shouldShowCallButton && <RoomCallButton room={room} />}
-              <PopOut
-                anchor={pinMenuAnchor}
-                position="Bottom"
-                content={
-                  <FocusTrap
-                    focusTrapOptions={{
-                      initialFocus: false,
-                      returnFocusOnDeactivate: false,
-                      onDeactivate: () => setPinMenuAnchor(undefined),
-                      clickOutsideDeactivates: true,
-                      isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
-                      isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
-                      escapeDeactivates: stopPropagation,
-                    }}
-                  >
-                    <RoomPinMenu
+                <TooltipProvider
+                  position="Bottom"
+                  offset={4}
+                  tooltip={
+                    <Tooltip>
+                      <Text>Pinned Messages</Text>
+                    </Tooltip>
+                  }
+                >
+                  {(triggerRef) => (
+                    <IconButton
+                      fill="None"
+                      style={{ position: 'relative' }}
+                      onClick={handleOpenPinMenu}
+                      ref={triggerRef}
+                      aria-pressed={!!pinMenu.anchor}
+                    >
+                      {unreadPinsCount > 0 && (
+                        <Badge
+                          style={{
+                            position: 'absolute',
+                            left: toRem(3),
+                            top: toRem(3),
+                          }}
+                          variant="Secondary"
+                          size="400"
+                          fill="Solid"
+                          radii="Pill"
+                        >
+                          <Text as="span" size="L400">
+                            {unreadPinsCount}
+                          </Text>
+                        </Badge>
+                      )}
+                      {composerIcon(PushPin, { weight: pinMenu.anchor ? 'fill' : 'regular' })}
+                    </IconButton>
+                  )}
+                </TooltipProvider>
+              </ResponsiveMenu>
+              {!room.isCallRoom() &&
+                callStartCapabilities.canRenderCallButton &&
+                shouldShowCallButton && (
+                  <>
+                    <RoomCallButton
                       room={room}
-                      requestClose={() => setPinMenuAnchor(undefined)}
-                      currentHash={currentHash}
+                      direct={direct}
+                      kind="voice"
+                      defaultPreferences={{ microphone, video, sound }}
                     />
-                  </FocusTrap>
-                }
-              />
+                    <RoomCallButton
+                      room={room}
+                      direct={direct}
+                      kind="video"
+                      defaultPreferences={{ microphone, video, sound }}
+                      allowVideoStart
+                    />
+                  </>
+                )}
               <TooltipProvider
                 position="Bottom"
                 offset={4}
@@ -792,7 +523,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
                         </Text>
                       </Badge>
                     )}
-                    <Icon size="400" src={Icons.Thread} filled={threadBrowserOpen} />
+                    {composerIcon(Chats, { weight: threadBrowserOpen ? 'fill' : 'regular' })}
                   </IconButton>
                 )}
               </TooltipProvider>
@@ -833,7 +564,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
                       </Text>
                     </Badge>
                   )}
-                  <Icon size="400" src={Icons.Category} filled={widgetDrawer} />
+                  {composerIcon(GridFour, { weight: widgetDrawer ? 'fill' : 'regular' })}
                 </IconButton>
               )}
             </TooltipProvider>
@@ -854,7 +585,7 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
             >
               {(triggerRef) => (
                 <IconButton fill="None" ref={triggerRef} onClick={handleMemberToggle}>
-                  <Icon size="400" src={Icons.User} filled={peopleDrawer} />
+                  {composerIcon(UserCircle, { weight: peopleDrawer ? 'fill' : 'regular' })}
                 </IconButton>
               )}
             </TooltipProvider>
@@ -878,53 +609,43 @@ export function RoomViewHeader({ callView }: Readonly<{ callView?: boolean }>) {
                     setChat(!chat);
                   }}
                 >
-                  <Icon size="400" src={Icons.Message} filled={chat} />
+                  {composerIcon(ChatCircleDots, { weight: chat ? 'fill' : 'regular' })}
                 </IconButton>
               )}
             </TooltipProvider>
           )}
 
-          <TooltipProvider
+          <ResponsiveMenu
+            anchor={optionsMenu.anchor}
+            requestClose={optionsMenu.close}
             position="Bottom"
             align="End"
-            offset={4}
-            tooltip={
-              <Tooltip>
-                <Text>More Options</Text>
-              </Tooltip>
-            }
+            menu={<RoomMenu room={room} requestClose={optionsMenu.close} />}
           >
-            {(triggerRef) => (
-              <IconButton
-                fill="None"
-                onClick={handleOpenMenu}
-                ref={triggerRef}
-                aria-pressed={!!menuAnchor}
-              >
-                <Icon size="400" src={Icons.VerticalDots} filled={!!menuAnchor} />
-              </IconButton>
-            )}
-          </TooltipProvider>
-          <PopOut
-            anchor={menuAnchor}
-            position="Bottom"
-            align="End"
-            content={
-              <FocusTrap
-                focusTrapOptions={{
-                  initialFocus: false,
-                  returnFocusOnDeactivate: false,
-                  onDeactivate: () => setMenuAnchor(undefined),
-                  clickOutsideDeactivates: true,
-                  isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
-                  isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
-                  escapeDeactivates: stopPropagation,
-                }}
-              >
-                <RoomMenu room={room} requestClose={() => setMenuAnchor(undefined)} />
-              </FocusTrap>
-            }
-          />
+            <TooltipProvider
+              position="Bottom"
+              align="End"
+              offset={4}
+              tooltip={
+                <Tooltip>
+                  <Text>More Options</Text>
+                </Tooltip>
+              }
+            >
+              {(triggerRef) => (
+                <IconButton
+                  fill="None"
+                  onClick={optionsMenu.triggerProps.onClick}
+                  ref={triggerRef}
+                  aria-pressed={!!optionsMenu.anchor}
+                >
+                  {composerIcon(DotsThreeOutlineVerticalIcon, {
+                    weight: optionsMenu.anchor ? 'fill' : 'regular',
+                  })}
+                </IconButton>
+              )}
+            </TooltipProvider>
+          </ResponsiveMenu>
         </Box>
       </Box>
     </PageHeader>

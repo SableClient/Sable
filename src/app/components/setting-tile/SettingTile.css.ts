@@ -1,7 +1,22 @@
 import { style } from '@vanilla-extract/css';
+import { toRem } from 'folds';
 
 export const settingTileRoot = style({
   minWidth: 0,
+  flexWrap: 'wrap',
+});
+
+// Basis rather than a bare `minWidth: 0`, so a wide control drops to its own
+// row instead of squeezing the title down to one word per line.
+export const settingTileMain = style({
+  minWidth: 0,
+  flexBasis: toRem(200),
+});
+
+export const settingTileTrailing = style({
+  marginInlineStart: 'auto',
+  flexWrap: 'wrap',
+  justifyContent: 'flex-end',
 });
 
 export const settingTileTitleRow = style({

@@ -183,4 +183,63 @@ describe('useVoiceRecorder', () => {
     expect(destinationTrack.stop).toHaveBeenCalledTimes(1);
     expect(recordingContext?.close).toHaveBeenCalledTimes(1);
   });
+
+  it('stops a stream that resolves after recording is cancelled', async () => {
+    let resolveGetUserMedia!: (stream: MockStream) => void;
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn<() => Promise<MockStream>>(
+          () =>
+            new Promise<MockStream>((resolve) => {
+              resolveGetUserMedia = resolve;
+            })
+        ),
+      },
+    });
+
+    const { result } = renderHook(() => useVoiceRecorder({ autoStart: false }));
+    act(() => {
+      result.current.start();
+      result.current.handleStop();
+    });
+
+    const lateTrack = createMockTrack();
+    await act(async () => {
+      resolveGetUserMedia({ getTracks: () => [lateTrack] } as unknown as MockStream);
+      await Promise.resolve();
+    });
+
+    expect(lateTrack.stop).toHaveBeenCalledTimes(1);
+    expect(result.current.isRecording).toBe(false);
+  });
+
+  it('stops a stream that resolves after the hook unmounts', async () => {
+    let resolveGetUserMedia!: (stream: MockStream) => void;
+    Object.defineProperty(navigator, 'mediaDevices', {
+      configurable: true,
+      value: {
+        getUserMedia: vi.fn<() => Promise<MockStream>>(
+          () =>
+            new Promise<MockStream>((resolve) => {
+              resolveGetUserMedia = resolve;
+            })
+        ),
+      },
+    });
+
+    const { result, unmount } = renderHook(() => useVoiceRecorder({ autoStart: false }));
+    act(() => {
+      result.current.start();
+    });
+    unmount();
+
+    const lateTrack = createMockTrack();
+    await act(async () => {
+      resolveGetUserMedia({ getTracks: () => [lateTrack] } as unknown as MockStream);
+      await Promise.resolve();
+    });
+
+    expect(lateTrack.stop).toHaveBeenCalledTimes(1);
+  });
 });

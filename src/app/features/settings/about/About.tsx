@@ -1,22 +1,31 @@
-import { useState } from 'react';
-import { Box, Text, Icon, Icons, Scroll, Button, config, toRem, Spinner } from 'folds';
-import { PageContent } from '$components/page';
-import { SequenceCard } from '$components/sequence-card';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Box, Text, Scroll, Button, config, toRem, Spinner } from 'folds';
+import { Code, Heart, menuIcon } from '$components/icons/phosphor';
+import { PageContent, SettingsSectionPage } from '$components/page';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import LogoSVG from '$public/res/svg/logo.svg';
 import { clearCacheAndReload } from '$client/initMatrix';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { SequenceCardStyle } from '$features/settings/styles.css';
 import { Method } from '$types/matrix-sdk';
-import { useOpenBugReportModal } from '$state/hooks/bugReportModal';
-import { SettingsSectionPage } from '../SettingsSectionPage';
+import { useOpenShallowRoute } from '$pages/client/useShallowRoute';
+import { getBugReportPath } from '$pages/pathUtils';
+import { isDesktopTauri, isDesktopUpdaterEnabled } from '$utils/platform';
+import {
+  updatePhaseAtom,
+  updateBannerVisibleAtom,
+  triggerUpdateCheckAtom,
+  desktopUpdateLastCheckedAtom,
+} from '$state/desktopUpdate';
+import dayjs from 'dayjs';
+import { useAtomValue, useSetAtom } from 'jotai';
 
 type VersionResult =
   | { error: { message: string } }
   | { server: { name?: string; version?: string; compiler?: string } }
   | undefined;
 
-export function HomeserverInfo() {
+function HomeserverInfo() {
   const mx = useMatrixClient();
   const [federationUrl, setFederationUrl] = useState<string>(mx.baseUrl);
   const [version, setVersion] = useState<VersionResult>(undefined);
@@ -178,7 +187,62 @@ export function About({ requestBack, requestClose }: Readonly<AboutProps>) {
   const mx = useMatrixClient();
   const devLabel = IS_RELEASE_TAG ? '' : '-dev';
   const buildLabel = BUILD_HASH ? ` (${BUILD_HASH})` : '';
-  const openBugReport = useOpenBugReportModal();
+  const openShallowRoute = useOpenShallowRoute();
+  const openBugReport = () => openShallowRoute(getBugReportPath());
+  const updatePhase = useAtomValue(updatePhaseAtom);
+  const setBannerVisible = useSetAtom(updateBannerVisibleAtom);
+  const triggerCheck = useSetAtom(triggerUpdateCheckAtom);
+  const lastChecked = useAtomValue(desktopUpdateLastCheckedAtom);
+  const [checking, setChecking] = useState(false);
+  const [resultText, setResultText] = useState<string | null>(null);
+  const resultTimerRef = useRef<number | null>(null);
+
+  const lastCheckedText = lastChecked
+    ? `Last checked: ${dayjs(lastChecked).format('HH:mm')}`
+    : null;
+
+  const clearResultTimer = useCallback(() => {
+    if (resultTimerRef.current !== null) {
+      clearTimeout(resultTimerRef.current);
+      resultTimerRef.current = null;
+    }
+  }, []);
+
+  const showResult = useCallback(
+    (text: string) => {
+      setChecking(false);
+      setResultText(text);
+      clearResultTimer();
+      resultTimerRef.current = window.setTimeout(() => {
+        setResultText(null);
+        resultTimerRef.current = null;
+      }, 3000);
+    },
+    [clearResultTimer]
+  );
+
+  useEffect(
+    () => () => {
+      clearResultTimer();
+    },
+    [clearResultTimer]
+  );
+
+  useEffect(() => {
+    if (!checking) return;
+    if (updatePhase.type === 'ready') {
+      showResult(`Update ${updatePhase.version} ready!`);
+      setBannerVisible(true);
+    } else if (updatePhase.type === 'idle') {
+      showResult('Up to date');
+    }
+  }, [updatePhase, checking, showResult, setBannerVisible]);
+
+  const handleCheckForUpdates = useCallback(() => {
+    setChecking(true);
+    setResultText(null);
+    triggerCheck((n) => n + 1);
+  }, [triggerCheck]);
 
   return (
     <SettingsSectionPage title="About" requestBack={requestBack} requestClose={requestClose}>
@@ -213,7 +277,7 @@ export function About({ requestBack, requestClose }: Readonly<AboutProps>) {
                       fill="Soft"
                       size="300"
                       radii="300"
-                      before={<Icon src={Icons.Code} size="100" filled />}
+                      before={menuIcon(Code, { weight: 'fill' })}
                     >
                       <Text size="B300">Source Code</Text>
                     </Button>
@@ -226,7 +290,7 @@ export function About({ requestBack, requestClose }: Readonly<AboutProps>) {
                       fill="Soft"
                       size="300"
                       radii="300"
-                      before={<Icon src={Icons.Heart} size="100" filled />}
+                      before={menuIcon(Heart, { weight: 'fill' })}
                     >
                       <Text size="B300">Support</Text>
                     </Button>
@@ -235,6 +299,34 @@ export function About({ requestBack, requestClose }: Readonly<AboutProps>) {
               </Box>
               <Box direction="Column" gap="100">
                 <Text size="L400">Options</Text>
+                {isDesktopTauri() && isDesktopUpdaterEnabled() && (
+                  <SequenceCard
+                    className={SequenceCardStyle}
+                    variant="SurfaceVariant"
+                    direction="Column"
+                    gap="400"
+                  >
+                    <SettingTile
+                      title="Check for Updates"
+                      focusId="check-for-updates"
+                      description={`${resultText || 'Check for a new version.'}${lastCheckedText ? ` ${lastCheckedText}` : ''}`}
+                      after={
+                        <Button
+                          onClick={handleCheckForUpdates}
+                          variant="Secondary"
+                          fill="Soft"
+                          size="300"
+                          radii="300"
+                          outlined
+                          disabled={checking}
+                          before={checking ? <Spinner variant="Secondary" size="300" /> : undefined}
+                        >
+                          <Text size="B300">Check</Text>
+                        </Button>
+                      }
+                    />
+                  </SequenceCard>
+                )}
                 <SequenceCard
                   className={SequenceCardStyle}
                   variant="SurfaceVariant"

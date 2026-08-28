@@ -1,5 +1,5 @@
 import { style } from '@vanilla-extract/css';
-import { config, toRem } from 'folds';
+import { config } from 'folds';
 import { recipe } from '@vanilla-extract/recipes';
 
 export const SpaceItemCard = recipe({
@@ -22,11 +22,3 @@ export const HeaderChip = style({
     },
   },
 });
-export const HeaderChipPlaceholder = style([
-  {
-    borderRadius: config.radii.R400,
-    paddingLeft: config.space.S100,
-    paddingRight: config.space.S300,
-    height: toRem(32),
-  },
-]);

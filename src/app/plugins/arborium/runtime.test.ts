@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import type * as Arborium from '@arborium/arborium';
 
-import type { HighlightResult } from '.';
+import type { HighlightResult } from './runtime';
 
 type ArboriumModule = typeof Arborium;
 
@@ -25,7 +25,7 @@ describe('highlightCode', () => {
     } as unknown as ArboriumModule;
     const loadModule = vi.fn<() => Promise<ArboriumModule>>(async () => module);
 
-    const { highlightCode } = await import('.');
+    const { highlightCode } = await import('./runtime');
 
     const result: HighlightResult = await highlightCode(
       {
@@ -60,7 +60,7 @@ describe('highlightCode', () => {
     } as unknown as ArboriumModule;
     const loadModule = vi.fn<() => Promise<ArboriumModule>>(async () => module);
 
-    const { highlightCode } = await import('.');
+    const { highlightCode } = await import('./runtime');
 
     const result: HighlightResult = await highlightCode(
       {
@@ -95,7 +95,7 @@ describe('highlightCode', () => {
     } as unknown as ArboriumModule;
     const loadModule = vi.fn<() => Promise<ArboriumModule>>(async () => module);
 
-    const { highlightCode } = await import('.');
+    const { highlightCode } = await import('./runtime');
 
     const result: HighlightResult = await highlightCode(
       {
@@ -143,7 +143,7 @@ describe('highlightCode', () => {
       } as unknown as ArboriumModule;
       const loadModule = vi.fn<() => Promise<ArboriumModule>>(async () => module);
 
-      const { highlightCode } = await import('.');
+      const { highlightCode } = await import('./runtime');
 
       const result: HighlightResult = await highlightCode(
         {
@@ -176,7 +176,7 @@ describe('highlightCode', () => {
     } as unknown as ArboriumModule;
     const loadModule = vi.fn<() => Promise<ArboriumModule>>(async () => module);
 
-    const { highlightCode } = await import('.');
+    const { highlightCode } = await import('./runtime');
 
     const result: HighlightResult = await highlightCode(
       {
@@ -211,7 +211,7 @@ describe('highlightCode', () => {
     } as unknown as ArboriumModule;
     const loadModule = vi.fn<() => Promise<ArboriumModule>>(async () => module);
 
-    const { highlightCode } = await import('.');
+    const { highlightCode } = await import('./runtime');
 
     const result: HighlightResult = await highlightCode(
       {
@@ -236,7 +236,7 @@ describe('highlightCode', () => {
       throw new Error('boom');
     });
 
-    const { highlightCode } = await import('.');
+    const { highlightCode } = await import('./runtime');
 
     const result: HighlightResult = await highlightCode(
       {
@@ -265,7 +265,7 @@ describe('highlightCode', () => {
     } as unknown as ArboriumModule;
     const loadModule = vi.fn<() => Promise<ArboriumModule>>(async () => module);
 
-    const { highlightCode } = await import('.');
+    const { highlightCode } = await import('./runtime');
 
     const result: HighlightResult = await highlightCode(
       {
@@ -298,7 +298,7 @@ describe('highlightCode', () => {
     } as unknown as ArboriumModule;
     const loadModule = vi.fn<() => Promise<ArboriumModule>>(async () => module);
 
-    const { highlightCode } = await import('.');
+    const { highlightCode } = await import('./runtime');
 
     const result: HighlightResult = await highlightCode(
       {

@@ -13,18 +13,6 @@ export const UrlPreview = style([
   },
 ]);
 
-export const UrlPreviewImg = style([
-  DefaultReset,
-  {
-    width: toRem(100),
-    height: toRem(100),
-    objectFit: 'cover',
-    objectPosition: 'center',
-    flexShrink: 0,
-    overflow: 'hidden',
-  },
-]);
-
 export const UrlPreviewMediaWell = style([
   DefaultReset,
   {

@@ -1,4 +1,4 @@
-import type { KeyboardEventHandler, MouseEventHandler } from 'react';
+import type { JSX, KeyboardEventHandler, MouseEventHandler } from 'react';
 import { useEffect, useState } from 'react';
 import type { HTMLReactParserOptions } from 'html-react-parser';
 import parse from 'html-react-parser';
@@ -6,10 +6,13 @@ import Linkify from 'linkify-react';
 import type { Opts } from 'linkifyjs';
 import { find } from 'linkifyjs';
 import type { RectCords } from 'folds';
-import { PopOut, Text, Tooltip, TooltipProvider, toRem } from 'folds';
+import { Text, Tooltip, toRem } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
+import { PopOut } from '$components/overlay-stack';
 import { sanitizeCustomHtml } from '$utils/sanitize';
 import { highlightText, scaleSystemEmoji } from '$plugins/react-custom-html-parser';
 import { useRoomAbbreviationsContext } from '$hooks/useRoomAbbreviations';
+import { isMobileOrTablet } from '$utils/platform';
 import type { TextSegment } from '$utils/abbreviations';
 import { splitByAbbreviations } from '$utils/abbreviations';
 import { MessageEmptyContent } from './content';
@@ -91,6 +94,7 @@ function AbbreviationTerm({ text, definition }: AbbreviationTermProps) {
   };
 
   const handleClick: MouseEventHandler<HTMLElement> = (e) => {
+    if (!window.getSelection()?.isCollapsed) return;
     e.stopPropagation();
     toggleAnchor(e.currentTarget);
   };
@@ -119,25 +123,34 @@ function AbbreviationTerm({ text, definition }: AbbreviationTermProps) {
 
   return (
     <>
-      <TooltipProvider position="Top" tooltip={tooltipContent}>
-        {(triggerRef) => (
-          <abbr
-            ref={triggerRef as React.Ref<HTMLElement>}
-            onClick={handleClick}
-            onKeyDown={handleKeyDown}
-            role="button"
-            tabIndex={0}
-            style={{ textDecoration: 'underline dotted', cursor: 'help' }}
-          >
-            {text}
-          </abbr>
-        )}
-      </TooltipProvider>
       {anchor && (
         <PopOut anchor={anchor} position="Top" align="Center" content={tooltipContent}>
           {null}
         </PopOut>
       )}
+      <TooltipProvider position="Top" tooltip={tooltipContent}>
+        {(triggerRef) => (
+          <button
+            type="button"
+            data-no-button-motion
+            ref={triggerRef as React.Ref<HTMLButtonElement>}
+            onClick={handleClick}
+            onKeyDown={handleKeyDown}
+            style={{
+              textDecoration: 'underline dotted',
+              cursor: 'help',
+              background: 'none',
+              border: 'none',
+              padding: 0,
+              font: 'inherit',
+              color: 'inherit',
+              userSelect: isMobileOrTablet() ? 'none' : 'text',
+            }}
+          >
+            {text}
+          </button>
+        )}
+      </TooltipProvider>
     </>
   );
 }

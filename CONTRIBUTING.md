@@ -48,6 +48,21 @@ Also, we use [OXFmt](https://oxc.rs/docs/guide/usage/formatter.html) for clean a
 
 If your change touches logic with testable behaviour, please include tests. See [docs/TESTING.md](./docs/TESTING.md) for a guide on how to write them.
 
+## Architecture changes
+
+Sable separates runtime-specific code from Matrix and product-domain code.
+
+- `src/app/platform/`: browser and Tauri behavior.
+- `src/app/session/`: Matrix account and sync lifecycle.
+- `src/app/<domain>/`: shared policy and data, with no React or platform imports.
+- `src/app/features/`: one screen or surface. Shared feature code moves down into a domain or platform module.
+
+Dependencies flow from UI to services, then to platform ports or pure domain code. React subscribes to long-lived resources but does not own clients, listeners, retries, or timers. Those need explicit cleanup and must ignore stale async completions.
+
+Parse untrusted input at ingress, give each persistence store one owner, and use a durable inbox for events that can arrive while the app is closed. Do not loosen native capabilities or attach Matrix tokens without validating the homeserver origin and media path.
+
+For changes across runtime, persistence, or lifecycle boundaries, explain the boundary and its tests in the PR.
+
 ## Developer Certification of Origin (DCO)
 
 > [!IMPORTANT]

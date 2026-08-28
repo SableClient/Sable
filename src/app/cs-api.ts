@@ -1,9 +1,8 @@
 import to from 'await-to-js';
+import type { LivekitTransportConfig } from '$types/matrix-sdk';
 import { trimTrailingSlash } from './utils/common';
 
 export enum AutoDiscoveryAction {
-  PROMPT = 'PROMPT',
-  IGNORE = 'IGNORE',
   FAIL_PROMPT = 'FAIL_PROMPT',
   FAIL_ERROR = 'FAIL_ERROR',
 }
@@ -24,12 +23,22 @@ export type AutoDiscoveryInfo = Record<string, unknown> & {
     account?: string;
     issuer?: string;
   };
-  'org.matrix.msc4143.rtc_foci'?: [
-    {
-      livekit_service_url: string;
-      type: 'livekit';
-    },
-  ];
+  'org.matrix.msc4143.rtc_foci'?: LivekitTransportConfig[];
+};
+
+export const getLivekitTransports = (
+  discovery: Pick<AutoDiscoveryInfo, 'org.matrix.msc4143.rtc_foci'> | undefined
+): LivekitTransportConfig[] => {
+  const foci = discovery?.['org.matrix.msc4143.rtc_foci'];
+  if (!Array.isArray(foci)) return [];
+
+  return foci.filter(
+    (focus): focus is LivekitTransportConfig =>
+      typeof focus === 'object' &&
+      focus !== null &&
+      focus.type === 'livekit' &&
+      typeof focus.livekit_service_url === 'string'
+  );
 };
 
 export const autoDiscovery = async (
@@ -77,13 +86,7 @@ export const autoDiscovery = async (
 
   const baseUrl = content['m.homeserver']?.base_url;
   if (typeof baseUrl !== 'string') {
-    return [
-      {
-        host,
-        action: AutoDiscoveryAction.FAIL_PROMPT,
-      },
-      undefined,
-    ];
+    return [undefined, { ...content, 'm.homeserver': { base_url: host } }];
   }
 
   if (!/^https?:\/\//.test(baseUrl)) {

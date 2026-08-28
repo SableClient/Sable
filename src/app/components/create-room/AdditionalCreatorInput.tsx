@@ -1,20 +1,7 @@
 import type { RectCords } from 'folds';
-import {
-  Box,
-  Button,
-  Chip,
-  config,
-  Icon,
-  Icons,
-  Input,
-  Line,
-  Menu,
-  MenuItem,
-  PopOut,
-  Scroll,
-  Text,
-  toRem,
-} from 'folds';
+import { Box, Button, Chip, config, Input, Line, Menu, MenuItem, Scroll, Text, toRem } from 'folds';
+import { PopOut } from '$components/overlay-stack';
+import { Plus, X, sizedIcon } from '$components/icons/phosphor';
 import { isKeyHotkey } from 'is-hotkey';
 import FocusTrap from 'focus-trap-react';
 import { getMxIdServer } from '$utils/mxIdHelper';
@@ -161,7 +148,7 @@ export function AdditionalCreatorInput({
               key={creator}
               variant="Secondary"
               radii="Pill"
-              after={<Icon size="50" src={Icons.Cross} />}
+              after={sizedIcon(X, '50')}
               onClick={() => onRemove(creator)}
               disabled={disabled}
             >
@@ -284,7 +271,7 @@ export function AdditionalCreatorInput({
               aria-pressed={!!menuCords}
               disabled={disabled}
             >
-              <Icon size="50" src={Icons.Plus} />
+              {sizedIcon(Plus, '50')}
             </Chip>
           </PopOut>
         </Box>

@@ -1,5 +1,52 @@
 import { describe, it, expect } from 'vitest';
-import { scrubMatrixIds, scrubDataObject, scrubMatrixUrl } from './sentryScrubbers';
+import {
+  omitSentryIdentifierFields,
+  scrubMatrixIds,
+  scrubDataObject,
+  sanitizeSentryPayload,
+  scrubMatrixUrl,
+  scrubExternalHosts,
+  sanitizeDiagnosticsLogs,
+} from './sentryScrubbers';
+
+// ─── scrubExternalHosts ───────────────────────────────────────────────────────
+
+describe('scrubExternalHosts', () => {
+  it('replaces an external https origin with [HOMESERVER]', () => {
+    expect(scrubExternalHosts('https://matrix.example.org/_matrix/client/v3/sync')).toBe(
+      'https://[HOMESERVER]/_matrix/client/v3/sync'
+    );
+  });
+
+  it('replaces an external http origin and drops the port', () => {
+    expect(scrubExternalHosts('http://hs.corp.local:8448/_matrix/')).toBe(
+      'http://[HOMESERVER]/_matrix/'
+    );
+  });
+
+  it('preserves localhost origins', () => {
+    const dev = 'http://localhost:1420/index.html#/home';
+    expect(scrubExternalHosts(dev)).toBe(dev);
+  });
+
+  it('preserves the tauri.localhost app origin', () => {
+    const app = 'https://tauri.localhost/index.html';
+    expect(scrubExternalHosts(app)).toBe(app);
+  });
+
+  it('leaves tauri:// scheme URLs untouched (non-http)', () => {
+    expect(scrubExternalHosts('tauri://localhost/index.html')).toBe('tauri://localhost/index.html');
+  });
+
+  it('leaves plain paths with no origin untouched', () => {
+    expect(scrubExternalHosts('/_matrix/client/v3/sync')).toBe('/_matrix/client/v3/sync');
+  });
+
+  it('scrubs multiple URLs in one string', () => {
+    const result = scrubExternalHosts('fetch https://hs.one/sync then https://hs.two/media');
+    expect(result).toBe('fetch https://[HOMESERVER]/sync then https://[HOMESERVER]/media');
+  });
+});
 
 // ─── scrubMatrixIds ───────────────────────────────────────────────────────────
 
@@ -180,6 +227,12 @@ describe('scrubMatrixUrl – Matrix C-S API paths', () => {
       '/_matrix/media/v3/download/[SERVER]/[MEDIA_ID]'
     );
   });
+
+  it('scrubs both the homeserver host and the room-id path of a full URL', () => {
+    expect(
+      scrubMatrixUrl('https://matrix.example.org/_matrix/client/v3/rooms/!abc:example.com/messages')
+    ).toBe('https://[HOMESERVER]/_matrix/client/v3/rooms/![ROOM_ID]/messages');
+  });
 });
 
 describe('scrubMatrixUrl – app route path segments', () => {
@@ -233,6 +286,26 @@ describe('scrubMatrixUrl – preview_url', () => {
   });
 });
 
+describe('scrubMatrixUrl – auth callback credentials', () => {
+  it('redacts OAuth code and state query params (and scrubs the external host)', () => {
+    expect(scrubMatrixUrl('https://app.example/login/hs?code=abc123&state=xyz789')).toBe(
+      'https://[HOMESERVER]/login/hs?code=[REDACTED]&state=[REDACTED]'
+    );
+  });
+
+  it('redacts params inside a hash-router fragment (and scrubs the external host)', () => {
+    expect(scrubMatrixUrl('https://app.example/#/login/hs?code=abc123')).toBe(
+      'https://[HOMESERVER]/#/login/hs?code=[REDACTED]'
+    );
+  });
+
+  it('redacts the legacy SSO loginToken', () => {
+    expect(scrubMatrixUrl('/login/hs?loginToken=syt_secret')).toBe(
+      '/login/hs?loginToken=[REDACTED]'
+    );
+  });
+});
+
 describe('scrubMatrixUrl – safe inputs', () => {
   it('passes through a plain path with no Matrix IDs', () => {
     const safe = '/home/timeline';
@@ -241,5 +314,69 @@ describe('scrubMatrixUrl – safe inputs', () => {
 
   it('passes through an empty string', () => {
     expect(scrubMatrixUrl('')).toBe('');
+  });
+});
+
+describe('omitSentryIdentifierFields', () => {
+  it('removes identifier keys from call telemetry payloads', () => {
+    expect(
+      omitSentryIdentifierFields({
+        roomId: '!room:example.org',
+        notificationEventId: '$notif',
+        notificationType: 'ring',
+        dm: true,
+      })
+    ).toEqual({
+      notificationType: 'ring',
+      dm: true,
+    });
+  });
+});
+
+describe('sanitizeSentryPayload', () => {
+  it('drops identifier keys and redacts remaining Matrix IDs', () => {
+    expect(
+      sanitizeSentryPayload({
+        roomId: '!room:example.org',
+        message: 'from @alice:example.org',
+      })
+    ).toEqual({
+      message: 'from @[USER_ID]',
+    });
+  });
+});
+
+describe('sanitizeDiagnosticsLogs', () => {
+  it('keeps safe metadata and removes sensitive or arbitrary values', () => {
+    const sanitized = sanitizeDiagnosticsLogs(
+      JSON.stringify({
+        build: '1.2.3',
+        logs: [
+          {
+            timestamp: '2026-01-01T00:00:00.000Z',
+            level: 'error',
+            category: 'network',
+            namespace: 'sync',
+            message:
+              'GET https://matrix.example/_matrix?access_token=secret @alice:example.org /home/alice/app.log',
+            data: { password: 'secret', private: 'remove me' },
+            headers: { authorization: 'Bearer secret', cookie: 'session' },
+          },
+        ],
+      })
+    );
+
+    expect(sanitized).not.toBeNull();
+    const parsed = JSON.parse(sanitized as string) as Record<string, unknown>;
+    expect(parsed.build).toBe('1.2.3');
+    expect(JSON.stringify(parsed)).not.toContain('secret');
+    expect(JSON.stringify(parsed)).not.toContain('alice');
+    expect(JSON.stringify(parsed)).not.toContain('matrix.example');
+    expect(JSON.stringify(parsed)).not.toContain('private');
+  });
+
+  it('rejects malformed or unsafe top-level content', () => {
+    expect(sanitizeDiagnosticsLogs('{invalid')).toBeNull();
+    expect(sanitizeDiagnosticsLogs(JSON.stringify(['unsafe']))).toBeNull();
   });
 });

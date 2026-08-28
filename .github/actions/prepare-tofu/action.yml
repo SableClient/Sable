@@ -2,24 +2,43 @@ name: Prepare OpenTofu Deployment
 description: Prepares OpenTofu in infra/web.
 
 inputs:
-  opentofu-version:
-    description: The OpenTofu version to install.
+  build-flavor:
+    description: Build flavor (stable or dev). Controls app build behavior.
     required: false
-    default: '1.11.5'
-  is_release_tag:
-    description: Whether the build is for a release tag. Passed through to VITE_IS_RELEASE_TAG.
-    required: false
-    default: 'false'
+    default: stable
 
 runs:
   using: composite
   steps:
+    - name: Validate deployment configuration
+      shell: bash
+      run: |
+        missing=()
+        for name in \
+          TF_HTTP_ADDRESS \
+          TF_HTTP_LOCK_ADDRESS \
+          TF_HTTP_UNLOCK_ADDRESS \
+          TF_VAR_custom_domain \
+          TF_VAR_worker_name \
+          SENTRY_ORG \
+          SENTRY_PROJECT
+        do
+          if [[ -z "${!name:-}" ]]; then
+            missing+=("$name")
+          fi
+        done
+
+        if (( ${#missing[@]} > 0 )); then
+          printf 'Missing required GitHub Environment variables: %s\n' "${missing[*]}" >&2
+          exit 1
+        fi
+
     - name: Setup app and build
       uses: ./.github/actions/setup
       with:
         build: 'true'
       env:
-        VITE_IS_RELEASE_TAG: ${{ inputs.is_release_tag }}
+        SABLE_BUILD_FLAVOR: ${{ inputs.build-flavor }}
         VITE_SENTRY_DSN: ${{ env.VITE_SENTRY_DSN }}
         VITE_SENTRY_ENVIRONMENT: ${{ env.VITE_SENTRY_ENVIRONMENT }}
         VITE_APP_VERSION: ${{ env.VITE_APP_VERSION }}
@@ -27,22 +46,17 @@ runs:
         SENTRY_ORG: ${{ env.SENTRY_ORG }}
         SENTRY_PROJECT: ${{ env.SENTRY_PROJECT }}
 
-    - name: Setup OpenTofu
-      uses: opentofu/setup-opentofu@9d84900f3238fab8cd84ce47d658d25dd008be2f # v1.0.8
-      with:
-        tofu_version: ${{ inputs.opentofu-version }}
-
     - name: Check formatting
       shell: bash
       working-directory: ${{ github.workspace }}/infra/web
-      run: tofu fmt -check
+      run: mise run opentofu -- fmt -check
 
     - name: Initialize OpenTofu
       shell: bash
       working-directory: ${{ github.workspace }}/infra/web
-      run: tofu init -input=false -reconfigure
+      run: mise run opentofu -- init -input=false -reconfigure
 
     - name: Validate configuration
       shell: bash
       working-directory: ${{ github.workspace }}/infra/web
-      run: tofu validate -no-color
+      run: mise run opentofu -- validate -no-color

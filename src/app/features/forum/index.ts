@@ -1,0 +1,1 @@
+export { ForumView } from './ForumView';

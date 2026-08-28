@@ -1,7 +1,11 @@
-import { createVar } from '@vanilla-extract/css';
+import { createVar, style } from '@vanilla-extract/css';
 import type { RecipeVariants } from '@vanilla-extract/recipes';
 import { recipe } from '@vanilla-extract/recipes';
 import { config } from 'folds';
+
+export const SequenceCardStyle = style({
+  padding: config.space.S300,
+});
 
 const outlinedWidth = createVar('0');
 const radii = createVar(config.radii.R400);

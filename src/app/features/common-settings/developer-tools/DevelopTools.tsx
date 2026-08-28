@@ -1,61 +1,79 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useAtomValue } from 'jotai';
+import { Box, Text, Scroll, Switch, Button, MenuItem, config, color } from 'folds';
 import {
-  Box,
-  Text,
-  IconButton,
-  Icon,
-  Icons,
-  Scroll,
-  Switch,
-  Button,
-  MenuItem,
-  config,
-  color,
-} from 'folds';
-import { EventType, NotificationCountType } from '$types/matrix-sdk';
-import { Page, PageContent, PageHeader } from '$components/page';
-import { SequenceCard } from '$components/sequence-card';
+  CaretDown,
+  CaretRight,
+  CaretUp,
+  chipIcon,
+  menuIcon,
+  Plus,
+} from '$components/icons/phosphor';
+import { EventType, NotificationCountType, type MatrixEvent } from '$types/matrix-sdk';
+import { PageContent, SettingsSectionPage } from '$components/page';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { copyToClipboard } from '$utils/dom';
 import { getClientSyncDiagnostics } from '$client/initMatrix';
 import { useRoom } from '$hooks/useRoom';
+import type { StateTypeToState } from '$hooks/useRoomState';
 import { useRoomState } from '$hooks/useRoomState';
 import { useRoomAccountData } from '$hooks/useRoomAccountData';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { allRoomsAtom } from '$state/room-list/roomList';
 import { allInvitesAtom } from '$state/room-list/inviteList';
-import { isNotificationEvent } from '$utils/room';
+import { isNotificationEvent } from '$utils/room/unread';
 import { CutoutCard } from '$components/cutout-card';
 import type { AccountDataSubmitCallback } from '$components/AccountDataEditor';
 import { AccountDataEditor } from '$components/AccountDataEditor';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { SequenceCardStyle } from '$features/common-settings/styles.css';
 import { SendRoomEvent } from './SendRoomEvent';
 import type { StateEventInfo } from './StateEventEditor';
 import { StateEventEditor } from './StateEventEditor';
 
-const formatSyncReason = (reason: string): string => {
-  if (reason === 'sliding_active') return 'Sliding Sync active';
-  if (reason === 'sliding_disabled_server') return 'Server-side sliding sync disabled';
-  if (reason === 'session_opt_out') return 'Session opt-in is off';
-  if (reason === 'missing_proxy') return 'Sliding proxy URL missing';
-  if (reason === 'cold_cache_bootstrap') return 'Cold-cache bootstrap (classic for this run)';
-  if (reason === 'probe_failed_fallback') return 'Sliding probe failed, using fallback';
-  return reason;
-};
-
 type DeveloperToolsProps = {
+  requestBack?: () => void;
   requestClose: () => void;
 };
-export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
+export function DeveloperTools({ requestBack, requestClose }: DeveloperToolsProps) {
   const [developerTools, setDeveloperTools] = useSetting(settingsAtom, 'developerTools');
   const mx = useMatrixClient();
   const room = useRoom();
-  const roomState = useRoomState(room);
+  const roomStateMemory = useRoomState(room);
   const accountData = useRoomAccountData(room);
+  const [fullApiState, setFullApiState] = useState<StateTypeToState>();
+  const [fetchingApiState, setFetchingApiState] = useState(false);
+  const roomState = fullApiState ?? roomStateMemory;
+
+  const handleFetchFullState = useCallback(async () => {
+    setFetchingApiState(true);
+    try {
+      const stateEvents = await mx.roomState(room.roomId);
+      const stateMap = new Map();
+      for (const event of stateEvents) {
+        let kToE = stateMap.get(event.type);
+        if (!kToE) {
+          kToE = new Map();
+          stateMap.set(event.type, kToE);
+        }
+        // Mock MatrixEvent structure enough for UI
+        kToE.set(event.state_key ?? '', {
+          event,
+          getType: () => event.type,
+          getContent: () => event.content,
+          getStateKey: () => event.state_key ?? '',
+          getSender: () => event.sender,
+        } as unknown as MatrixEvent);
+      }
+      setFullApiState(stateMap);
+    } catch (e) {
+      console.error('Failed to fetch full room state:', e);
+    } finally {
+      setFetchingApiState(false);
+    }
+  }, [mx, room.roomId]);
 
   const [expandState, setExpandState] = useState(false);
   const [expandUnreadDiagnostics, setExpandUnreadDiagnostics] = useState(false);
@@ -84,7 +102,11 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
     const latestTimelineEventId = latestTimelineEvent?.getId() ?? null;
     const latestMessageEvent = [...liveEvents].toReversed().find((event) => {
       const type = event.getType();
-      return type === 'm.room.message' || type === 'm.room.encrypted' || type === 'm.sticker';
+      return (
+        type === (EventType.RoomMessage as string) ||
+        type === (EventType.RoomMessageEncrypted as string) ||
+        type === (EventType.Sticker as string)
+      );
     });
     const latestMessageEventId = latestMessageEvent?.getId() ?? null;
     const latestNotificationEvent = [...liveEvents]
@@ -145,7 +167,8 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
 
   const submitAccountData: AccountDataSubmitCallback = useCallback(
     async (type, content) => {
-      await mx.setRoomAccountData(room.roomId, type, content);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await mx.setRoomAccountData(room.roomId, type as any, content);
     },
     [mx, room.roomId]
   );
@@ -170,21 +193,11 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
   }
 
   return (
-    <Page>
-      <PageHeader outlined={false}>
-        <Box grow="Yes" gap="200">
-          <Box grow="Yes" alignItems="Center" gap="200">
-            <Text size="H3" truncate>
-              Developer Tools
-            </Text>
-          </Box>
-          <Box shrink="No">
-            <IconButton onClick={requestClose} variant="Surface">
-              <Icon src={Icons.Cross} />
-            </IconButton>
-          </Box>
-        </Box>
-      </PageHeader>
+    <SettingsSectionPage
+      title="Developer Tools"
+      requestBack={requestBack}
+      requestClose={requestClose}
+    >
       <Box grow="Yes">
         <Scroll hideTrack visibility="Hover">
           <PageContent>
@@ -279,13 +292,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                           size="300"
                           radii="300"
                           outlined
-                          before={
-                            <Icon
-                              src={expandState ? Icons.ChevronTop : Icons.ChevronBottom}
-                              size="100"
-                              filled
-                            />
-                          }
+                          before={menuIcon(expandState ? CaretUp : CaretDown, { weight: 'fill' })}
                         >
                           <Text size="B300">{expandState ? 'Collapse' : 'Expand'}</Text>
                         </Button>
@@ -311,17 +318,9 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                                 size="300"
                                 radii="300"
                                 outlined
-                                before={
-                                  <Icon
-                                    src={
-                                      expandUnreadDiagnostics
-                                        ? Icons.ChevronTop
-                                        : Icons.ChevronBottom
-                                    }
-                                    size="100"
-                                    filled
-                                  />
-                                }
+                                before={menuIcon(expandUnreadDiagnostics ? CaretUp : CaretDown, {
+                                  weight: 'fill',
+                                })}
                               >
                                 <Text size="B300">
                                   {expandUnreadDiagnostics ? 'Collapse' : 'Expand'}
@@ -396,17 +395,9 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                                 size="300"
                                 radii="300"
                                 outlined
-                                before={
-                                  <Icon
-                                    src={
-                                      expandSlidingDiagnostics
-                                        ? Icons.ChevronTop
-                                        : Icons.ChevronBottom
-                                    }
-                                    size="100"
-                                    filled
-                                  />
-                                }
+                                before={menuIcon(expandSlidingDiagnostics ? CaretUp : CaretDown, {
+                                  weight: 'fill',
+                                })}
                               >
                                 <Text size="B300">
                                   {expandSlidingDiagnostics ? 'Collapse' : 'Expand'}
@@ -415,40 +406,17 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                             </Box>
                             {expandSlidingDiagnostics && (
                               <Box direction="Column" gap="100">
-                                <Text size="T200">
-                                  Transport: {syncDiagnostics.transport}
-                                  {syncDiagnostics.fallbackFromSliding ? ' (fallback)' : ''}
-                                </Text>
-                                <Text size="T200">
-                                  Sliding configured:{' '}
-                                  {syncDiagnostics.slidingConfigured ? 'yes' : 'no'}
-                                </Text>
-                                <Text size="T200">
-                                  Sliding server-enabled:{' '}
-                                  {syncDiagnostics.slidingEnabledOnServer ? 'yes' : 'no'}
-                                </Text>
-                                <Text size="T200">
-                                  Sliding session opt-in:{' '}
-                                  {syncDiagnostics.sessionOptIn ? 'yes' : 'no'}
-                                </Text>
-                                <Text size="T200">
-                                  Sliding requested:{' '}
-                                  {syncDiagnostics.slidingRequested ? 'yes' : 'no'}
-                                </Text>
-                                <Text size="T200">
-                                  Sync reason: {formatSyncReason(syncDiagnostics.reason)}
-                                </Text>
+                                <Text size="T200">Transport: {syncDiagnostics.transport}</Text>
                                 <Text size="T200">
                                   Client sync state: {syncDiagnostics.syncState ?? 'null'}
                                 </Text>
                                 {syncDiagnostics.sliding ? (
                                   <>
                                     <Text size="T200">
-                                      Proxy: {syncDiagnostics.sliding.proxyBaseUrl}
+                                      Base URL: {syncDiagnostics.sliding.baseUrl}
                                     </Text>
                                     <Text size="T200">
-                                      Room timeline: {syncDiagnostics.sliding.timelineLimit} | page
-                                      size: {syncDiagnostics.sliding.listPageSize}
+                                      Room timeline: {syncDiagnostics.sliding.timelineLimit}
                                     </Text>
                                   </>
                                 ) : (
@@ -458,9 +426,21 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                             )}
                           </Box>
                         </Box>
-                        <Box justifyContent="SpaceBetween">
-                          <Text size="L400">Events</Text>
-                          <Text size="L400">Total: {roomState.size}</Text>
+                        <Box justifyContent="SpaceBetween" alignItems="Center">
+                          <Text size="L400">Events (Total: {roomState.size})</Text>
+                          <Button
+                            onClick={handleFetchFullState}
+                            disabled={fetchingApiState}
+                            variant="Secondary"
+                            fill="Soft"
+                            size="300"
+                            radii="300"
+                            outlined
+                          >
+                            <Text size="B300">
+                              {fetchingApiState ? 'Fetching...' : 'Fetch Full State'}
+                            </Text>
+                          </Button>
                         </Box>
                         <CutoutCard>
                           <MenuItem
@@ -469,7 +449,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                             fill="None"
                             size="300"
                             radii="0"
-                            before={<Icon size="50" src={Icons.Plus} />}
+                            before={chipIcon(Plus)}
                           >
                             <Box grow="Yes">
                               <Text size="T200" truncate>
@@ -494,12 +474,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                                     fill="None"
                                     size="300"
                                     radii="0"
-                                    before={
-                                      <Icon
-                                        size="50"
-                                        src={expanded ? Icons.ChevronBottom : Icons.ChevronRight}
-                                      />
-                                    }
+                                    before={chipIcon(expanded ? CaretDown : CaretRight)}
                                     after={<Text size="L400">{stateKeyToEvents.size}</Text>}
                                   >
                                     <Box grow="Yes">
@@ -526,7 +501,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                                         fill="None"
                                         size="300"
                                         radii="0"
-                                        before={<Icon size="50" src={Icons.Plus} />}
+                                        before={chipIcon(Plus)}
                                       >
                                         <Box grow="Yes">
                                           <Text size="T200" truncate>
@@ -542,6 +517,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                                               setOpenStateEvent({
                                                 type: eventType,
                                                 stateKey,
+                                                rawEvent: stateKeyToEvents.get(stateKey)?.event,
                                               });
                                             }}
                                             key={stateKey}
@@ -549,7 +525,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                                             fill="None"
                                             size="300"
                                             radii="0"
-                                            after={<Icon size="50" src={Icons.ChevronRight} />}
+                                            after={chipIcon(CaretRight)}
                                           >
                                             <Box grow="Yes">
                                               <Text size="T200" truncate>
@@ -584,13 +560,9 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                           size="300"
                           radii="300"
                           outlined
-                          before={
-                            <Icon
-                              src={expandAccountData ? Icons.ChevronTop : Icons.ChevronBottom}
-                              size="100"
-                              filled
-                            />
-                          }
+                          before={menuIcon(expandAccountData ? CaretUp : CaretDown, {
+                            weight: 'fill',
+                          })}
                         >
                           <Text size="B300">{expandAccountData ? 'Collapse' : 'Expand'}</Text>
                         </Button>
@@ -608,7 +580,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                             fill="None"
                             size="300"
                             radii="0"
-                            before={<Icon size="50" src={Icons.Plus} />}
+                            before={chipIcon(Plus)}
                             onClick={() => setAccountDataType(null)}
                           >
                             <Box grow="Yes">
@@ -626,7 +598,7 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
                                 fill="None"
                                 size="300"
                                 radii="0"
-                                after={<Icon size="50" src={Icons.ChevronRight} />}
+                                after={chipIcon(CaretRight)}
                                 onClick={() => setAccountDataType(type)}
                               >
                                 <Box grow="Yes">
@@ -646,6 +618,6 @@ export function DeveloperTools({ requestClose }: DeveloperToolsProps) {
           </PageContent>
         </Scroll>
       </Box>
-    </Page>
+    </SettingsSectionPage>
   );
 }

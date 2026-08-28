@@ -1,24 +1,24 @@
-import type { KeyboardEventHandler, MouseEventHandler } from 'react';
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { KeyboardEventHandler, MouseEventHandler, ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useAtomValue } from 'jotai';
 import type { RectCords } from 'folds';
-import { Box, Chip, Icon, IconButton, Icons, PopOut, Spinner, Text, as, config } from 'folds';
-import { Editor, Transforms } from 'slate';
-import { ReactEditor } from 'slate-react';
+import { Box, Chip, IconButton, OverlayBackdrop, Spinner, Text, as, config } from 'folds';
+import { Overlay, PopOut } from '$components/overlay-stack';
+import { composerIcon, Smiley } from '$components/icons/phosphor';
 import type {
   IContent,
   IMentions,
   MatrixEvent,
-  ReplacementEvent,
   Room,
   RoomMessageEventContent,
   RoomMessageTextEventContent,
 } from '$types/matrix-sdk';
-import { RelationType, MsgType } from '$types/matrix-sdk';
+import { MsgType } from '$types/matrix-sdk';
 import { isKeyHotkey } from 'is-hotkey';
-import type { AutocompleteQuery } from '$components/editor';
+import type { EditorDocument } from '$components/editor/model';
 import {
   AutocompletePrefix,
+  useAutocompleteQuery,
   CustomEditor,
   EmoticonAutocomplete,
   MarkdownFormattingToolbarBottom,
@@ -27,9 +27,6 @@ import {
   UserMentionAutocomplete,
   createEmoticonElement,
   customHtmlEqualsPlainText,
-  getAutocompleteQuery,
-  getPrevWorldRange,
-  moveCursor,
   plainToEditorInput,
   toMatrixCustomHTML,
   toPlainText,
@@ -37,7 +34,7 @@ import {
   useEditor,
   getMentions,
   ANYWHERE_AUTOCOMPLETE_PREFIXES,
-  getLinks,
+  getDocumentLinks,
   LINKINPUTREGEX,
 } from '$components/editor';
 import { htmlToMarkdown } from '$plugins/markdown';
@@ -47,9 +44,12 @@ import { UseStateProvider } from '$components/UseStateProvider';
 import { EmojiBoard } from '$components/emoji-board';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { useMatrixClient } from '$hooks/useMatrixClient';
+import { useDismissOnBack } from '$utils/androidBack';
 import { nicknamesAtom } from '$state/nicknames';
-import { getEditedEvent, getMentionContent, trimReplyFromFormattedBody } from '$utils/room';
-import { mobileOrTablet } from '$utils/user-agent';
+import { getEditedEvent, getMentionContent } from '$utils/room/relations';
+import { trimReplyFromFormattedBody } from '$utils/room/display';
+import { buildReplacementContent } from '../buildReplacementContent';
+import { isMobileOrTablet } from '$utils/platform';
 import { useComposingCheck } from '$hooks/useComposingCheck';
 import { floatingEditor } from '$styles/overrides/Composer.css';
 import { RenderMessageContent } from '$components/RenderMessageContent';
@@ -61,12 +61,43 @@ import type { HTMLReactParserOptions } from 'html-react-parser';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import type { Opts as LinkifyOpts } from 'linkifyjs';
 import type { GetContentCallback } from '$types/matrix/room';
-import { sanitizeText } from '$utils/sanitize';
 import type { BundleContent } from '$components/message';
 import {
   readdAngleBracketsForHiddenPreviews,
   stripMarkdownEscapesForHiddenPreviews,
 } from './hiddenLinkPreviews';
+import { stripPerMessageProfileFormattedBody } from '$hooks/usePerMessageProfile';
+
+// Wraps the mobile emoji-board overlay so the Android back action closes it
+// instead of navigating away. Hooks can't run inside the UseStateProvider
+// render-prop below, so this component holds the back handler.
+function MobileEmojiOverlay({
+  open,
+  onClose,
+  children,
+}: {
+  open: boolean;
+  onClose: () => void;
+  children: ReactNode;
+}) {
+  useDismissOnBack(onClose, open);
+  return (
+    <Overlay open={open} backdrop={<OverlayBackdrop />}>
+      <div
+        style={{
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          display: 'flex',
+          justifyContent: 'center',
+        }}
+      >
+        {children}
+      </div>
+    </Overlay>
+  );
+}
 
 type MessageEditorProps = {
   roomId: string;
@@ -81,10 +112,11 @@ export const MessageEditor = as<'div', MessageEditorProps>(
     const nicknames = useAtomValue(nicknamesAtom);
     const editor = useEditor();
     const [enterForNewline] = useSetting(settingsAtom, 'enterForNewline');
+    const [pmpNoFallback] = useSetting(settingsAtom, 'pmpNoFallback');
     const isComposing = useComposingCheck();
 
-    const [autocompleteQuery, setAutocompleteQuery] =
-      useState<AutocompleteQuery<AutocompletePrefix>>();
+    const [autocompleteQuery, setAutocompleteQuery, handleCloseAutocomplete] =
+      useAutocompleteQuery(editor);
 
     const getPrevBodyAndFormattedBody = useCallback((): [
       string | undefined,
@@ -119,10 +151,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
       }
 
       if (pmpDisplayname && typeof customHtml === 'string') {
-        customHtml = customHtml.replace(
-          /^<strong\s+data-mx-profile-fallback[^>]*>.*?<\/strong>/,
-          ''
-        );
+        customHtml = stripPerMessageProfileFormattedBody(customHtml);
       }
 
       const bundleContent =
@@ -189,9 +218,9 @@ export const MessageEditor = as<'div', MessageEditorProps>(
       useCallback(async () => {
         const oldContent = mEvent.getContent();
         const msgtype = mEvent.getContent().msgtype as RoomMessageTextEventContent['msgtype'];
-        let plainText = toPlainText(editor.children).trim();
+        let plainText = toPlainText(editor.children as EditorDocument).trim();
         let customHtml = trimCustomHtml(
-          toMatrixCustomHTML(editor.children, {
+          toMatrixCustomHTML(editor.children as EditorDocument, {
             forEmote: msgtype === MsgType.Emote,
             room,
           })
@@ -216,11 +245,6 @@ export const MessageEditor = as<'div', MessageEditorProps>(
           }
         }
 
-        const newContent: IContent = {
-          msgtype,
-          body: plainText,
-        };
-
         const evtId = mEvent.getId();
         const evtTimeline = evtId ? room.getTimelineForEvent(evtId) : undefined;
         const editedEvent =
@@ -232,88 +256,34 @@ export const MessageEditor = as<'div', MessageEditorProps>(
           editedEvent?.getContent()?.['m.new_content']?.['com.beeper.per_message_profile'] ??
           mEvent.getContent()?.['com.beeper.per_message_profile'];
 
-        const pmpDisplayname =
-          rawPmp !== null &&
-          typeof rawPmp === 'object' &&
-          'displayname' in rawPmp &&
-          typeof rawPmp.displayname === 'string' &&
-          rawPmp.displayname.length > 0
-            ? (rawPmp.displayname as string)
-            : undefined;
-
-        if (pmpDisplayname) {
-          const bodyPrefix = `${pmpDisplayname}: `;
-          if (!plainText.startsWith(bodyPrefix)) {
-            plainText = bodyPrefix + plainText;
-          }
-
-          const escapedName = sanitizeText(pmpDisplayname);
-          const htmlPrefix = `<strong data-mx-profile-fallback>${escapedName}: </strong>`;
-          if (!customHtml.startsWith(htmlPrefix)) {
-            customHtml = htmlPrefix + customHtml;
-          }
-
-          newContent['com.beeper.per_message_profile'] = rawPmp;
-        }
-
-        const contentBody: IContent & Omit<ReplacementEvent<IContent>, 'm.relates_to'> = {
-          msgtype,
-          body: `* ${plainText}`,
-          'm.new_content': newContent,
-        };
-
-        const mentionData = getMentions(mx, roomId, editor);
+        const mentionData = getMentions(mx, roomId, {
+          children: editor.children as EditorDocument,
+        });
 
         prevMentions?.user_ids?.forEach((prevMentionId) => {
           mentionData.users.add(prevMentionId);
         });
 
         const mMentions = getMentionContent(Array.from(mentionData.users), mentionData.room);
-        newContent['m.mentions'] = mMentions;
-        contentBody['m.mentions'] = mMentions;
 
-        const links = getLinks(editor.children);
+        const linkPreviews =
+          getDocumentLinks(editor.children as EditorDocument)?.map((matchedUrl) => ({
+            matched_url: matchedUrl,
+          })) ?? [];
 
-        if (pmpDisplayname || !customHtmlEqualsPlainText(customHtml, plainText)) {
-          newContent.format = 'org.matrix.custom.html';
-          newContent.formatted_body = customHtml;
-          contentBody.format = 'org.matrix.custom.html';
-          contentBody.formatted_body = `* ${customHtml}`;
-        }
-
-        const content: IContent = {
-          ...oldContent,
-          'm.relates_to': {
-            event_id: eventId,
-            rel_type: RelationType.Replace,
-          },
-        };
-        content.body = contentBody.body;
-        content.format = contentBody.format;
-        content.formatted_body = contentBody.formatted_body;
-        content['m.new_content'] = newContent;
-        if (oldContent.info !== undefined && oldContent.filename?.length > 0) {
-          content.filename = oldContent.filename;
-          content['m.new_content'].filename = oldContent.filename;
-          content.info = oldContent.info;
-          content['m.new_content'].info = oldContent.info;
-
-          if (oldContent.file !== undefined) content['m.new_content'].file = oldContent.file;
-          if (oldContent.url !== undefined) content['m.new_content'].url = oldContent.url;
-
-          if (oldContent['page.codeberg.everypizza.msc4193.spoiler'] !== undefined) {
-            content['page.codeberg.everypizza.msc4193.spoiler'] =
-              oldContent['page.codeberg.everypizza.msc4193.spoiler'];
-            content['m.new_content']['page.codeberg.everypizza.msc4193.spoiler'] =
-              oldContent['page.codeberg.everypizza.msc4193.spoiler'];
-          }
-        }
-        content['com.beeper.linkpreviews'] = [];
-        links?.forEach((link) => content['com.beeper.linkpreviews'].push({ matched_url: link }));
-        content['m.new_content']['com.beeper.linkpreviews'] = content['com.beeper.linkpreviews'];
+        const content = buildReplacementContent(
+          oldContent,
+          plainText,
+          customHtml,
+          eventId,
+          mMentions,
+          linkPreviews,
+          rawPmp,
+          pmpNoFallback
+        );
 
         return mx.sendMessage(roomId, content as RoomMessageEventContent);
-      }, [mx, editor, roomId, mEvent, getPrevBodyAndFormattedBody, room])
+      }, [mx, editor, roomId, mEvent, getPrevBodyAndFormattedBody, room, pmpNoFallback])
     );
 
     const handleSave = useCallback(() => {
@@ -322,18 +292,21 @@ export const MessageEditor = as<'div', MessageEditorProps>(
       }
     }, [saveState, save]);
 
+    const suppressBlurRefocusRef = useRef(false);
+    const suppressEditorRefocus = useCallback(() => {
+      suppressBlurRefocusRef.current = true;
+      requestAnimationFrame(() => {
+        suppressBlurRefocusRef.current = false;
+      });
+    }, []);
+
     const handleKeyDown: KeyboardEventHandler = useCallback(
       (evt) => {
         if (
           (isKeyHotkey('mod+enter', evt) || (!enterForNewline && isKeyHotkey('enter', evt))) &&
           !isComposing(evt)
         ) {
-          const prevWordRange = getPrevWorldRange(editor);
-          if (
-            prevWordRange &&
-            getAutocompleteQuery(editor, prevWordRange, ANYWHERE_AUTOCOMPLETE_PREFIXES)
-          )
-            return;
+          if (editor.getAutocompleteQuery(ANYWHERE_AUTOCOMPLETE_PREFIXES)) return;
 
           evt.preventDefault();
           handleSave();
@@ -346,6 +319,10 @@ export const MessageEditor = as<'div', MessageEditorProps>(
       [enterForNewline, isComposing, editor, handleSave, onCancel]
     );
 
+    const detectAutocomplete = useCallback(() => {
+      setAutocompleteQuery(editor.getAutocompleteQuery(ANYWHERE_AUTOCOMPLETE_PREFIXES));
+    }, [editor, setAutocompleteQuery]);
+
     const handleKeyUp: KeyboardEventHandler = useCallback(
       (evt) => {
         if (isKeyHotkey('escape', evt)) {
@@ -353,23 +330,14 @@ export const MessageEditor = as<'div', MessageEditorProps>(
           return;
         }
 
-        const prevWordRange = getPrevWorldRange(editor);
-        const query = prevWordRange
-          ? getAutocompleteQuery(editor, prevWordRange, ANYWHERE_AUTOCOMPLETE_PREFIXES)
-          : undefined;
-        setAutocompleteQuery(query);
+        detectAutocomplete();
       },
-      [editor]
+      [detectAutocomplete]
     );
 
-    const handleCloseAutocomplete = useCallback(() => {
-      ReactEditor.focus(editor);
-      setAutocompleteQuery(undefined);
-    }, [editor]);
-
     const handleEmoticonSelect = (key: string, shortcode: string) => {
-      editor.insertNode(createEmoticonElement(key, shortcode));
-      moveCursor(editor);
+      editor.insertInline(createEmoticonElement(key, shortcode));
+      editor.insertText(' ');
     };
 
     useEffect(() => {
@@ -389,13 +357,8 @@ export const MessageEditor = as<'div', MessageEditorProps>(
         mentionOptions
       );
 
-      Transforms.select(editor, {
-        anchor: Editor.start(editor, []),
-        focus: Editor.end(editor, []),
-      });
-
-      editor.insertFragment(initialValue);
-      if (!mobileOrTablet()) ReactEditor.focus(editor);
+      editor.setDocument(initialValue);
+      if (!isMobileOrTablet()) editor.focus();
     }, [editor, getPrevBodyAndFormattedBody, room, nicknames, mx]);
 
     useEffect(() => {
@@ -451,24 +414,24 @@ export const MessageEditor = as<'div', MessageEditorProps>(
         {autocompleteQuery?.prefix === AutocompletePrefix.RoomMention && (
           <RoomMentionAutocomplete
             roomId={roomId}
-            editor={editor}
-            query={autocompleteQuery}
+            controller={editor}
+            query={autocompleteQuery!}
             requestClose={handleCloseAutocomplete}
           />
         )}
         {autocompleteQuery?.prefix === AutocompletePrefix.UserMention && (
           <UserMentionAutocomplete
             room={room}
-            editor={editor}
-            query={autocompleteQuery}
+            controller={editor}
+            query={autocompleteQuery!}
             requestClose={handleCloseAutocomplete}
           />
         )}
         {autocompleteQuery?.prefix === AutocompletePrefix.Emoticon && (
           <EmoticonAutocomplete
             imagePackRooms={imagePackRooms || []}
-            editor={editor}
-            query={autocompleteQuery}
+            controller={editor}
+            query={autocompleteQuery!}
             requestClose={handleCloseAutocomplete}
           />
         )}
@@ -490,6 +453,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
               htmlReactParserOptions={htmlReactParserOptions}
               hideCaption
               linkifyOpts={linkifyOpts}
+              room={room}
             />
           )}
           <Box
@@ -520,11 +484,12 @@ export const MessageEditor = as<'div', MessageEditorProps>(
             <CustomEditor
               editor={editor}
               placeholder="Edit message..."
+              suppressBlurRefocusRef={suppressBlurRefocusRef}
               onKeyDown={handleKeyDown}
               onKeyUp={handleKeyUp}
               bottom={
                 <>
-                  <MarkdownFormattingToolbarBottom />
+                  <MarkdownFormattingToolbarBottom controller={editor} />
                   <Box
                     style={{ padding: config.space.S200, paddingTop: 0 }}
                     alignItems="End"
@@ -534,6 +499,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
                     <Box gap="Inherit">
                       <Chip
                         onClick={handleSave}
+                        onPointerDown={suppressEditorRefocus}
                         variant="Primary"
                         radii="Pill"
                         disabled={saveState.status === AsyncStatus.Loading}
@@ -546,37 +512,38 @@ export const MessageEditor = as<'div', MessageEditorProps>(
                       >
                         <Text size="B300">Save</Text>
                       </Chip>
-                      <Chip onClick={onCancel} variant="SurfaceVariant" radii="Pill">
+                      <Chip
+                        onClick={onCancel}
+                        onPointerDown={suppressEditorRefocus}
+                        variant="SurfaceVariant"
+                        radii="Pill"
+                      >
                         <Text size="B300">Cancel</Text>
                       </Chip>
                     </Box>
                     <Box gap="Inherit">
                       <MarkdownFormattingToolbarToggle variant="SurfaceVariant" />
                       <UseStateProvider initial={undefined}>
-                        {(anchor: RectCords | undefined, setAnchor) => (
-                          <PopOut
-                            anchor={anchor}
-                            alignOffset={-8}
-                            position="Top"
-                            align="End"
-                            content={
-                              <EmojiBoard
-                                imagePackRooms={imagePackRooms ?? []}
-                                returnFocusOnDeactivate={false}
-                                onEmojiSelect={handleEmoticonSelect}
-                                onCustomEmojiSelect={handleEmoticonSelect}
-                                requestClose={() => {
-                                  setAnchor((v) => {
-                                    if (v) {
-                                      if (!mobileOrTablet()) ReactEditor.focus(editor);
-                                      return undefined;
-                                    }
-                                    return v;
-                                  });
-                                }}
-                              />
-                            }
-                          >
+                        {(anchor: RectCords | undefined, setAnchor) => {
+                          const emojiBoard = (
+                            <EmojiBoard
+                              imagePackRooms={imagePackRooms ?? []}
+                              returnFocusOnDeactivate={false}
+                              isFullWidth={isMobileOrTablet()}
+                              onEmojiSelect={handleEmoticonSelect}
+                              onCustomEmojiSelect={handleEmoticonSelect}
+                              requestClose={() => {
+                                setAnchor((v) => {
+                                  if (v) {
+                                    if (!isMobileOrTablet()) editor.focus();
+                                    return undefined;
+                                  }
+                                  return v;
+                                });
+                              }}
+                            />
+                          );
+                          const trigger = (
                             <IconButton
                               aria-pressed={anchor !== undefined}
                               onClick={
@@ -585,14 +552,41 @@ export const MessageEditor = as<'div', MessageEditorProps>(
                                     evt.currentTarget.getBoundingClientRect()
                                   )) as MouseEventHandler<HTMLButtonElement>
                               }
+                              onPointerDown={suppressEditorRefocus}
                               variant="SurfaceVariant"
                               size="300"
                               radii="300"
                             >
-                              <Icon size="400" src={Icons.Smile} filled={anchor !== undefined} />
+                              {composerIcon(Smiley, {
+                                weight: anchor !== undefined ? 'fill' : 'regular',
+                              })}
                             </IconButton>
-                          </PopOut>
-                        )}
+                          );
+                          if (isMobileOrTablet()) {
+                            return (
+                              <>
+                                {trigger}
+                                <MobileEmojiOverlay
+                                  open={anchor !== undefined}
+                                  onClose={() => setAnchor(undefined)}
+                                >
+                                  {emojiBoard}
+                                </MobileEmojiOverlay>
+                              </>
+                            );
+                          }
+                          return (
+                            <PopOut
+                              anchor={anchor}
+                              alignOffset={-8}
+                              position="Top"
+                              align="End"
+                              content={emojiBoard}
+                            >
+                              {trigger}
+                            </PopOut>
+                          );
+                        }}
                       </UseStateProvider>
                     </Box>
                   </Box>

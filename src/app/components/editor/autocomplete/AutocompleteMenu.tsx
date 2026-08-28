@@ -1,13 +1,11 @@
 import type { ReactNode } from 'react';
-import { useEffect, useRef, useState } from 'react';
+import { useRef, useState } from 'react';
 import FocusTrap from 'focus-trap-react';
 import { isKeyHotkey } from 'is-hotkey';
 import { Header, Menu, Scroll, config } from 'folds';
 
 import { preventScrollWithArrowKey, stopPropagation } from '$utils/keyboard';
 import { useAlive } from '$hooks/useAlive';
-import type { Editor } from 'slate';
-import { ReactEditor } from 'slate-react';
 import * as css from './AutocompleteMenu.css';
 import { BaseAutocompleteMenu } from './BaseAutocompleteMenu';
 
@@ -15,14 +13,8 @@ type AutocompleteMenuProps = {
   requestClose: () => void;
   headerContent: ReactNode;
   children: ReactNode;
-  editor: Editor;
 };
-export function AutocompleteMenu({
-  headerContent,
-  requestClose,
-  children,
-  editor,
-}: AutocompleteMenuProps) {
+export function AutocompleteMenu({ headerContent, requestClose, children }: AutocompleteMenuProps) {
   const alive = useAlive();
   const itemsRef = useRef<HTMLDivElement>(null);
 
@@ -33,7 +25,6 @@ export function AutocompleteMenu({
     }
   };
   const [isActive, setIsActive] = useState(true);
-  useEffect(() => ReactEditor.focus(editor), [editor, isActive]);
   function handleInput(evt: KeyboardEvent) {
     if (!evt) return;
     if (
@@ -53,6 +44,7 @@ export function AutocompleteMenu({
         active={isActive}
         focusTrapOptions={{
           initialFocus: false,
+          fallbackFocus: () => itemsRef.current!,
           onPostDeactivate: handleDeactivate,
           returnFocusOnDeactivate: false,
           clickOutsideDeactivates: true,
@@ -70,7 +62,7 @@ export function AutocompleteMenu({
             {headerContent}
           </Header>
           <Scroll style={{ flexGrow: 1 }} onKeyDown={preventScrollWithArrowKey}>
-            <div ref={itemsRef} style={{ padding: config.space.S200 }}>
+            <div ref={itemsRef} tabIndex={-1} style={{ padding: config.space.S200 }}>
               {children}
             </div>
           </Scroll>

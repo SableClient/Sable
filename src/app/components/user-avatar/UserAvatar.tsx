@@ -1,8 +1,8 @@
 import { AvatarFallback, AvatarImage, color } from 'folds';
 import type { ReactEventHandler, ReactNode } from 'react';
-import { useEffect, useState } from 'react';
 import classNames from 'classnames';
 import colorMXID from '$utils/colorMXID';
+import { useAvatarMediaSource } from '$hooks/useRenderableMediaUrl';
 import * as css from './UserAvatar.css';
 
 type UserAvatarProps = {
@@ -10,6 +10,7 @@ type UserAvatarProps = {
   userId: string;
   src?: string;
   alt?: string;
+  fallbackColor?: string;
   renderFallback: () => ReactNode;
 };
 
@@ -17,17 +18,23 @@ const handleImageLoad: ReactEventHandler<HTMLImageElement> = (evt) => {
   evt.currentTarget.setAttribute('data-image-loaded', 'true');
 };
 
-export function UserAvatar({ className, userId, src, alt, renderFallback }: UserAvatarProps) {
-  const [error, setError] = useState(false);
+export function UserAvatar({
+  className,
+  userId,
+  src,
+  alt,
+  fallbackColor,
+  renderFallback,
+}: UserAvatarProps) {
+  const { mediaSrc, error, onError } = useAvatarMediaSource(src);
 
-  useEffect(() => {
-    setError(false);
-  }, [src]);
-
-  if (!src || error) {
+  if (!mediaSrc || error) {
     return (
       <AvatarFallback
-        style={{ backgroundColor: colorMXID(userId), color: color.Surface.Container }}
+        style={{
+          backgroundColor: fallbackColor ?? colorMXID(userId),
+          color: color.Surface.Container,
+        }}
         className={classNames(css.UserAvatar, className)}
       >
         {renderFallback()}
@@ -38,9 +45,11 @@ export function UserAvatar({ className, userId, src, alt, renderFallback }: User
   return (
     <AvatarImage
       className={classNames(css.UserAvatar, className)}
-      src={src}
+      src={mediaSrc}
       alt={alt}
-      onError={() => setError(true)}
+      loading="eager"
+      decoding="async"
+      onError={onError}
       onLoad={handleImageLoad}
       draggable={false}
     />

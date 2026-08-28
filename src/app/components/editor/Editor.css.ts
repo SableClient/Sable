@@ -15,7 +15,7 @@ export const Editor = style([
 
 export const EditorRow = style({
   gridTemplateColumns: 'auto 1fr auto',
-  alignItems: 'center',
+  alignItems: 'end',
 });
 
 export const EditorRowMultiline = style({
@@ -65,7 +65,11 @@ export const EditorTextarea = style([
   {
     flexGrow: 1,
     height: 'auto',
-    padding: `${toRem(13)} 0 0`,
+    padding: `${toRem(13)} 0`,
+    fontSize: '1rem',
+    position: 'relative',
+    whiteSpace: 'pre-wrap',
+    wordWrap: 'break-word',
     selectors: {
       [`${EditorTextareaScroll}:first-child &`]: {
         paddingLeft: toRem(13),
@@ -75,6 +79,27 @@ export const EditorTextarea = style([
       },
       '&:focus': {
         outline: 'none',
+      },
+      // ProseMirror owns the editable's children, so draw the placeholder as an
+      // overlay; data-placeholder-visible is recomputed per transaction.
+      '&[data-placeholder-visible="true"]::before': {
+        content: 'attr(data-placeholder)',
+        position: 'absolute',
+        top: toRem(13),
+        left: 0,
+        right: 0,
+        opacity: config.opacity.Placeholder,
+        pointerEvents: 'none',
+        userSelect: 'none',
+        whiteSpace: 'nowrap',
+        overflow: 'hidden',
+        textOverflow: 'ellipsis',
+      },
+      [`${EditorTextareaScroll}:first-child &[data-placeholder-visible="true"]::before`]: {
+        left: toRem(13),
+      },
+      [`${EditorTextareaScroll}:last-child &[data-placeholder-visible="true"]::before`]: {
+        right: toRem(13),
       },
     },
   },
@@ -89,37 +114,10 @@ export const EditorResponsiveAfterMultiline = style([
   },
 ]);
 
-export const EditorPlaceholderContainer = style([
-  DefaultReset,
-  {
-    opacity: config.opacity.Placeholder,
-    pointerEvents: 'none',
-    userSelect: 'none',
-  },
-]);
-
-export const EditorPlaceholderTextVisual = style([
-  DefaultReset,
-  {
-    display: 'block',
-    paddingTop: toRem(13),
-    paddingLeft: toRem(1),
-    selectors: {
-      [`${EditorTextareaScroll}:first-child &`]: {
-        paddingLeft: toRem(13),
-      },
-    },
-  },
-]);
-
 export const EditorToolbarBase = style({
   padding: `0 ${config.borderWidth.B300}`,
 });
 
 export const EditorToolbar = style({
   padding: config.space.S100,
-});
-
-export const MarkdownBtnBox = style({
-  paddingRight: config.space.S100,
 });

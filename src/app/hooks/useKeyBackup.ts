@@ -5,22 +5,16 @@ import type {
   KeyBackupInfo,
 } from '$types/matrix-sdk';
 import { CryptoEvent } from '$types/matrix-sdk';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import * as Sentry from '@sentry/react';
 import { useMatrixClient } from './useMatrixClient';
+import { useMatrixEvent } from './useMatrixEvent';
 import { useAlive } from './useAlive';
 
-export const useKeyBackupStatusChange = (
-  onChange: CryptoEventHandlerMap[CryptoEvent.KeyBackupStatus]
-) => {
+const useKeyBackupStatusChange = (onChange: CryptoEventHandlerMap[CryptoEvent.KeyBackupStatus]) => {
   const mx = useMatrixClient();
 
-  useEffect(() => {
-    mx.on(CryptoEvent.KeyBackupStatus, onChange);
-    return () => {
-      mx.removeListener(CryptoEvent.KeyBackupStatus, onChange);
-    };
-  }, [mx, onChange]);
+  useMatrixEvent(mx, CryptoEvent.KeyBackupStatus, onChange);
 };
 
 export const useKeyBackupStatus = (crypto: CryptoApi): boolean => {
@@ -40,30 +34,18 @@ export const useKeyBackupStatus = (crypto: CryptoApi): boolean => {
   return status;
 };
 
-export const useKeyBackupSessionsRemainingChange = (
+const useKeyBackupSessionsRemainingChange = (
   onChange: CryptoEventHandlerMap[CryptoEvent.KeyBackupSessionsRemaining]
 ) => {
   const mx = useMatrixClient();
 
-  useEffect(() => {
-    mx.on(CryptoEvent.KeyBackupSessionsRemaining, onChange);
-    return () => {
-      mx.removeListener(CryptoEvent.KeyBackupSessionsRemaining, onChange);
-    };
-  }, [mx, onChange]);
+  useMatrixEvent(mx, CryptoEvent.KeyBackupSessionsRemaining, onChange);
 };
 
-export const useKeyBackupFailedChange = (
-  onChange: CryptoEventHandlerMap[CryptoEvent.KeyBackupFailed]
-) => {
+const useKeyBackupFailedChange = (onChange: CryptoEventHandlerMap[CryptoEvent.KeyBackupFailed]) => {
   const mx = useMatrixClient();
 
-  useEffect(() => {
-    mx.on(CryptoEvent.KeyBackupFailed, onChange);
-    return () => {
-      mx.removeListener(CryptoEvent.KeyBackupFailed, onChange);
-    };
-  }, [mx, onChange]);
+  useMatrixEvent(mx, CryptoEvent.KeyBackupFailed, onChange);
 };
 
 export const useKeyBackupDecryptionKeyCached = (
@@ -71,12 +53,67 @@ export const useKeyBackupDecryptionKeyCached = (
 ) => {
   const mx = useMatrixClient();
 
+  useMatrixEvent(mx, CryptoEvent.KeyBackupDecryptionKeyCached, onChange);
+};
+
+/**
+ * Whether this device can actually restore from backup. `restoreKeyBackup`
+ * requires BOTH a decryption key and a backup version in the store — it raises
+ * the same "No decryption key found in crypto store" for either being absent,
+ * while `getSessionBackupPrivateKey` only reports on the key. `undefined` while
+ * unknown (first lookup in flight, or the lookup failed).
+ */
+export const useSessionBackupKeyUsable = (crypto: CryptoApi): boolean | undefined => {
+  const alive = useAlive();
+  const [usable, setUsable] = useState<boolean>();
+  const requestRef = useRef(0);
+
+  const fetchUsable = useCallback(() => {
+    requestRef.current += 1;
+    const request = requestRef.current;
+    Promise.all([crypto.getSessionBackupPrivateKey(), crypto.getActiveSessionBackupVersion()])
+      .then(([key, version]) => {
+        // A later lookup already answered; this one is stale.
+        if (alive() && request === requestRef.current) {
+          const nextUsable = key !== null && version !== null;
+          setUsable((current) => {
+            if (current === true && !nextUsable) {
+              Sentry.addBreadcrumb({
+                category: 'crypto',
+                message: 'Session backup key became unavailable',
+                level: 'warning',
+              });
+              Sentry.metrics.count('sable.crypto.session_backup_key_lost', 1);
+            }
+            return nextUsable;
+          });
+        }
+      })
+      .catch(() => {
+        if (alive() && request === requestRef.current) {
+          setUsable((current) => {
+            if (current === true) {
+              Sentry.addBreadcrumb({
+                category: 'crypto',
+                message: 'Session backup key lookup failed',
+                level: 'warning',
+              });
+              Sentry.metrics.count('sable.crypto.session_backup_key_lookup_failed', 1);
+            }
+            return undefined;
+          });
+        }
+      });
+  }, [crypto, alive]);
+
   useEffect(() => {
-    mx.on(CryptoEvent.KeyBackupDecryptionKeyCached, onChange);
-    return () => {
-      mx.removeListener(CryptoEvent.KeyBackupDecryptionKeyCached, onChange);
-    };
-  }, [mx, onChange]);
+    fetchUsable();
+  }, [fetchUsable]);
+
+  useKeyBackupStatusChange(fetchUsable);
+  useKeyBackupDecryptionKeyCached(fetchUsable);
+
+  return usable;
 };
 
 export const useKeyBackupSync = (): [number, string | undefined] => {

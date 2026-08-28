@@ -1,17 +1,23 @@
 import { useCallback } from 'react';
-import type { NavigateOptions } from 'react-router-dom';
-import { useNavigate } from 'react-router-dom';
-import { useAtomValue } from 'jotai';
+import type { NavigateOptions } from 'react-router';
+import { useNavigate } from 'react-router';
+import { useAtomValue, useSetAtom } from 'jotai';
 import { getCanonicalAliasOrRoomId } from '$utils/matrix';
 import {
+  getDirectForumPath,
   getDirectRoomPath,
+  getHomeForumPath,
   getHomeRoomPath,
+  getSpaceForumPath,
   getSpacePath,
   getSpaceRoomPath,
+  resolveSection,
 } from '$pages/pathUtils';
-import { getOrphanParents, guessPerfectParent } from '$utils/room';
+import { CustomRoomType } from '$types/matrix/room';
+import { getOrphanParents, guessPerfectParent } from '$utils/room/hierarchy';
 import { roomToParentsAtom } from '$state/room/roomToParents';
 import { mDirectAtom } from '$state/mDirectList';
+import { lastVisitedRoomAtom } from '$state/room/lastRoom';
 import { settingsAtom } from '$state/settings';
 import { useSetting } from '$state/hooks/settings';
 import { useSelectedSpace } from './router/useSelectedSpace';
@@ -24,6 +30,7 @@ export const useRoomNavigate = () => {
   const mDirects = useAtomValue(mDirectAtom);
   const spaceSelectedId = useSelectedSpace();
   const [developerTools] = useSetting(settingsAtom, 'developerTools');
+  const setLastRoom = useSetAtom(lastVisitedRoomAtom);
 
   const navigateSpace = useCallback(
     (roomId: string) => {
@@ -37,8 +44,11 @@ export const useRoomNavigate = () => {
     (roomId: string, eventId?: string, opts?: NavigateOptions) => {
       const roomIdOrAlias = getCanonicalAliasOrRoomId(mx, roomId);
       const openSpaceTimeline = developerTools && spaceSelectedId === roomId;
+      const isForum = mx.getRoom(roomId)?.getType() === CustomRoomType.Forum;
 
       const orphanParents = openSpaceTimeline ? [roomId] : getOrphanParents(roomToParents, roomId);
+      let destPath: string;
+      let roomPart: string;
       if (orphanParents.length > 0) {
         let parentSpace: string;
         if (spaceSelectedId && orphanParents.includes(spaceSelectedId)) {
@@ -48,22 +58,30 @@ export const useRoomNavigate = () => {
         }
 
         const pSpaceIdOrAlias = getCanonicalAliasOrRoomId(mx, parentSpace);
-
-        navigate(
-          getSpaceRoomPath(pSpaceIdOrAlias, openSpaceTimeline ? roomId : roomIdOrAlias, eventId),
-          opts
-        );
-        return;
+        roomPart = openSpaceTimeline ? roomId : roomIdOrAlias;
+        destPath = isForum
+          ? getSpaceForumPath(pSpaceIdOrAlias, roomPart, eventId)
+          : getSpaceRoomPath(pSpaceIdOrAlias, roomPart, eventId);
+      } else if (mDirects.has(roomId)) {
+        roomPart = roomIdOrAlias;
+        destPath = isForum
+          ? getDirectForumPath(roomPart, eventId)
+          : getDirectRoomPath(roomPart, eventId);
+      } else {
+        roomPart = roomIdOrAlias;
+        destPath = isForum
+          ? getHomeForumPath(roomPart, eventId)
+          : getHomeRoomPath(roomPart, eventId);
       }
 
-      if (mDirects.has(roomId)) {
-        navigate(getDirectRoomPath(roomIdOrAlias, eventId), opts);
-        return;
+      const section = resolveSection(destPath);
+      if (section?.getRoomPath) {
+        setLastRoom((prev) => ({ ...prev, [section.key]: roomPart }));
       }
 
-      navigate(getHomeRoomPath(roomIdOrAlias, eventId), opts);
+      navigate(destPath, opts);
     },
-    [mx, navigate, spaceSelectedId, roomToParents, mDirects, developerTools]
+    [mx, navigate, spaceSelectedId, roomToParents, mDirects, developerTools, setLastRoom]
   );
 
   return {

@@ -13,12 +13,14 @@ import {
   parseSableThemeMetadata,
   type SableThemeContrast,
 } from '../../theme/metadata';
-import { putCachedThemeCss } from '../../theme/cache';
+import { getCachedThemeCss, putCachedThemeCss } from '../../theme/cache';
 import { fullUrlFromPreviewUrl } from '../../theme/previewUrls';
 import { isApprovedCatalogHostUrl } from '../../theme/themeApproval';
 import { ThemePreviewCard } from '../theme/ThemePreviewCard';
 import { SableChatPreviewPlaceholder } from './SableChatPreviewPlaceholder';
 import { ThemeThirdPartyBanner } from './ThemeThirdPartyBanner';
+import { pruneThemeFavorites, themeUrlHostLabel } from '../../theme/themeLibrary';
+import { fetch } from '$utils/fetch';
 
 function isHttps(url: string): boolean {
   return /^https:\/\//i.test(url);
@@ -31,15 +33,6 @@ function isPreviewThemeUrl(url: string): boolean {
 function basenameFromUrl(url: string): string {
   const tail = url.split('/').pop() ?? url;
   return tail.replace(/\.preview\.sable\.css(\?|#|$)/i, '').replace(/\.sable\.css(\?|#|$)/i, '');
-}
-
-function baseLabel(url: string): string {
-  try {
-    const u = new URL(url);
-    return u.hostname;
-  } catch {
-    return 'Unofficial theme';
-  }
 }
 
 export function ThemePreviewUrlCard({ url }: { url: string }) {
@@ -138,14 +131,6 @@ export function ThemePreviewUrlCard({ url }: { url: string }) {
     [favorites, previewQuery.data?.fullUrl]
   );
 
-  const pruneFavorites = useCallback(
-    (nextFavorites: ThemeRemoteFavorite[], nextActive: string[]) => {
-      const active = new Set(nextActive);
-      return nextFavorites.filter((f) => f.pinned === true || active.has(f.fullUrl));
-    },
-    []
-  );
-
   const toggleFavorite = useCallback(async () => {
     const fullUrl = previewQuery.data?.fullUrl;
     if (!fullUrl) return;
@@ -173,7 +158,10 @@ export function ThemePreviewUrlCard({ url }: { url: string }) {
       const nextActive = [manualRemoteFullUrl, lightRemoteFullUrl, darkRemoteFullUrl]
         .filter((u): u is string => Boolean(u && u.trim().length > 0))
         .filter((u) => u !== fullUrl);
-      patchSettings({ ...cleared, themeRemoteFavorites: pruneFavorites(nextFavs, nextActive) });
+      patchSettings({
+        ...cleared,
+        themeRemoteFavorites: pruneThemeFavorites(nextFavs, nextActive),
+      });
       return;
     }
 
@@ -205,7 +193,6 @@ export function ThemePreviewUrlCard({ url }: { url: string }) {
     manualRemoteFullUrl,
     patchSettings,
     previewQuery.data,
-    pruneFavorites,
   ]);
 
   const applyManual = useCallback(() => {
@@ -304,7 +291,7 @@ export function ThemePreviewUrlCard({ url }: { url: string }) {
       ].filter((u): u is string => Boolean(u && u.trim().length > 0));
 
       patchSettings({
-        themeRemoteFavorites: pruneFavorites(
+        themeRemoteFavorites: pruneThemeFavorites(
           store.get(settingsAtom).themeRemoteFavorites,
           nextActive
         ),
@@ -318,7 +305,6 @@ export function ThemePreviewUrlCard({ url }: { url: string }) {
       manualRemoteFullUrl,
       patchSettings,
       previewQuery.data?.fullUrl,
-      pruneFavorites,
       store,
     ]
   );
@@ -336,7 +322,7 @@ export function ThemePreviewUrlCard({ url }: { url: string }) {
         after.themeRemoteDarkFullUrl,
       ].filter((u): u is string => Boolean(u && u.trim().length > 0));
       patchSettings({
-        themeRemoteFavorites: pruneFavorites(favs, nextActive),
+        themeRemoteFavorites: pruneThemeFavorites(favs, nextActive),
       });
     };
 
@@ -377,7 +363,6 @@ export function ThemePreviewUrlCard({ url }: { url: string }) {
     patchSettings,
     previewQuery.data?.fullUrl,
     previewQuery.data?.kind,
-    pruneFavorites,
     store,
   ]);
 
@@ -388,7 +373,7 @@ export function ThemePreviewUrlCard({ url }: { url: string }) {
       <SableChatPreviewPlaceholder
         kind="theme"
         url={url}
-        hostLabel={baseLabel(url)}
+        hostLabel={themeUrlHostLabel(url, 'Unofficial theme')}
         isApprovedHost={isOfficial}
         onLoadPreview={() => {
           setUserTriggeredLoad(true);
@@ -407,10 +392,9 @@ export function ThemePreviewUrlCard({ url }: { url: string }) {
     previewQuery.data?.tags && previewQuery.data.tags.length > 0
       ? previewQuery.data.tags.join(', ')
       : '';
-  const sourceLabel = isOfficial ? 'Official theme' : baseLabel(url);
+  const sourceLabel = isOfficial ? 'Official catalog' : themeUrlHostLabel(url, 'Unofficial theme');
   const subtitleLine1 = [kindLabel, contrastLabel].filter(Boolean).join(' · ');
   const subtitleLine2 = [authorLabel, tagsLabel].filter(Boolean).join(' · ');
-  const subtitleLine3 = sourceLabel;
   const subtitle = (
     <>
       {subtitleLine1}
@@ -420,11 +404,19 @@ export function ThemePreviewUrlCard({ url }: { url: string }) {
           {subtitleLine2}
         </>
       ) : null}
-      <br />
-      {subtitleLine3}
     </>
   );
   const fullUrl = previewQuery.data?.fullUrl;
+  const loadFullCssText = async (): Promise<string> => {
+    if (!fullUrl) throw new Error('Full theme URL is unavailable.');
+    const cached = await getCachedThemeCss(fullUrl);
+    if (cached) return cached;
+    const response = await fetch(fullUrl, { mode: 'cors' });
+    if (!response.ok) throw new Error(`Theme CSS fetch failed: ${response.status}`);
+    const text = await response.text();
+    await putCachedThemeCss(fullUrl, text);
+    return text;
+  };
 
   return (
     <Box
@@ -441,10 +433,14 @@ export function ThemePreviewUrlCard({ url }: { url: string }) {
         title={title}
         subtitle={subtitle}
         beforePreview={
-          showThirdPartyBanner ? <ThemeThirdPartyBanner hostLabel={baseLabel(url)} /> : undefined
+          showThirdPartyBanner ? (
+            <ThemeThirdPartyBanner hostLabel={themeUrlHostLabel(url, 'Unofficial theme')} />
+          ) : undefined
         }
         previewCssText={previewQuery.data?.previewText ?? ''}
+        loadFullCssText={fullUrl ? loadFullCssText : undefined}
         scopeSlug={`chat-${basenameFromUrl(url)}`}
+        sourceLabel={sourceLabel}
         copyText={url}
         isFavorited={fullUrl ? isFav : false}
         onToggleFavorite={fullUrl ? () => toggleFavorite() : undefined}

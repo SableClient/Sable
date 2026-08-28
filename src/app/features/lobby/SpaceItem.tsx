@@ -1,22 +1,8 @@
 import type { MouseEventHandler, ReactNode } from 'react';
 import { useCallback, useRef, useState } from 'react';
 import type { RectCords } from 'folds';
-import {
-  Box,
-  Avatar,
-  Text,
-  Chip,
-  Icon,
-  Icons,
-  as,
-  Badge,
-  toRem,
-  Spinner,
-  PopOut,
-  config,
-  Menu,
-  MenuItem,
-} from 'folds';
+import { Box, Avatar, Text, Chip, as, Badge, toRem, Spinner, config, Menu, MenuItem } from 'folds';
+import { PopOut } from '$components/overlay-stack';
 import classNames from 'classnames';
 import type { MatrixError, Room, IHierarchyRoom } from '$types/matrix-sdk';
 import type { HierarchyItem } from '$hooks/useSpaceHierarchy';
@@ -24,20 +10,21 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { RoomAvatar } from '$components/room-avatar';
 import { nameInitials } from '$utils/common';
 import { LocalRoomSummaryLoader } from '$components/RoomSummaryLoader';
-import { getRoomAvatarUrl } from '$utils/room';
+import { getRoomAvatarUrl } from '$utils/room/display';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { BetaNoticeBadge } from '$components/BetaNoticeBadge';
-import { CreateRoomType } from '$components/create-room';
 import { AddExistingModal } from '$features/add-existing';
-import { useOpenCreateRoomModal } from '$state/hooks/createRoomModal';
-import { useOpenCreateSpaceModal } from '$state/hooks/createSpaceModal';
+import { BetaNoticeBadge } from '$components/BetaNoticeBadge';
+import { CreateRoomType } from '$components/create-room/types';
+import { useOpenShallowRoute } from '$pages/client/useShallowRoute';
+import { getCreateRoomPath, getCreateSpacePath } from '$pages/pathUtils';
 import { stopPropagation } from '$utils/keyboard';
 import FocusTrap from 'focus-trap-react';
 import * as css from './SpaceItem.css';
 import * as styleCss from './style.css';
 import { useDraggableItem } from './DnD';
+import { CaretDown, CaretRight, chipCaretIcon, chipIcon, Plus } from '$components/icons/phosphor';
 
 function SpaceProfileLoading() {
   return (
@@ -138,9 +125,7 @@ export function UnjoinedSpaceProfile({
           />
         </Avatar>
       }
-      after={
-        canJoin ? <Icon src={Icons.Plus} size="50" /> : <Spinner variant="Secondary" size="200" />
-      }
+      after={canJoin ? chipIcon(Plus) : <Spinner variant="Secondary" size="200" />}
     >
       <Box alignItems="Center" gap="200">
         <Text size="H4" truncate>
@@ -202,7 +187,7 @@ function SpaceProfile({
           />
         </Avatar>
       }
-      after={<Icon src={closed ? Icons.ChevronRight : Icons.ChevronBottom} size="50" />}
+      after={closed ? chipCaretIcon(CaretRight) : chipCaretIcon(CaretDown)}
     >
       <Box alignItems="Center" gap="200">
         <Text size="H4" truncate>
@@ -231,7 +216,7 @@ function RootSpaceProfile({ closed, categoryId, handleClose }: RootSpaceProfileP
       className={css.HeaderChip}
       variant="Surface"
       size="500"
-      after={<Icon src={closed ? Icons.ChevronRight : Icons.ChevronBottom} size="50" />}
+      after={closed ? chipCaretIcon(CaretRight) : chipCaretIcon(CaretDown)}
     >
       <Box alignItems="Center" gap="200">
         <Text size="H4" truncate>
@@ -244,7 +229,7 @@ function RootSpaceProfile({ closed, categoryId, handleClose }: RootSpaceProfileP
 
 function AddRoomButton({ item }: { item: HierarchyItem }) {
   const [cords, setCords] = useState<RectCords>();
-  const openCreateRoomModal = useOpenCreateRoomModal();
+  const openShallowRoute = useOpenShallowRoute();
   const [addExisting, setAddExisting] = useState(false);
 
   const handleAddRoom: MouseEventHandler<HTMLButtonElement> = (evt) => {
@@ -252,7 +237,7 @@ function AddRoomButton({ item }: { item: HierarchyItem }) {
   };
 
   const handleCreateRoom = (type?: CreateRoomType) => {
-    openCreateRoomModal(item.roomId, type);
+    openShallowRoute(getCreateRoomPath(item.roomId, type));
     setCords(undefined);
   };
 
@@ -283,19 +268,19 @@ function AddRoomButton({ item }: { item: HierarchyItem }) {
               radii="300"
               variant="Primary"
               fill="None"
-              onClick={() => handleCreateRoom(CreateRoomType.TextRoom)}
+              onClick={() => handleCreateRoom()}
             >
-              <Text size="T300">Chat Room</Text>
+              <Text size="T300">New Room</Text>
             </MenuItem>
             <MenuItem
               size="300"
               radii="300"
               variant="Primary"
               fill="None"
-              onClick={() => handleCreateRoom(CreateRoomType.VoiceRoom)}
+              onClick={() => handleCreateRoom(CreateRoomType.ForumRoom)}
               after={<BetaNoticeBadge />}
             >
-              <Text size="T300">Voice Room</Text>
+              <Text size="T300">Forum Room</Text>
             </MenuItem>
             <MenuItem size="300" radii="300" fill="None" onClick={handleAddExisting}>
               <Text size="T300">Existing Room</Text>
@@ -308,7 +293,7 @@ function AddRoomButton({ item }: { item: HierarchyItem }) {
         <Chip
           variant="Primary"
           radii="Pill"
-          before={<Icon src={Icons.Plus} size="50" />}
+          before={chipIcon(Plus)}
           onClick={handleAddRoom}
           aria-pressed={!!cords}
         >
@@ -324,7 +309,7 @@ function AddRoomButton({ item }: { item: HierarchyItem }) {
 
 function AddSpaceButton({ item }: { item: HierarchyItem }) {
   const [cords, setCords] = useState<RectCords>();
-  const openCreateSpaceModal = useOpenCreateSpaceModal();
+  const openShallowRoute = useOpenShallowRoute();
   const [addExisting, setAddExisting] = useState(false);
 
   const handleAddSpace: MouseEventHandler<HTMLButtonElement> = (evt) => {
@@ -332,7 +317,7 @@ function AddSpaceButton({ item }: { item: HierarchyItem }) {
   };
 
   const handleCreateSpace = () => {
-    openCreateSpaceModal(item.roomId);
+    openShallowRoute(getCreateSpacePath(item.roomId));
     setCords(undefined);
   };
 
@@ -377,7 +362,7 @@ function AddSpaceButton({ item }: { item: HierarchyItem }) {
         <Chip
           variant="SurfaceVariant"
           radii="Pill"
-          before={<Icon src={Icons.Plus} size="50" />}
+          before={chipIcon(Plus)}
           onClick={handleAddSpace}
           aria-pressed={!!cords}
         >

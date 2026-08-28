@@ -74,7 +74,7 @@ export const useAsync = <TData, TError, TArgs extends unknown[]>(
             });
           });
         }
-        throw e;
+        return undefined as never;
       }
 
       if (currentReqNumber !== reqNumberRef.current) return undefined as never;

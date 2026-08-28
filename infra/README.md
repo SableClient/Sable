@@ -16,14 +16,24 @@ Required GitHub repository secrets:
 - `TF_CLOUDFLARE_API_TOKEN`
 - `TF_VAR_ACCOUNT_ID`
 - `TF_VAR_ZONE_ID`
-- `TF_HTTP_ADDRESS`
-- `TF_HTTP_LOCK_ADDRESS`
-- `TF_HTTP_UNLOCK_ADDRESS`
 - `TF_HTTP_USERNAME`
 - `TF_HTTP_PASSWORD`
 
-The workflows map those secrets onto the actual runtime environment variable names
-that Cloudflare and OpenTofu expect.
+Required variables in both the `development` and `production` GitHub Environments:
+
+- `SENTRY_ORG`
+- `SENTRY_PROJECT`
+- `TF_HTTP_ADDRESS`
+- `TF_HTTP_LOCK_ADDRESS`
+- `TF_HTTP_UNLOCK_ADDRESS`
+- `TF_VAR_CUSTOM_DOMAIN`
+- `TF_VAR_WORKER_NAME`
+
+The HTTP backend addresses must point to distinct OpenTofu states for development
+and production.
+
+The workflows map those secrets and variables onto the runtime environment variable
+names that Cloudflare and OpenTofu expect.
 
 Cloudflare API token permissions:
 
@@ -97,8 +107,8 @@ npx wrangler versions upload
 
 Production deploys:
 
-- `.github/workflows/cloudflare-web-deploy.yml` comments PR plans for `infra/web` changes.
+- `.github/workflows/cloudflare-web.yml` comments PR plans for `infra/web` changes.
 - That PR plan job only runs for same-repo PRs, not fork PRs, because it needs repo secrets.
-- The same workflow applies production on pushes to `dev` or manual dispatch.
+- The workflow applies dev on pushes to `dev` or manual dispatch without tag; production on pushes to tags or manual dispatch with a tag.
 - `tofu apply` uploads `dist/` through `cloudflare_worker_version` and promotes it with `cloudflare_workers_deployment`.
 - Production lives on `app.sable.moe`.

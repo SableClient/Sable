@@ -1,6 +1,10 @@
-import { Box, Button, color, config, Dialog, Header, Icon, IconButton, Icons, Text } from 'folds';
-import { useCallback, useEffect, useState } from 'react';
+import { Box, Button, color, config, Dialog, Header, IconButton, Text } from 'folds';
+import { Warning, composerIcon, sizedIcon, X } from '$components/icons/phosphor';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { isTauri } from '@tauri-apps/api/core';
 import type { StageComponentProps } from './types';
+
+const POLL_COOLDOWN_MS = 1500;
 
 export function SSOStage({
   ssoRedirectURL,
@@ -12,6 +16,8 @@ export function SSOStage({
 }) {
   const { errorCode, error, session } = stageData;
   const [ssoWindow, setSSOWindow] = useState<Window>();
+  const [polling, setPolling] = useState(false);
+  const lastPollRef = useRef(0);
 
   const handleSubmit = useCallback(() => {
     submitAuthDict({
@@ -20,9 +26,27 @@ export function SSOStage({
   }, [submitAuthDict, session]);
 
   const handleContinue = () => {
+    if (isTauri()) {
+      import('@tauri-apps/plugin-opener')
+        .then(({ openUrl }) => openUrl(ssoRedirectURL))
+        .then(() => setPolling(true))
+        .catch(() => {
+          const w = window.open(ssoRedirectURL, '_blank');
+          setSSOWindow(w ?? undefined);
+        });
+      return;
+    }
     const w = window.open(ssoRedirectURL, '_blank');
     setSSOWindow(w ?? undefined);
   };
+
+  const triggerPoll = useCallback(() => {
+    if (!polling) return;
+    const now = Date.now();
+    if (now - lastPollRef.current < POLL_COOLDOWN_MS) return;
+    lastPollRef.current = now;
+    handleSubmit();
+  }, [polling, handleSubmit]);
 
   useEffect(() => {
     const handleMessage = (evt: MessageEvent) => {
@@ -34,6 +58,7 @@ export function SSOStage({
       ) {
         ssoWindow.close();
         setSSOWindow(undefined);
+        setPolling(false);
         handleSubmit();
       }
     };
@@ -43,6 +68,22 @@ export function SSOStage({
       window.removeEventListener('message', handleMessage);
     };
   }, [ssoWindow, handleSubmit, ssoRedirectURL]);
+
+  useEffect(() => {
+    if (!polling) return undefined;
+    const onFocus = () => triggerPoll();
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') triggerPoll();
+    };
+    window.addEventListener('focus', onFocus);
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => {
+      window.removeEventListener('focus', onFocus);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [polling, triggerPoll]);
+
+  const showContinueButton = ssoWindow || polling;
 
   return (
     <Dialog>
@@ -57,7 +98,7 @@ export function SSOStage({
           <Text size="H4">SSO Login</Text>
         </Box>
         <IconButton size="300" onClick={onCancel} radii="300">
-          <Icon src={Icons.Cross} />
+          {composerIcon(X)}
         </IconButton>
       </Header>
       <Box
@@ -70,14 +111,20 @@ export function SSOStage({
         </Text>
         {errorCode && (
           <Box alignItems="Center" gap="100" style={{ color: color.Critical.Main }}>
-            <Icon size="50" src={Icons.Warning} filled />
+            {sizedIcon(Warning, '50', { filled: true })}
             <Text size="T200">
               <b>{`${errorCode}: ${error}`}</b>
             </Text>
           </Box>
         )}
+        {polling && (
+          <Text size="T200">
+            Complete SSO in your browser, then return to the app. Your action will resume
+            automatically.
+          </Text>
+        )}
 
-        {ssoWindow ? (
+        {showContinueButton ? (
           <Button variant="Primary" onClick={handleSubmit}>
             <Text as="span" size="B400">
               Continue

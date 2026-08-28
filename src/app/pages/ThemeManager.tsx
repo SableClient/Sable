@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { configClass, varsClass } from 'folds';
 import {
   DarkTheme,
@@ -12,8 +12,17 @@ import {
 import { ArboriumThemeBridge } from '$plugins/arborium';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
-import { getCachedThemeCss, putCachedThemeCss } from '../theme/cache';
+import { useOptionalClientConfig } from '$hooks/useClientConfig';
+import { getCachedThemeCss, putCachedThemeCss, subscribeThemeCacheUpdates } from '../theme/cache';
+import { applyCspNonce } from '$utils/cspNonce';
 import { isLocalImportBundledUrl } from '../theme/localImportUrls';
+import { getEmbeddedLocalTweakCss } from '../theme/syncedTweakCss';
+import { themeCatalogListingBaseUrl } from '../theme/catalogDefaults';
+import { fetch } from '$utils/fetch';
+import {
+  THEME_CATALOG_AUTO_UPDATE_INTERVAL_MS,
+  updateInstalledCatalogPackages,
+} from '../theme/catalogUpdater';
 
 const REMOTE_STYLE_ID = 'sable-remote-theme-style';
 const REMOTE_TWEAKS_STYLE_ID = 'sable-remote-tweaks-style';
@@ -39,6 +48,74 @@ async function loadRemoteThemeCssText(url: string): Promise<string | undefined> 
   return text;
 }
 
+function CatalogThemeAutoUpdater() {
+  const clientConfig = useOptionalClientConfig();
+  const [catalogEnabled] = useSetting(settingsAtom, 'themeRemoteCatalogEnabled');
+  const [favorites] = useSetting(settingsAtom, 'themeRemoteFavorites');
+  const [tweakFavorites] = useSetting(settingsAtom, 'themeRemoteTweakFavorites');
+  const [manualUrl] = useSetting(settingsAtom, 'themeRemoteManualFullUrl');
+  const [lightUrl] = useSetting(settingsAtom, 'themeRemoteLightFullUrl');
+  const [darkUrl] = useSetting(settingsAtom, 'themeRemoteDarkFullUrl');
+  const [enabledTweakUrls] = useSetting(settingsAtom, 'themeRemoteEnabledTweakFullUrls');
+  const inFlightRef = useRef<Promise<unknown> | null>(null);
+
+  const installedThemeUrls = useMemo(
+    () =>
+      Array.from(
+        new Set(
+          [
+            ...(favorites ?? []).map((favorite) => favorite.fullUrl),
+            manualUrl,
+            lightUrl,
+            darkUrl,
+          ].filter((url): url is string => Boolean(url))
+        )
+      ),
+    [darkUrl, favorites, lightUrl, manualUrl]
+  );
+  const installedTweakUrls = useMemo(
+    () =>
+      Array.from(
+        new Set([
+          ...(tweakFavorites ?? []).map((favorite) => favorite.fullUrl),
+          ...(enabledTweakUrls ?? []),
+        ])
+      ),
+    [enabledTweakUrls, tweakFavorites]
+  );
+
+  const checkForUpdates = useCallback(() => {
+    if (!catalogEnabled || !clientConfig || inFlightRef.current) return;
+    if (installedThemeUrls.length === 0 && installedTweakUrls.length === 0) return;
+    const task = updateInstalledCatalogPackages({
+      catalogBase: themeCatalogListingBaseUrl(clientConfig.themeCatalogBaseUrl?.trim()),
+      manifestUrl: clientConfig.themeCatalogManifestUrl?.trim() || undefined,
+      installedThemeUrls,
+      installedTweakUrls,
+      maxAgeMs: THEME_CATALOG_AUTO_UPDATE_INTERVAL_MS,
+    })
+      .catch(() => undefined)
+      .finally(() => {
+        if (inFlightRef.current === task) inFlightRef.current = null;
+      });
+    inFlightRef.current = task;
+  }, [catalogEnabled, clientConfig, installedThemeUrls, installedTweakUrls]);
+
+  useEffect(() => {
+    checkForUpdates();
+  }, [checkForUpdates]);
+
+  useEffect(() => {
+    const onVisibilityChange = () => {
+      if (document.visibilityState === 'visible') checkForUpdates();
+    };
+    document.addEventListener('visibilitychange', onVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', onVisibilityChange);
+  }, [checkForUpdates]);
+
+  return null;
+}
+
 export function UnAuthRouteThemeManager() {
   const systemThemeKind = useSystemThemeKind();
 
@@ -62,6 +139,7 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
   const [underlineLinks] = useSetting(settingsAtom, 'underlineLinks');
   const [reducedMotion] = useSetting(settingsAtom, 'reducedMotion');
   const [enabledTweakUrls] = useSetting(settingsAtom, 'themeRemoteEnabledTweakFullUrls');
+  const [tweakFavorites] = useSetting(settingsAtom, 'themeRemoteTweakFavorites');
 
   useEffect(() => {
     document.body.className = '';
@@ -94,7 +172,7 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
     let cancelled = false;
 
     if (url) {
-      (async () => {
+      const applyThemeCss = async () => {
         const text = await loadRemoteThemeCssText(url);
         if (cancelled) return;
         if (!text) {
@@ -105,10 +183,19 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
         if (!node) {
           node = document.createElement('style');
           node.id = REMOTE_STYLE_ID;
+          applyCspNonce(node);
           document.head.appendChild(node);
         }
         node.textContent = text;
-      })();
+      };
+      applyThemeCss().catch(() => undefined);
+      const unsubscribe = subscribeThemeCacheUpdates((update) => {
+        if (update.url === url) applyThemeCss().catch(() => undefined);
+      });
+      return () => {
+        cancelled = true;
+        unsubscribe();
+      };
     } else {
       document.getElementById(REMOTE_STYLE_ID)?.remove();
     }
@@ -127,27 +214,45 @@ export function AuthRouteThemeManager({ children }: { children: ReactNode }) {
       return undefined;
     }
 
-    (async () => {
-      const texts = await Promise.all(urls.map((url) => loadRemoteThemeCssText(url.trim())));
+    const applyTweakCss = async () => {
+      const texts = await Promise.all(
+        urls.map(async (url) => {
+          const trimmedUrl = url.trim();
+          const embeddedCss = getEmbeddedLocalTweakCss(
+            tweakFavorites?.find((favorite) => favorite.fullUrl === trimmedUrl)
+          );
+          return embeddedCss ?? loadRemoteThemeCssText(trimmedUrl);
+        })
+      );
       if (cancelled) return;
       const chunks = texts.filter((text): text is string => Boolean(text));
       let node = document.getElementById(REMOTE_TWEAKS_STYLE_ID) as HTMLStyleElement | null;
       if (!node) {
         node = document.createElement('style');
         node.id = REMOTE_TWEAKS_STYLE_ID;
+        applyCspNonce(node);
         document.head.appendChild(node);
       }
       node.textContent = chunks.join('\n\n');
-    })();
+    };
+    applyTweakCss().catch(() => undefined);
+    const activeUrls = new Set(urls.map((url) => url.trim()));
+    const unsubscribe = subscribeThemeCacheUpdates((update) => {
+      if (activeUrls.has(update.url)) applyTweakCss().catch(() => undefined);
+    });
 
     return () => {
       cancelled = true;
+      unsubscribe();
     };
-  }, [enabledTweakUrls]);
+  }, [enabledTweakUrls, tweakFavorites]);
 
   return (
-    <ArboriumThemeBridge kind={activeTheme.kind}>
-      <ThemeContextProvider value={activeTheme}>{children}</ThemeContextProvider>
-    </ArboriumThemeBridge>
+    <>
+      <CatalogThemeAutoUpdater />
+      <ArboriumThemeBridge kind={activeTheme.kind}>
+        <ThemeContextProvider value={activeTheme}>{children}</ThemeContextProvider>
+      </ArboriumThemeBridge>
+    </>
   );
 }

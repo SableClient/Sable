@@ -5,10 +5,26 @@
  * @deprecated in favor of MSC4440
  */
 export const MATRIX_SABLE_UNSTABLE_PROFILE_BIOGRAPHY_PROPERTY_NAME = 'moe.sable.app.bio';
+
+/**
+ * @deprecated in favor of MSC4522
+ */
 export const MATRIX_SABLE_UNSTABLE_NAME_COLOR_PROPERTY_NAME = 'moe.sable.app.name_color';
+
+/**
+ * @deprecated in favor of MSC4522
+ */
 export const MATRIX_SABLE_UNSTABLE_NAME_COLOR_DARK_PROPERTY_NAME =
   'moe.sable.app.name_color_dark_theme';
+
+/**
+ * @deprecated in favor of MSC4522
+ */
 export const MATRIX_SABLE_UNSTABLE_NAME_COLOR_LIGHT_PROPERTY_NAME =
   'moe.sable.app.name_color_light_theme';
 export const MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_CAT_PROPERTY_NAME = 'kitty.meow.is_cat';
 export const MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_CAT_PROPERTY_NAME = 'kitty.meow.has_cats';
+
+export const MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_IS_ANIMAL_PROPERTY_NAME = 'pet.plz.me';
+export const MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_HAS_ANIMAL_PROPERTY_NAME = 'pet.plz.my';
+export const MATRIX_SABLE_UNSTABLE_ANIMAL_IDENTITY_ANIMAL_NEED_PROPERTY_NAME = 'pet.plz.gib';

@@ -2,22 +2,8 @@ import type { ShowSasCallbacks, VerificationRequest, Verifier } from '$types/mat
 import { VerificationPhase, VerificationMethod } from '$types/matrix-sdk';
 import type { CSSProperties } from 'react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import {
-  Box,
-  Button,
-  config,
-  Dialog,
-  Header,
-  Icon,
-  IconButton,
-  Icons,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
-  Spinner,
-  Text,
-} from 'folds';
-import FocusTrap from 'focus-trap-react';
+import { Box, config, Dialog, Header, IconButton, Spinner, Text } from 'folds';
+import { composerIcon, X } from '$components/icons/phosphor';
 import * as Sentry from '@sentry/react';
 import {
   useVerificationRequestPhase,
@@ -25,8 +11,11 @@ import {
   useVerifierCancel,
   useVerifierShowSas,
 } from '$hooks/useVerificationRequest';
+import { useRefreshDeviceVerificationStatus } from '$hooks/useDeviceVerificationStatus';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
 import { ContainerColor } from '$styles/ContainerColor.css';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
+import { Button } from '$components/button';
 
 const DialogHeaderStyles: CSSProperties = {
   padding: `0 ${config.space.S200} 0 ${config.space.S400}`,
@@ -39,7 +28,7 @@ type WaitingMessageProps = {
 function WaitingMessage({ message }: WaitingMessageProps) {
   return (
     <Box alignItems="Center" gap="200">
-      <Spinner variant="Secondary" size="200" />
+      <Spinner variant="Secondary" size="200" style={{ backgroundColor: 'transparent' }} />
       <Text size="T300">{message}</Text>
     </Box>
   );
@@ -80,8 +69,9 @@ function VerificationAccept({ onAccept }: VerificationAcceptProps) {
         variant="Primary"
         fill="Solid"
         onClick={accept}
-        before={accepting && <Spinner size="100" variant="Primary" fill="Solid" />}
-        disabled={accepting}
+        loading={accepting}
+        spinnerSize="100"
+        spinnerVariant="Primary"
       >
         <Text size="B400">Accept</Text>
       </Button>
@@ -153,8 +143,9 @@ function CompareEmoji({ sasData }: { sasData: ShowSasCallbacks }) {
           variant="Primary"
           fill="Soft"
           onClick={confirm}
-          disabled={confirming}
-          before={confirming && <Spinner size="100" variant="Primary" />}
+          loading={confirming}
+          spinnerSize="100"
+          spinnerVariant="Primary"
         >
           <Text size="B400">They Match</Text>
         </Button>
@@ -245,8 +236,11 @@ export function DeviceVerification({ request, onExit }: DeviceVerificationProps)
     await request.startVerification(VerificationMethod.Sas);
   }, [request]);
 
+  const refreshVerificationStatus = useRefreshDeviceVerificationStatus();
+
   useEffect(() => {
     if (phase === VerificationPhase.Done) {
+      refreshVerificationStatus();
       Sentry.metrics.count('sable.crypto.verification_outcome', 1, {
         attributes: { outcome: 'completed' },
       });
@@ -255,58 +249,50 @@ export function DeviceVerification({ request, onExit }: DeviceVerificationProps)
         attributes: { outcome: 'cancelled' },
       });
     }
-  }, [phase]);
+  }, [phase, refreshVerificationStatus]);
 
   return (
-    <Overlay open backdrop={<OverlayBackdrop />}>
-      <OverlayCenter>
-        <FocusTrap
-          focusTrapOptions={{
-            initialFocus: false,
-            clickOutsideDeactivates: false,
-            escapeDeactivates: false,
-          }}
-        >
-          <Dialog variant="Surface">
-            <Header style={DialogHeaderStyles} variant="Surface" size="500">
-              <Box grow="Yes">
-                <Text size="H4">Device Verification</Text>
-              </Box>
-              <IconButton size="300" radii="300" onClick={handleCancel}>
-                <Icon src={Icons.Cross} />
-              </IconButton>
-            </Header>
-            <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
-              {phase === VerificationPhase.Requested &&
-                (request.initiatedByMe ? (
-                  <VerificationWaitAccept />
-                ) : (
-                  <VerificationAccept onAccept={handleAccept} />
-                ))}
-              {phase === VerificationPhase.Ready &&
-                (request.initiatedByMe ? (
-                  <AutoVerificationStart onStart={handleStart} />
-                ) : (
-                  <VerificationWaitStart />
-                ))}
-              {phase === VerificationPhase.Started &&
-                (request.verifier ? (
-                  <SasVerification verifier={request.verifier} onCancel={handleCancel} />
-                ) : (
-                  <VerificationUnexpected
-                    message="Unexpected Error! Verification is started but verifier is missing."
-                    onClose={handleCancel}
-                  />
-                ))}
-              {phase === VerificationPhase.Done && <VerificationDone onExit={onExit} />}
-              {phase === VerificationPhase.Cancelled && (
-                <VerificationCanceled onClose={handleCancel} />
-              )}
-            </Box>
-          </Dialog>
-        </FocusTrap>
-      </OverlayCenter>
-    </Overlay>
+    <ModalOverlay
+      requestClose={handleCancel}
+      dismissOnClickOutside={false}
+      escapeDeactivates={false}
+    >
+      <Dialog variant="Surface">
+        <Header style={DialogHeaderStyles} variant="Surface" size="500">
+          <Box grow="Yes">
+            <Text size="H4">Device Verification</Text>
+          </Box>
+          <IconButton size="300" radii="300" onClick={handleCancel}>
+            {composerIcon(X)}
+          </IconButton>
+        </Header>
+        <Box style={{ padding: config.space.S400 }} direction="Column" gap="400">
+          {phase === VerificationPhase.Requested &&
+            (request.initiatedByMe ? (
+              <VerificationWaitAccept />
+            ) : (
+              <VerificationAccept onAccept={handleAccept} />
+            ))}
+          {phase === VerificationPhase.Ready &&
+            (request.initiatedByMe ? (
+              <AutoVerificationStart onStart={handleStart} />
+            ) : (
+              <VerificationWaitStart />
+            ))}
+          {phase === VerificationPhase.Started &&
+            (request.verifier ? (
+              <SasVerification verifier={request.verifier} onCancel={handleCancel} />
+            ) : (
+              <VerificationUnexpected
+                message="Unexpected Error! Verification is started but verifier is missing."
+                onClose={handleCancel}
+              />
+            ))}
+          {phase === VerificationPhase.Done && <VerificationDone onExit={onExit} />}
+          {phase === VerificationPhase.Cancelled && <VerificationCanceled onClose={handleCancel} />}
+        </Box>
+      </Dialog>
+    </ModalOverlay>
   );
 }
 

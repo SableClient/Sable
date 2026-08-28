@@ -15,22 +15,28 @@ const settingsSectionLabel = Object.fromEntries(
   settingsSections.map((section) => [section.id, section.label])
 ) as Record<SettingsSectionId, string>;
 
-const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]> = {
+export const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]> = {
   general: [
+    'show-interactive-map',
+    'show-interactive-map-enc',
     'client-side-embeds',
     'composer-formatting-toolbar',
+    'hide-add-menu',
     'custom-date-format',
     'date-format',
     'disable-media-auto-load',
     'display-bundled-embeds',
     'display-multiple-embeds',
+    'enable-gif-picker',
     'embed-youtube-links',
     'emoji-selector-threshold',
     'enable-swiping',
     'encrypted-room-embeds',
     'encrypted-room-url-preview',
+    'external-gif-auto-load-encrypted',
     'enter-for-newline',
     'error-reporting',
+    'export-diagnostics',
     'file-description-placement',
     'hide-member-events-read-only-rooms',
     'hide-membership-change',
@@ -41,19 +47,43 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
     'markdown-formatting',
     'message-layout',
     'message-spacing',
+    'show-all-timestamps',
     'presence-status',
     'reply-notifications',
     'right-aligned-bubbles',
     'right-swipe-action',
     'session-replay',
+    'capture-diagnostics',
     'show-hidden-events',
+    'hidden-event-edits',
     'show-redacted-message-tombstones',
+    'hidden-event-redaction-timeline',
+    'hidden-event-reactions',
+    'hidden-event-reaction-tombstones',
+    'hidden-event-reaction-redaction-timeline',
+    'hidden-event-other',
     'sync-across-devices',
     'sync-status',
     'twenty-four-hour-time-format',
     'url-preview',
     'use-sliding-sync',
     'join-on-click-voicecalls',
+    'incoming-call-sound',
+    'notify-voice-rooms',
+    'outgoing-ringback-sound',
+    'call-ringtone',
+    'call-ringback-tone',
+    'call-ringtone-volume',
+    'always-play-call-sound',
+    'custom-call-ringtone',
+    'custom-call-ringback',
+    'always-inline-editor',
+    'composer-button-order',
+    'show-emoji-button',
+    'show-gif-button',
+    'gif-provider',
+    'show-sticker-button',
+    'show-voice-recording-button',
   ],
   account: [
     'about-you',
@@ -62,8 +92,9 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
     'blocked-users',
     'display-name',
     'email-address',
-    'has-cats',
-    'is-cat',
+    'has-animal',
+    'is-animal',
+    'animal-requires',
     'user-hero-color',
     'matrix-id',
     'name-color',
@@ -73,12 +104,22 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
     'render-animals',
     'status',
     'timezone',
+    'has-cats',
+    'profile-change-propagation',
   ],
-  persona: ['enable-pk-commands', 'enable-pk-shorthands'],
+  persona: [
+    'enable-pk-commands',
+    'enable-pk-shorthands',
+    'enable-pk-latching',
+    'prevent-sending-pmp-fallback',
+    'create-pmp',
+    'enable-pmp-picker',
+    'pmp-pk-import',
+    'pmp-list-export',
+  ],
   appearance: [
-    'autoplay-emojis',
-    'autoplay-gifs',
-    'autoplay-stickers',
+    'app-icon',
+    'old-sidebar',
     'blur-avatars',
     'blur-emotes',
     'blur-media',
@@ -89,6 +130,10 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
     'collapse-folders-by-default',
     'colorful-names',
     'consistent-icon-style',
+    'icon-compact-size',
+    'icon-empty-size',
+    'icon-inline-size',
+    'icon-toolbar-size',
     'browse-remote-catalog',
     'customize-dm-cards',
     'custom-profile-cards',
@@ -103,18 +148,14 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
     'catalog-themes',
     'catalog-tweaks',
     'theme-browse-remote',
-    'theme-catalog-clear-remote',
     'theme-chat-sable-widgets',
     'theme-chat-auto-approved',
     'theme-chat-auto-any',
     'theme-import-open',
     'theme-local-sync-system',
+    'pronoun-pill-max-count',
+    'pronoun-pill-max-length',
     'pronoun-pills-for-all',
-    'reduced-motion',
-    'render-global-username-colors',
-    'render-space-room-fonts',
-    'render-space-room-username-colors',
-    'saturation',
     'selected-language-for-pronouns',
     'show-easter-eggs',
     'show-pronoun-pills',
@@ -122,13 +163,26 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
     'subspace-hierarchy-limit',
     'system-theme',
     'twitter-emoji',
-    'underline-links',
     'show-room-icons',
+    'room-icon-overlay',
     'show-room-home-icons',
     'sidebar-size',
     'incoming-inline-images-default-height',
     'incoming-inline-images-max-height',
     'link-preview-image-max-height',
+  ],
+  accessibility: [
+    'autoplay-emojis',
+    'autoplay-gifs',
+    'autoplay-stickers',
+    'saturation',
+    'underline-links',
+    'reduced-motion',
+    'render-global-username-colors',
+    'render-space-room-fonts',
+    'render-space-room-username-colors',
+    'render-persona-username-colors',
+    'name-color-lightness-correction',
   ],
   notifications: [
     'background-push-notifications',
@@ -141,9 +195,11 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
     'favicon-dot-mentions-only',
     'highlight-mentions',
     'in-app-notification-sound',
+    'background-notification-sound',
     'in-app-notifications',
     'mention-room',
     'mention-user-id',
+    'push-delivery-route',
     'reset-all-push-notifications',
     'rooms',
     'rooms-encrypted',
@@ -154,12 +210,26 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
     'show-message-content',
     'show-room-counts',
     'system-notifications',
+    'background-push-transport-mode',
+    'rich-push-payloads',
+    'unified-push-app-id',
+    'unified-push-distributor',
+    'unified-push-embedded-server-url',
+    'unified-push-gateway-url',
+    'web-push-gateway-url',
   ],
   devices: [
     'device-dashboard',
     'device-verification',
     'export-messages-data',
     'import-messages-data',
+  ],
+  desktop: [
+    'auto-update-check',
+    'close-to-background-on-close',
+    'show-system-tray-icon',
+    'spellcheck',
+    'use-custom-title-bar',
   ],
   emojis: ['default-pack', 'select-pack'],
   'developer-tools': [
@@ -181,9 +251,16 @@ const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly string[]
     'session-replay',
     'traces-profiles',
   ],
-  experimental: ['bandwidth-saving-emojis', 'sharehistory-command', 'show-personas-tab'],
+  experimental: [
+    'bandwidth-saving-emojis',
+    'sharehistory-command',
+    'show-personas-tab',
+    'new-calls',
+    'media-galleries',
+  ],
   about: [
     'base-url',
+    'check-for-updates',
     'clear-cache-and-reload',
     'domain',
     'federation-url',
@@ -213,6 +290,15 @@ export const normalizeSettingsFocusId = (focus?: string): string | undefined => 
 
 const isShareableSettingsFocusId = (section: SettingsSectionId, focus: string): boolean =>
   settingsLinkFocusIdsBySectionSet[section].has(focus);
+
+// Focus ids may live under a different section than the link claims when
+// settings get reorganized; redirect to the owning section.
+const settingsSectionByFocusId = settingsSections.reduce((acc, section) => {
+  for (const focusId of settingsLinkFocusIdsBySection[section.id]) {
+    acc.set(focusId, section.id);
+  }
+  return acc;
+}, new Map<string, SettingsSectionId>());
 
 const parseSettingsLinkQuery = (
   search: string
@@ -277,7 +363,9 @@ const parseSettingsAppPath = (appPath: string): SettingsLink | undefined => {
   if (!query) return undefined;
 
   if (query.focus && !isShareableSettingsFocusId(section, query.focus)) {
-    return undefined;
+    const owningSection = settingsSectionByFocusId.get(query.focus);
+    if (!owningSection) return undefined;
+    return { section: owningSection, focus: query.focus };
   }
 
   return { section, focus: query.focus };
@@ -339,7 +427,7 @@ export const buildSettingsLink = (
   focus?: string
 ): string => withOriginBaseUrl(baseUrl, withSettingsLinkAction(getSettingsPath(section, focus)));
 
-const humanizeSettingsLinkPart = (value: string): string =>
+export const humanizeSettingsLinkPart = (value: string): string =>
   value
     .split(/[^a-zA-Z0-9]+/)
     .filter(Boolean)

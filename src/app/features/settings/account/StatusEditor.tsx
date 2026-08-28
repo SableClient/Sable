@@ -1,6 +1,7 @@
 import type { ChangeEventHandler, FormEventHandler } from 'react';
 import { useEffect, useState } from 'react';
-import { Box, Text, Button, Input, IconButton, Icon, Icons, Spinner, config } from 'folds';
+import { Box, Text, Button, Input, IconButton, Spinner, config } from 'folds';
+import { menuIcon, X } from '$components/icons/phosphor';
 import { SettingTile } from '$components/setting-tile';
 
 type StatusEditorProps = {
@@ -42,7 +43,14 @@ export function StatusEditor({ current = '', onSave }: StatusEditorProps) {
   return (
     <SettingTile title="Status" focusId="status">
       <Box direction="Column" grow="Yes" gap="100">
-        <Box as="form" onSubmit={handleSubmit} gap="200" aria-disabled={saving} grow="Yes">
+        <Box
+          as="form"
+          onSubmit={handleSubmit}
+          gap="200"
+          aria-disabled={saving}
+          grow="Yes"
+          style={{ minWidth: 0 }}
+        >
           <Box grow="Yes" direction="Column">
             <Input
               name="statusInput"
@@ -63,7 +71,7 @@ export function StatusEditor({ current = '', onSave }: StatusEditorProps) {
                     radii="300"
                     variant="Secondary"
                   >
-                    <Icon src={Icons.Cross} size="100" />
+                    {menuIcon(X)}
                   </IconButton>
                 )
               }

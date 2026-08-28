@@ -1,21 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import {
-  Box,
-  Icon,
-  IconButton,
-  Icons,
-  Spinner,
-  Switch,
-  Text,
-  Tooltip,
-  TooltipProvider,
-  config,
-  toRem,
-} from 'folds';
+import { Box, IconButton, Spinner, Switch, Text, Tooltip, config, toRem } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
+import { Check, Link, Star, Warning, sizedIcon } from '$components/icons/phosphor';
 
 import { useClientConfig } from '$hooks/useClientConfig';
 import { useTimeoutToggle } from '$hooks/useTimeoutToggle';
+import { getCspNonce } from '$utils/cspNonce';
 import { usePatchSettings } from '$features/settings/cosmetics/themeSettingsPatch';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom, type ThemeRemoteTweakFavorite } from '$state/settings';
@@ -27,26 +18,13 @@ import { buildPreviewStyleBlock, extractSafePreviewCustomProperties } from '../.
 import { isApprovedCatalogHostUrl, isThirdPartyThemeUrl } from '../../theme/themeApproval';
 import { SableChatPreviewPlaceholder } from './SableChatPreviewPlaceholder';
 import { ThemeThirdPartyBanner } from './ThemeThirdPartyBanner';
-
-function baseLabel(url: string): string {
-  try {
-    return new URL(url).hostname;
-  } catch {
-    return 'Unofficial tweak';
-  }
-}
+import { CssViewerButton } from '../theme/CssViewerButton';
+import { pruneThemeTweakFavorites, themeUrlHostLabel } from '../../theme/themeLibrary';
+import { fetch } from '$utils/fetch';
 
 function basenameFromFullSableUrl(url: string): string {
   const tail = url.split('/').pop() ?? url;
   return tail.replace(/\.sable\.css(\?.*)?$/i, '') || 'tweak';
-}
-
-function pruneTweakFavorites(
-  nextFavorites: ThemeRemoteTweakFavorite[],
-  nextEnabledUrls: string[]
-): ThemeRemoteTweakFavorite[] {
-  const enabled = new Set(nextEnabledUrls);
-  return nextFavorites.filter((f) => f.pinned === true || enabled.has(f.fullUrl));
 }
 
 function safeSlug(input: string): string {
@@ -151,7 +129,7 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
       const nextFavs = tweakFavorites.filter((f) => f.fullUrl !== url);
       const nextEnabled = enabledTweakFullUrls.filter((u) => u !== url);
       patchSettings({
-        themeRemoteTweakFavorites: pruneTweakFavorites(nextFavs, nextEnabled),
+        themeRemoteTweakFavorites: pruneThemeTweakFavorites(nextFavs, nextEnabled),
         themeRemoteEnabledTweakFullUrls: nextEnabled,
       });
       return;
@@ -165,7 +143,7 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
       pinned: true,
     };
     patchSettings({
-      themeRemoteTweakFavorites: pruneTweakFavorites(
+      themeRemoteTweakFavorites: pruneThemeTweakFavorites(
         [...tweakFavorites, next],
         enabledTweakFullUrls
       ),
@@ -192,7 +170,7 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
         }
         patchSettings({
           themeRemoteEnabledTweakFullUrls: nextEnabled,
-          themeRemoteTweakFavorites: pruneTweakFavorites(nextFavs, nextEnabled),
+          themeRemoteTweakFavorites: pruneThemeTweakFavorites(nextFavs, nextEnabled),
         });
       } else {
         const nextEnabled = enabledTweakFullUrls.filter((u) => u !== url);
@@ -211,7 +189,7 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
       <SableChatPreviewPlaceholder
         kind="tweak"
         url={url}
-        hostLabel={baseLabel(url)}
+        hostLabel={themeUrlHostLabel(url, 'Unofficial tweak')}
         isApprovedHost={isOfficial}
         onLoadPreview={() => {
           setUserTriggeredLoad(true);
@@ -254,7 +232,7 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
     data.tags.length > 0 ? data.tags.join(', ') : '',
   ].filter(Boolean);
   const descLine = descParts.join(' · ');
-  const sourceLabel = isOfficial ? 'Official catalog' : baseLabel(url);
+  const sourceLabel = isOfficial ? 'Official catalog' : themeUrlHostLabel(url, 'Unofficial tweak');
 
   return (
     <Box
@@ -285,14 +263,17 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
                 }
               >
                 {(triggerRef) => (
-                  <Icon
+                  <span
                     ref={triggerRef}
-                    src={Icons.Warning}
-                    size="100"
-                    filled
-                    style={{ color: 'var(--sable-warn-on-container)', flexShrink: 0 }}
                     aria-label="Third-party tweak"
-                  />
+                    style={{
+                      color: 'var(--sable-warn-on-container)',
+                      flexShrink: 0,
+                      display: 'inline-flex',
+                    }}
+                  >
+                    {sizedIcon(Warning, '100', { filled: true })}
+                  </span>
                 )}
               </TooltipProvider>
             )}
@@ -308,6 +289,11 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
         </Box>
 
         <Box direction="Row" gap="100" alignItems="Center" shrink="No">
+          <CssViewerButton
+            title={`${data.displayName} — CSS`}
+            cssText={data.cssText}
+            ariaLabel="View tweak CSS"
+          />
           <IconButton
             size="300"
             variant="Secondary"
@@ -319,7 +305,7 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
               handleCopy().catch(() => undefined);
             }}
           >
-            <Icon size="200" src={copied ? Icons.Check : Icons.Link} />
+            {sizedIcon(copied ? Check : Link, '200')}
           </IconButton>
           <IconButton
             size="300"
@@ -332,7 +318,7 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
               toggleFavorite().catch(() => undefined);
             }}
           >
-            <Icon size="200" src={Icons.Star} filled={isFav} />
+            {sizedIcon(Star, '200', { filled: isFav })}
           </IconButton>
           <Switch
             variant="Primary"
@@ -345,12 +331,15 @@ export function TweakPreviewUrlCard({ url }: { url: string }) {
       </Box>
 
       {showThirdPartyBanner ? (
-        <ThemeThirdPartyBanner kind="tweak" hostLabel={baseLabel(url)} />
+        <ThemeThirdPartyBanner
+          kind="tweak"
+          hostLabel={themeUrlHostLabel(url, 'Unofficial tweak')}
+        />
       ) : undefined}
 
       {styleBlock ? (
         <>
-          <style>{styleBlock}</style>
+          <style nonce={getCspNonce()}>{styleBlock}</style>
           <Box
             className={scopeClass}
             direction="Column"

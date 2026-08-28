@@ -1,25 +1,7 @@
 import type { MouseEventHandler, ReactNode } from 'react';
 import { useCallback, useRef } from 'react';
-import {
-  Avatar,
-  Badge,
-  Box,
-  Chip,
-  Icon,
-  Icons,
-  Line,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
-  Spinner,
-  Text,
-  Tooltip,
-  TooltipProvider,
-  as,
-  color,
-  toRem,
-} from 'folds';
-import FocusTrap from 'focus-trap-react';
+import { Avatar, Badge, Box, Chip, Line, Spinner, Text, Tooltip, as, color, toRem } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
 import type { MatrixError, Room, IHierarchyRoom } from '$types/matrix-sdk';
 import { JoinRule, KnownMembership } from '$types/matrix-sdk';
 import { RoomAvatar, RoomIcon } from '$components/room-avatar';
@@ -30,16 +12,26 @@ import { KnockRoomPrompt } from '$components/knock-room-prompt';
 import { LocalRoomSummaryLoader } from '$components/RoomSummaryLoader';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { RoomTopicViewer } from '$components/room-topic-viewer';
-import { onEnterOrSpace, stopPropagation } from '$utils/keyboard';
+import { onEnterOrSpace } from '$utils/keyboard';
 
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
-import { getDirectRoomAvatarUrl, getRoomAvatarUrl } from '$utils/room';
+import { getDirectRoomAvatarUrl, getRoomAvatarUrl } from '$utils/room/display';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { formatCompactNumber } from '$utils/formatCompactNumber';
 import { ItemDraggableTarget, useDraggableItem } from './DnD';
+import * as dndCss from './DnD.css';
+import {
+  ArrowRight,
+  chipIcon,
+  composerIcon,
+  EnvelopeSimple,
+  Plus,
+  Warning,
+} from '$components/icons/phosphor';
 import * as styleCss from './style.css';
 import * as css from './RoomItem.css';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 type RoomJoinButtonProps = {
   roomId: string;
@@ -69,15 +61,14 @@ function RoomJoinButton({ roomId, via }: RoomJoinButtonProps) {
           }
         >
           {(triggerRef) => (
-            <Icon
+            <Box
               ref={triggerRef}
-              style={{ color: color.Critical.Main, cursor: 'pointer' }}
-              src={Icons.Warning}
-              size="400"
-              filled
+              style={{ color: color.Critical.Main, cursor: 'pointer', display: 'flex' }}
               tabIndex={0}
               aria-label={joinState.error.data?.error || joinState.error.message}
-            />
+            >
+              {composerIcon(Warning, { weight: 'fill' })}
+            </Box>
           )}
         </TooltipProvider>
       )}
@@ -86,9 +77,7 @@ function RoomJoinButton({ roomId, via }: RoomJoinButtonProps) {
         fill="Soft"
         size="400"
         radii="Pill"
-        before={
-          canJoin ? <Icon src={Icons.Plus} size="50" /> : <Spinner variant="Secondary" size="100" />
-        }
+        before={canJoin ? chipIcon(Plus) : <Spinner variant="Secondary" size="100" />}
         onClick={join}
         disabled={!canJoin}
       >
@@ -108,7 +97,7 @@ function RoomKnockButton({ roomId, via }: RoomJoinButtonProps) {
             fill="Soft"
             size="400"
             radii="Pill"
-            before={<Icon src={Icons.MailPlus} size="50" />}
+            before={chipIcon(EnvelopeSimple)}
             onClick={() => setKnocking(true)}
           >
             <Text size="B300">Knock</Text>
@@ -292,24 +281,13 @@ function RoomProfile({
                   >
                     {topic}
                   </Text>
-                  <Overlay open={view} backdrop={<OverlayBackdrop />}>
-                    <OverlayCenter>
-                      <FocusTrap
-                        focusTrapOptions={{
-                          initialFocus: false,
-                          clickOutsideDeactivates: true,
-                          onDeactivate: () => setView(false),
-                          escapeDeactivates: stopPropagation,
-                        }}
-                      >
-                        <RoomTopicViewer
-                          name={name}
-                          topic={topic}
-                          requestClose={() => setView(false)}
-                        />
-                      </FocusTrap>
-                    </OverlayCenter>
-                  </Overlay>
+                  <ModalOverlay open={view} requestClose={() => setView(false)}>
+                    <RoomTopicViewer
+                      name={name}
+                      topic={topic}
+                      requestClose={() => setView(false)}
+                    />
+                  </ModalOverlay>
                 </>
               )}
             </UseStateProvider>
@@ -376,7 +354,11 @@ export const RoomItemCard = as<'div', RoomItemCardProps>(
         ref={ref}
       >
         {before}
-        <Box ref={canReorder ? targetRef : null} grow="Yes">
+        <Box
+          ref={canReorder ? targetRef : null}
+          grow="Yes"
+          className={canReorder ? dndCss.ReorderableContent : undefined}
+        >
           {canReorder && <ItemDraggableTarget ref={targetHandleRef} />}
           {room ? (
             <LocalRoomSummaryLoader room={room}>
@@ -406,7 +388,7 @@ export const RoomItemCard = as<'div', RoomItemCardProps>(
                           radii="Pill"
                           aria-label="Open Room"
                         >
-                          <Icon size="50" src={Icons.ArrowRight} />
+                          {chipIcon(ArrowRight)}
                         </Chip>
                       </Box>
                     ) : (

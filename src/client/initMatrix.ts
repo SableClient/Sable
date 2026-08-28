@@ -1,122 +1,329 @@
-import type { CryptoCallbacks, MatrixClient, ISyncStateData } from '$types/matrix-sdk';
+import type {
+  CryptoCallbacks,
+  MatrixClient,
+  MSC3575SlidingSyncRequest,
+  MSC3575SlidingSyncResponse,
+} from '$types/matrix-sdk';
 import {
   ClientEvent,
   createClient,
-  Filter,
   IndexedDBStore,
   IndexedDBCryptoStore,
+  KnownMembership,
   SyncState,
 } from '$types/matrix-sdk';
+import { fetch } from '$utils/fetch';
+import { matrixFetch } from './matrixFetch';
+import { clearMediaCache } from '$utils/mediaCache';
+import { isTauri } from '@tauri-apps/api/core';
+import { engineWipe } from '$generated/tauri/commands';
 
 import { clearNavToActivePathStore } from '$state/navToActivePath';
 import type { Session, Sessions, SessionStoreName } from '$state/sessions';
-import { getSessionStoreName, MATRIX_SESSIONS_KEY } from '$state/sessions';
+import {
+  ACTIVE_SESSION_KEY,
+  getSessionStoreName,
+  getStoredSessionRefreshToken,
+  MATRIX_SESSIONS_KEY,
+} from '$state/sessions';
 import { getLocalStorageItem } from '$state/utils/atomWithLocalStorage';
 import { createLogger } from '$utils/debug';
 import { createDebugLogger } from '$utils/debugLogger';
+import { isMobileTauri } from '$utils/platform';
 import * as Sentry from '@sentry/react';
 import { pushSessionToSW } from '../sw-session';
-import { cryptoCallbacks } from './secretStorageKeys';
-import type { SlidingSyncConfig, SlidingSyncDiagnostics } from './slidingSync';
-import { SlidingSyncManager } from './slidingSync';
+import { assertAuthMetadataIssuer, createSessionTokenRefresher } from './oidcTokenRefresher';
+import { revokeOAuthToken } from './oauthTokenRevocation';
+import { clearSecretStorageKeys, cryptoCallbacks } from './secretStorageKeys';
+import { installRustCrypto, rustEngineEnabled } from '$app/crypto/install';
+import type { SlidingSyncDiagnostics } from './slidingSync';
+import {
+  prepareSlidingSyncTimelines,
+  scopeTypingExtension,
+  SlidingSyncManager,
+} from './slidingSync';
+import { PresenceSyncManager } from './presenceSync';
+import { SlidingSyncSidebarCache } from './slidingSyncSidebarCache';
+import { disposeSyncStorePersistence, installSyncStorePersistence } from './syncStorePersistence';
+import { clearCachedUserProfiles } from './userProfileCache';
+import {
+  clearLocalNotificationCache,
+  destroyLocalNotificationCache,
+} from './localNotificationCache';
+import {
+  primeVersionsFromCache,
+  revalidateVersionsCache,
+  clearCachedVersions,
+  cacheVersionsFromClient,
+  wasUnstableFeatureCached,
+} from './versionsCache';
 
 const log = createLogger('initMatrix');
 const debugLog = createDebugLogger('initMatrix');
 const slidingSyncByClient = new WeakMap<MatrixClient, SlidingSyncManager>();
-const classicSyncObserverByClient = new WeakMap<
-  MatrixClient,
-  (state: SyncState, prevState: SyncState | null, data?: ISyncStateData) => void
->();
-const FAST_SYNC_POLL_TIMEOUT_MS = 30_000;
-const SLIDING_SYNC_POLL_TIMEOUT_MS = 20000;
-type SyncTransport = 'classic' | 'sliding';
-type SyncTransportReason =
-  | 'sliding_active'
-  | 'sliding_disabled_server'
-  | 'session_opt_out'
-  | 'missing_proxy'
-  | 'cold_cache_bootstrap'
-  | 'probe_failed_fallback'
-  | 'unknown';
-type SyncTransportMeta = {
-  transport: SyncTransport;
-  slidingConfigured: boolean;
-  slidingEnabledOnServer: boolean;
-  sessionOptIn: boolean;
-  slidingRequested: boolean;
-  fallbackFromSliding: boolean;
-  reason: SyncTransportReason;
-};
-const syncTransportByClient = new WeakMap<MatrixClient, SyncTransportMeta>();
-const fetchRoomEventStartupCleanupByClient = new WeakMap<MatrixClient, () => void>();
-const COLD_CACHE_BOOTSTRAP_TIMEOUT_MS = 20000;
+const membershipActionCleanupByClient = new WeakMap<MatrixClient, () => void>();
+const presenceSyncByClient = new WeakMap<MatrixClient, PresenceSyncManager>();
 
-type FetchRoomEventResult = Awaited<ReturnType<MatrixClient['fetchRoomEvent']>>;
-type MatrixClientWithWritableFetchRoomEvent = MatrixClient & {
-  fetchRoomEvent: (roomId: string, eventId: string) => Promise<FetchRoomEventResult>;
+// Two MatrixClients on one crypto store corrupt it, and initRustCrypto leaves it to the
+// application to prevent that, so track which client owns each store.
+const liveClientByCryptoStore = new Map<string, MatrixClient>();
+const cryptoStoreByClient = new WeakMap<MatrixClient, string>();
+
+export const getCryptoStoreOwner = (storeKey: string): MatrixClient | undefined =>
+  liveClientByCryptoStore.get(storeKey);
+
+export const claimCryptoStore = (mx: MatrixClient, storeKey: string): void => {
+  liveClientByCryptoStore.set(storeKey, mx);
+  cryptoStoreByClient.set(mx, storeKey);
 };
 
-type StartupFetchRoomEventPatchOptions = {
-  stubOnCacheMiss: boolean;
+export const releaseCryptoStore = (mx: MatrixClient): void => {
+  const storeKey = cryptoStoreByClient.get(mx);
+  if (storeKey === undefined) return;
+  cryptoStoreByClient.delete(mx);
+  // A superseded client must not evict the entry of whichever client replaced it.
+  if (liveClientByCryptoStore.get(storeKey) === mx) liveClientByCryptoStore.delete(storeKey);
 };
 
-function installStartupFetchRoomEventPatch(
+const evictPreviousCryptoStoreOwner = (storeKey: string): void => {
+  const previous = liveClientByCryptoStore.get(storeKey);
+  if (!previous) return;
+
+  const wasRunning = previous.clientRunning;
+  const previousSyncState = previous.getSyncState();
+
+  log.warn('initClient: crypto store already owned by a live client — stopping it first');
+  debugLog.warn('sync', 'Duplicate crypto client init — stopping previous owner', {
+    wasRunning,
+    previousSyncState,
+  });
+  Sentry.metrics.count('sable.crypto.duplicate_client', 1, {
+    attributes: { was_running: wasRunning },
+  });
+  // An Error, not a message, so the stack names what re-entered initClient.
+  Sentry.captureException(new Error('Duplicate MatrixClient for one crypto store'), {
+    tags: { area: 'crypto_store_ownership' },
+    extra: { was_running: wasRunning, previous_sync_state: previousSyncState },
+  });
+
+  // stopClient releases the store as part of its teardown.
+  stopClient(previous);
+};
+
+export const ownsActiveMediaSession = (session?: Session): boolean => {
+  if (!session) return true;
+  const sessions = getLocalStorageItem<Sessions>(MATRIX_SESSIONS_KEY, []);
+  const activeSessionId = getLocalStorageItem<string | undefined>(ACTIVE_SESSION_KEY, undefined);
+  const activeSession = sessions.find((item) => item.userId === activeSessionId) ?? sessions[0];
+  return activeSession?.userId === session.userId;
+};
+const presenceStartCleanupByClient = new WeakMap<MatrixClient, () => void>();
+const SLIDING_SYNC_POLL_TIMEOUT_MS = 45000;
+const SLIDING_SYNC_POLL_TIMEOUT_MOBILE_MS = 30000;
+
+/** Shorter poll on mobile: a wedged long-poll costs more when the OS freezes the webview. */
+export const resolvePollTimeoutMs = (configured?: number): number =>
+  configured ??
+  (isMobileTauri() ? SLIDING_SYNC_POLL_TIMEOUT_MOBILE_MS : SLIDING_SYNC_POLL_TIMEOUT_MS);
+
+const isInitialSyncReady = (state: string | null): boolean =>
+  state === SyncState.Prepared || state === SyncState.Syncing || state === SyncState.Catchup;
+
+const startPresenceAfterInitialSync = (
   mx: MatrixClient,
-  options: StartupFetchRoomEventPatchOptions
-): void {
-  fetchRoomEventStartupCleanupByClient.get(mx)?.();
+  manager: PresenceSyncManager
+): (() => void) => {
+  let started = false;
+  let startTimer: ReturnType<typeof globalThis.setTimeout> | undefined;
 
-  const { stubOnCacheMiss } = options;
-  const mxWritable = mx as MatrixClientWithWritableFetchRoomEvent;
-  const origFetchRoomEvent = mx.fetchRoomEvent.bind(mx);
-  let restored = false;
+  const start = () => {
+    if (started) return;
+    started = true;
+    presenceStartCleanupByClient.delete(mx);
+    mx.removeListener(ClientEvent.Sync, onSync);
+    manager.start();
+  };
 
-  const restore = () => {
-    if (restored) return;
-    restored = true;
-    fetchRoomEventStartupCleanupByClient.delete(mx);
-    // Put the real fetchRoomEvent back and detach this
-    mxWritable.fetchRoomEvent = origFetchRoomEvent;
-    mx.off(ClientEvent.Sync, onSync);
+  const scheduleStart = () => {
+    if (startTimer !== undefined) return;
+    startTimer = globalThis.setTimeout(() => {
+      startTimer = undefined;
+      start();
+    }, 0);
   };
 
   const onSync = (state: SyncState) => {
-    // Initial sync burst is over, let normal server fetches run again
-    if (state === SyncState.Prepared || state === SyncState.Syncing) {
-      restore();
-    }
+    if (isInitialSyncReady(state)) scheduleStart();
   };
 
-  mxWritable.fetchRoomEvent = (roomId: string, eventId: string) => {
-    if (restored) return origFetchRoomEvent(roomId, eventId);
-    const cachedEvent = mx.getRoom(roomId)?.findEventById(eventId);
-    if (cachedEvent) {
-      return Promise.resolve(cachedEvent.event);
-    }
-    if (stubOnCacheMiss) {
-      const payload: FetchRoomEventResult = {
-        event_id: eventId,
-        room_id: roomId,
-      };
-      return Promise.resolve(payload);
-    }
-    return origFetchRoomEvent(roomId, eventId);
+  if (isInitialSyncReady(mx.getSyncState())) scheduleStart();
+  else mx.on(ClientEvent.Sync, onSync);
+
+  const cleanup = () => {
+    if (startTimer !== undefined) globalThis.clearTimeout(startTimer);
+    mx.removeListener(ClientEvent.Sync, onSync);
+    presenceStartCleanupByClient.delete(mx);
   };
-
-  mx.on(ClientEvent.Sync, onSync);
-  fetchRoomEventStartupCleanupByClient.set(mx, restore);
-}
-
-export const resolveSlidingEnabled = (enabled: SlidingSyncConfig['enabled']): boolean => {
-  if (enabled === undefined) return false;
-  if (typeof enabled === 'boolean') return enabled;
-  const normalized = String(enabled).trim().toLowerCase();
-  if (normalized === 'false' || normalized === '0' || normalized === 'off' || normalized === 'no')
-    return false;
-  if (normalized === 'true' || normalized === '1' || normalized === 'on' || normalized === 'yes')
-    return true;
-  return false;
+  presenceStartCleanupByClient.set(mx, cleanup);
+  return cleanup;
 };
+
+// The SDK's only check runs inside `initRustCrypto`, before the client starts, and latches off.
+export const recheckKeyBackupAfterInitialSync = (mx: MatrixClient): void => {
+  const recheck = () => {
+    mx.removeListener(ClientEvent.Sync, onSync);
+    const crypto = mx.getCrypto();
+    if (!crypto) return;
+    crypto.checkKeyBackupAndEnable().catch((error: unknown) => {
+      debugLog.warn('sync', 'Failed to re-check key backup after initial sync', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    });
+  };
+
+  const onSync = (state: SyncState) => {
+    if (isInitialSyncReady(state)) recheck();
+  };
+
+  if (isInitialSyncReady(mx.getSyncState())) recheck();
+  else mx.on(ClientEvent.Sync, onSync);
+};
+
+type StartupPhase = 'sync_store' | 'rust_crypto' | 'client_init' | 'client_start';
+
+const measureStartupPhase = async <T>(
+  phase: StartupPhase,
+  task: () => Promise<T>,
+  attributes?: Record<string, string>
+): Promise<T> => {
+  const startTime = performance.now();
+  try {
+    const result = await task();
+    Sentry.metrics.distribution('sable.startup.phase_ms', performance.now() - startTime, {
+      attributes: { phase, outcome: 'success', ...attributes },
+    });
+    return result;
+  } catch (error) {
+    Sentry.metrics.distribution('sable.startup.phase_ms', performance.now() - startTime, {
+      attributes: { phase, outcome: 'error', ...attributes },
+    });
+    throw error;
+  }
+};
+
+const slidingSyncRequestCleanupByClient = new WeakMap<MatrixClient, () => void>();
+
+type SlidingSyncMethod = (
+  reqBody: MSC3575SlidingSyncRequest,
+  baseUrl?: string,
+  abortSignal?: AbortSignal
+) => Promise<MSC3575SlidingSyncResponse>;
+
+type MatrixClientWithWritableSlidingSync = MatrixClient & {
+  slidingSync: SlidingSyncMethod;
+};
+
+type SlidingSyncRequestWithConnId = MSC3575SlidingSyncRequest & {
+  conn_id?: string;
+};
+
+// Synapse keys connection state on (user, device, conn_id) and keeps only the two
+// latest positions, so two clients sharing an id invalidate each other's `pos`.
+export const newSlidingSyncConnId = (): string =>
+  `sable-${globalThis.crypto?.randomUUID?.().slice(0, 8) ?? `${Date.now()}-${Math.random().toString(16).slice(2)}`}`;
+
+type CryptoWithDeviceListInvalidation = { markAllTrackedUsersAsDirty: () => Promise<void> };
+
+const coalesceDeviceListInvalidation = (mx: MatrixClient) => {
+  let invalidatedThisRun = false;
+  let patched: CryptoWithDeviceListInvalidation | undefined;
+  let restore: (() => void) | undefined;
+
+  const install = (invalidationAlreadyRan: boolean): void => {
+    const crypto = mx.getCrypto?.() as unknown as CryptoWithDeviceListInvalidation | undefined;
+    if (!crypto?.markAllTrackedUsersAsDirty || crypto === patched) return;
+
+    patched = crypto;
+    invalidatedThisRun = invalidationAlreadyRan;
+    const original = crypto.markAllTrackedUsersAsDirty.bind(crypto);
+    restore = () => {
+      crypto.markAllTrackedUsersAsDirty = original;
+    };
+    crypto.markAllTrackedUsersAsDirty = async () => {
+      if (invalidatedThisRun) return;
+      invalidatedThisRun = true;
+      await original();
+    };
+  };
+
+  install(false);
+
+  return {
+    onRequest: (pos: string | undefined) => install(pos === undefined),
+    onResponse: (pos: string | undefined) => {
+      if (pos !== undefined) invalidatedThisRun = false;
+    },
+    dispose: () => restore?.(),
+  };
+};
+
+export function installSlidingSyncRequestPatch(
+  mx: MatrixClient,
+  manager: SlidingSyncManager
+): void {
+  slidingSyncRequestCleanupByClient.get(mx)?.();
+
+  const connId = newSlidingSyncConnId();
+  const deviceListInvalidation = coalesceDeviceListInvalidation(mx);
+  const mxWritable = mx as MatrixClientWithWritableSlidingSync;
+  const original = mx.slidingSync.bind(mx) as SlidingSyncMethod;
+  mxWritable.slidingSync = async (reqBody, baseUrl, abortSignal) => {
+    const req = reqBody as SlidingSyncRequestWithConnId;
+    const subscribedRoomIds = new Set(Object.keys(req.room_subscriptions ?? {}));
+    const trackResponse = manager.trackSubscriptionRequest(subscribedRoomIds);
+
+    // AbortError makes the SDK loop `continue` and reissue at the same `pos`, no sleep.
+    if (manager.isPaused()) {
+      await manager.waitForResume();
+      const aborted = new Error('Sliding sync paused while backgrounded');
+      aborted.name = 'AbortError';
+      throw aborted;
+    }
+
+    if (req.conn_id === undefined) {
+      req.conn_id = connId;
+    }
+
+    const roomIds = manager.getActiveRoomSubscriptionIds();
+    scopeTypingExtension(req.extensions, roomIds);
+    deviceListInvalidation.onRequest(req.pos);
+
+    const response = await original(reqBody, baseUrl, abortSignal);
+    deviceListInvalidation.onResponse(response.pos);
+    trackResponse(response);
+    // Must run before the SDK processes the response. A throw would reach the SDK's
+    // loop, which drops the response and retries the same `pos` forever.
+    try {
+      const completeTimelineReset = prepareSlidingSyncTimelines(response, mx, subscribedRoomIds);
+      if (completeTimelineReset) {
+        manager.trackTimelineResetCompletion(response, completeTimelineReset);
+      }
+      manager.sanitizeOptimisticJoinResponse(response);
+    } catch (error) {
+      Sentry.captureException(error, { tags: { area: 'sliding_sync_response' } });
+      debugLog.error('sync', 'Failed to prepare sliding sync response', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+    return response;
+  };
+
+  slidingSyncRequestCleanupByClient.set(mx, () => {
+    slidingSyncRequestCleanupByClient.delete(mx);
+    deviceListInvalidation.dispose();
+    mxWritable.slidingSync = original;
+  });
+}
 
 const deleteDatabase = (name: string): Promise<void> =>
   new Promise((resolve) => {
@@ -126,14 +333,6 @@ const deleteDatabase = (name: string): Promise<void> =>
     req.addEventListener('blocked', () => resolve());
   });
 
-const deleteSyncStoreGroup = async (syncStoreName: string): Promise<void> => {
-  await Promise.all([
-    deleteDatabase(syncStoreName),
-    deleteDatabase(syncStoreName.replace(/^sync/, 'crypto')),
-    deleteDatabase(`${syncStoreName}::matrix-sdk-crypto`),
-  ]);
-};
-
 const deleteSessionStores = async (storeName: SessionStoreName): Promise<void> => {
   await Promise.all([
     deleteDatabase(storeName.sync),
@@ -142,71 +341,28 @@ const deleteSessionStores = async (storeName: SessionStoreName): Promise<void> =
   ]);
 };
 
-/**
- * Reads the account stored in an IndexedDB sync store without opening a full MatrixClient.
- * Returns undefined if the database doesn't exist or has no account record.
- */
-const readStoredAccount = (dbName: string): Promise<string | undefined> =>
-  new Promise((resolve) => {
-    let settled = false;
-    const finish = (value: string | undefined) => {
-      if (settled) return;
-      settled = true;
-      resolve(value);
-    };
-    const req = window.indexedDB.open(dbName);
-    req.addEventListener('error', () => finish(undefined));
-    req.addEventListener('success', () => {
-      const db = req.result;
-      try {
-        if (!db.objectStoreNames.contains('account')) {
-          db.close();
-          finish(undefined);
-        } else {
-          const tx = db.transaction('account', 'readonly');
-          const store = tx.objectStore('account');
-          const getReq = store.get('account');
-          getReq.addEventListener('success', () => {
-            db.close();
-            const record = getReq.result;
-            if (!record?.account_data) {
-              finish(undefined);
-            } else {
-              try {
-                const data = JSON.parse(record.account_data);
-                finish(data?.user_id ?? undefined);
-              } catch {
-                finish(undefined);
-              }
-            }
-          });
-          getReq.addEventListener('error', () => {
-            db.close();
-            finish(undefined);
-          });
-        }
-      } catch {
-        try {
-          db.close();
-        } catch {
-          /* ignore */
-        }
-        finish(undefined);
-      }
-    });
-  });
-
-const databaseExists = async (dbName: string): Promise<boolean> => {
-  try {
-    const dbs = await window.indexedDB.databases();
-    return dbs.some((db) => db.name === dbName);
-  } catch {
-    return false;
-  }
+const clearSessionCaches = (session: Session): void => {
+  SlidingSyncSidebarCache.clear(session.userId);
+  clearCachedVersions(session.baseUrl, session.userId);
+  clearCachedUserProfiles(session.userId);
+  clearSecretStorageKeys();
 };
 
-const isClientReadyForUi = (syncState: string | null): boolean =>
-  syncState === 'PREPARED' || syncState === 'SYNCING' || syncState === 'CATCHUP';
+export const discardSessionStores = async (session: Session): Promise<void> => {
+  clearSessionCaches(session);
+  const storeName = getSessionStoreName(session);
+  await deleteSessionStores(storeName);
+  await wipeNativeCryptoStore(session);
+};
+
+const wipeNativeCryptoStore = async (session: Session): Promise<void> => {
+  if (!isTauri() || !session.deviceId) return;
+  try {
+    await engineWipe({ userId: session.userId, deviceId: session.deviceId });
+  } catch (error) {
+    log.warn('wipeNativeCryptoStore failed', session.userId, error);
+  }
+};
 
 const isMismatch = (err: unknown): boolean => {
   const msg = err instanceof Error ? err.message : String(err);
@@ -218,126 +374,12 @@ const isMismatch = (err: unknown): boolean => {
   );
 };
 
-const waitForClientReady = (mx: MatrixClient, timeoutMs: number): Promise<void> =>
-  /* oxlint-disable promise/no-multiple-resolved */
-  new Promise((resolve) => {
-    const waitStart = performance.now();
-    let settled = false;
-    const finish = () => {
-      if (settled) return;
-      settled = true;
-      mx.removeListener(ClientEvent.Sync, onSync);
-      clearTimeout(timer);
-      const waitMs = performance.now() - waitStart;
-      Sentry.metrics.distribution('sable.sync.client_ready_ms', waitMs, {
-        attributes: { timed_out: String(timedOut) },
-      });
-      if (timedOut) {
-        Sentry.addBreadcrumb({
-          category: 'sync',
-          message: 'waitForClientReady timed out — client may be stuck',
-          level: 'warning',
-          data: { timeout_ms: timeoutMs },
-        });
-      }
-      resolve();
-    };
-    /* oxlint-enable promise/no-multiple-resolved */
-
-    if (isClientReadyForUi(mx.getSyncState())) {
-      Sentry.metrics.distribution('sable.sync.client_ready_ms', 0, {
-        attributes: { timed_out: 'false' },
-      });
-      finish();
-      return;
-    }
-
-    let timer = 0;
-    let timedOut = false;
-    const onSync = (state: string) => {
-      debugLog.info('sync', `Sync state changed: ${state}`, {
-        state,
-        ready: isClientReadyForUi(state),
-      });
-      if (isClientReadyForUi(state)) finish();
-    };
-
-    timer = window.setTimeout(() => {
-      timedOut = true;
-      finish();
-    }, timeoutMs);
-    mx.on(ClientEvent.Sync, onSync);
-  });
-
-/**
- * Pre-flight check: scans every IndexedDB database and deletes any that
- * belong to a userId not present in the stored sessions list, or whose
- * sync-store data contradicts the expected session userId.
- * Call this once on startup before initClient.
- */
-export const clearMismatchedStores = async (): Promise<void> => {
-  const sessions = getLocalStorageItem<Sessions>(MATRIX_SESSIONS_KEY, []);
-  const knownUserIds = new Set(sessions.map((s) => s.userId));
-  const knownStoreNames = new Set(
-    sessions.flatMap((s) => {
-      const sn = getSessionStoreName(s);
-      return [sn.sync, sn.crypto, `${sn.rustCryptoPrefix}::matrix-sdk-crypto`];
-    })
-  );
-
-  let allDbs: IDBDatabaseInfo[] = [];
-  try {
-    allDbs = await window.indexedDB.databases();
-  } catch {
-    // databases() not supported in all browsers
-  }
-
-  await Promise.all(
-    allDbs.map(async ({ name }) => {
-      if (!name) return;
-
-      const containsKnownUser = Array.from(knownUserIds).some((uid) => name.includes(uid));
-      const looksLikeUserDb = name.includes('@');
-      if (looksLikeUserDb && !containsKnownUser && !knownStoreNames.has(name)) {
-        log.warn(`clearMismatchedStores: "${name}" has unknown user — deleting`);
-        await deleteDatabase(name);
-        return;
-      }
-
-      if (!name.startsWith('sync')) return;
-
-      const storedUserId = await readStoredAccount(name);
-      if (!storedUserId) return;
-
-      if (!knownUserIds.has(storedUserId)) {
-        log.warn(`clearMismatchedStores: "${name}" has unknown user ${storedUserId} — deleting`);
-        await deleteSyncStoreGroup(name);
-        return;
-      }
-
-      const expectedStore = `sync${storedUserId}`;
-      if (name !== expectedStore && !knownStoreNames.has(name)) {
-        log.warn(`clearMismatchedStores: "${name}" is misplaced for ${storedUserId} — deleting`);
-        await deleteSyncStoreGroup(name);
-      }
-    })
-  );
-
-  await Promise.all(
-    sessions.map(async (session) => {
-      const sn = getSessionStoreName(session);
-      const storedUserId = await readStoredAccount(sn.sync);
-      if (storedUserId && storedUserId !== session.userId) {
-        log.warn(
-          `clearMismatchedStores: "${sn.sync}" has ${storedUserId} but session is ${session.userId} — deleting`
-        );
-        await deleteSessionStores(sn);
-      }
-    })
-  );
+type BuiltClient = {
+  mx: MatrixClient;
+  indexedDBStore: IndexedDBStore;
 };
 
-const buildClient = async (session: Session): Promise<MatrixClient> => {
+const buildClient = async (session: Session): Promise<BuiltClient> => {
   const storeName = getSessionStoreName(session);
 
   const indexedDBStore = new IndexedDBStore({
@@ -348,9 +390,17 @@ const buildClient = async (session: Session): Promise<MatrixClient> => {
 
   const legacyCryptoStore = new IndexedDBCryptoStore(global.indexedDB, storeName.crypto);
 
+  const tempClient = createClient({
+    baseUrl: session.baseUrl,
+    fetchFn: fetch,
+  });
+  const tokenRefresher = createSessionTokenRefresher(session, tempClient);
+
   const mx = createClient({
     baseUrl: session.baseUrl,
+    fetchFn: matrixFetch,
     accessToken: session.accessToken,
+    refreshToken: session.refreshToken,
     userId: session.userId,
     store: indexedDBStore,
     cryptoStore: legacyCryptoStore,
@@ -358,10 +408,56 @@ const buildClient = async (session: Session): Promise<MatrixClient> => {
     timelineSupport: true,
     cryptoCallbacks: cryptoCallbacks as unknown as CryptoCallbacks,
     verificationMethods: ['m.sas.v1'],
+    tokenRefreshFunction: tokenRefresher?.tokenRefreshFunction,
   });
 
-  await indexedDBStore.startup();
-  return mx;
+  return { mx, indexedDBStore };
+};
+
+type ClientInitializationResult =
+  | { ok: true; mx: MatrixClient }
+  | { ok: false; error: unknown; phase: 'sync_store' | 'rust_crypto' };
+
+const initializeClient = async (
+  session: Session,
+  cryptoDatabasePrefix: string
+): Promise<ClientInitializationResult> => {
+  let builtClient: BuiltClient;
+  try {
+    builtClient = await buildClient(session);
+  } catch (error) {
+    return { ok: false, error, phase: 'sync_store' };
+  }
+  const { mx, indexedDBStore } = builtClient;
+
+  void primeVersionsFromCache(mx, session.baseUrl, session.userId).then((primed) => {
+    if (primed) void revalidateVersionsCache(mx, session.baseUrl, session.userId);
+    else void cacheVersionsFromClient(mx, session.baseUrl, session.userId);
+  });
+
+  const syncStorePromise = measureStartupPhase('sync_store', () => indexedDBStore.startup());
+  const cryptoPromise = measureStartupPhase('rust_crypto', async () => {
+    if (await rustEngineEnabled(cryptoDatabasePrefix)) {
+      await installRustCrypto(mx);
+      return;
+    }
+    await mx.initRustCrypto({ cryptoDatabasePrefix });
+  });
+  const [syncStoreResult, cryptoResult] = await Promise.allSettled([
+    syncStorePromise,
+    cryptoPromise,
+  ]);
+
+  if (syncStoreResult.status === 'rejected') {
+    mx.stopClient();
+    return { ok: false, error: syncStoreResult.reason, phase: 'sync_store' };
+  }
+  if (cryptoResult.status === 'rejected') {
+    mx.stopClient();
+    return { ok: false, error: cryptoResult.reason, phase: 'rust_crypto' };
+  }
+
+  return { ok: true, mx };
 };
 
 export const initClient = async (session: Session): Promise<MatrixClient> => {
@@ -398,368 +494,297 @@ export const initClient = async (session: Session): Promise<MatrixClient> => {
     }
   };
 
-  let mx: MatrixClient;
+  const initStartTime = performance.now();
+  let initOutcome = 'success';
   try {
-    mx = await buildClient(session);
-  } catch (err) {
-    if (!isMismatch(err)) {
-      debugLog.error('sync', 'Failed to build client', { error: err });
-      throw err;
-    }
-    log.warn('initClient: mismatch on buildClient — wiping and retrying:', err);
-    debugLog.warn('sync', 'Client build mismatch - wiping stores and retrying', { error: err });
-    await wipeAllStores();
-    mx = await buildClient(session);
-  }
+    evictPreviousCryptoStoreOwner(storeName.rustCryptoPrefix);
+    const result = await initializeClient(session, storeName.rustCryptoPrefix);
+    if (!result.ok) {
+      if (!isMismatch(result.error)) {
+        debugLog.error('sync', 'Failed to initialize client', {
+          phase: result.phase,
+          error: result.error,
+        });
+        throw result.error;
+      }
 
-  try {
-    await mx.initRustCrypto({
-      cryptoDatabasePrefix: storeName.rustCryptoPrefix,
-    });
-  } catch (err) {
-    if (!isMismatch(err)) {
-      debugLog.error('sync', 'Failed to initialize crypto', { error: err });
-      throw err;
+      log.warn(`initClient: mismatch during ${result.phase} — wiping and reloading:`, result.error);
+      debugLog.warn('sync', 'Client initialization mismatch - wiping stores and reloading', {
+        phase: result.phase,
+        error: result.error,
+      });
+      await wipeAllStores();
+      window.location.reload();
+      throw result.error;
     }
-    log.warn('initClient: mismatch on initRustCrypto — wiping and retrying:', err);
-    debugLog.warn('sync', 'Crypto init mismatch - wiping stores and retrying', {
-      error: err,
+
+    result.mx.setMaxListeners(50);
+    claimCryptoStore(result.mx, storeName.rustCryptoPrefix);
+    debugLog.info('sync', 'Matrix client initialised, crypto store claimed', {
+      userId: session.userId,
     });
-    mx.stopClient();
-    await wipeAllStores();
-    mx = await buildClient(session);
-    await mx.initRustCrypto({
-      cryptoDatabasePrefix: storeName.rustCryptoPrefix,
+    return result.mx;
+  } catch (error) {
+    initOutcome = 'error';
+    throw error;
+  } finally {
+    Sentry.metrics.distribution('sable.startup.phase_ms', performance.now() - initStartTime, {
+      attributes: { phase: 'client_init', outcome: initOutcome },
     });
   }
-
-  mx.setMaxListeners(50);
-  return mx;
 };
 
 export type StartClientConfig = {
   baseUrl?: string;
-  slidingSync?: SlidingSyncConfig;
   sessionSlidingSyncOptIn?: boolean;
   pollTimeoutMs?: number;
   timelineLimit?: number;
+  initialRoomIds?: Iterable<string>;
+  onCachedRoomsLoaded?: () => void;
 };
 
-export type ClientSyncDiagnostics = SyncTransportMeta & {
+export type ClientSyncDiagnostics = {
+  transport: 'sliding' | 'classic';
   syncState: string | null;
   sliding?: SlidingSyncDiagnostics;
 };
 
+const SLIDING_SYNC_UNSTABLE_FEATURE = 'org.matrix.simplified_msc3575';
+
+const SLIDING_SYNC_CAPABILITY_TIMEOUT_MS = 5000;
+
+// The SDK retries an unsupported endpoint forever instead of erroring, so anything
+// short of a confirmation falls back to classic sync. /versions has no timeout of
+// its own, hence the race.
+export const supportsSlidingSync = async (
+  mx: MatrixClient,
+  baseUrl: string
+): Promise<{
+  supported: boolean;
+  reason: 'advertised' | 'unadvertised' | 'cached' | 'unknown';
+}> => {
+  let timer: ReturnType<typeof globalThis.setTimeout> | undefined;
+  const timeout = new Promise<boolean | undefined>((resolve) => {
+    timer = globalThis.setTimeout(() => resolve(undefined), SLIDING_SYNC_CAPABILITY_TIMEOUT_MS);
+  });
+
+  let confirmed: boolean | undefined;
+  try {
+    confirmed = await Promise.race([
+      mx.doesServerSupportUnstableFeature(SLIDING_SYNC_UNSTABLE_FEATURE),
+      timeout,
+    ]);
+  } catch {
+    confirmed = undefined;
+  } finally {
+    globalThis.clearTimeout(timer);
+  }
+
+  if (confirmed !== undefined) {
+    return { supported: confirmed, reason: confirmed ? 'advertised' : 'unadvertised' };
+  }
+  // We never reached /versions, so a previous confirmation is all we have to go on.
+  const cached = wasUnstableFeatureCached(
+    baseUrl,
+    mx.getSafeUserId(),
+    SLIDING_SYNC_UNSTABLE_FEATURE
+  );
+  return { supported: cached, reason: cached ? 'cached' : 'unknown' };
+};
+
 const disposeSlidingSync = (mx: MatrixClient): void => {
+  membershipActionCleanupByClient.get(mx)?.();
   const manager = slidingSyncByClient.get(mx);
   if (!manager) return;
   manager.dispose();
   slidingSyncByClient.delete(mx);
 };
 
+type MatrixClientWithWritableMembershipActions = MatrixClient & {
+  joinRoom: MatrixClient['joinRoom'];
+  leave: MatrixClient['leave'];
+};
+
+const installMembershipActionReconciliation = (
+  mx: MatrixClient,
+  manager: SlidingSyncManager
+): void => {
+  membershipActionCleanupByClient.get(mx)?.();
+
+  const writableMx = mx as MatrixClientWithWritableMembershipActions;
+  // Keep the exact methods so cleanup restores the client without leaving bound replacements behind.
+  // oxlint-disable-next-line typescript/unbound-method
+  const originalJoinRoom = mx.joinRoom;
+  // oxlint-disable-next-line typescript/unbound-method
+  const originalLeave = mx.leave;
+
+  writableMx.joinRoom = async (...args) => {
+    const room = await originalJoinRoom.apply(mx, args);
+    manager.reconcileRoomMembership(room.roomId, KnownMembership.Join);
+    return room;
+  };
+  writableMx.leave = async (...args) => {
+    const result = await originalLeave.apply(mx, args);
+    manager.reconcileRoomMembership(args[0], KnownMembership.Leave);
+    return result;
+  };
+
+  membershipActionCleanupByClient.set(mx, () => {
+    membershipActionCleanupByClient.delete(mx);
+    writableMx.joinRoom = originalJoinRoom;
+    writableMx.leave = originalLeave;
+  });
+};
+
+const disposePresenceSync = (mx: MatrixClient): void => {
+  presenceStartCleanupByClient.get(mx)?.();
+  const manager = presenceSyncByClient.get(mx);
+  if (!manager) return;
+  manager.dispose();
+  presenceSyncByClient.delete(mx);
+};
+
 export const getSlidingSyncManager = (mx: MatrixClient): SlidingSyncManager | undefined =>
   slidingSyncByClient.get(mx);
 
+export const getPresenceSyncManager = (mx: MatrixClient): PresenceSyncManager | undefined =>
+  presenceSyncByClient.get(mx);
+
 export const startClient = async (mx: MatrixClient, config?: StartClientConfig): Promise<void> => {
-  debugLog.info('sync', 'Starting Matrix client', { userId: mx.getUserId() });
   disposeSlidingSync(mx);
-  const slidingConfig = config?.slidingSync;
-  const slidingEnabledOnServer = resolveSlidingEnabled(slidingConfig?.enabled);
-  const slidingRequested = slidingEnabledOnServer && config?.sessionSlidingSyncOptIn === true;
-  const proxyBaseUrl = slidingConfig?.proxyBaseUrl ?? config?.baseUrl;
-  const hasSlidingProxy = typeof proxyBaseUrl === 'string' && proxyBaseUrl.trim().length > 0;
-  log.log('startClient sliding config', {
-    userId: mx.getUserId(),
-    enabled: slidingConfig?.enabled,
-    enabledOnServer: slidingEnabledOnServer,
-    sessionOptIn: config?.sessionSlidingSyncOptIn === true,
-    requestedEnabled: slidingRequested,
-    proxyBaseUrl,
-    hasSlidingProxy,
-  });
-  debugLog.info('sync', 'Sliding sync configuration', {
-    enabledOnServer: slidingEnabledOnServer,
-    requested: slidingRequested,
-    hasProxy: hasSlidingProxy,
-  });
+  disposePresenceSync(mx);
 
-  const CLASSIC_SYNC_STARTUP_TIMEOUT_MS = 45_000;
+  const baseUrl = config?.baseUrl ?? mx.baseUrl;
+  const optedIntoSliding = config?.sessionSlidingSyncOptIn === true;
+  const slidingSupport = optedIntoSliding
+    ? await supportsSlidingSync(mx, baseUrl)
+    : { supported: false, reason: 'unadvertised' as const };
+  const useSliding = optedIntoSliding && slidingSupport.supported;
 
-  const startClassicSync = async (
-    fallbackFromSliding: boolean,
-    reason: SyncTransportReason
-  ): Promise<void> => {
-    syncTransportByClient.set(mx, {
-      transport: 'classic',
-      slidingConfigured: slidingEnabledOnServer,
-      slidingEnabledOnServer,
-      sessionOptIn: config?.sessionSlidingSyncOptIn === true,
-      slidingRequested,
-      fallbackFromSliding,
-      reason,
-    });
-    Sentry.metrics.count('sable.sync.transport', 1, {
-      attributes: {
-        transport: 'classic',
-        reason,
-        fallback: String(fallbackFromSliding),
-      },
-    });
-
-    const startupTimeout = new Promise<void>((resolve) => {
-      window.setTimeout(() => {
-        debugLog.warn('sync', 'Classic sync startup timed out', {
-          userId: mx.getUserId(),
-          timeoutMs: CLASSIC_SYNC_STARTUP_TIMEOUT_MS,
-        });
-        resolve();
-      }, CLASSIC_SYNC_STARTUP_TIMEOUT_MS);
-    });
-
-    const effectivePollTimeout = config?.pollTimeoutMs ?? FAST_SYNC_POLL_TIMEOUT_MS;
-    const effectiveTimelineLimit = config?.timelineLimit ?? 10;
-
-    const classicFilter = new Filter(mx.getUserId() ?? undefined);
-    classicFilter.setTimelineLimit(effectiveTimelineLimit);
-    // Ensure lazy loading stays on (carried by buildDefaultFilter but explicit here
-    // since we replace the filter entirely rather than merging).
-    const filterDefinition = classicFilter.getDefinition();
-    if (filterDefinition.room) {
-      filterDefinition.room.timeline = filterDefinition.room.timeline ?? {};
-      (filterDefinition.room.timeline as { lazy_load_members?: boolean }).lazy_load_members = true;
-    }
-
-    installStartupFetchRoomEventPatch(mx, { stubOnCacheMiss: true });
-
-    let syncStarted: Promise<void>;
-    try {
-      syncStarted = mx.startClient({
-        lazyLoadMembers: true,
-        pollTimeout: effectivePollTimeout,
-        threadSupport: true,
-        filter: classicFilter,
-      });
-    } catch (syncErr) {
-      fetchRoomEventStartupCleanupByClient.get(mx)?.();
-      throw syncErr;
-    }
-
-    await Promise.race([syncStarted, startupTimeout]);
-    // Attach an ongoing classic-sync observer — equivalent to SlidingSyncManager's
-    // onLifecycle listener. Tracks state transitions, initial-sync timing, and errors.
-    let classicSyncCount = 0;
-    const classicSyncStartMs = performance.now();
-    let classicInitialSyncDone = false;
-    const classicSyncListener = (
-      state: SyncState,
-      prevState: SyncState | null,
-      data?: ISyncStateData
-    ) => {
-      classicSyncCount += 1;
-      Sentry.metrics.count('sable.sync.cycle', 1, {
-        attributes: { transport: 'classic', state },
-      });
-      debugLog.info('sync', `Classic sync state: ${state}`, {
-        state,
-        prevState: prevState ?? 'null',
-        syncNumber: classicSyncCount,
-        error: data?.error?.message,
-      });
-      if (state === SyncState.Error || state === SyncState.Reconnecting) {
-        debugLog.warn('sync', `Classic sync problem: ${state}`, {
-          state,
-          prevState: prevState ?? 'null',
-          errorMessage: data?.error?.message,
-          syncNumber: classicSyncCount,
-        });
-        Sentry.metrics.count('sable.sync.error', 1, {
-          attributes: { transport: 'classic', state },
-        });
-        Sentry.addBreadcrumb({
-          category: 'sync.classic',
-          message: `Classic sync problem: ${state}`,
-          level: 'warning',
-          data: {
-            state,
-            prevState,
-            error: data?.error?.message,
-            syncNumber: classicSyncCount,
-          },
-        });
-      }
-      if (
-        !classicInitialSyncDone &&
-        (state === SyncState.Syncing || state === SyncState.Prepared)
-      ) {
-        classicInitialSyncDone = true;
-        const elapsed = performance.now() - classicSyncStartMs;
-        debugLog.info('sync', 'Classic sync initial ready', {
-          state,
-          syncNumber: classicSyncCount,
-          elapsed: `${elapsed.toFixed(0)}ms`,
-        });
-        Sentry.metrics.distribution('sable.sync.initial_ms', elapsed, {
-          attributes: { transport: 'classic' },
-        });
-      }
-    };
-    classicSyncObserverByClient.set(mx, classicSyncListener);
-    mx.on(ClientEvent.Sync, classicSyncListener);
-  };
-
-  const shouldBootstrapClassicOnColdCache = async (): Promise<boolean> => {
-    if (slidingConfig?.bootstrapClassicOnColdCache === false) return false;
-    const userId = mx.getUserId();
-    if (!userId) return false;
-
-    const [storeHasAccount, fallbackStoreHasAccount, hasStoreDb, hasFallbackStoreDb] =
-      await Promise.all([
-        readStoredAccount(`sync${userId}`),
-        readStoredAccount('web-sync-store'),
-        databaseExists(`sync${userId}`),
-        databaseExists('web-sync-store'),
-      ]);
-
-    const hasWarmCache =
-      storeHasAccount === userId ||
-      fallbackStoreHasAccount === userId ||
-      hasStoreDb ||
-      hasFallbackStoreDb;
-
-    return !hasWarmCache;
-  };
-
-  if (!slidingEnabledOnServer || !slidingRequested) {
-    await startClassicSync(
-      false,
-      slidingEnabledOnServer ? 'session_opt_out' : 'sliding_disabled_server'
-    );
-    return;
-  }
-
-  if (!hasSlidingProxy) {
-    await startClassicSync(false, 'missing_proxy');
-    return;
-  }
-
-  if (await shouldBootstrapClassicOnColdCache()) {
-    log.log('startClient cold-cache bootstrap: using classic sync for this run', mx.getUserId());
-    await startClassicSync(false, 'cold_cache_bootstrap');
-    waitForClientReady(mx, COLD_CACHE_BOOTSTRAP_TIMEOUT_MS).catch((err) => {
-      debugLog.warn('network', 'Cold cache bootstrap timed out', {
-        userId: mx.getUserId(),
-        timeout: `${COLD_CACHE_BOOTSTRAP_TIMEOUT_MS}ms`,
-        error: err instanceof Error ? err.message : String(err),
-      });
-    });
-    return;
-  }
-
-  const resolvedProxyBaseUrl = proxyBaseUrl;
-  const probeTimeoutMs = (() => {
-    const v = slidingConfig?.probeTimeoutMs;
-    return typeof v === 'number' && !Number.isNaN(v) && v > 0 ? Math.round(v) : 5000;
-  })();
-  const supported = await SlidingSyncManager.probe(mx, resolvedProxyBaseUrl, probeTimeoutMs);
-  log.log('startClient sliding probe result', {
-    userId: mx.getUserId(),
-    requestedEnabled: slidingRequested,
-    hasSlidingProxy,
-    proxyBaseUrl: resolvedProxyBaseUrl,
-    supported,
-  });
-  if (!supported) {
-    log.warn('Sliding Sync unavailable, falling back to classic sync for', mx.getUserId());
-    debugLog.warn('network', 'Sliding Sync probe failed, falling back to classic sync', {
+  if (optedIntoSliding && !useSliding) {
+    debugLog.warn('sync', 'Falling back to classic sync', {
       userId: mx.getUserId(),
-      proxyBaseUrl: resolvedProxyBaseUrl,
-      probeTimeout: `${probeTimeoutMs}ms`,
+      baseUrl,
+      reason: slidingSupport.reason,
     });
-    await startClassicSync(true, 'probe_failed_fallback');
-    return;
+    Sentry.metrics.count('sable.sync.transport_downgrade', 1, {
+      attributes: { reason: slidingSupport.reason },
+    });
   }
 
-  const manager = new SlidingSyncManager(mx, resolvedProxyBaseUrl, {
-    ...slidingConfig,
-    includeInviteList: true,
-    pollTimeoutMs: slidingConfig?.pollTimeoutMs ?? SLIDING_SYNC_POLL_TIMEOUT_MS,
+  debugLog.info('sync', 'Starting Matrix client', {
+    userId: mx.getUserId(),
+    transport: useSliding ? 'sliding' : 'classic',
+    alreadyRunning: mx.clientRunning,
   });
-  manager.attach();
-  slidingSyncByClient.set(mx, manager);
-  syncTransportByClient.set(mx, {
-    transport: 'sliding',
-    slidingConfigured: true,
-    slidingEnabledOnServer,
-    sessionOptIn: config?.sessionSlidingSyncOptIn === true,
-    slidingRequested,
-    fallbackFromSliding: false,
-    reason: 'sliding_active',
-  });
-  Sentry.metrics.count('sable.sync.transport', 1, {
-    attributes: {
-      transport: 'sliding',
-      reason: 'sliding_active',
-      fallback: 'false',
-    },
-  });
+
+  let manager: SlidingSyncManager | undefined;
+
+  if (useSliding) {
+    const presenceManager = new PresenceSyncManager(mx);
+    presenceSyncByClient.set(mx, presenceManager);
+    startPresenceAfterInitialSync(mx, presenceManager);
+
+    manager = new SlidingSyncManager(mx, baseUrl, {
+      pollTimeoutMs: resolvePollTimeoutMs(config?.pollTimeoutMs),
+      timelineLimit: config?.timelineLimit,
+      initialRoomIds: config?.initialRoomIds,
+    });
+
+    installSlidingSyncRequestPatch(mx, manager);
+
+    manager.attach();
+    manager.prepareSidebarCacheHydration();
+    installMembershipActionReconciliation(mx, manager);
+    slidingSyncByClient.set(mx, manager);
+  }
 
   try {
-    installStartupFetchRoomEventPatch(mx, { stubOnCacheMiss: false });
-    await mx.startClient({
-      lazyLoadMembers: true,
-      slidingSync: manager.slidingSync,
-      threadSupport: true,
-    });
+    await measureStartupPhase(
+      'client_start',
+      () =>
+        mx.startClient({
+          lazyLoadMembers: true,
+          slidingSync: manager?.slidingSync,
+          threadSupport: true,
+        }),
+      { transport: useSliding ? 'sliding' : 'classic' }
+    );
+    if (!useSliding) installSyncStorePersistence(mx);
+    recheckKeyBackupAfterInitialSync(mx);
+    if (manager && (await manager.waitForSidebarCacheHydration())) {
+      config?.onCachedRoomsLoaded?.();
+    }
   } catch (err) {
-    fetchRoomEventStartupCleanupByClient.get(mx)?.();
     debugLog.error('network', 'Failed to start client with sliding sync', {
       error: err instanceof Error ? err.message : String(err),
       userId: mx.getUserId(),
-      proxyBaseUrl: resolvedProxyBaseUrl,
+      baseUrl: useSliding ? baseUrl : undefined,
       stack: err instanceof Error ? err.stack : undefined,
     });
+    slidingSyncRequestCleanupByClient.get(mx)?.();
+    membershipActionCleanupByClient.get(mx)?.();
     disposeSlidingSync(mx);
+    disposePresenceSync(mx);
     throw err;
   }
 };
 
 export const stopClient = (mx: MatrixClient): void => {
   log.log('stopClient', mx.getUserId());
-  debugLog.info('sync', 'Stopping client', { userId: mx.getUserId() });
-  fetchRoomEventStartupCleanupByClient.get(mx)?.();
+  // stopClient closes the OlmMachine even when the client never ran, so record it.
+  debugLog.info('sync', 'Stopping client', {
+    userId: mx.getUserId(),
+    wasRunning: mx.clientRunning,
+    syncState: mx.getSyncState(),
+  });
+  releaseCryptoStore(mx);
+  slidingSyncRequestCleanupByClient.get(mx)?.();
+  disposeSyncStorePersistence(mx);
   disposeSlidingSync(mx);
-  const classicSyncListener = classicSyncObserverByClient.get(mx);
-  if (classicSyncListener) {
-    mx.removeListener(ClientEvent.Sync, classicSyncListener);
-    classicSyncObserverByClient.delete(mx);
-  }
+  disposePresenceSync(mx);
   mx.stopClient();
-  syncTransportByClient.delete(mx);
 };
 
 export const clearCacheAndReload = async (mx: MatrixClient) => {
   log.log('clearCacheAndReload', mx.getUserId());
   stopClient(mx);
   clearNavToActivePathStore(mx.getSafeUserId());
+  SlidingSyncSidebarCache.clear(mx.getSafeUserId());
+  clearCachedUserProfiles(mx.getSafeUserId());
   await mx.store.deleteAllData();
   window.location.reload();
 };
 
 export const getClientSyncDiagnostics = (mx: MatrixClient): ClientSyncDiagnostics => {
-  const meta = syncTransportByClient.get(mx) ?? {
-    transport: 'classic',
-    slidingConfigured: false,
-    slidingEnabledOnServer: false,
-    sessionOptIn: false,
-    slidingRequested: false,
-    fallbackFromSliding: false,
-    reason: 'unknown',
-  };
+  const slidingManager = slidingSyncByClient.get(mx);
   return {
-    ...meta,
+    transport: slidingManager ? 'sliding' : 'classic',
     syncState: mx.getSyncState(),
-    sliding: slidingSyncByClient.get(mx)?.getDiagnostics(),
+    sliding: slidingManager?.getDiagnostics(),
   };
+};
+
+const revokeOidcSession = async (mx: MatrixClient, session: Session): Promise<void> => {
+  const oidc = session.oidc;
+  if (!oidc) return;
+  const metadata = await mx.getAuthMetadata();
+  assertAuthMetadataIssuer(oidc.issuer, metadata);
+
+  const refreshToken = getStoredSessionRefreshToken(session.userId) ?? session.refreshToken;
+  const token = refreshToken ?? mx.getAccessToken() ?? undefined;
+  if (!token) return;
+
+  try {
+    await revokeOAuthToken(
+      metadata,
+      oidc.clientId,
+      token,
+      refreshToken ? 'refresh_token' : 'access_token'
+    );
+  } catch {
+    debugLog.warn('general', 'OIDC token revocation had failures', { userId: session.userId });
+  }
 };
 
 /**
@@ -773,24 +798,38 @@ export const logoutClient = async (mx: MatrixClient, session?: Session) => {
     sessionUserId: session?.userId,
   });
   debugLog.info('general', 'Logging out client', { userId: mx.getUserId() });
-  pushSessionToSW();
   stopClient(mx);
   try {
-    await mx.logout();
+    if (session?.oidc) {
+      await revokeOidcSession(mx, session);
+    } else {
+      await mx.logout();
+    }
     debugLog.info('general', 'Logout successful', { userId: mx.getUserId() });
   } catch {
     // ignore
   }
 
   if (session) {
+    clearSessionCaches(session);
+    destroyLocalNotificationCache(session.userId);
+    clearLocalNotificationCache(session.userId);
     const storeName: SessionStoreName = getSessionStoreName(session);
     await mx.clearStores({ cryptoDatabasePrefix: storeName.rustCryptoPrefix });
-    await deleteDatabase(storeName.sync);
-    await deleteDatabase(storeName.crypto);
-    await deleteDatabase(`${storeName.rustCryptoPrefix}::matrix-sdk-crypto`);
+    await deleteSessionStores(storeName);
+    await wipeNativeCryptoStore(session);
   } else {
     await mx.clearStores();
     window.localStorage.clear();
+  }
+
+  try {
+    await clearMediaCache();
+  } finally {
+    if (ownsActiveMediaSession(session)) {
+      // Queue the final clear after any in-flight refresh.
+      await pushSessionToSW();
+    }
   }
 };
 
@@ -802,5 +841,6 @@ export const clearLoginData = async () => {
     if (name) window.indexedDB.deleteDatabase(name);
   });
   window.localStorage.clear();
+  await clearMediaCache();
   window.location.reload();
 };

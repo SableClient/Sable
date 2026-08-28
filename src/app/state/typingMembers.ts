@@ -25,7 +25,7 @@ type TypingMemberDeleteAction = {
   roomId: string;
   userId: string;
 };
-export type IRoomIdToTypingMembersAction = TypingMemberPutAction | TypingMemberDeleteAction;
+type IRoomIdToTypingMembersAction = TypingMemberPutAction | TypingMemberDeleteAction;
 
 const baseRoomIdToTypingMembersAtom = atom(new Map());
 

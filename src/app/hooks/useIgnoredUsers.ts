@@ -3,7 +3,7 @@ import { useMemo } from 'react';
 import { useAccountData } from './useAccountData';
 import { EventType } from '$types/matrix-sdk';
 
-export type IgnoredUserListContent = {
+type IgnoredUserListContent = {
   ignored_users?: Record<string, object>;
 };
 

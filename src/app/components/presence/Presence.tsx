@@ -1,11 +1,12 @@
 import type { ContainerColor, MainColor } from 'folds';
-import { as, Badge, Box, color, Text, Tooltip, TooltipProvider, toRem } from 'folds';
+import { as, Badge, Box, color, Text, Tooltip, toRem } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
 import type { ReactNode } from 'react';
 import { useId } from 'react';
 import { Presence, usePresenceLabel } from '$hooks/useUserPresence';
 import * as css from './styles.css';
 
-const PresenceToColor: Record<Presence, MainColor> = {
+export const PresenceToColor: Record<Presence, MainColor> = {
   [Presence.Online]: 'Success',
   [Presence.Unavailable]: 'Warning',
   [Presence.Offline]: 'Secondary',

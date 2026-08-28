@@ -1,19 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
-import {
-  Box,
-  Header,
-  Icon,
-  IconButton,
-  Icons,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
-  Spinner,
-  Text,
-} from 'folds';
-import FocusTrap from 'focus-trap-react';
+import { Box, Header, IconButton, Spinner, Text } from 'folds';
+import { composerIcon, X } from '$components/icons/phosphor';
 import type { Room } from '$types/matrix-sdk';
 
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 import { useIntegrationManager, buildIntegrationManagerUrl } from '$hooks/useIntegrationManager';
 import * as css from './IntegrationManager.css';
 
@@ -61,90 +51,80 @@ export function IntegrationManager({ room, open, onClose }: IntegrationManagerPr
   }, [open]);
 
   return (
-    <Overlay open={open} backdrop={<OverlayBackdrop />}>
-      <OverlayCenter>
-        <FocusTrap
-          focusTrapOptions={{
-            initialFocus: false,
-            clickOutsideDeactivates: true,
-            onDeactivate: onClose,
-          }}
-        >
-          <Box className={css.IntegrationManagerOverlay} direction="Column">
-            <Header className={css.IntegrationManagerHeader} variant="Background" size="600">
-              <Box grow="Yes" alignItems="Center" gap="200">
-                <Box grow="Yes" alignItems="Center" gap="200">
-                  <Text size="H5" truncate>
-                    Integration Manager
-                  </Text>
-                </Box>
-                <Box shrink="No" alignItems="Center">
-                  <IconButton variant="Background" onClick={onClose}>
-                    <Icon src={Icons.Cross} />
-                  </IconButton>
-                </Box>
-              </Box>
-            </Header>
-
-            <Box grow="Yes" direction="Column" alignItems="Center" justifyContent="Center">
-              {loading && (
-                <Box direction="Column" alignItems="Center" gap="300">
-                  <Spinner size="400" />
-                  <Text size="T300" priority="300">
-                    Connecting to integration manager...
-                  </Text>
-                </Box>
-              )}
-
-              {error && (
-                <Box direction="Column" alignItems="Center" gap="300">
-                  <Text size="T300" priority="300">
-                    Failed to connect: {error}
-                  </Text>
-                </Box>
-              )}
-
-              {!loading && !error && !manager && (
-                <Box direction="Column" alignItems="Center" gap="300">
-                  <Text size="T300" priority="300">
-                    No integration manager available for this homeserver.
-                  </Text>
-                </Box>
-              )}
-
-              {!loading && !error && iframeSrc && (
-                <>
-                  {!iframeLoaded && (
-                    <Box
-                      direction="Column"
-                      alignItems="Center"
-                      gap="300"
-                      style={{ position: 'absolute' }}
-                    >
-                      <Spinner size="400" />
-                      <Text size="T300" priority="300">
-                        Loading...
-                      </Text>
-                    </Box>
-                  )}
-                  <iframe
-                    ref={iframeRef}
-                    className={css.IntegrationManagerIframe}
-                    title="Integration Manager"
-                    src={iframeSrc}
-                    sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
-                    allow="microphone; camera; encrypted-media; autoplay; clipboard-write; display-capture"
-                    onLoad={() => setIframeLoaded(true)}
-                    style={{
-                      opacity: iframeLoaded ? 1 : 0,
-                    }}
-                  />
-                </>
-              )}
+    <ModalOverlay open={open} requestClose={onClose}>
+      <Box className={css.IntegrationManagerOverlay} direction="Column">
+        <Header className={css.IntegrationManagerHeader} variant="Background" size="600">
+          <Box grow="Yes" alignItems="Center" gap="200">
+            <Box grow="Yes" alignItems="Center" gap="200">
+              <Text size="H5" truncate>
+                Integration Manager
+              </Text>
+            </Box>
+            <Box shrink="No" alignItems="Center">
+              <IconButton variant="Background" onClick={onClose}>
+                {composerIcon(X)}
+              </IconButton>
             </Box>
           </Box>
-        </FocusTrap>
-      </OverlayCenter>
-    </Overlay>
+        </Header>
+
+        <Box grow="Yes" direction="Column" alignItems="Center" justifyContent="Center">
+          {loading && (
+            <Box direction="Column" alignItems="Center" gap="300">
+              <Spinner size="400" />
+              <Text size="T300" priority="300">
+                Connecting to integration manager...
+              </Text>
+            </Box>
+          )}
+
+          {error && (
+            <Box direction="Column" alignItems="Center" gap="300">
+              <Text size="T300" priority="300">
+                Failed to connect: {error}
+              </Text>
+            </Box>
+          )}
+
+          {!loading && !error && !manager && (
+            <Box direction="Column" alignItems="Center" gap="300">
+              <Text size="T300" priority="300">
+                No integration manager available for this homeserver.
+              </Text>
+            </Box>
+          )}
+
+          {!loading && !error && iframeSrc && (
+            <>
+              {!iframeLoaded && (
+                <Box
+                  direction="Column"
+                  alignItems="Center"
+                  gap="300"
+                  style={{ position: 'absolute' }}
+                >
+                  <Spinner size="400" />
+                  <Text size="T300" priority="300">
+                    Loading...
+                  </Text>
+                </Box>
+              )}
+              <iframe
+                ref={iframeRef}
+                className={css.IntegrationManagerIframe}
+                title="Integration Manager"
+                src={iframeSrc}
+                sandbox="allow-forms allow-scripts allow-same-origin allow-popups allow-popups-to-escape-sandbox"
+                allow="microphone; camera; encrypted-media; autoplay; clipboard-write; display-capture"
+                onLoad={() => setIframeLoaded(true)}
+                style={{
+                  opacity: iframeLoaded ? 1 : 0,
+                }}
+              />
+            </>
+          )}
+        </Box>
+      </Box>
+    </ModalOverlay>
   );
 }

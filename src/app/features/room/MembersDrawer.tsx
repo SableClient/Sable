@@ -1,26 +1,22 @@
 import type { ChangeEventHandler, MouseEventHandler } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import type { RectCords } from 'folds';
 import {
   Avatar,
   Badge,
   Box,
   Chip,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   MenuItem,
-  PopOut,
   Scroll,
   Spinner,
   Text,
   Tooltip,
-  TooltipProvider,
   config,
   toRem,
 } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
 import type { MatrixClient, Room, RoomMember } from '$types/matrix-sdk';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import classNames from 'classnames';
@@ -28,12 +24,11 @@ import classNames from 'classnames';
 import { AvatarPresence, PresenceBadge } from '$components/presence';
 import { useUserPresence } from '$hooks/useUserPresence';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { UseStateProvider } from '$components/UseStateProvider';
 import type { SearchItemStrGetter, UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
 import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { useDebounce } from '$hooks/useDebounce';
 import { TypingIndicator } from '$components/typing-indicator';
-import { getMemberDisplayName, getMemberSearchStr } from '$utils/room';
+import { getAvatarUrl, getMemberDisplayName, getMemberSearchStr } from '$utils/room/display';
 import { getMxIdLocalPart } from '$utils/matrix';
 import { useSetSetting, useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
@@ -41,13 +36,24 @@ import { useAtomValue } from 'jotai';
 import { nicknamesAtom } from '$state/nicknames';
 import { ScrollTopContainer } from '$components/scroll-top-container';
 import { UserAvatar } from '$components/user-avatar';
+import {
+  ArrowsDownUp,
+  CaretUp,
+  chipIcon,
+  composerIcon,
+  Funnel,
+  MagnifyingGlass,
+  userFallbackIcon,
+  X,
+} from '$components/icons/phosphor';
 import { useRoomTypingMember } from '$hooks/useRoomTypingMembers';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import { useMembershipFilter, useMembershipFilterMenu } from '$hooks/useMemberFilter';
 import { useMemberPowerSort, useMemberSort, useMemberSortMenu } from '$hooks/useMemberSort';
 import { useGetMemberPowerLevel, usePowerLevelsContext } from '$hooks/usePowerLevels';
-import { MembershipFilterMenu } from '$components/MembershipFilterMenu';
-import { MemberSortMenu } from '$components/MemberSortMenu';
+import { MemberMenuList } from '$components/MemberSortMenu';
+import { ResponsiveMenu } from '$components/ResponsiveMenu';
+import { useMenuAnchor } from '$hooks/useMenuAnchor';
 import { useOpenUserRoomProfile, useUserRoomProfileState } from '$state/hooks/userRoomProfile';
 import { useSpaceOptionally } from '$hooks/useSpace';
 import { ContainerColor } from '$styles/ContainerColor.css';
@@ -93,7 +99,7 @@ function MemberDrawerHeader({ room, hideText }: MemberDrawerHeaderProps) {
                 variant="Background"
                 onClick={() => setPeopleDrawer(false)}
               >
-                <Icon src={Icons.Cross} />
+                {composerIcon(X)}
               </IconButton>
             )}
           </TooltipProvider>
@@ -131,9 +137,7 @@ function MemberItem({
 
   // Increased the request size to 128x128 to maintain quality for the larger avatar
   const avatarMxcUrl = member.getMxcAvatarUrl();
-  const avatarUrl = avatarMxcUrl
-    ? mx.mxcUrlToHttp(avatarMxcUrl, 128, 128, 'crop', undefined, false, useAuthentication)
-    : undefined;
+  const avatarUrl = getAvatarUrl(mx, avatarMxcUrl, 128, useAuthentication);
 
   const presence = useUserPresence(member.userId);
   const { color, font } = useSableCosmetics(member.userId, room);
@@ -159,7 +163,7 @@ function MemberItem({
             userId={member.userId}
             src={avatarUrl ?? undefined}
             alt={name}
-            renderFallback={() => <Icon size="100" src={Icons.User} filled />}
+            renderFallback={() => userFallbackIcon('md')}
           />
         </Avatar>
       </AvatarPresence>
@@ -225,8 +229,6 @@ const SEARCH_OPTIONS: UseAsyncSearchOptions = {
 };
 
 const mxIdToName = (mxId: string) => getMxIdLocalPart(mxId) ?? mxId;
-const getRoomMemberStr: SearchItemStrGetter<RoomMember> = (m, query) =>
-  getMemberSearchStr(m, query, mxIdToName);
 
 type MembersDrawerProps = {
   room: Room;
@@ -234,6 +236,7 @@ type MembersDrawerProps = {
 };
 export function MembersDrawer({ room, members }: MembersDrawerProps) {
   const mx = useMatrixClient();
+  const nicknames = useAtomValue(nicknamesAtom);
   const useAuthentication = useMediaAuthentication();
   const scrollRef = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -263,6 +266,11 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
     () =>
       members.filter(membershipFilter.filterFn).toSorted(memberSort.sortFn).sort(memberPowerSort),
     [members, membershipFilter, memberSort, memberPowerSort]
+  );
+
+  const getRoomMemberStr = useCallback<SearchItemStrGetter<RoomMember>>(
+    (m, query) => getMemberSearchStr(m, query, mxIdToName, nicknames),
+    [nicknames]
   );
 
   const [result, search, resetSearch] = useAsyncSearch(
@@ -303,7 +311,7 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
     // BODGE, dependent on menuItem height staying at toRem(40)
     cords.y = Math.min(cords.y, window.innerHeight - 42);
 
-    openUserRoomProfile(room.roomId, space?.roomId, userId, cords, 'Left');
+    openUserRoomProfile(room.roomId, space?.roomId, userId, undefined, cords, 'Left');
   };
 
   const [memberSidebarWidth, setMemberSidebarWidth] = useSetting(
@@ -318,6 +326,8 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
   const screenSize = useScreenSizeContext();
   const isMobile = screenSize === ScreenSize.Mobile;
   const hideText = curWidth <= 80 && !isMobile;
+  const filterMenu = useMenuAnchor<HTMLButtonElement>();
+  const sortMenu = useMenuAnchor<HTMLButtonElement>();
   return (
     <Box
       className={classNames(css.MembersDrawer, ContainerColor({ variant: 'Background' }))}
@@ -335,7 +345,7 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
             setCurWidth={setCurWidth}
             sidebarWidth={memberSidebarWidth}
             setSidebarWidth={setMemberSidebarWidth}
-            instep={64}
+            instep={50}
             outstep={176}
             minValue={50}
             maxValue={350}
@@ -353,70 +363,56 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
                   gap="200"
                 >
                   <Box alignItems="Center" justifyContent="SpaceBetween" gap="200">
-                    <UseStateProvider initial={undefined}>
-                      {(anchor: RectCords | undefined, setAnchor) => (
-                        <PopOut
-                          anchor={anchor}
-                          position="Bottom"
-                          align="Start"
-                          offset={4}
-                          content={
-                            <MembershipFilterMenu
-                              selected={membershipFilterIndex}
-                              onSelect={setMembershipFilterIndex}
-                              requestClose={() => setAnchor(undefined)}
-                            />
-                          }
-                        >
-                          <Chip
-                            onClick={
-                              ((evt) =>
-                                setAnchor(
-                                  evt.currentTarget.getBoundingClientRect()
-                                )) as MouseEventHandler<HTMLButtonElement>
-                            }
-                            variant="Background"
-                            size="400"
-                            radii="300"
-                            before={<Icon src={Icons.Filter} size="50" />}
-                          >
-                            <Text size="T200">{membershipFilter.name}</Text>
-                          </Chip>
-                        </PopOut>
-                      )}
-                    </UseStateProvider>
-                    <UseStateProvider initial={undefined}>
-                      {(anchor: RectCords | undefined, setAnchor) => (
-                        <PopOut
-                          anchor={anchor}
-                          position="Bottom"
-                          align="End"
-                          offset={4}
-                          content={
-                            <MemberSortMenu
-                              selected={sortFilterIndex}
-                              onSelect={setSortFilterIndex}
-                              requestClose={() => setAnchor(undefined)}
-                            />
-                          }
-                        >
-                          <Chip
-                            onClick={
-                              ((evt) =>
-                                setAnchor(
-                                  evt.currentTarget.getBoundingClientRect()
-                                )) as MouseEventHandler<HTMLButtonElement>
-                            }
-                            variant="Background"
-                            size="400"
-                            radii="300"
-                            after={<Icon src={Icons.Sort} size="50" />}
-                          >
-                            <Text size="T200">{memberSort.name}</Text>
-                          </Chip>
-                        </PopOut>
-                      )}
-                    </UseStateProvider>
+                    <ResponsiveMenu
+                      anchor={filterMenu.anchor}
+                      requestClose={filterMenu.close}
+                      position="Bottom"
+                      align="Start"
+                      offset={4}
+                      menu={
+                        <MemberMenuList
+                          items={membershipFilterMenu}
+                          selected={membershipFilterIndex}
+                          onSelect={setMembershipFilterIndex}
+                          requestClose={filterMenu.close}
+                        />
+                      }
+                    >
+                      <Chip
+                        onClick={filterMenu.triggerProps.onClick}
+                        variant="Background"
+                        size="400"
+                        radii="300"
+                        before={chipIcon(Funnel)}
+                      >
+                        <Text size="T200">{membershipFilter.name}</Text>
+                      </Chip>
+                    </ResponsiveMenu>
+                    <ResponsiveMenu
+                      anchor={sortMenu.anchor}
+                      requestClose={sortMenu.close}
+                      position="Bottom"
+                      align="End"
+                      offset={4}
+                      menu={
+                        <MemberMenuList
+                          items={sortFilterMenu}
+                          selected={sortFilterIndex}
+                          onSelect={setSortFilterIndex}
+                          requestClose={sortMenu.close}
+                        />
+                      }
+                    >
+                      <Chip
+                        onClick={sortMenu.triggerProps.onClick}
+                        variant="Background"
+                        size="400"
+                        radii="300"
+                        after={chipIcon(ArrowsDownUp)}
+                      >
+                        <Text size="T200">{memberSort.name}</Text>
+                      </Chip>
+                    </ResponsiveMenu>
                   </Box>
                   <Box direction="Column" gap="100">
                     <Input
@@ -427,7 +423,7 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
                       variant="Surface"
                       size="400"
                       radii="400"
-                      before={<Icon size="50" src={Icons.Search} />}
+                      before={chipIcon(MagnifyingGlass)}
                       after={
                         result && (
                           <Chip
@@ -442,7 +438,7 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
                               }
                               resetSearch();
                             }}
-                            after={<Icon size="50" src={Icons.Cross} />}
+                            after={chipIcon(X)}
                           >
                             <Text size="B300">{`${result.items.length || 'No'} ${
                               result.items.length === 1 ? 'Result' : 'Results'
@@ -463,7 +459,7 @@ export function MembersDrawer({ room, members }: MembersDrawerProps) {
                     size="300"
                     aria-label="Scroll to Top"
                   >
-                    <Icon src={Icons.ChevronTop} size="300" />
+                    {composerIcon(CaretUp)}
                   </IconButton>
                 </ScrollTopContainer>
 

@@ -1,12 +1,13 @@
 experiment
 dist
+.goreleaser-dist
 coverage
 node_modules
 devAssets
 
 .DS_Store
 .idea
-
+*.code-workspace
 .env
 
 .wrangler
@@ -24,8 +25,41 @@ build.sh
 # the following line was added with the "git ignore" tool by itsrye.dev, version 0.1.0
 .lh
 
+# Tauri
+/build
+/target/
+/gen/schemas
+dist-js
+
+# Gradle / Android build artifacts
+**/android/build/
+**/android/.tauri/
+**/android/.gradle/
+**/.gradle/
+
+# Rust build artifacts
+src-tauri/target/
+# Tauri Android build outputs
+src-tauri/gen/android/app/build/
+# Tauri Apple outputs
+src-tauri/gen/apple/*
+# Tauri Android release keystore
+*.jks
+
+# Tauri-typegen cache
+.typecache
+
+# Worktrees
+.worktrees
+
 # the following line was added with nvim by Shea because its annoying to clear every so often
 .vscode/bookmarks.json
+
+# Playwright visual regression
+/test-results
+/playwright-report
+/blob-report
+/tests/e2e/.auth
 
 # Nix things
 ## nix build output
@@ -35,3 +69,8 @@ result
 .direnv
 ## auto-generated pre-commit config
 .pre-commit-config.yaml
+src-tauri/icons/generated/
+
+# Rendered by render-flatpak-nightly.mjs
+packaging/flatpak/nightly/moe.sable.client.Nightly.yml
+packaging/flatpak/nightly/moe.sable.client.Nightly.metainfo.xml

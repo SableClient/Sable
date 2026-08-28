@@ -1,0 +1,19 @@
+{
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "identifier": "ios-capability",
+  "platforms": ["iOS"],
+  "windows": ["main"],
+  "permissions": [
+    "dialog:allow-save",
+    "dialog:allow-open",
+    "fs:allow-write-file",
+    {
+      "identifier": "fs:allow-read-file",
+      "allow": [{ "path": "$TEMP/**/*" }, { "path": "$APPCACHE/**/*" }]
+    },
+    {
+      "identifier": "fs:allow-remove",
+      "allow": [{ "path": "$TEMP/**/*" }, { "path": "$APPCACHE/**/*" }]
+    }
+  ]
+}

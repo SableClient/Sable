@@ -88,7 +88,7 @@ export const useMessageSearch = (params: MessageSearchParams) => {
             event_context: {
               before_limit: 0,
               after_limit: 0,
-              include_profile: false,
+              include_profile: true,
             },
             filter: {
               limit,

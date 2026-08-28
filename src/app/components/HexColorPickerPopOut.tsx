@@ -1,17 +1,32 @@
 import FocusTrap from 'focus-trap-react';
 import type { RectCords } from 'folds';
-import { Box, Button, config, Menu, PopOut, Text } from 'folds';
+import { Box, Button, config, Menu, Text } from 'folds';
+import { HexColorPicker } from 'react-colorful';
+import { PopOut } from '$components/overlay-stack';
 import type { MouseEventHandler, ReactNode } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { stopPropagation } from '$utils/keyboard';
 
 type HexColorPickerPopOutProps = {
   children: (onOpen: MouseEventHandler<HTMLElement>, opened: boolean) => ReactNode;
-  picker: ReactNode;
+  color: string;
+  onChange: (color: string) => void;
   onRemove?: () => void;
 };
-export function HexColorPickerPopOut({ picker, onRemove, children }: HexColorPickerPopOutProps) {
+const isValidHexColor = (color: string) => /^#[0-9A-F]{6}$/i.test(color);
+
+export function HexColorPickerPopOut({
+  color,
+  onChange,
+  onRemove,
+  children,
+}: HexColorPickerPopOutProps) {
   const [cords, setCords] = useState<RectCords>();
+  const [pickerColor, setPickerColor] = useState(isValidHexColor(color) ? color : '#FFFFFF');
+
+  useEffect(() => {
+    if (isValidHexColor(color)) setPickerColor(color);
+  }, [color]);
 
   const handleOpen: MouseEventHandler<HTMLElement> = (evt) => {
     setCords(evt.currentTarget.getBoundingClientRect());
@@ -38,7 +53,13 @@ export function HexColorPickerPopOut({ picker, onRemove, children }: HexColorPic
             }}
           >
             <Box direction="Column" gap="200">
-              {picker}
+              <HexColorPicker
+                color={pickerColor}
+                onChange={(newColor) => {
+                  setPickerColor(newColor);
+                  onChange(newColor);
+                }}
+              />
               {onRemove && (
                 <Button
                   size="300"

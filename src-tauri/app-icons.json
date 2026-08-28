@@ -1,0 +1,30 @@
+{
+  "android": {
+    "mainActivity": ".MainActivity",
+    "resourcesDirectory": "icons/android",
+    "manifest": "gen/android/app/src/main/AndroidManifest.xml"
+  },
+  "ios": {
+    "assetsDirectory": "icons/ios/AppIcons.xcassets",
+    "infoPlist": "Info.plist"
+  },
+  "icons": [
+    {
+      "id": "propeller",
+      "source": "icons/app-icons/propeller.png",
+      "backgroundColor": "#1A1C28"
+    },
+    { "id": "agender", "source": "icons/app-icons/agender.svg", "backgroundColor": "#1A1C28" },
+    { "id": "bisexual", "source": "icons/app-icons/bisexual.svg", "backgroundColor": "#1A1C28" },
+    { "id": "trans", "source": "icons/app-icons/trans.png", "backgroundColor": "#1A1C28" },
+    {
+      "id": "transgradient",
+      "source": "icons/app-icons/trans-gradient.svg",
+      "backgroundColor": "#1A1C28"
+    },
+    { "id": "intersex", "source": "icons/app-icons/intersex.svg", "backgroundColor": "#1A1C28" },
+    { "id": "lesbian", "source": "icons/app-icons/lesbian.svg", "backgroundColor": "#1A1C28" },
+    { "id": "mlm", "source": "icons/app-icons/mlm.svg", "backgroundColor": "#1A1C28" },
+    { "id": "pride", "source": "icons/app-icons/pride.svg", "backgroundColor": "#1A1C28" }
+  ]
+}

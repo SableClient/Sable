@@ -1,7 +1,7 @@
 import type { RoomMember } from '$types/matrix-sdk';
 import { useCallback, useMemo } from 'react';
 
-export const MemberSort = {
+const MemberSort = {
   Ascending: (a: RoomMember, b: RoomMember) =>
     a.name.toLowerCase() < b.name.toLowerCase() ? -1 : 1,
   Descending: (a: RoomMember, b: RoomMember) =>

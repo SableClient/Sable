@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router';
 import { focusedSettingTile } from './styles.css';
 
 const focusedSettingTileClasses = focusedSettingTile.split(' ').filter(Boolean);

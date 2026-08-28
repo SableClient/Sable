@@ -1,7 +1,7 @@
 import type { ChangeEventHandler, FormEventHandler, KeyboardEventHandler } from 'react';
 import { useCallback, useMemo, useRef, useState } from 'react';
+import { Overlay } from '$components/overlay-stack';
 import {
-  Overlay,
   OverlayBackdrop,
   OverlayCenter,
   Box,
@@ -9,12 +9,7 @@ import {
   config,
   Text,
   IconButton,
-  Icon,
-  Icons,
   Input,
-  Button,
-  Spinner,
-  color,
   TextArea,
   Dialog,
   Menu,
@@ -32,11 +27,13 @@ import type { UseAsyncSearchOptions } from '$hooks/useAsyncSearch';
 import { useAsyncSearch } from '$hooks/useAsyncSearch';
 import { highlightText, makeHighlightRegex } from '$plugins/react-custom-html-parser';
 import { AsyncStatus, useAsyncCallback } from '$hooks/useAsyncCallback';
+import { AsyncError } from '$components/AsyncError';
+import { composerIcon, X } from '$components/icons/phosphor';
 import { useMatrixClient } from '$hooks/useMatrixClient';
-import { BreakWord } from '$styles/Text.css';
 import { useAlive } from '$hooks/useAlive';
 import { getMxIdServer } from '$utils/mxIdHelper';
 import { KnownMembership } from '$types/matrix-sdk';
+import { Button } from '$components/button';
 
 const SEARCH_OPTIONS: UseAsyncSearchOptions = {
   limit: 1000,
@@ -170,7 +167,7 @@ export function InviteUserPrompt({ room, requestClose }: InviteUserProps) {
                 </Box>
                 <Box shrink="No">
                   <IconButton size="300" radii="300" onClick={requestClose}>
-                    <Icon src={Icons.Cross} />
+                    {composerIcon(X)}
                   </IconButton>
                 </Box>
               </Header>
@@ -276,15 +273,14 @@ export function InviteUserPrompt({ room, requestClose }: InviteUserProps) {
                     resize="None"
                   />
                 </Box>
-                {inviteState.status === AsyncStatus.Error && (
-                  <Text size="T200" style={{ color: color.Critical.Main }} className={BreakWord}>
-                    <b>{inviteState.error.message}</b>
-                  </Text>
-                )}
+                <AsyncError state={inviteState} bold />
                 <Button
                   type="submit"
-                  disabled={!validUserId || inviting}
-                  before={inviting && <Spinner size="200" variant="Primary" fill="Solid" />}
+                  loading={inviting}
+                  spinnerSize="200"
+                  spinnerVariant="Primary"
+                  spinnerFill="Solid"
+                  disabled={!validUserId}
                 >
                   <Text size="B400">Invite</Text>
                 </Button>

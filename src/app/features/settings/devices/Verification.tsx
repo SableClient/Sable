@@ -1,24 +1,10 @@
 import type { MouseEventHandler } from 'react';
 import { useCallback, useState } from 'react';
+import { isTauri } from '@tauri-apps/api/core';
 import type { RectCords } from 'folds';
-import {
-  Badge,
-  Box,
-  Button,
-  Chip,
-  config,
-  Icon,
-  Icons,
-  Spinner,
-  Text,
-  Overlay,
-  OverlayBackdrop,
-  OverlayCenter,
-  IconButton,
-  PopOut,
-  Menu,
-  MenuItem,
-} from 'folds';
+import { Badge, Box, Button, Chip, config, Spinner, Text, IconButton, Menu, MenuItem } from 'folds';
+import { PopOut } from '$components/overlay-stack';
+import { DotsThreeOutlineVerticalIcon, menuIcon, X } from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
 import type { CryptoApi, VerificationRequest } from '$types/matrix-sdk';
 import { VerificationStatus } from '$hooks/useDeviceVerificationStatus';
@@ -35,8 +21,8 @@ import {
 } from '$components/DeviceVerificationSetup';
 import { stopPropagation } from '$utils/keyboard';
 import { useAuthMetadata } from '$hooks/useAuthMetadata';
-import { withSearchParam } from '$pages/pathUtils';
-import { useAccountManagementActions } from '$hooks/useAccountManagement';
+import { getAccountManagementUrl, useAccountManagementActions } from '$hooks/useAccountManagement';
+import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 
 type VerificationStatusBadgeProps = {
   verificationStatus: VerificationStatus;
@@ -155,7 +141,7 @@ export function VerifyCurrentDeviceTile({
               radii="Pill"
               onClick={handleCancelVerification}
             >
-              <Icon size="100" src={Icons.Cross} />
+              {menuIcon(X)}
             </Chip>
           }
         />
@@ -237,19 +223,13 @@ export function EnableVerification({ visible }: EnableVerificationProps) {
         </Button>
       )}
       {open && (
-        <Overlay open backdrop={<OverlayBackdrop />}>
-          <OverlayCenter>
-            <FocusTrap
-              focusTrapOptions={{
-                initialFocus: false,
-                clickOutsideDeactivates: false,
-                escapeDeactivates: false,
-              }}
-            >
-              <DeviceVerificationSetup onCancel={handleCancel} />
-            </FocusTrap>
-          </OverlayCenter>
-        </Overlay>
+        <ModalOverlay
+          requestClose={handleCancel}
+          dismissOnClickOutside={false}
+          escapeDeactivates={false}
+        >
+          <DeviceVerificationSetup onCancel={handleCancel} />
+        </ModalOverlay>
       )}
     </>
   );
@@ -258,6 +238,7 @@ export function EnableVerification({ visible }: EnableVerificationProps) {
 export function DeviceVerificationOptions() {
   const [menuCords, setMenuCords] = useState<RectCords>();
   const authMetadata = useAuthMetadata();
+  const mx = useMatrixClient();
   const accountManagementActions = useAccountManagementActions();
 
   const [reset, setReset] = useState(false);
@@ -273,15 +254,20 @@ export function DeviceVerificationOptions() {
   const handleReset = () => {
     setMenuCords(undefined);
 
-    if (authMetadata) {
-      const authUrl = authMetadata.account_management_uri ?? authMetadata.issuer;
-      window.open(
-        withSearchParam(authUrl, {
-          action: accountManagementActions.crossSigningReset,
-        }),
-        '_blank'
-      );
-      return;
+    const url = getAccountManagementUrl(
+      authMetadata,
+      accountManagementActions.crossSigningReset,
+      undefined,
+      mx.getHomeserverUrl()
+    );
+    if (url) {
+      if (isTauri()) {
+        import('@tauri-apps/plugin-opener')
+          .then(({ openUrl }) => openUrl(url))
+          .catch(() => window.open(url, '_blank'));
+      } else {
+        window.open(url, '_blank');
+      }
     }
 
     setReset(true);
@@ -296,7 +282,7 @@ export function DeviceVerificationOptions() {
         radii="300"
         onClick={handleMenu}
       >
-        <Icon size="100" src={Icons.VerticalDots} />
+        {menuIcon(DotsThreeOutlineVerticalIcon, { weight: menuCords ? 'fill' : 'regular' })}
       </IconButton>
       <PopOut
         anchor={menuCords}
@@ -335,19 +321,13 @@ export function DeviceVerificationOptions() {
         }
       />
       {reset && (
-        <Overlay open backdrop={<OverlayBackdrop />}>
-          <OverlayCenter>
-            <FocusTrap
-              focusTrapOptions={{
-                initialFocus: false,
-                clickOutsideDeactivates: false,
-                escapeDeactivates: false,
-              }}
-            >
-              <DeviceVerificationReset onCancel={handleCancelReset} />
-            </FocusTrap>
-          </OverlayCenter>
-        </Overlay>
+        <ModalOverlay
+          requestClose={handleCancelReset}
+          dismissOnClickOutside={false}
+          escapeDeactivates={false}
+        >
+          <DeviceVerificationReset onCancel={handleCancelReset} />
+        </ModalOverlay>
       )}
     </>
   );

@@ -1,8 +1,7 @@
-import { Box, color, Spinner, Switch, Text } from 'folds';
-import type { MatrixError, RoomJoinRulesEventContent } from '$types/matrix-sdk';
+import { Box, Spinner, Switch } from 'folds';
+import type { RoomJoinRulesEventContent } from '$types/matrix-sdk';
 import { JoinRule, EventType } from '$types/matrix-sdk';
-import { SequenceCard } from '$components/sequence-card';
-import { SequenceCardStyle } from '$features/room-settings/styles.css';
+import { SequenceCard, SequenceCardStyle } from '$components/sequence-card';
 import { SettingTile } from '$components/setting-tile';
 import { useRoom } from '$hooks/useRoom';
 import { useRoomDirectoryVisibility } from '$hooks/useRoomDirectoryVisibility';
@@ -12,6 +11,7 @@ import { useMatrixClient } from '$hooks/useMatrixClient';
 import { useStateEvent } from '$hooks/useStateEvent';
 import type { ExtendedJoinRules } from '$components/JoinRulesSwitcher';
 import type { RoomPermissionsAPI } from '$hooks/useRoomPermissions';
+import { AsyncError } from '$components/AsyncError';
 
 type RoomPublishProps = {
   permissions: RoomPermissionsAPI;
@@ -61,17 +61,8 @@ export function RoomPublish({ permissions }: RoomPublishProps) {
           </Box>
         }
       >
-        {visibilityState.status === AsyncStatus.Error && (
-          <Text style={{ color: color.Critical.Main }} size="T200">
-            {(visibilityState.error as MatrixError).message}
-          </Text>
-        )}
-
-        {toggleState.status === AsyncStatus.Error && (
-          <Text style={{ color: color.Critical.Main }} size="T200">
-            {(toggleState.error as MatrixError).message}
-          </Text>
-        )}
+        <AsyncError state={visibilityState} />
+        <AsyncError state={toggleState} />
       </SettingTile>
     </SequenceCard>
   );

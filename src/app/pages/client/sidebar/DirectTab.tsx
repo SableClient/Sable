@@ -1,9 +1,5 @@
-import type { MouseEventHandler } from 'react';
-import { forwardRef, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import type { RectCords } from 'folds';
-import { Box, Icon, Icons, Menu, MenuItem, PopOut, Text, config, toRem } from 'folds';
-import FocusTrap from 'focus-trap-react';
+import { forwardRef, useMemo } from 'react';
+import { useNavigate } from 'react-router';
 import { useAtomValue } from 'jotai';
 import { useDirects } from '$state/hooks/roomList';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -12,55 +8,25 @@ import { allRoomsAtom } from '$state/room-list/roomList';
 import { roomToUnreadAtom } from '$state/room/roomToUnread';
 import { getDirectPath, joinPathComponent } from '$pages/pathUtils';
 import { useRoomsUnread } from '$state/hooks/unread';
-import {
-  SidebarAvatar,
-  SidebarItem,
-  SidebarUnreadBadge,
-  SidebarItemTooltip,
-} from '$components/sidebar';
-import { useDirectSelected } from '$hooks/router/useDirectSelected';
+import { SidebarTab } from '$components/sidebar';
+import { useDirectSelected } from '$hooks/router/useRouteSelected';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { useNavToActivePathAtom } from '$state/hooks/navToActivePath';
-import { markAsRead } from '$utils/notifications';
-import { stopPropagation } from '$utils/keyboard';
-import { settingsAtom } from '$state/settings';
-import { useSetting } from '$state/hooks/settings';
+import { getPhosphorIconSize, User } from '$components/icons/phosphor';
 import { useDirectRooms } from '$pages/client/direct/useDirectRooms';
 import { useSidebarDirectRoomIds } from './useSidebarDirectRoomIds';
+import { useMenuAnchor } from '$hooks/useMenuAnchor';
+import { NavMenu } from '$components/nav/NavMenu';
 
 type DirectMenuProps = {
   requestClose: () => void;
 };
 const DirectMenu = forwardRef<HTMLDivElement, DirectMenuProps>(({ requestClose }, ref) => {
   const orphanRooms = useDirectRooms();
-  const [hideReads] = useSetting(settingsAtom, 'hideReads');
-  const unread = useRoomsUnread(orphanRooms, roomToUnreadAtom);
-  const mx = useMatrixClient();
 
-  const handleMarkAsRead = () => {
-    if (!unread) return;
-    orphanRooms.forEach((rId) => markAsRead(mx, rId, hideReads));
-    requestClose();
-  };
-
-  return (
-    <Menu ref={ref} style={{ maxWidth: toRem(160), width: '100vw' }}>
-      <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
-        <MenuItem
-          onClick={handleMarkAsRead}
-          size="300"
-          after={<Icon size="100" src={Icons.CheckTwice} />}
-          radii="300"
-          aria-disabled={!unread}
-        >
-          <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
-            Mark as Read
-          </Text>
-        </MenuItem>
-      </Box>
-    </Menu>
-  );
+  return <NavMenu ref={ref} rooms={orphanRooms} requestClose={requestClose} />;
 });
+DirectMenu.displayName = 'DirectMenu';
 
 export function DirectTab() {
   const navigate = useNavigate();
@@ -78,7 +44,7 @@ export function DirectTab() {
     return directs.filter((id) => !sidebarSet.has(id));
   }, [directs, sidebarRoomIds]);
   const directUnread = useRoomsUnread(overflowDirects, roomToUnreadAtom);
-  const [menuAnchor, setMenuAnchor] = useState<RectCords>();
+  const menuAnchor = useMenuAnchor<HTMLButtonElement>();
 
   const directSelected = useDirectSelected();
 
@@ -95,58 +61,25 @@ export function DirectTab() {
     navigate(getDirectPath());
   };
 
-  const handleContextMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    evt.preventDefault();
-    const cords = evt.currentTarget.getBoundingClientRect();
-    setMenuAnchor((currentState) => {
-      if (currentState) return undefined;
-      return cords;
-    });
-  };
   return (
-    <SidebarItem active={directSelected}>
-      <SidebarItemTooltip tooltip="Direct Messages">
-        {(triggerRef) => (
-          <SidebarAvatar
-            as="button"
-            ref={triggerRef}
-            outlined
-            onClick={handleDirectClick}
-            onContextMenu={handleContextMenu}
-          >
-            <Icon src={Icons.User} filled={directSelected} />
-          </SidebarAvatar>
-        )}
-      </SidebarItemTooltip>
-      {directUnread && (
-        <SidebarUnreadBadge
-          highlight={directUnread.highlight > 0}
-          count={directUnread.highlight > 0 ? directUnread.highlight : directUnread.total}
-          dm
-        />
-      )}
-      {menuAnchor && (
-        <PopOut
-          anchor={menuAnchor}
-          position="Right"
-          align="Start"
-          content={
-            <FocusTrap
-              focusTrapOptions={{
-                initialFocus: false,
-                returnFocusOnDeactivate: false,
-                onDeactivate: () => setMenuAnchor(undefined),
-                clickOutsideDeactivates: true,
-                isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
-                isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
-                escapeDeactivates: stopPropagation,
-              }}
-            >
-              <DirectMenu requestClose={() => setMenuAnchor(undefined)} />
-            </FocusTrap>
-          }
-        />
-      )}
-    </SidebarItem>
+    <SidebarTab
+      icon={
+        <User size={getPhosphorIconSize('toolbar')} weight={directSelected ? 'fill' : 'regular'} />
+      }
+      selected={directSelected}
+      tooltip="Direct Messages"
+      onClick={handleDirectClick}
+      menu={<DirectMenu requestClose={menuAnchor.close} />}
+      menuAnchor={menuAnchor}
+      unreadHighlight={directUnread ? directUnread.highlight > 0 : false}
+      unreadCount={
+        directUnread
+          ? directUnread.highlight > 0
+            ? directUnread.highlight
+            : directUnread.total
+          : 0
+      }
+      dm
+    />
   );
 }

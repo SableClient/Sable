@@ -7,20 +7,28 @@ import {
   Button,
   Chip,
   Header,
-  Icon,
   IconButton,
-  Icons,
   Input,
   Menu,
-  PopOut,
   Scroll,
   Spinner,
   Text,
   as,
   config,
 } from 'folds';
+import { PopOut } from '$components/overlay-stack';
+import {
+  ArrowLeft,
+  CaretLeft,
+  CaretRight,
+  Download,
+  Minus,
+  Plus,
+  Warning,
+  sizedIcon,
+} from '$components/icons/phosphor';
 import FocusTrap from 'focus-trap-react';
-import FileSaver from 'file-saver';
+import { getDownloadFilename, saveFileToDevice } from '$utils/download';
 import { AsyncStatus } from '$hooks/useAsyncCallback';
 import { useImageGestures } from '$hooks/useImageGestures';
 import { createPage, usePdfDocumentLoader, usePdfJSLoader } from '$plugins/pdfjs-dist';
@@ -53,8 +61,11 @@ export const PdfViewer = as<'div', PdfViewerProps>(
     );
     const isLoading =
       pdfJSState.status === AsyncStatus.Loading || docState.status === AsyncStatus.Loading;
+    const [renderError, setRenderError] = useState(false);
     const isError =
-      pdfJSState.status === AsyncStatus.Error || docState.status === AsyncStatus.Error;
+      pdfJSState.status === AsyncStatus.Error ||
+      docState.status === AsyncStatus.Error ||
+      renderError;
     const [pageNo, setPageNo] = useState(1);
     const [jumpAnchor, setJumpAnchor] = useState<RectCords>();
 
@@ -68,21 +79,30 @@ export const PdfViewer = as<'div', PdfViewerProps>(
     }, [pdfJSState, loadPdfDocument]);
 
     useEffect(() => {
-      if (docState.status === AsyncStatus.Success) {
-        const doc = docState.data;
-        if (pageNo < 0 || pageNo > doc.numPages) return;
-        createPage(doc, pageNo, { scale: zoom }).then((canvas) => {
+      if (docState.status !== AsyncStatus.Success) return undefined;
+      const doc = docState.data;
+      if (pageNo < 0 || pageNo > doc.numPages) return undefined;
+      let cancelled = false;
+      setRenderError(false);
+      createPage(doc, pageNo, { scale: zoom })
+        .then((canvas) => {
+          if (cancelled) return;
           const container = containerRef.current;
           if (!container) return;
           container.textContent = '';
           container.append(canvas);
           canvas.style.touchAction = 'pan-x pan-y';
+        })
+        .catch(() => {
+          if (!cancelled) setRenderError(true);
         });
-      }
+      return () => {
+        cancelled = true;
+      };
     }, [docState, pageNo, zoom]);
 
     const handleDownload = () => {
-      FileSaver.saveAs(src, name);
+      void saveFileToDevice(src, getDownloadFilename(name, undefined, 'document.pdf'));
     };
 
     const handleJumpSubmit: FormEventHandler<HTMLFormElement> = (evt) => {
@@ -120,7 +140,7 @@ export const PdfViewer = as<'div', PdfViewerProps>(
         <Header className={css.PdfViewerHeader} size="400">
           <Box grow="Yes" alignItems="Center" gap="200">
             <IconButton size="300" radii="300" onClick={requestClose}>
-              <Icon size="50" src={Icons.ArrowLeft} />
+              {sizedIcon(ArrowLeft, '50')}
             </IconButton>
             <Text size="T300" truncate>
               {name}
@@ -135,7 +155,7 @@ export const PdfViewer = as<'div', PdfViewerProps>(
               onClick={zoomOut}
               aria-label="Zoom Out"
             >
-              <Icon size="50" src={Icons.Minus} />
+              {sizedIcon(Minus, '50')}
             </IconButton>
             <Chip variant="SurfaceVariant" radii="Pill" onClick={() => setZoom(zoom === 1 ? 2 : 1)}>
               <Text size="B300">{Math.round(zoom * 100)}%</Text>
@@ -148,13 +168,13 @@ export const PdfViewer = as<'div', PdfViewerProps>(
               onClick={zoomIn}
               aria-label="Zoom In"
             >
-              <Icon size="50" src={Icons.Plus} />
+              {sizedIcon(Plus, '50')}
             </IconButton>
             <Chip
               variant="Primary"
               onClick={handleDownload}
               radii="300"
-              before={<Icon size="50" src={Icons.Download} />}
+              before={sizedIcon(Download, '50')}
             >
               <Text size="B300">Download</Text>
             </Chip>
@@ -170,14 +190,14 @@ export const PdfViewer = as<'div', PdfViewerProps>(
                 fill="Soft"
                 size="300"
                 radii="300"
-                before={<Icon src={Icons.Warning} size="50" />}
+                before={sizedIcon(Warning, '50')}
                 onClick={loadPdfJS}
               >
                 <Text size="B300">Retry</Text>
               </Button>
             </>
           )}
-          {docState.status === AsyncStatus.Success && (
+          {docState.status === AsyncStatus.Success && !renderError && (
             <Scroll
               ref={scrollRef}
               size="300"
@@ -201,7 +221,7 @@ export const PdfViewer = as<'div', PdfViewerProps>(
             <Chip
               variant="Secondary"
               radii="300"
-              before={<Icon size="50" src={Icons.ChevronLeft} />}
+              before={sizedIcon(CaretLeft, '50')}
               onClick={handlePrevPage}
               aria-disabled={pageNo <= 1}
             >
@@ -263,7 +283,7 @@ export const PdfViewer = as<'div', PdfViewerProps>(
             <Chip
               variant="Primary"
               radii="300"
-              after={<Icon size="50" src={Icons.ChevronRight} />}
+              after={sizedIcon(CaretRight, '50')}
               onClick={handleNextPage}
               aria-disabled={pageNo >= docState.data.numPages}
             >

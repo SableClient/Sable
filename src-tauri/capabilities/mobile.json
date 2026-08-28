@@ -1,0 +1,15 @@
+{
+  "$schema": "../gen/schemas/mobile-schema.json",
+  "identifier": "mobile-capability",
+  "platforms": ["android", "iOS"],
+  "windows": ["main"],
+  "permissions": [
+    "core:window:allow-set-badge-count",
+    "app-icon:default",
+    "deep-link:default",
+    "edge-to-edge:default",
+    "livekit-mobile:default",
+    "notifications:default",
+    "sharekit:default"
+  ]
+}

@@ -1,0 +1,6 @@
+{
+  "build": {
+    "beforeDevCommand": "pnpm generate:app-icons:android && pnpm dev",
+    "beforeBuildCommand": "pnpm generate:app-icons:android && pnpm build"
+  }
+}

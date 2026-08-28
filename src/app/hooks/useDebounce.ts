@@ -1,23 +1,32 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 
 export interface DebounceOptions {
   wait?: number;
   immediate?: boolean;
 }
 export type DebounceCallback<T extends unknown[]> = (...args: T) => void;
+export type DebouncedCallback<T extends unknown[]> = DebounceCallback<T> & {
+  cancel: () => void;
+};
 
 export function useDebounce<T extends unknown[]>(
   callback: DebounceCallback<T>,
   options?: DebounceOptions
-): DebounceCallback<T> {
-  const timeoutIdRef = useRef<number>();
+): DebouncedCallback<T> {
+  const timeoutIdRef = useRef<number | undefined>(undefined);
   const { wait, immediate } = options ?? {};
+
+  const cancel = useCallback(() => {
+    if (timeoutIdRef.current !== undefined) {
+      clearTimeout(timeoutIdRef.current);
+      timeoutIdRef.current = undefined;
+    }
+  }, []);
 
   const debounceCallback = useCallback(
     (...cbArgs: T) => {
-      if (timeoutIdRef.current) {
-        clearTimeout(timeoutIdRef.current);
-        timeoutIdRef.current = undefined;
+      if (timeoutIdRef.current !== undefined) {
+        cancel();
       } else if (immediate) {
         callback(...cbArgs);
       }
@@ -27,8 +36,10 @@ export function useDebounce<T extends unknown[]>(
         timeoutIdRef.current = undefined;
       }, wait);
     },
-    [callback, wait, immediate]
+    [callback, cancel, wait, immediate]
   );
 
-  return debounceCallback;
+  useEffect(() => cancel, [cancel]);
+
+  return useMemo(() => Object.assign(debounceCallback, { cancel }), [debounceCallback, cancel]);
 }

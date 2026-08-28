@@ -1,0 +1,312 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+
+    <!-- Haptic feedback (navigator.vibrate) -->
+    <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- WebRTC calls (camera/mic) -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <uses-permission android:name="android.permission.MODIFY_AUDIO_SETTINGS" />
+
+    <!-- Foreground service for ongoing calls (microphone|mediaPlayback on API 34+) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <!-- Keep the CPU awake so the WebView's WebRTC keeps running while backgrounded -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+
+    <!-- Location sharing (navigator.geolocation) -->
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
+    <uses-feature android:name="android.hardware.location.gps" android:required="false" />
+
+    <!-- AndroidTV support -->
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+
+    <application
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:label="@string/app_name"
+        android:theme="@style/Theme.sable"
+        android:usesCleartextTraffic="${usesCleartextTraffic}"
+        android:networkSecurityConfig="@xml/network_security_config">
+
+        <receiver
+            android:name="app.tauri.notification.TauriUnifiedPushMessagingService"
+            tools:node="remove" />
+
+        <activity
+            android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode"
+            android:launchMode="singleTask"
+            android:label="@string/main_activity_title"
+            android:name="moe.sable.client.MainActivity"
+            android:supportsPictureInPicture="true"
+            android:exported="true">
+            <!-- Inbound share targets — receive text, images, videos, and files from other apps.
+                 Mirrors the iOS share extension activation rules. -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="application/*" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="*/*" />
+            </intent-filter>
+            <!-- DEEP LINK PLUGIN. AUTO-GENERATED. DO NOT REMOVE. -->
+            <intent-filter >
+                <action android:name="android.intent.action.VIEW" />
+                <!-- ChromeOS ARC++ uses a different action for deep links -->
+                <action android:name="org.chromium.arc.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="sable" />
+                <data android:scheme="moe.sable.app" />
+                
+                
+                
+                
+                
+            </intent-filter>
+            <!-- DEEP LINK PLUGIN. AUTO-GENERATED. DO NOT REMOVE. -->
+        </activity>
+
+        <!-- APP-ICON ALIASES START -->
+        <activity-alias
+            android:name=".AppIconDefault"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher"
+            android:roundIcon="@mipmap/ic_launcher_round"
+            android:enabled="true"
+            android:exported="true">
+            <meta-data
+                android:name="tauri-plugin-app-icon-id"
+                android:value="default" />
+            <meta-data
+                android:name="tauri-plugin-app-icon-default"
+                android:value="true" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".AppIconPropeller"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_propeller"
+            android:roundIcon="@mipmap/ic_launcher_propeller"
+            android:enabled="false"
+            android:exported="true">
+            <meta-data
+                android:name="tauri-plugin-app-icon-id"
+                android:value="propeller" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".AppIconAgender"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_agender"
+            android:roundIcon="@mipmap/ic_launcher_agender"
+            android:enabled="false"
+            android:exported="true">
+            <meta-data
+                android:name="tauri-plugin-app-icon-id"
+                android:value="agender" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".AppIconBisexual"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_bisexual"
+            android:roundIcon="@mipmap/ic_launcher_bisexual"
+            android:enabled="false"
+            android:exported="true">
+            <meta-data
+                android:name="tauri-plugin-app-icon-id"
+                android:value="bisexual" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".AppIconTrans"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_trans"
+            android:roundIcon="@mipmap/ic_launcher_trans"
+            android:enabled="false"
+            android:exported="true">
+            <meta-data
+                android:name="tauri-plugin-app-icon-id"
+                android:value="trans" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".AppIconTransgradient"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_transgradient"
+            android:roundIcon="@mipmap/ic_launcher_transgradient"
+            android:enabled="false"
+            android:exported="true">
+            <meta-data
+                android:name="tauri-plugin-app-icon-id"
+                android:value="transgradient" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".AppIconIntersex"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_intersex"
+            android:roundIcon="@mipmap/ic_launcher_intersex"
+            android:enabled="false"
+            android:exported="true">
+            <meta-data
+                android:name="tauri-plugin-app-icon-id"
+                android:value="intersex" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".AppIconLesbian"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_lesbian"
+            android:roundIcon="@mipmap/ic_launcher_lesbian"
+            android:enabled="false"
+            android:exported="true">
+            <meta-data
+                android:name="tauri-plugin-app-icon-id"
+                android:value="lesbian" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".AppIconMlm"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_mlm"
+            android:roundIcon="@mipmap/ic_launcher_mlm"
+            android:enabled="false"
+            android:exported="true">
+            <meta-data
+                android:name="tauri-plugin-app-icon-id"
+                android:value="mlm" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+
+        <activity-alias
+            android:name=".AppIconPride"
+            android:targetActivity=".MainActivity"
+            android:icon="@mipmap/ic_launcher_pride"
+            android:roundIcon="@mipmap/ic_launcher_pride"
+            android:enabled="false"
+            android:exported="true">
+            <meta-data
+                android:name="tauri-plugin-app-icon-id"
+                android:value="pride" />
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+        </activity-alias>
+        <!-- APP-ICON ALIASES END -->
+
+        <service
+            android:name="moe.sable.client.CallForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="microphone|mediaPlayback" />
+
+        <provider
+          android:name="androidx.core.content.FileProvider"
+          android:authorities="${applicationId}.fileprovider"
+          android:exported="false"
+          android:grantUriPermissions="true">
+          <meta-data
+            android:name="android.support.FILE_PROVIDER_PATHS"
+            android:resource="@xml/file_paths" />
+        </provider>
+    </application>
+    <!-- ANDROID FS PLUGIN. AUTO-GENERATED. DO NOT REMOVE. -->
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    <!-- ANDROID FS PLUGIN. AUTO-GENERATED. DO NOT REMOVE. -->
+</manifest>

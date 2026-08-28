@@ -1,44 +1,39 @@
-import type { MouseEventHandler } from 'react';
 import { forwardRef, useState } from 'react';
-import type { RectCords } from 'folds';
-import {
-  Avatar,
-  Box,
-  Icon,
-  IconButton,
-  Icons,
-  Line,
-  Menu,
-  MenuItem,
-  PopOut,
-  Text,
-  Tooltip,
-  TooltipProvider,
-  config,
-  toRem,
-} from 'folds';
-import FocusTrap from 'focus-trap-react';
+import { Avatar, Box, IconButton, Line, Menu, MenuItem, Text, Tooltip, config, toRem } from 'folds';
+import { TooltipProvider } from '$components/overlay-stack';
+import { ResponsiveMenu } from '$components/ResponsiveMenu';
+import { useMenuAnchor } from '$hooks/useMenuAnchor';
 import { PageHeader } from '$components/page';
-import { useSetSetting } from '$state/hooks/settings';
+import { useSetSetting, useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { useRoomAvatar, useRoomName } from '$hooks/useRoomMeta';
 import { useSpace } from '$hooks/useSpace';
 import { useMatrixClient } from '$hooks/useMatrixClient';
 import { RoomAvatar } from '$components/room-avatar';
+import {
+  ArrowLeft,
+  composerIcon,
+  DotsThreeOutlineVerticalIcon,
+  GearSix,
+  menuIcon,
+  SignOut,
+  UserCircle,
+  UserPlus,
+} from '$components/icons/phosphor';
 import { nameInitials } from '$utils/common';
 import type { IPowerLevels } from '$hooks/usePowerLevels';
 import { UseStateProvider } from '$components/UseStateProvider';
 import { LeaveSpacePrompt } from '$components/leave-space-prompt';
-import { stopPropagation } from '$utils/keyboard';
 import { ScreenSize, useScreenSizeContext } from '$hooks/useScreenSize';
 import { BackRouteHandler } from '$components/BackRouteHandler';
 import { mxcUrlToHttp } from '$utils/matrix';
 import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
-import { useOpenSpaceSettings } from '$state/hooks/spaceSettings';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { InviteUserPrompt } from '$components/invite-user-prompt';
 import * as css from './LobbyHeader.css';
+import { useOpenRoomSettings } from '$state/hooks/roomSettings';
+import { RoomSettingsPage } from '$state/roomSettings';
 
 type LobbyMenuProps = {
   powerLevels: IPowerLevels;
@@ -52,7 +47,8 @@ const LobbyMenu = forwardRef<HTMLDivElement, LobbyMenuProps>(
 
     const permissions = useRoomPermissions(creators, powerLevels);
     const canInvite = permissions.action('invite', mx.getSafeUserId());
-    const openSpaceSettings = useOpenSpaceSettings();
+    const openRoomSettings = useOpenRoomSettings();
+    const screenSize = useScreenSizeContext();
 
     const [invitePrompt, setInvitePrompt] = useState(false);
 
@@ -61,7 +57,7 @@ const LobbyMenu = forwardRef<HTMLDivElement, LobbyMenuProps>(
     };
 
     const handleRoomSettings = () => {
-      openSpaceSettings(space.roomId);
+      openRoomSettings(space.roomId);
       requestClose();
     };
 
@@ -82,7 +78,7 @@ const LobbyMenu = forwardRef<HTMLDivElement, LobbyMenuProps>(
             variant="Primary"
             fill="None"
             size="300"
-            after={<Icon size="100" src={Icons.UserPlus} />}
+            after={menuIcon(UserPlus)}
             radii="300"
             aria-pressed={invitePrompt}
             disabled={!canInvite}
@@ -91,12 +87,22 @@ const LobbyMenu = forwardRef<HTMLDivElement, LobbyMenuProps>(
               Invite
             </Text>
           </MenuItem>
-          <MenuItem
-            onClick={handleRoomSettings}
-            size="300"
-            after={<Icon size="100" src={Icons.Setting} />}
-            radii="300"
-          >
+          {screenSize !== ScreenSize.Desktop && (
+            <MenuItem
+              onClick={() => {
+                openRoomSettings(space.roomId, undefined, RoomSettingsPage.MembersPage);
+                requestClose();
+              }}
+              size="300"
+              after={menuIcon(UserCircle)}
+              radii="300"
+            >
+              <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
+                Members
+              </Text>
+            </MenuItem>
+          )}
+          <MenuItem onClick={handleRoomSettings} size="300" after={menuIcon(GearSix)} radii="300">
             <Text style={{ flexGrow: 1 }} as="span" size="T300" truncate>
               Space Settings
             </Text>
@@ -112,7 +118,7 @@ const LobbyMenu = forwardRef<HTMLDivElement, LobbyMenuProps>(
                   variant="Critical"
                   fill="None"
                   size="300"
-                  after={<Icon size="100" src={Icons.ArrowGoLeft} />}
+                  after={menuIcon(SignOut)}
                   radii="300"
                   aria-pressed={promptLeave}
                 >
@@ -145,7 +151,8 @@ export function LobbyHeader({ showProfile, powerLevels }: LobbyHeaderProps) {
   const useAuthentication = useMediaAuthentication();
   const space = useSpace();
   const setPeopleDrawer = useSetSetting(settingsAtom, 'isPeopleDrawer');
-  const [menuAnchor, setMenuAnchor] = useState<RectCords>();
+  const [peopleDrawer] = useSetting(settingsAtom, 'isPeopleDrawer');
+  const menu = useMenuAnchor<HTMLButtonElement>();
   const screenSize = useScreenSizeContext();
 
   const name = useRoomName(space);
@@ -153,10 +160,6 @@ export function LobbyHeader({ showProfile, powerLevels }: LobbyHeaderProps) {
   const avatarUrl = avatarMxc
     ? (mxcUrlToHttp(mx, avatarMxc, useAuthentication, 96, 96, 'crop') ?? undefined)
     : undefined;
-
-  const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
-    setMenuAnchor(evt.currentTarget.getBoundingClientRect());
-  };
 
   return (
     <PageHeader className={showProfile ? undefined : css.Header} balance>
@@ -167,7 +170,7 @@ export function LobbyHeader({ showProfile, powerLevels }: LobbyHeaderProps) {
               <BackRouteHandler>
                 {(onBack) => (
                   <IconButton fill="None" onClick={onBack}>
-                    <Icon src={Icons.ArrowLeft} />
+                    {composerIcon(ArrowLeft)}
                   </IconButton>
                 )}
               </BackRouteHandler>
@@ -202,19 +205,14 @@ export function LobbyHeader({ showProfile, powerLevels }: LobbyHeaderProps) {
             </Box>
           </>
         )}
-        <Box
-          shrink="No"
-          grow={screenSize === ScreenSize.Mobile ? 'No' : 'Yes'}
-          basis={screenSize === ScreenSize.Mobile ? 'Yes' : 'No'}
-          justifyContent="End"
-        >
-          {screenSize !== ScreenSize.Mobile && (
+        <Box shrink="No" className={css.ActionsBox} justifyContent="End">
+          {screenSize === ScreenSize.Desktop && (
             <TooltipProvider
               position="Bottom"
               offset={4}
               tooltip={
                 <Tooltip>
-                  <Text>Members</Text>
+                  <Text>{peopleDrawer ? 'Hide Members' : 'Show Members'}</Text>
                 </Tooltip>
               }
             >
@@ -224,55 +222,42 @@ export function LobbyHeader({ showProfile, powerLevels }: LobbyHeaderProps) {
                   ref={triggerRef}
                   onClick={() => setPeopleDrawer((drawer) => !drawer)}
                 >
-                  <Icon size="400" src={Icons.User} />
+                  {composerIcon(UserCircle, { weight: peopleDrawer ? 'fill' : 'regular' })}
                 </IconButton>
               )}
             </TooltipProvider>
           )}
-          <TooltipProvider
+          <ResponsiveMenu
+            anchor={menu.anchor}
+            requestClose={menu.close}
             position="Bottom"
             align="End"
-            offset={4}
-            tooltip={
-              <Tooltip>
-                <Text>More Options</Text>
-              </Tooltip>
-            }
+            menu={<LobbyMenu powerLevels={powerLevels} requestClose={menu.close} />}
           >
-            {(triggerRef) => (
-              <IconButton
-                fill="None"
-                onClick={handleOpenMenu}
-                ref={triggerRef}
-                aria-pressed={!!menuAnchor}
-              >
-                <Icon size="400" src={Icons.VerticalDots} filled={!!menuAnchor} />
-              </IconButton>
-            )}
-          </TooltipProvider>
-          <PopOut
-            anchor={menuAnchor}
-            position="Bottom"
-            align="End"
-            content={
-              <FocusTrap
-                focusTrapOptions={{
-                  initialFocus: false,
-                  returnFocusOnDeactivate: false,
-                  onDeactivate: () => setMenuAnchor(undefined),
-                  clickOutsideDeactivates: true,
-                  isKeyForward: (evt: KeyboardEvent) => evt.key === 'ArrowDown',
-                  isKeyBackward: (evt: KeyboardEvent) => evt.key === 'ArrowUp',
-                  escapeDeactivates: stopPropagation,
-                }}
-              >
-                <LobbyMenu
-                  powerLevels={powerLevels}
-                  requestClose={() => setMenuAnchor(undefined)}
-                />
-              </FocusTrap>
-            }
-          />
+            <TooltipProvider
+              position="Bottom"
+              align="End"
+              offset={4}
+              tooltip={
+                <Tooltip>
+                  <Text>More Options</Text>
+                </Tooltip>
+              }
+            >
+              {(triggerRef) => (
+                <IconButton
+                  fill="None"
+                  onClick={menu.triggerProps.onClick}
+                  ref={triggerRef}
+                  aria-pressed={!!menu.anchor}
+                >
+                  {composerIcon(DotsThreeOutlineVerticalIcon, {
+                    weight: menu.anchor ? 'fill' : 'regular',
+                  })}
+                </IconButton>
+              )}
+            </TooltipProvider>
+          </ResponsiveMenu>
         </Box>
       </Box>
     </PageHeader>

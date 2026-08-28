@@ -235,6 +235,41 @@ fn main() {
     unsafe {
         use std::path::{Path, PathBuf};
 
+        // The library comes from build.rs's rpath, but the helper processes are
+        // resolved from a compile-time /usr/lib path. Inert without a bundle.
+        if let Some(runtime) = std::env::current_exe()
+            .ok()
+            .and_then(|exe| exe.parent().map(|dir| dir.join("webkit")))
+            .filter(|dir| dir.join("WebKitWebProcess").exists())
+        {
+            if std::env::var_os("WEBKIT_EXEC_PATH").is_none() {
+                std::env::set_var("WEBKIT_EXEC_PATH", &runtime);
+            }
+            if std::env::var_os("WEBKIT_INJECTED_BUNDLE_PATH").is_none() {
+                std::env::set_var(
+                    "WEBKIT_INJECTED_BUNDLE_PATH",
+                    runtime.join("injected-bundle"),
+                );
+            }
+
+            // Both paths, or the host-probing block below fills the one left
+            // unset and its plugins load against our older GStreamer core.
+            let gst = runtime.join("gstreamer-1.0");
+            if gst.is_dir() {
+                for key in ["GST_PLUGIN_SYSTEM_PATH_1_0", "GST_PLUGIN_PATH_1_0"] {
+                    if std::env::var_os(key).is_none() {
+                        std::env::set_var(key, &gst);
+                    }
+                }
+                if std::env::var_os("GST_PLUGIN_SCANNER").is_none() {
+                    std::env::set_var("GST_PLUGIN_SCANNER", gst.join("gst-plugin-scanner"));
+                }
+                if std::env::var_os("GST_REGISTRY_1_0").is_none() {
+                    std::env::set_var("GST_REGISTRY_1_0", runtime.join("gst-registry.bin"));
+                }
+            }
+        }
+
         // WebKit2GTK can hit compositor/DMABUF bugs
         // https://github.com/tauri-apps/tauri/issues/14424
         // https://github.com/tauri-apps/tauri/issues/9394

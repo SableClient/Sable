@@ -782,6 +782,91 @@ jobs:
           retention-days: 1
           include-hidden-files: true
 
+  linux-wry:
+    name: Build Linux x86_64 (wry)
+    needs: setup-release
+    runs-on: ubuntu-22.04
+    timeout-minutes: 90
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+      artifact-metadata: write
+    env:
+      ARCH: x86_64
+      TAG: ${{ needs.setup-release.outputs.tag }}
+      VERSION: ${{ needs.setup-release.outputs.version }}
+      VITE_APP_VERSION: ${{ needs.setup-release.outputs.version }}
+      SABLE_BUILD_FLAVOR: ${{ needs.setup-release.outputs.nightly == 'true' && 'dev' || 'stable' }}
+      VITE_SENTRY_DSN: ${{ secrets.VITE_SENTRY_DSN }}
+      VITE_SENTRY_ENVIRONMENT: ${{ needs.setup-release.outputs.nightly == 'true' && 'preview' || 'production' }}
+      SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+      SENTRY_ORG: ${{ secrets.SENTRY_ORG }}
+      SENTRY_PROJECT: ${{ secrets.SENTRY_PROJECT }}
+      IS_NIGHTLY: ${{ needs.setup-release.outputs.nightly }}
+      MISE_ENV: tauri
+      TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+      TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.setup-release.outputs.ref }}
+          persist-credentials: false
+
+      - name: Setup app
+        uses: ./.github/actions/setup
+        with:
+          tauri: 'true'
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: src-tauri
+          key: wry-x86_64
+
+      - name: Stamp release version into tauri.conf.json
+        shell: bash
+        env:
+          UPDATER_ENDPOINT: ${{ needs.setup-release.outputs.nightly == 'true' && format('https://github.com/{0}/releases/download/nightly/latest.json', github.repository) || '' }}
+        run: node .github/scripts/set-tauri-version.mjs "$VERSION" "$UPDATER_ENDPOINT"
+
+      - name: Build and package Linux bundles
+        shell: bash
+        run: |
+          pnpm tauri:wry build --no-bundle
+          ! strings src-tauri/target/release/sable | grep -F 'http://localhost:8080'
+          cp src-tauri/target/release/sable src-tauri/target/release/sable-updater
+          pnpm tauri:wry build --no-bundle --no-updater
+
+          DISPLAY_NAME=Sable
+          [ "$IS_NIGHTLY" = "true" ] && DISPLAY_NAME="Sable Nightly"
+          mise run webkit:package "$VERSION" \
+            src-tauri/target/release/sable "$DISPLAY_NAME" \
+            src-tauri/target/release/sable-updater
+
+          test -f src-tauri/target/release/webkit-pkg/stage/runtime/webkit/WEBKITGTK-LICENSE.txt
+
+      - name: Sign the AppImage for the updater
+        if: ${{ env.TAURI_SIGNING_PRIVATE_KEY != '' }}
+        shell: bash
+        run: |
+          for f in src-tauri/target/release/bundle/appimage/Sable-*-linux-${ARCH}.AppImage; do
+            [ -e "$f" ] || continue
+            pnpm tauri signer sign "$f"
+          done
+
+      - name: Upload wry bundles as workflow artifacts
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sable-linux-wry-${{ env.ARCH }}
+          path: |
+            src-tauri/target/release/bundle/deb/Sable-*.deb
+            src-tauri/target/release/bundle/rpm/Sable-*.rpm
+            src-tauri/target/release/bundle/appimage/Sable-*.AppImage
+          if-no-files-found: error
+          retention-days: 7
+          include-hidden-files: true
+
   distribute-nightly-aur:
     name: Publish nightly to AUR
     needs: [setup-release, linux]

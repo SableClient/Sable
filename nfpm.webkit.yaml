@@ -1,0 +1,91 @@
+# yaml-language-server: $schema=https://nfpm.goreleaser.com/schema.json
+# wry flavour. The embedded WebKit runtime carries its own private libraries
+# (ICU, libsoup3, GStreamer, bwrap), so the only dependencies left are the ones
+# the app and the engine must share a single instance of.
+
+name: sable
+arch: ${PKG_ARCH}
+platform: linux
+version: ${PKG_VERSION}
+release: ${PKG_RELEASE}
+version_schema: semver
+section: net
+maintainer: SableClient
+description: Sable, a Matrix client
+homepage: https://sable.moe
+
+contents:
+  - src: ${PKGROOT}/opt/sable/
+    dst: /opt/sable
+    type: tree
+    expand: true
+  - src: ${PKGROOT}/usr/
+    dst: /usr
+    type: tree
+    expand: true
+  - src: src-tauri/packaging/deb/apparmor/sable
+    dst: /etc/apparmor.d/sable
+    type: config
+    packager: deb
+
+overrides:
+  deb:
+    scripts:
+      postinstall: src-tauri/packaging/deb/postinst
+      preremove: src-tauri/packaging/deb/prerm
+    depends:
+      - apparmor
+      - libgtk-3-0
+      - libglib2.0-0
+      - libcairo2
+      - libpango-1.0-0
+      - libgdk-pixbuf-2.0-0
+      - libatk1.0-0
+      - libharfbuzz0b
+      - libfreetype6
+      - libfontconfig1
+      - libx11-6
+      - libgl1
+      - libegl1
+      - libxkbcommon0
+      - libxtst6
+      - libxss1
+      - libatomic1
+      - libharfbuzz-icu0
+      - libnghttp2-14
+      - librsvg2-2
+      - libpsl5
+      - libtasn1-6
+      - libwayland-client0
+      - libwayland-egl1
+      - libxcb1
+      - xdg-utils
+      - libayatana-appindicator3-1
+  rpm:
+    depends:
+      - gtk3
+      - glib2
+      - cairo
+      - pango
+      - gdk-pixbuf2
+      - atk
+      - harfbuzz
+      - freetype
+      - fontconfig
+      - libX11
+      - mesa-libGL
+      - mesa-libEGL
+      - libxkbcommon
+      - libXtst
+      - libXScrnSaver
+      - libatomic
+      - harfbuzz-icu
+      - libnghttp2
+      - librsvg2
+      - libpsl
+      - libtasn1
+      - libwayland-client
+      - libwayland-egl
+      - libxcb
+      - xdg-utils
+      - libayatana-appindicator3.so.1()(64bit)

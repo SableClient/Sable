@@ -121,3 +121,86 @@ export const EditorToolbarBase = style({
 export const EditorToolbar = style({
   padding: config.space.S100,
 });
+
+export const EditorMarkdownToken = style({
+  opacity: 0.4,
+});
+
+// Matches the dimmed block markers and the sent renderer's <hr> border.
+export const EditorMarkdownDivider = style({
+  opacity: 0.4,
+  borderBottom: `${config.borderWidth.B300} solid ${color.SurfaceVariant.ContainerLine}`,
+});
+
+export const EditorMarkdownItalic = style({
+  fontStyle: 'italic',
+});
+
+export const EditorMarkdownUnderline = style({
+  textDecoration: 'underline',
+});
+
+export const EditorMarkdownStrikeThrough = style({
+  textDecoration: 'line-through',
+});
+
+export const EditorMarkdownLink = style({
+  color: color.Primary.OnContainer,
+});
+
+export const EditorMarkdownCode = style([
+  DefaultReset,
+  {
+    fontFamily: 'var(--font-monospace)',
+    fontSize: '0.9em',
+    color: color.SurfaceVariant.OnContainer,
+    background: color.SurfaceVariant.Container,
+    border: `${config.borderWidth.B300} solid ${color.SurfaceVariant.ContainerLine}`,
+    borderRadius: config.radii.R300,
+    padding: `0 ${config.space.S100}`,
+  },
+]);
+
+export const EditorMarkdownCodeBlock = style({
+  fontFamily: 'var(--font-monospace)',
+  fontSize: '0.9em',
+  lineHeight: 1.3,
+  letterSpacing: '-0.01em',
+  fontVariantLigatures: 'contextual',
+  background: color.SurfaceVariant.Container,
+});
+
+// Heading levels reuse folds' own heading sizes/weights so the preview matches
+// the sent renderer exactly (the message parser maps `#`…`######` onto
+// Text sizes H2…H6, all at weight 600).
+const heading = (size: 'H2' | 'H3' | 'H4' | 'H5' | 'H6') =>
+  style({
+    fontSize: config.fontSize[size],
+    lineHeight: config.lineHeight[size],
+    letterSpacing: config.letterSpacing[size],
+    fontWeight: config.fontWeight.W600,
+  });
+
+export const EditorMarkdownHeading1 = heading('H2');
+export const EditorMarkdownHeading2 = heading('H3');
+export const EditorMarkdownHeading3 = heading('H4');
+export const EditorMarkdownHeading4 = heading('H4');
+export const EditorMarkdownHeading5 = heading('H5');
+export const EditorMarkdownHeading6 = heading('H6');
+
+// Declared after the heading classes so its 700 weight beats a heading's 600
+// when `# **bold**` stacks both classes onto one span (as the sent renderer's
+// `<strong>` inside the heading does).
+export const EditorMarkdownBold = style({
+  fontWeight: 700,
+});
+
+export const EditorMarkdownSpoiler = style({
+  backgroundColor: `color-mix(in srgb, ${color.SurfaceVariant.ContainerLine} 30%, transparent)`,
+  borderRadius: config.radii.R300,
+});
+
+export const EditorMarkdownPreviewContent = style({
+  maxHeight: toRem(220),
+  overscrollBehavior: 'contain',
+});

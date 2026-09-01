@@ -36,6 +36,7 @@ import {
   ANYWHERE_AUTOCOMPLETE_PREFIXES,
   getDocumentLinks,
   LINKINPUTREGEX,
+  markEventConsumedByHost,
 } from '$components/editor';
 import { htmlToMarkdown } from '$plugins/markdown';
 import { useSetting } from '$state/hooks/settings';
@@ -309,6 +310,7 @@ export const MessageEditor = as<'div', MessageEditorProps>(
           if (editor.getAutocompleteQuery(ANYWHERE_AUTOCOMPLETE_PREFIXES)) return;
 
           evt.preventDefault();
+          markEventConsumedByHost(evt.nativeEvent);
           handleSave();
         }
         if (isKeyHotkey('escape', evt)) {

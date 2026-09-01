@@ -18,6 +18,7 @@ import {
   toProseMirrorDocument,
   toProseMirrorInline,
 } from './prosemirrorSchema';
+import { markdownPreviewPlugin, setMarkdownPreviewDispatch } from './markdown';
 
 const isProseMirrorDocumentEmpty = (doc: ProseMirrorNode): boolean =>
   doc.childCount === 1 && doc.firstChild?.content.size === 0;
@@ -55,6 +56,24 @@ const handleAndroidDeleteBackward = (view: EditorView): void => {
       return;
     view.dispatch(view.state.tr.delete(pos - 1, pos));
   }, 50);
+};
+
+const paragraphToPreviewText = (paragraph: ProseMirrorNode): string => {
+  let text = '';
+  paragraph.content.forEach((child) => {
+    if (child.isText) {
+      text += child.text ?? '';
+    } else if (child.type.name === 'mention') {
+      text += `@${(child.attrs.name as string | undefined) ?? ''}`;
+    } else if (child.type.name === 'emoticon') {
+      text += (child.attrs.shortcode as string | undefined) ?? '';
+    } else if (child.type.name === 'command') {
+      text += (child.attrs.name as string | undefined) ?? '';
+    } else {
+      text += child.textContent ?? '';
+    }
+  });
+  return text;
 };
 
 export type EditorAutocompleteQuery<TPrefix extends string> = {
@@ -145,6 +164,18 @@ export class ProseMirrorEditorController {
       .join('\n');
   }
 
+  /** Like getText, but atoms (mentions, emoticons, commands) contribute their
+   * display text instead of the \0 placeholder. */
+  getMarkdownPreviewText(): string {
+    const view = this.view;
+    if (!view) return this.getText();
+    const paragraphs: string[] = [];
+    view.state.doc.content.forEach((paragraph) =>
+      paragraphs.push(paragraphToPreviewText(paragraph))
+    );
+    return paragraphs.join('\n');
+  }
+
   setDocument(document: EditorDocument): void {
     this.document = structuredClone(document.length ? document : emptyEditorDocument());
     if (this.view) {
@@ -173,6 +204,7 @@ export class ProseMirrorEditorController {
       doc: toProseMirrorDocument(this.document),
       plugins: [
         beginCommandPlugin,
+        markdownPreviewPlugin,
         history(),
         keymap({ 'Mod-z': undo, 'Mod-Shift-z': redo, 'Mod-y': redo }),
         // Enter is withheld on purpose: the host decides send vs newline.
@@ -237,7 +269,12 @@ export class ProseMirrorEditorController {
         },
       }
     );
+    setMarkdownPreviewDispatch(() => {
+      const view = this.view;
+      if (view) view.dispatch(view.state.tr);
+    });
     return () => {
+      setMarkdownPreviewDispatch(null);
       this.view?.destroy();
       this.view = undefined;
     };

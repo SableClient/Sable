@@ -3,6 +3,18 @@ import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef } from 'rea
 import type { EditorDocument } from './model';
 import type { ProseMirrorEditorController } from './prosemirrorController';
 
+const hostConsumedEvents = new WeakSet<Event>();
+
+/** Hosts mark keydowns they fully handled (e.g. sending on Enter) so the
+ * editable won't also act on them. The view preventDefaults every Enter
+ * (captureKeyDown in prosemirror-view), so defaultPrevented is not a
+ * reliable host-consumption signal. */
+export const markEventConsumedByHost = (event: Event): void => {
+  hostConsumedEvents.add(event);
+};
+
+const isEventConsumedByHost = (event: Event): boolean => hostConsumedEvents.has(event);
+
 export type ProseMirrorEditableHandle = {
   clear: () => void;
   focus: () => void;
@@ -37,12 +49,12 @@ export const ProseMirrorEditable = forwardRef<ProseMirrorEditableHandle, ProseMi
   ) => {
     const rootRef = useRef<HTMLDivElement | null>(null);
 
-    // ProseMirror does not bind Enter; a consumer that sends calls
-    // preventDefault, so anything left over is a line break.
+    // The view preventDefaults every Enter, so defaultPrevented cannot tell
+    // host consumption apart from the view; the host marks the event instead.
     const handleKeyDown: KeyboardEventHandler<HTMLDivElement> = (event) => {
       onKeyDown?.(event);
-      if (event.defaultPrevented || event.key !== 'Enter') return;
-      if (event.nativeEvent.isComposing) return;
+      if (event.key !== 'Enter' || event.nativeEvent.isComposing) return;
+      if (isEventConsumedByHost(event.nativeEvent)) return;
       event.preventDefault();
       controller.insertNewline();
     };

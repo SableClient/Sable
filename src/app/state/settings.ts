@@ -135,6 +135,7 @@ export interface Settings {
   editorTriggerButtonsMigrated: boolean;
   editorButtonOrder: EditorButtonId[];
   composerToolbarOpen: boolean;
+  showMarkdownPreview: boolean;
   alwaysInlineEditor: boolean;
   messageLayout: MessageLayout;
   messageSpacing: MessageSpacing;
@@ -326,6 +327,7 @@ export const defaultSettings: Settings = {
   editorTriggerButtonsMigrated: true,
   editorButtonOrder: [...EDITOR_BUTTON_ORDER_DEFAULT],
   composerToolbarOpen: false,
+  showMarkdownPreview: false,
   alwaysInlineEditor: false,
   messageLayout: 0,
   messageSpacing: '400',

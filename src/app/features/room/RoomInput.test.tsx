@@ -199,6 +199,7 @@ vi.mock('$components/editor', async () => {
     getMentions: () => ({ users: new Set<string>(), room: undefined }),
     getPrevWorldRange: () => undefined,
     isEmptyEditor: (editor: any) => textOf(editor.children).trim() === '',
+    markEventConsumedByHost: vi.fn(),
     moveCursor: vi.fn(),
     plainToEditorInput: (text: string) => [{ type: 'paragraph', children: [{ text }] }],
     replaceWithElement: vi.fn(),
@@ -234,6 +235,10 @@ vi.mock('$components/upload-board', async () => {
     UploadBoardHeader,
   };
 });
+
+vi.mock('./input/MarkdownPreview', () => ({
+  MarkdownPreview: () => null,
+}));
 
 vi.mock('$components/upload-card', () => ({
   UploadCardRenderer: ({ fileItem, setMetadata, setDesc }: any) => (

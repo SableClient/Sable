@@ -463,6 +463,10 @@ function Editor() {
     'editorStickerButton'
   );
   const [editorButtonOrder, setEditorButtonOrder] = useSetting(settingsAtom, 'editorButtonOrder');
+  const [showMarkdownPreview, setShowMarkdownPreview] = useSetting(
+    settingsAtom,
+    'showMarkdownPreview'
+  );
   const [draggingIndex, setDraggingIndex] = useState<number | null>(null);
 
   const handleReorder = useCallback(
@@ -508,6 +512,13 @@ function Editor() {
         description="Enable the formatting toolbar in the message composer."
         value={editorToolbar}
         onChange={setEditorToolbar}
+      />
+      <SettingToggle
+        title="Show Markdown Preview"
+        focusId="composer-markdown-preview"
+        description="Show a rendered preview of your markdown above the message composer as you type."
+        value={showMarkdownPreview}
+        onChange={setShowMarkdownPreview}
       />
       <SettingToggle
         title="Hide Add Menu in the Editor"

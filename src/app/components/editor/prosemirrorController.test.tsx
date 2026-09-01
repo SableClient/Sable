@@ -3,7 +3,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { Selection } from 'prosemirror-state';
 import type { EditorView } from 'prosemirror-view';
 import type { EditorDocument } from './model';
-import { ProseMirrorEditable } from './ProseMirrorEditable';
+import { markEventConsumedByHost, ProseMirrorEditable } from './ProseMirrorEditable';
 import { ProseMirrorEditorController } from './prosemirrorController';
 import { BlockType } from './types';
 
@@ -177,16 +177,19 @@ describe('placeholder', () => {
 });
 
 describe('Enter handling', () => {
-  it('does not split the paragraph when the host treats Enter as send', () => {
+  it('does not split the paragraph when the host consumes Enter', () => {
     const controller = new ProseMirrorEditorController(doc('hello'));
-    const onKeyDown = vi.fn<(event: { preventDefault: () => void }) => void>((event) =>
-      event.preventDefault()
+    const onKeyDown = vi.fn<(event: { preventDefault: () => void; nativeEvent: Event }) => void>(
+      (event) => {
+        event.preventDefault();
+        markEventConsumedByHost(event.nativeEvent);
+      }
     );
     const { container } = render(
       <ProseMirrorEditable controller={controller} onKeyDown={onKeyDown} />
     );
 
-    fireEvent.keyDown(container.querySelector('.ProseMirror')!, { key: 'Enter' });
+    fireEvent.keyDown(container.querySelector('.ProseMirror')!, { key: 'Enter', keyCode: 13 });
 
     expect(onKeyDown).toHaveBeenCalled();
     expect(controller.getDocument()).toEqual(doc('hello'));
@@ -213,7 +216,7 @@ describe('Enter handling', () => {
   it('leaves an in-flight IME composition alone', () => {
     const { controller, editable } = mount(doc('hello'));
 
-    fireEvent.keyDown(editable, { key: 'Enter', isComposing: true });
+    fireEvent.keyDown(editable, { key: 'Enter', keyCode: 13, isComposing: true });
 
     expect(controller.getDocument()).toEqual(doc('hello'));
   });

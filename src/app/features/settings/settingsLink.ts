@@ -79,6 +79,7 @@ export const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly s
     'custom-call-ringback',
     'always-inline-editor',
     'composer-button-order',
+    'composer-markdown-preview',
     'show-emoji-button',
     'show-gif-button',
     'gif-provider',

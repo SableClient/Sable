@@ -67,6 +67,7 @@ import {
   BEGINNING_AUTOCOMPLETE_PREFIXES,
   MarkdownFormattingToolbarBottom,
   MarkdownFormattingToolbarToggle,
+  markEventConsumedByHost,
 } from '$components/editor';
 import { stripMarkdownEscapesForHiddenPreviews } from './message/hiddenLinkPreviews';
 import { plainToEditorInput } from '$components/editor/input';
@@ -140,6 +141,7 @@ import { usePowerLevelsContext } from '$hooks/usePowerLevels';
 import { useRoomCreators } from '$hooks/useRoomCreators';
 import { useRoomPermissions } from '$hooks/useRoomPermissions';
 import { AutocompleteNotice } from '$components/editor/autocomplete/AutocompleteNotice';
+import { MarkdownPreview } from './input/MarkdownPreview';
 import { setCurrentlyUsedPerMessageProfileIdForRoom } from '$hooks/usePerMessageProfile';
 import type { PerMessageProfileMsc4461 } from '$app/persona';
 import { ProfileCatalog } from '$app/persona/catalog';
@@ -331,6 +333,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const [editorStickerButton] = useSetting(settingsAtom, 'editorStickerButton');
     const [editorMicButton] = useSetting(settingsAtom, 'editorMicButton');
     const [editorButtonOrder] = useSetting(settingsAtom, 'editorButtonOrder');
+    const [showMarkdownPreview] = useSetting(settingsAtom, 'showMarkdownPreview');
     const [shortcutOverrides] = useSetting(settingsAtom, 'shortcutOverrides');
 
     const [hideActivity] = useSetting(settingsAtom, 'hideActivity');
@@ -621,6 +624,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const handlePaste = useFilePasteHandler(handleFiles);
     const dropZoneVisible = useFileDropZone(fileDropContainerRef, handleFiles);
     const [hasText, setHasText] = useState(false);
+    const [markdownPreview, setMarkdownPreview] = useState('');
     const lastEncryptionPreparationAt = useRef(0);
     const detectAutocomplete = useCallback(() => {
       const quickReactPrefix = editor.getText().slice(0, 2);
@@ -640,6 +644,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
     const handleEditorChange = useCallback(() => {
       setHasText(!editor.isEmpty());
+      setMarkdownPreview(showMarkdownPreview ? editor.getMarkdownPreviewText() : '');
       detectAutocomplete();
       if (!room.hasEncryptionStateEvent()) return;
 
@@ -648,7 +653,12 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
       lastEncryptionPreparationAt.current = now;
       mx.getCrypto()?.prepareToEncrypt(room);
-    }, [editor, detectAutocomplete, mx, room]);
+    }, [editor, showMarkdownPreview, detectAutocomplete, mx, room]);
+    // handleEditorChange only runs on edits, so toggling the preview on with
+    // an existing draft needs a separate sync.
+    useEffect(() => {
+      setMarkdownPreview(showMarkdownPreview ? editor.getMarkdownPreviewText() : '');
+    }, [editor, showMarkdownPreview]);
     const hasContent = hasText || selectedFiles.length > 0;
 
     const isComposing = useComposingCheck();
@@ -1735,6 +1745,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
 
             if (selectedItem) {
               evt.preventDefault();
+              markEventConsumedByHost(evt.nativeEvent);
               selectedItem.click();
               return;
             }
@@ -1754,6 +1765,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           !isComposing(evt)
         ) {
           evt.preventDefault();
+          markEventConsumedByHost(evt.nativeEvent);
           submit().catch((error) => {
             log.error('submit failed', { roomId }, error);
           });
@@ -2021,6 +2033,9 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
           forceMultilineLayout={showAudioRecorder}
           top={
             <>
+              {showMarkdownPreview && markdownPreview.trim() !== '' && (
+                <MarkdownPreview room={room} markdown={markdownPreview} />
+              )}
               {selectedFiles.length > 0 && (
                 <UploadBoard
                   header={

@@ -162,6 +162,11 @@
     text-underline-offset: 2px;
   }
 
+  .force-underline-links [data-markdown-preview-link] {
+    text-decoration: underline !important;
+    text-underline-offset: 2px;
+  }
+
   body.reduced-motion * {
     animation-duration: 0.001ms !important;
     animation-iteration-count: 1 !important;

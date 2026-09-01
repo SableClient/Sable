@@ -13,6 +13,7 @@ import {
   MarkdownFormattingToolbarBottom,
   MarkdownFormattingToolbarToggle,
   createEmoticonElement,
+  markEventConsumedByHost,
   plainToEditorInput,
   ProseMirrorEditorSurface,
   toMatrixCustomHTML,
@@ -104,6 +105,7 @@ export function DescriptionEditor({
       }
       if (isKeyHotkey('mod+enter', evt) || (!enterForNewline && isKeyHotkey('enter', evt))) {
         evt.preventDefault();
+        markEventConsumedByHost(evt.nativeEvent);
         handleSave();
       }
     },

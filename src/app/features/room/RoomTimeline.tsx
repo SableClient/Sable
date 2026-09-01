@@ -485,6 +485,7 @@ export function RoomTimeline({
 
   const scrollElRef = useRef<HTMLElement | null>(null);
   const [scrollElementVersion, setScrollElementVersion] = useState(0);
+  const prevViewportHeightRef = useRef(0);
 
   const scrollToBottom = useCallback(
     (behavior: 'instant' | 'smooth' = 'instant') => {
@@ -943,9 +944,26 @@ export function RoomTimeline({
       contentObserver.observe(contentEl);
     }
 
-    const observer = new ResizeObserver(() => {
-      if (scrollOwnerRef.current === 'live' && atBottomRef.current) scrollToBottom();
-      syncAtBottom();
+    const observer = new ResizeObserver((entries) => {
+      const newHeight = entries[0]!.contentRect.height;
+      const prev = prevViewportHeightRef.current;
+      const shrank = newHeight < prev;
+      prevViewportHeightRef.current = newHeight;
+      let rePinned = false;
+      if (scrollOwnerRef.current === 'live' && atBottomRef.current && shrank) {
+        // The atBottom flag lags real scroll position by up to 100px, so a user
+        // who has begun scrolling up is still flagged while a growing composer
+        // shrinks the viewport. Only re-pin when the user was actually pinned to
+        // the pre-resize bottom, measured against the old viewport height.
+        const v = vListRef.current;
+        const wasPinned = Boolean(v && v.scrollSize - v.scrollOffset - prev < 40);
+        if (wasPinned) {
+          // Geometry is still pre-scroll here; the repin's own scroll event resyncs.
+          scrollToBottom();
+          rePinned = true;
+        }
+      }
+      if (!rePinned) syncAtBottom();
     });
 
     observer.observe(el);

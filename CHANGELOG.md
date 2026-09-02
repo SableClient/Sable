@@ -1,5 +1,52 @@
 # Sable Client Changelog
 
+## 1.22.0 (2026-09-02)
+
+### Features
+
+* Allow swiping away in-app notifications on mobile by @blueberrymuffin3 in #1863
+* Add a configurable gif provider (Tenor, Giphy or Klipy) and send gifs through the media proxy by @eleboucher in #1918
+* Add a built-in UnifiedPush distributor so Android push works without Google Play Services or a separate distributor app, support MSC4174 so the homeserver can deliver web push directly, and decrypt push previews through the Rust crypto engine. by @eleboucher in #1607
+* Show the gif and sticker composer buttons by default, keeping only emoji while typing on mobile. by @eleboucher in #1862
+* Add a setting to show all timestamps, including on grouped messages from the same sender by @cwyptt in #1942
+* Update MSC4461 (Persona) support to v3 by @blueberrymuffin3 in #1923
+
+### Fixes
+
+* Make notifications more reliable when the app is closed on Android: the push is decrypted inside a short-lived foreground service instead of being cut short by battery saving. by @eleboucher in #2000
+* Fix the Android keyboard flickering when backspacing a native emote. by @eleboucher in #1871
+* Fix the app not resizing above the on-screen keyboard on Android. by @eleboucher in #1921
+* Fix the composer duplicating a mention or command label when erasing it on Android by @eleboucher in #2032
+* Fix avatars flickering and sometimes staying broken: a retry now re-requests the image on the web, loads without dropping the fallback, and stays cached once it succeeds. by @eleboucher in #1910
+* Fix new messages not arriving on mobile until the app was restarted, after it had been in the background. by @eleboucher in #1999
+* Fix restoring from key backup failing entirely when a single backed-up key could not be read; the rest of the keys are now restored. by @eleboucher in #2001
+* Fix devices randomly becoming unverified: clear the account's crypto stores on forced logout, and reload instead of retrying in place after a store mismatch. by @eleboucher in #1868
+* Fix device names being reset every time the client is opened. Also makes the device rename field set the default name when left empty. by @RoootTheFox in #1939
+* Fix devices showing as verified in Sable while other clients still see them as unverified, and let an unverified device start emoji verification instead of only offering the recovery key by @eleboucher in #2013
+* Stop a second Matrix client from opening the same crypto store, which could corrupt device keys and leave a device looking unverified to other clients. by @eleboucher in #1945
+* Fix a crash when emoji autocomplete results reappear while typing. by @eleboucher in #1886
+* Fix failure toasts showing the green success style with a checkmark: errors such as "Unable to mark this room as read" now use the error colour and a warning icon. by @eleboucher in #2005
+* Fix the Flatpak app failing to launch after a previous run, where a leftover CEF cache lock was mistaken for a running instance. by @eleboucher in #1989
+* Fix the forum room "Event Timeline" developer entry bouncing straight back to the forum view. by @eleboucher in #1857
+* Fix forum rooms opening in the normal chat view and improve forum post and thread navigation. by @7w1 in #1839
+* Fix media failing to load after the app has been in the background, which previously needed an app restart to recover. by @eleboucher in #1914
+* Fix the mobile keyboard staying open over the room list after swiping out of a room. by @eleboucher in #1862
+* Fix the mobile keyboard reopening when tapping a timeline image. by @eleboucher in #1871
+* Dismiss the mobile keyboard when opening composer sheets (emoji, attachments, personas) and keep it dismissed after they close. by @eleboucher in #1866
+* Fix Android freezing with "Sable isn't responding" when notification setup overlapped a page load by @eleboucher in #2014
+* Fix "Sable isn't responding" appearing repeatedly on Android when notifications arrived while the app was in the background. by @eleboucher in #2001
+* Restore cross-signing device trust when unlocking encryption backup with a recovery key. by @eleboucher in #1911
+* Fix recovery-key verified devices becoming unverified after an app refresh. by @eleboucher in #1902
+* Fix a sent message coming back in the composer, and stop undo restoring cleared content. by @eleboucher in #1862
+* Fix sending the first message after startup taking up to 40 seconds in encrypted rooms: outgoing crypto requests and key backup checks now coalesce instead of queueing one full run per caller, and repeated undecryptable events no longer re-request the key backup version from the server. by @eleboucher in #1998
+* Fix being unable to back out of a space preview opened by address, and give Tauri webview back/swipe somewhere to land on deep-linked launches. by @eleboucher in #1868
+* Fix the login page crashing with "Invalid URL" on Android WebView below 130 by @eleboucher in #1924
+* Fix room and user avatars disappearing on desktop after an access-token rotation. by @eleboucher in #1864
+* Fix downloading files other than images in the desktop and mobile apps. by @eleboucher in #1911
+* Fix avatars, images and videos disappearing or reloading on desktop and mobile. by @eleboucher in #1862
+* Keep the new messages divider visible when opening a room with unread messages. by @eleboucher in #1906
+* Reimplement responsive composer layout by @Septicity in #1865
+
 ## 1.21.0 (2026-08-17)
 
 ### Features

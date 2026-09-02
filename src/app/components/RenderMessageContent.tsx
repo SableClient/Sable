@@ -1,5 +1,5 @@
-import type { CSSProperties, JSX } from 'react';
-import { memo, useMemo, useCallback } from 'react';
+import type { CSSProperties, JSX, ReactNode } from 'react';
+import { memo, useMemo, useCallback, useState } from 'react';
 import type { IPreviewUrlResponse, MatrixClient, MatrixEvent, Room } from '$types/matrix-sdk';
 import { MsgType } from '$types/matrix-sdk';
 import { parseSettingsLink } from '$features/settings/settingsLink';
@@ -46,6 +46,7 @@ import { isHttpsFullSableCssUrl } from '../theme/previewUrls';
 import { isSableCssAttachmentFileName } from '../theme/processThemeImport';
 import { Image, MediaControl, PersistedVolumeVideo } from './media';
 import { ImageViewer } from './image-viewer';
+import { RoomMediaViewer } from './image-viewer/RoomMediaViewer';
 import { PdfViewer } from './Pdf-viewer';
 import { TextViewer } from './text-viewer';
 import { ClientSideHoverFreeze } from './ClientSideHoverFreeze';
@@ -54,6 +55,7 @@ import { PollEvent } from './message/PollEvent';
 import { M_POLL_START, M_TEXT } from 'matrix-js-sdk';
 import type { IImageInfo, IGalleryContent } from '$types/matrix/common';
 import { GALLERY_MSGTYPE } from '$types/matrix/common';
+import { getGalleryMediaItems } from '$features/room/mediaBundle';
 import { parseExternalGif } from '$utils/externalGif';
 import { parseLegacyKlipyGif } from '$utils/klipy';
 import {
@@ -88,6 +90,7 @@ type RenderMessageContentProps = {
   mx?: MatrixClient;
   room?: Room;
   onOpenMedia?: (mEvent: MatrixEvent) => boolean;
+  onOpenViewerOverride?: () => boolean;
 };
 
 const getMediaType = (url: string) => {
@@ -105,6 +108,64 @@ const isSableChatEmbedCandidate = (url: string): boolean =>
 const CAPTION_STYLE: CSSProperties = { marginTop: config.space.S200, maxWidth: '100%' };
 const TEXT_STYLE: CSSProperties = { maxWidth: '100%' };
 const EXTERNAL_GIF_MAX_SIZE = 400;
+
+// Clicking an image opens the gallery in a RoomMediaViewer so arrows and
+// chevrons navigate its items; single-image galleries keep their own viewers.
+function GalleryContent({
+  content,
+  mEvent,
+  displayName,
+  renderItem,
+}: {
+  content: IGalleryContent;
+  mEvent?: MatrixEvent;
+  displayName: string;
+  renderItem: (itemContent: unknown, claimOpen: (() => boolean) | undefined) => ReactNode;
+}) {
+  const [viewId, setViewId] = useState<string>();
+  const mediaItems = useMemo(
+    () => getGalleryMediaItems(mEvent, content, displayName),
+    [mEvent, content, displayName]
+  );
+  // MGallery partitions items into grids, so its render index is not the itemtypes
+  // index — match the clicked item back to its viewer entry by media url.
+  const eventIdByUrl = useMemo(
+    () => new Map(mediaItems.map((item) => [item.url, item.eventId])),
+    [mediaItems]
+  );
+
+  return (
+    <>
+      <MGallery
+        content={content}
+        renderItem={(itemContent) => {
+          const url =
+            (itemContent as { file?: { url?: string }; url?: string }).file?.url ??
+            (itemContent as { url?: string }).url;
+          const eventId =
+            mediaItems.length > 1 && typeof url === 'string' ? eventIdByUrl.get(url) : undefined;
+          return renderItem(
+            itemContent,
+            eventId
+              ? () => {
+                  setViewId(eventId);
+                  return true;
+                }
+              : undefined
+          );
+        }}
+      />
+      {mediaItems.length > 1 && viewId && (
+        <RoomMediaViewer
+          items={mediaItems}
+          selectedEventId={viewId}
+          selectEvent={setViewId}
+          requestClose={() => setViewId(undefined)}
+        />
+      )}
+    </>
+  );
+}
 
 function RenderMessageContentInternal({
   displayName,
@@ -127,6 +188,7 @@ function RenderMessageContentInternal({
   mx,
   room,
   onOpenMedia,
+  onOpenViewerOverride,
 }: RenderMessageContentProps) {
   const content = useMemo(() => getContent() as Record<string, unknown>, [getContent]);
 
@@ -510,7 +572,9 @@ function RenderMessageContentInternal({
         renderImageContent={(imageProps) => (
           <ImageContent
             {...imageProps}
-            onOpenViewer={mEvent ? () => onOpenMedia?.(mEvent) ?? false : undefined}
+            onOpenViewer={
+              onOpenViewerOverride ?? (mEvent ? () => onOpenMedia?.(mEvent) ?? false : undefined)
+            }
             autoPlay={mediaAutoLoad}
             renderImage={(p) => {
               if (isGif && !autoplayGifs && p.src) {
@@ -582,12 +646,14 @@ function RenderMessageContentInternal({
 
   if (msgType === GALLERY_MSGTYPE) {
     return renderCaptionedAttachment(
-      <MGallery
+      <GalleryContent
         content={content as IGalleryContent}
-        renderItem={(itemContent) => (
+        mEvent={mEvent}
+        displayName={displayName}
+        renderItem={(itemContent, claimOpen) => (
           <RenderMessageContentInternal
             displayName={displayName}
-            msgType={itemContent.msgtype as string}
+            msgType={(itemContent as { msgtype?: string }).msgtype as string}
             ts={ts}
             getContent={() => itemContent}
             mediaAutoLoad={mediaAutoLoad}
@@ -597,6 +663,7 @@ function RenderMessageContentInternal({
             linkifyOpts={linkifyOpts}
             outlineAttachment={outlineAttachment}
             isGallery={true}
+            onOpenViewerOverride={claimOpen}
           />
         )}
       />

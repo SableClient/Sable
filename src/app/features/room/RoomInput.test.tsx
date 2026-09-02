@@ -235,6 +235,10 @@ vi.mock('$components/upload-board', async () => {
   };
 });
 
+vi.mock('./input/StagedUploadViewer', () => ({
+  StagedUploadViewer: () => null,
+}));
+
 vi.mock('$components/upload-card', () => ({
   UploadCardRenderer: ({ fileItem, setMetadata, setDesc }: any) => (
     <>

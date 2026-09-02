@@ -64,6 +64,8 @@ type ImageViewerProps = {
   sentAt?: string;
   onPrevious?: () => void;
   onNext?: () => void;
+  atStart?: boolean;
+  atEnd?: boolean;
   getDownloadBlob?: () => Promise<Blob>;
 };
 
@@ -80,12 +82,15 @@ export const ImageViewer = as<'div', ImageViewerProps>(
       sentAt,
       onPrevious,
       onNext,
+      atStart,
+      atEnd,
       getDownloadBlob,
       ...props
     },
     ref
   ) => {
     const zoomInputRef = useRef<HTMLInputElement>(null);
+    const [controlsVisible, setControlsVisible] = useState(false);
     const [pixelatedImageRendering] = useSetting(settingsAtom, 'pixelatedImageRendering');
     const isMobile = useScreenSizeOptionally() === ScreenSize.Mobile;
 
@@ -99,6 +104,25 @@ export const ImageViewer = as<'div', ImageViewerProps>(
 
     // Android back closes the viewer instead of navigating away.
     useDismissOnBack(requestClose);
+
+    // Arrow keys navigate a media gallery; the zoom input and menu buttons keep
+    // their own key handling.
+    useEffect(() => {
+      if (!onPrevious && !onNext) return undefined;
+      const handleKeyDown = (evt: KeyboardEvent) => {
+        const target = evt.target;
+        if (
+          target instanceof HTMLElement &&
+          target.closest('input, textarea, button, [role="menuitem"]')
+        ) {
+          return;
+        }
+        if (evt.key === 'ArrowLeft') onPrevious?.();
+        else if (evt.key === 'ArrowRight') onNext?.();
+      };
+      window.addEventListener('keydown', handleKeyDown);
+      return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [onPrevious, onNext]);
 
     const [isImageReady, setIsImageReady] = useState(false);
     const [isEditingZoom, setIsEditingZoom] = useState(false);
@@ -616,14 +640,20 @@ export const ImageViewer = as<'div', ImageViewerProps>(
             style={{ overflow: 'hidden', touchAction: 'none', cursor }}
             onPointerDown={onPointerDown}
             onContextMenu={handleContextMenu}
+            onMouseEnter={() => !isMobile && setControlsVisible(true)}
+            onMouseLeave={() => setControlsVisible(false)}
             onTouchStart={menu.triggerProps.onTouchStart}
             onTouchEnd={menu.triggerProps.onTouchEnd}
             onTouchMove={menu.triggerProps.onTouchMove}
             onTouchCancel={menu.triggerProps.onTouchCancel}
           >
-            {isMobile && onPrevious && (
+            {onPrevious && (
               <IconButton
-                className={css.ImageViewerPrevious}
+                className={classNames(
+                  css.ImageViewerPrevious,
+                  atStart && css.ImageViewerEdge,
+                  !isMobile && !controlsVisible && css.ImageViewerControlsHidden
+                )}
                 aria-label="Previous image"
                 size="400"
                 radii="300"
@@ -632,9 +662,13 @@ export const ImageViewer = as<'div', ImageViewerProps>(
                 {sizedIcon(CaretLeft, '200')}
               </IconButton>
             )}
-            {isMobile && onNext && (
+            {onNext && (
               <IconButton
-                className={css.ImageViewerNext}
+                className={classNames(
+                  css.ImageViewerNext,
+                  atEnd && css.ImageViewerEdge,
+                  !isMobile && !controlsVisible && css.ImageViewerControlsHidden
+                )}
                 aria-label="Next image"
                 size="400"
                 radii="300"

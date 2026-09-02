@@ -7,6 +7,7 @@ export const Attachment = as<'div', css.AttachmentVariants>(
     <Box
       display="InlineFlex"
       direction="Column"
+      data-message-attachment=""
       className={classNames(css.Attachment({ outlined }), className)}
       {...props}
       ref={ref}

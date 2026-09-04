@@ -443,7 +443,7 @@ pub fn run() {
             desktop::tray::sync_desktop_settings_inner(app.handle())?;
 
             #[cfg(desktop)]
-            desktop::menu::register_global_shortcuts(app.handle());
+            desktop::tray::startup_register_toggle_window_shortcut(app.handle());
 
             #[cfg(desktop)]
             desktop::logging::setup(app.handle())?;
@@ -508,6 +508,8 @@ pub fn run() {
             #[cfg(desktop)]
             desktop::tray::get_desktop_runtime_state,
             #[cfg(desktop)]
+            desktop::tray::set_toggle_window_shortcut,
+            #[cfg(desktop)]
             desktop::tray::sync_desktop_settings,
             #[cfg(target_os = "linux")]
             desktop::tray_badge::set_tray_badge,
@@ -561,6 +563,7 @@ mod tests {
         };
         let _ = crate::desktop::runtime_state::DesktopRuntimeState {
             tray_available: true,
+            toggle_window_shortcut: None,
         };
     }
 }

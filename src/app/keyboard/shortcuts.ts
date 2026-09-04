@@ -9,6 +9,7 @@ export type ShortcutId =
   | 'app.searchMessages'
   | 'app.openBookmarks'
   | 'app.createRoom'
+  | 'app.toggleWindowVisibility'
   | 'navigation.nextUnread'
   | 'navigation.cycleNextUnread'
   | 'navigation.cyclePreviousUnread'
@@ -38,7 +39,7 @@ export type ShortcutDefinition = {
   id: ShortcutId;
   label: string;
   category: 'General' | 'Navigation' | 'Messages';
-  defaultBinding: string;
+  defaultBinding: string | null;
   scope: ShortcutScope;
   allowInEditable?: boolean;
 };
@@ -64,6 +65,14 @@ export const SHORTCUTS: readonly ShortcutDefinition[] = [
     label: 'Create a room',
     category: 'General',
     defaultBinding: 'mod+shift+n',
+    scope: 'global',
+  },
+  {
+    id: 'app.toggleWindowVisibility',
+    label: 'Show/Hide Sable',
+    category: 'General',
+    // Opt-in: disabled by default so Sable never claims a system-wide key on its own.
+    defaultBinding: null,
     scope: 'global',
   },
   {
@@ -292,6 +301,29 @@ export const captureShortcut = (event: ShortcutEvent): string | undefined => {
   if (event.altKey) modifiers.push('alt');
   if (event.shiftKey) modifiers.push('shift');
   return [...modifiers, key].join('+');
+};
+
+export const toTauriAccelerator = (binding: string): string => {
+  return binding
+    .split('+')
+    .map((part) => {
+      const lower = part.toLowerCase();
+      if (lower === 'mod' || lower === 'cmd' || lower === 'command') return 'CmdOrCtrl';
+      if (lower === 'control' || lower === 'ctrl') return 'Ctrl';
+      if (lower === 'shift') return 'Shift';
+      if (lower === 'alt' || lower === 'option') return 'Alt';
+      if (lower === 'meta') return 'Super';
+      if (lower === 'space') return 'Space';
+      if (lower === 'arrowup') return 'Up';
+      if (lower === 'arrowdown') return 'Down';
+      if (lower === 'arrowleft') return 'Left';
+      if (lower === 'arrowright') return 'Right';
+      if (lower === 'escape') return 'Esc';
+      if (lower === 'enter') return 'Enter';
+      if (lower === 'tab') return 'Tab';
+      return lower.length === 1 ? lower.toUpperCase() : lower;
+    })
+    .join('+');
 };
 
 export const findShortcutConflict = (

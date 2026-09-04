@@ -156,9 +156,11 @@ export function KeyboardShortcuts({ requestBack, requestClose }: KeyboardShortcu
         pushRuntimeState(nextRuntimeState);
         setEditingId(undefined);
         clearError();
-      } catch {
+      } catch (reason) {
         setError(
-          'Could not register this shortcut — it may be invalid or already used by another application.'
+          typeof reason === 'string' && reason.trim().length > 0
+            ? reason
+            : 'Could not register this shortcut — it may be invalid or already used by another application.'
         );
         setErrorFor(id);
       } finally {

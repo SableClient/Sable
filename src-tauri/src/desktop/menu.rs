@@ -84,6 +84,21 @@ fn web_to_tauri_accelerator(web: &str) -> Result<String, String> {
         .map(|_| tauri_str)
 }
 
+/// Error returned when a global shortcut is requested on a Wayland session.
+/// Wayland compositors never route key presses through the X server unless an
+/// X11 window is focused, so an XWayland grab "registers" but cannot fire
+/// reliably. `global-hotkey` has no Wayland backend; X11 sessions work.
+#[cfg(target_os = "linux")]
+const WAYLAND_UNSUPPORTED: &str =
+    "Global shortcuts are not supported on Wayland sessions; they require an X11 session on Linux.";
+
+#[cfg(target_os = "linux")]
+fn linux_global_shortcut_error() -> Option<String> {
+    std::env::var_os("WAYLAND_DISPLAY")
+        .is_some()
+        .then(|| WAYLAND_UNSUPPORTED.to_string())
+}
+
 /// Apply the current toggle-window global shortcut. Unregisters any previously
 /// registered shortcut, then registers the new one when `binding` is `Some`.
 /// `binding` is in web hotkey format.
@@ -92,6 +107,11 @@ pub fn apply_toggle_window_shortcut(
     binding: Option<&str>,
 ) -> Result<(), String> {
     use tauri_plugin_global_shortcut::GlobalShortcutExt;
+
+    #[cfg(target_os = "linux")]
+    if let Some(error) = linux_global_shortcut_error() {
+        return Err(error);
+    }
 
     // The app only ever registers a single global shortcut, so unregistering
     // everything is precise and avoids tracking the live accelerator.
@@ -132,5 +152,22 @@ mod tests {
         assert!(web_to_tauri_accelerator("").is_err());
         assert!(web_to_tauri_accelerator("mod").is_err());
         assert!(web_to_tauri_accelerator("mod+notakey").is_err());
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn rejects_global_shortcuts_only_on_wayland_sessions() {
+        let original = std::env::var_os("WAYLAND_DISPLAY");
+        std::env::remove_var("WAYLAND_DISPLAY");
+        assert!(linux_global_shortcut_error().is_none());
+        std::env::set_var("WAYLAND_DISPLAY", "wayland-1");
+        assert_eq!(
+            linux_global_shortcut_error(),
+            Some(WAYLAND_UNSUPPORTED.to_string())
+        );
+        match original {
+            Some(value) => std::env::set_var("WAYLAND_DISPLAY", value),
+            None => std::env::remove_var("WAYLAND_DISPLAY"),
+        }
     }
 }

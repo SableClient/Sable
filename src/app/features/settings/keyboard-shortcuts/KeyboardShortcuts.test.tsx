@@ -154,4 +154,20 @@ describe('KeyboardShortcuts', () => {
 
     expect(await screen.findByText(/Could not register this shortcut/)).toBeInTheDocument();
   });
+
+  it('surfaces the registration error message from the desktop side', async () => {
+    mockSetToggleWindowShortcut.mockImplementationOnce(() =>
+      Promise.reject('Global shortcuts are not supported on Wayland sessions.')
+    );
+    renderPage();
+    await screen.findByText('Show or hide the app window');
+
+    const change = screen.getByRole('button', { name: 'Change Show or hide the app window' });
+    fireEvent.click(change);
+    fireEvent.keyDown(change, { key: 't', ctrlKey: true, shiftKey: true });
+
+    expect(
+      await screen.findByText('Global shortcuts are not supported on Wayland sessions.')
+    ).toBeInTheDocument();
+  });
 });

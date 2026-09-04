@@ -11,11 +11,11 @@ const { mockEntries, mockGetDesktopRuntimeState, mockSet, mockSyncDesktopSetting
     mockEntries: vi.fn<() => Promise<Array<[string, unknown]>>>(),
     mockGetDesktopRuntimeState: vi
       .fn<() => Promise<DesktopRuntimeState>>()
-      .mockResolvedValue({ trayAvailable: true }),
+      .mockResolvedValue({ trayAvailable: true, toggleWindowShortcut: null }),
     mockSet: vi.fn<(key: string, value: unknown) => Promise<unknown>>(),
     mockSyncDesktopSettings: vi
       .fn<(params: SyncDesktopSettingsParams) => Promise<DesktopRuntimeState>>()
-      .mockResolvedValue({ trayAvailable: true }),
+      .mockResolvedValue({ trayAvailable: true, toggleWindowShortcut: null }),
   })
 );
 

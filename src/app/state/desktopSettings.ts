@@ -36,6 +36,7 @@ export type DesktopSettingKey = keyof DesktopSettings;
 
 const DEFAULT_DESKTOP_RUNTIME_STATE: DesktopRuntimeState = {
   trayAvailable: true,
+  toggleWindowShortcut: null,
 };
 
 export const DEFAULT_DESKTOP_SETTINGS =
@@ -245,6 +246,17 @@ export const desktopSettingsAtom = atom(
 
 export const desktopRuntimeStateAtom = atom((get) => get(baseDesktopRuntimeStateAtom).value);
 export const desktopSettingsSyncingAtom = atom((get) => get(baseDesktopSettingsSyncCountAtom) > 0);
+
+export const pushDesktopRuntimeStateAtom = atom(
+  null,
+  (_get, set, runtimeState: DesktopRuntimeState) => {
+    currentDesktopRuntimeState = runtimeState;
+    set(baseDesktopRuntimeStateAtom, {
+      ready: true,
+      value: runtimeState,
+    });
+  }
+);
 
 export const desktopSettingsReadyAtom = atom(
   (get) => get(baseDesktopSettingsAtom).ready && get(baseDesktopRuntimeStateAtom).ready

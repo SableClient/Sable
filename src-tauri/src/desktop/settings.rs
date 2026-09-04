@@ -16,6 +16,7 @@ pub(crate) const CLOSE_TO_BACKGROUND_ON_CLOSE_KEY: &str = "closeToBackgroundOnCl
 pub(crate) const SHOW_SYSTEM_TRAY_ICON_KEY: &str = "showSystemTrayIcon";
 pub(crate) const USE_CUSTOM_TITLE_BAR_KEY: &str = "useCustomTitleBar";
 pub(crate) const SPELLCHECK_KEY: &str = "spellcheck";
+pub(crate) const TOGGLE_WINDOW_SHORTCUT_KEY: &str = "toggleWindowShortcut";
 pub(crate) const LEGACY_KEEP_BACKGROUND_RUNNING_KEY: &str = "keepBackgroundRunning";
 
 pub(crate) const fn use_custom_title_bar_default() -> bool {

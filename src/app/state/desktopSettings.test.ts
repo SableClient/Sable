@@ -11,6 +11,7 @@ import {
   desktopSettingsReadyAtom,
   getDesktopSetting,
   getDesktopSettings,
+  pushDesktopRuntimeStateAtom,
   saveDesktopSettings,
   setDesktopSetting,
 } from './desktopSettings';
@@ -21,11 +22,11 @@ const { mockClose, mockEntries, mockGetDesktopRuntimeState, mockSet, mockSyncDes
     mockEntries: vi.fn<() => Promise<Array<[string, unknown]>>>(),
     mockGetDesktopRuntimeState: vi
       .fn<() => Promise<DesktopRuntimeState>>()
-      .mockResolvedValue({ trayAvailable: true }),
+      .mockResolvedValue({ trayAvailable: true, toggleWindowShortcut: null }),
     mockSet: vi.fn<(key: string, value: unknown) => Promise<unknown>>(),
     mockSyncDesktopSettings: vi
       .fn<(params: SyncDesktopSettingsParams) => Promise<DesktopRuntimeState>>()
-      .mockResolvedValue({ trayAvailable: false }),
+      .mockResolvedValue({ trayAvailable: false, toggleWindowShortcut: null }),
   }));
 
 vi.mock('@tauri-apps/plugin-store', () => ({
@@ -162,7 +163,10 @@ describe('desktop settings state', () => {
         spellcheck: true,
       },
     });
-    expect(store.get(desktopRuntimeStateAtom)).toEqual({ trayAvailable: false });
+    expect(store.get(desktopRuntimeStateAtom)).toEqual({
+      trayAvailable: false,
+      toggleWindowShortcut: null,
+    });
 
     unsubscribe();
   });
@@ -201,6 +205,20 @@ describe('desktop settings state', () => {
     unsubscribe();
   });
 
+  it('pushes a runtime state update through the write atom', () => {
+    const store = createStore();
+
+    store.set(pushDesktopRuntimeStateAtom, {
+      trayAvailable: true,
+      toggleWindowShortcut: 'mod+shift+s',
+    });
+
+    expect(store.get(desktopRuntimeStateAtom)).toEqual({
+      trayAvailable: true,
+      toggleWindowShortcut: 'mod+shift+s',
+    });
+  });
+
   it('persists and syncs when saving desktop settings directly', async () => {
     await expect(
       saveDesktopSettings({
@@ -209,7 +227,7 @@ describe('desktop settings state', () => {
         useCustomTitleBar: false,
         spellcheck: false,
       })
-    ).resolves.toEqual({ trayAvailable: false });
+    ).resolves.toEqual({ trayAvailable: false, toggleWindowShortcut: null });
 
     expect(mockSet).toHaveBeenCalledTimes(5);
     expect(mockSet).toHaveBeenCalledWith('closeToBackgroundOnClose', false);
@@ -236,6 +254,7 @@ describe('desktop settings state', () => {
 
     await expect(setDesktopSetting('closeToBackgroundOnClose', true)).resolves.toEqual({
       trayAvailable: false,
+      toggleWindowShortcut: null,
     });
 
     expect(mockSet).toHaveBeenCalledWith('closeToBackgroundOnClose', true);
@@ -259,6 +278,7 @@ describe('desktop settings state', () => {
 
     await expect(setDesktopSetting('closeToBackgroundOnClose', false)).resolves.toEqual({
       trayAvailable: false,
+      toggleWindowShortcut: null,
     });
 
     expect(mockSet).toHaveBeenCalledWith('closeToBackgroundOnClose', false);
@@ -282,6 +302,7 @@ describe('desktop settings state', () => {
 
     await expect(setDesktopSetting('showSystemTrayIcon', false)).resolves.toEqual({
       trayAvailable: false,
+      toggleWindowShortcut: null,
     });
 
     expect(mockSet).toHaveBeenCalledTimes(1);

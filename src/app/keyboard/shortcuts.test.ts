@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import {
+  SHORTCUTS,
   captureShortcut,
   findShortcutConflict,
   getShortcutBinding,
+  isDesktopOnlyShortcut,
   matchesShortcut,
   sanitizeShortcutOverrides,
 } from './shortcuts';
@@ -23,6 +25,7 @@ describe('keyboard shortcuts', () => {
     expect(getShortcutBinding('composer.bold', {})).toBe('mod+b');
     expect(getShortcutBinding('composer.bold', { 'composer.bold': 'alt+b' })).toBe('alt+b');
     expect(getShortcutBinding('composer.bold', { 'composer.bold': null })).toBeNull();
+    expect(getShortcutBinding('app.toggleWindow', {})).toBeNull();
   });
 
   it('captures modifiers in a portable form', () => {
@@ -50,6 +53,18 @@ describe('keyboard shortcuts', () => {
     expect(findShortcutConflict('composer.bold', 'mod+f', {})?.id).toBe('app.searchMessages');
   });
 
+  it('treats the desktop-only shortcut as colliding with every scope', () => {
+    const overrides = { 'app.toggleWindow': 'mod+shift+s' } as const;
+    expect(findShortcutConflict('composer.bold', 'mod+shift+s', overrides)?.id).toBe(
+      'app.toggleWindow'
+    );
+    expect(findShortcutConflict('app.toggleWindow', 'alt+b', {})).toBeUndefined();
+    expect(findShortcutConflict('app.toggleWindow', 'mod+b', {})?.id).toBe('composer.bold');
+    expect(
+      findShortcutConflict('app.toggleWindow', 'alt+b', { 'composer.bold': 'alt+b' })?.id
+    ).toBe('composer.bold');
+  });
+
   it('sanitizes imported overrides', () => {
     expect(
       sanitizeShortcutOverrides({
@@ -59,5 +74,18 @@ describe('keyboard shortcuts', () => {
         unknown: 'mod+x',
       })
     ).toEqual({ 'composer.bold': 'alt+b', 'composer.italic': null });
+  });
+
+  it('registers the toggle-window shortcut as desktop-only', () => {
+    const entry = SHORTCUTS.find((shortcut) => shortcut.id === 'app.toggleWindow');
+    expect(entry).toBeDefined();
+    expect(entry!.category).toBe('Global');
+    expect(entry!.desktopOnly).toBe(true);
+    expect(isDesktopOnlyShortcut('app.toggleWindow')).toBe(true);
+    expect(isDesktopOnlyShortcut('composer.bold')).toBe(false);
+  });
+
+  it('strips desktop-only shortcuts from imported overrides', () => {
+    expect(sanitizeShortcutOverrides({ 'app.toggleWindow': 'mod+x' })).toEqual({});
   });
 });

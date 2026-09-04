@@ -6,6 +6,10 @@ use ts_rs::TS;
 #[ts(export, export_to = "desktop/", rename_all = "camelCase")]
 pub struct DesktopRuntimeState {
     pub tray_available: bool,
+    /// Currently registered global toggle-window shortcut in web hotkey format
+    /// (e.g. `"mod+shift+s"`), or `None` when the feature is disabled.
+    #[ts(optional = nullable)]
+    pub toggle_window_shortcut: Option<String>,
 }
 
 #[cfg(test)]
@@ -18,12 +22,14 @@ mod tests {
     fn desktop_runtime_state_serializes_with_camel_case_keys() {
         let state = DesktopRuntimeState {
             tray_available: true,
+            toggle_window_shortcut: Some("mod+shift+s".to_string()),
         };
 
         assert_eq!(
             serde_json::to_value(state).unwrap(),
             json!({
                 "trayAvailable": true,
+                "toggleWindowShortcut": "mod+shift+s",
             })
         );
     }
@@ -34,5 +40,6 @@ mod tests {
 
         assert!(output.contains("type DesktopRuntimeState"));
         assert!(output.contains("trayAvailable: boolean"));
+        assert!(output.contains("toggleWindowShortcut?: string | null"));
     }
 }

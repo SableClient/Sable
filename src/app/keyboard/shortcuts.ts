@@ -6,6 +6,7 @@ type ShortcutEvent = KeyboardEventLike & { target?: EventTarget | null };
 export type ShortcutScope = 'global' | 'composer';
 
 export type ShortcutId =
+  | 'app.toggleWindow'
   | 'app.searchMessages'
   | 'app.openBookmarks'
   | 'app.createRoom'
@@ -37,13 +38,22 @@ export type ShortcutOverrides = Partial<Record<ShortcutId, string | null>>;
 export type ShortcutDefinition = {
   id: ShortcutId;
   label: string;
-  category: 'General' | 'Navigation' | 'Messages';
-  defaultBinding: string;
+  category: 'General' | 'Navigation' | 'Messages' | 'Global';
+  defaultBinding: string | null;
   scope: ShortcutScope;
   allowInEditable?: boolean;
+  desktopOnly?: boolean;
 };
 
 export const SHORTCUTS: readonly ShortcutDefinition[] = [
+  {
+    id: 'app.toggleWindow',
+    label: 'Show or hide the app window',
+    category: 'Global',
+    defaultBinding: null,
+    scope: 'global',
+    desktopOnly: true,
+  },
   {
     id: 'app.searchMessages',
     label: 'Search for messages',
@@ -228,6 +238,9 @@ export const SHORTCUTS: readonly ShortcutDefinition[] = [
 const SHORTCUT_IDS = new Set<ShortcutId>(SHORTCUTS.map(({ id }) => id));
 const SHORTCUT_BY_ID = new Map(SHORTCUTS.map((shortcut) => [shortcut.id, shortcut]));
 
+export const isDesktopOnlyShortcut = (id: ShortcutId): boolean =>
+  SHORTCUT_BY_ID.get(id)?.desktopOnly ?? false;
+
 export const getShortcutBinding = (id: ShortcutId, overrides: ShortcutOverrides): string | null => {
   const override = overrides[id];
   return override === undefined ? SHORTCUT_BY_ID.get(id)!.defaultBinding : override;
@@ -305,6 +318,10 @@ export const findShortcutConflict = (
       return false;
     return (
       current.scope === candidate.scope ||
+      // OS-registered shortcuts intercept key presses before the webview can
+      // see them, so they collide with bindings in every scope.
+      current.desktopOnly ||
+      candidate.desktopOnly ||
       (current.scope === 'composer' && candidate.allowInEditable) ||
       (candidate.scope === 'composer' && current.allowInEditable)
     );
@@ -316,6 +333,8 @@ export const sanitizeShortcutOverrides = (value: unknown): ShortcutOverrides | u
   const result: ShortcutOverrides = {};
   for (const [id, binding] of Object.entries(value)) {
     if (!SHORTCUT_IDS.has(id as ShortcutId)) continue;
+    const definition = SHORTCUT_BY_ID.get(id as ShortcutId)!;
+    if (definition.desktopOnly) continue;
     if (binding === null) result[id as ShortcutId] = null;
     else if (typeof binding === 'string' && binding.length > 0 && binding.length <= 64) {
       try {

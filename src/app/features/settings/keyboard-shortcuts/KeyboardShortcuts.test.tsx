@@ -7,13 +7,14 @@ import { defaultSettings, settingsAtom } from '$state/settings';
 import type * as PlatformUtils from '$utils/platform';
 import { KeyboardShortcuts } from './KeyboardShortcuts';
 
-const { mockGetDesktopRuntimeState, mockIsDesktopTauri, mockSetToggleWindowShortcut } =
-  vi.hoisted(() => ({
+const { mockGetDesktopRuntimeState, mockIsDesktopTauri, mockSetToggleWindowShortcut } = vi.hoisted(
+  () => ({
     mockGetDesktopRuntimeState: vi.fn<() => Promise<DesktopRuntimeState>>(),
     mockIsDesktopTauri: vi.fn<() => boolean>(() => true),
-    mockSetToggleWindowShortcut: vi
-      .fn<(params: { binding: string | null }) => Promise<DesktopRuntimeState>>(),
-  }));
+    mockSetToggleWindowShortcut:
+      vi.fn<(params: { binding: string | null }) => Promise<DesktopRuntimeState>>(),
+  })
+);
 
 vi.mock('$generated/tauri/commands', () => ({
   getDesktopRuntimeState: mockGetDesktopRuntimeState,

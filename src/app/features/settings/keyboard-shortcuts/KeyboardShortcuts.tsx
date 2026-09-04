@@ -17,7 +17,11 @@ import {
   getShortcutBinding,
   isDesktopOnlyShortcut,
 } from '../../../keyboard/shortcuts';
-import type { ShortcutDefinition, ShortcutId, ShortcutOverrides } from '../../../keyboard/shortcuts';
+import type {
+  ShortcutDefinition,
+  ShortcutId,
+  ShortcutOverrides,
+} from '../../../keyboard/shortcuts';
 
 function ShortcutKeys({ binding }: { binding: string | null }) {
   const label = formatShortcut(binding);
@@ -226,8 +230,8 @@ export function KeyboardShortcuts({ requestBack, requestClose }: KeyboardShortcu
           <PageContent>
             <Box direction="Column" gap="600">
               <Text size="T300" priority="300">
-                Choose Change, then press a new key combination. App-wide shortcuts do not run
-                while typing unless the action specifically supports it.
+                Choose Change, then press a new key combination. App-wide shortcuts do not run while
+                typing unless the action specifically supports it.
               </Text>
               {CATEGORIES.map((category) => (
                 <Box key={category} direction="Column" gap="100">

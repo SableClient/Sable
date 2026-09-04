@@ -82,8 +82,14 @@ describe('KeyboardShortcuts', () => {
     renderPage();
 
     expect(await screen.findByText('Show or hide the app window')).toBeInTheDocument();
-    expect(screen.getByText('Global')).toBeInTheDocument();
     expect(screen.getByText('Ctrl+Shift+S')).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        'Shortcuts in the Global section work system-wide, even when Sable is not focused.'
+      )
+    ).toBeInTheDocument();
+    const headings = screen.getAllByRole('heading', { level: 2 }).map((h) => h.textContent);
+    expect(headings).toEqual(['General', 'Navigation', 'Messages', 'Global']);
   });
 
   it('hides the Global section outside the desktop app', () => {

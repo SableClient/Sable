@@ -113,7 +113,7 @@ type KeyboardShortcutsProps = {
 export function KeyboardShortcuts({ requestBack, requestClose }: KeyboardShortcutsProps) {
   const isDesktop = isDesktopTauri();
   const CATEGORIES = isDesktop
-    ? (['Global', 'General', 'Navigation', 'Messages'] as const)
+    ? (['General', 'Navigation', 'Messages', 'Global'] as const)
     : (['General', 'Navigation', 'Messages'] as const);
   const [overrides, setOverrides] = useSetting(settingsAtom, 'shortcutOverrides');
   const [editingId, setEditingId] = useState<ShortcutId>();
@@ -226,16 +226,20 @@ export function KeyboardShortcuts({ requestBack, requestClose }: KeyboardShortcu
           <PageContent>
             <Box direction="Column" gap="600">
               <Text size="T300" priority="300">
-                Choose Change, then press a new key combination. Global shortcuts do not run while
-                typing unless the action specifically supports it.
-                {isDesktop &&
-                  ' Shortcuts in the Global section work system-wide, even when Sable is not focused.'}
+                Choose Change, then press a new key combination. App-wide shortcuts do not run
+                while typing unless the action specifically supports it.
               </Text>
               {CATEGORIES.map((category) => (
                 <Box key={category} direction="Column" gap="100">
                   <Text size="L400" as="h2">
                     {category}
                   </Text>
+                  {category === 'Global' && (
+                    <Text size="T300" priority="300">
+                      Shortcuts in the Global section work system-wide, even when Sable is not
+                      focused.
+                    </Text>
+                  )}
                   <Box direction="Column" gap="100">
                     {SHORTCUTS.filter((shortcut) => shortcut.category === category).map(
                       (shortcut) => (

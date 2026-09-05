@@ -1,0 +1,89 @@
+name: Android e2e (CDP)
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'tests/e2e-android/**'
+      - 'scripts/e2e-android.sh'
+      - 'playwright.android.config.ts'
+      - '.github/workflows/e2e-android.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  e2e-android:
+    name: Android emulator e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      APP_ID: moe.sable.client
+      CDP_PORT: '9222'
+      NODE_OPTIONS: --max-old-space-size=8192
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Setup app
+        uses: ./.github/actions/setup
+        with:
+          tauri: 'true'
+
+      - name: Setup Android SDK + NDK
+        shell: bash
+        run: mise run tauri:setup:android
+
+      - name: Add x86_64 Android Rust target
+        shell: bash
+        run: rustup target add x86_64-linux-android
+
+      - name: Cache Rust build
+        uses: Swatinem/rust-cache@c19371144df3bb44fab255c43d04cbc2ab54d1c4 # v2.9.1
+        with:
+          workspaces: src-tauri
+          key: android-x86_64-debug
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6.2.0
+
+      - name: Resolve NDK
+        shell: bash
+        run: echo "NDK_HOME=$ANDROID_HOME/ndk/$ANDROID_NDK_VERSION" >> "$GITHUB_ENV"
+
+      - name: Build debug APK (x86_64)
+        shell: bash
+        run: |
+          pnpm tauri android build --debug --target x86_64
+          APK=$(find src-tauri/gen/android/app/build/outputs -name '*debug*.apk' -type f | head -1)
+          [ -n "$APK" ] || { echo 'Debug APK not found' >&2; exit 1; }
+          echo "APK_PATH=$APK" >> "$GITHUB_ENV"
+
+      - name: Boot emulator + run tests
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        env:
+          APK_PATH: ${{ env.APK_PATH }}
+          APP_ID: ${{ env.APP_ID }}
+          CDP_PORT: ${{ env.CDP_PORT }}
+        with:
+          api-level: 30
+          arch: x86_64
+          profile: pixel
+          target: google_apis
+          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -no-audio -no-boot-anim
+          disable-animations: true
+          # android-emulator-runner sets ANDROID_SERIAL so the script targets
+          # the emulator automatically. --skip-build because we built above.
+          script: ./scripts/e2e-android.sh --skip-build
+
+      - name: Upload report
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: android-e2e-report
+          path: |
+            playwright-report
+            test-results
+          retention-days: 7

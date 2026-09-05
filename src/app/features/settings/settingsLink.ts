@@ -41,6 +41,7 @@ export const settingsLinkFocusIdsBySection: Record<SettingsSectionId, readonly s
     'hide-member-events-read-only-rooms',
     'hide-membership-change',
     'hide-profile-change',
+    'hide-single-reaction-count',
     'hide-read-receipts',
     'hide-typing-indicators',
     'large-room-call-button',

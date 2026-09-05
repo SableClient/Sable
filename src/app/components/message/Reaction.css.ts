@@ -53,6 +53,12 @@ export const Reaction = style([
   },
 ]);
 
+// Declared after Reaction so it wins the cascade tie and rebalances the
+// right-side padding that was sized for the trailing count numeral.
+export const ReactionNoCount = style({
+  padding: `${toRem(2)} ${config.space.S100} ${toRem(2)} ${config.space.S100}`,
+});
+
 export const ReactionText = style([
   DefaultReset,
   {

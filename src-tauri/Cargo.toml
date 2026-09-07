@@ -41,7 +41,7 @@ percent-encoding = "2"
 # Enables `stream` (for native_upload's `Body::wrap_stream`) on the reqwest that
 # tauri-plugin-http pulls in without it. default-features = false keeps
 # openssl-sys out of the Android cross-compile.
-reqwest = { version = "0.12", default-features = false, features = ["stream"] }
+reqwest = { version = "0.13", default-features = false, features = ["stream"] }
 async-stream = "0.3"
 base64 = "0.23"
 zeroize = "1"

@@ -31,6 +31,7 @@ vi.mock('./platform', () => ({
 import {
   addMediaRetryRevision,
   addTauriMediaRetryRevision,
+  getTauriMediaHttpTarget,
   getTauriMediaRetryTarget,
   prepareLoopbackImageSource,
   prepareLoopbackMedia,
@@ -301,6 +302,47 @@ describe('getTauriMediaRetryTarget', () => {
       expect(getTauriMediaRetryTarget(url, 1)).toBe(`${INNER}#__sable_media_retry=1`);
     }
   );
+
+  describe('getTauriMediaHttpTarget', () => {
+    const INNER_HTTP =
+      'https://matrix.example.com/_matrix/client/v1/media/download/example.com/abc123';
+
+    it('returns the inner http target for the sable-media protocol form', () => {
+      expect(
+        getTauriMediaHttpTarget(
+          `sable-media://${encodeURIComponent(INNER_HTTP)}?__sable_media_cache=3`
+        )
+      ).toBe(INNER_HTTP);
+    });
+
+    it('returns the inner http target for the sable-media.localhost host form', () => {
+      expect(
+        getTauriMediaHttpTarget(
+          `https://sable-media.localhost/${encodeURIComponent(INNER_HTTP)}?__sable_media_cache=3&__sable_media_session=session_abc`
+        )
+      ).toBe(INNER_HTTP);
+    });
+
+    it('strips the outer cache markers only', () => {
+      const innerWithQuery = `${INNER_HTTP}?allow_redirect=true`;
+      expect(
+        getTauriMediaHttpTarget(
+          `https://sable-media.localhost/${encodeURIComponent(innerWithQuery)}?__sable_media_cache=3`
+        )
+      ).toBe(innerWithQuery);
+    });
+
+    it('passes through a plain http src', () => {
+      expect(getTauriMediaHttpTarget('https://example.org/image.png?w=100')).toBe(
+        'https://example.org/image.png?w=100'
+      );
+    });
+
+    it('returns null for non-http srcs', () => {
+      expect(getTauriMediaHttpTarget('blob:https://example.org/uuid')).toBeNull();
+      expect(getTauriMediaHttpTarget('data:image/png;base64,abc')).toBeNull();
+    });
+  });
 });
 
 describe('prepareLoopbackMedia', () => {

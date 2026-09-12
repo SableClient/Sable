@@ -1,6 +1,6 @@
 // oxlint-disable no-console
 import type { RectCords } from 'folds';
-import { Avatar, Box, Chip, Text, Tooltip, as, config, toRem } from 'folds';
+import { Avatar, Box, Chip, Menu, MenuItem, Text, Tooltip, as, config, toRem } from 'folds';
 import { TooltipProvider } from '$components/overlay-stack';
 import { PopOut } from '$components/overlay-stack';
 import type { JSX, KeyboardEventHandler, MouseEventHandler, MouseEvent, ReactNode } from 'react';
@@ -44,7 +44,7 @@ import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
 import type { MemberPowerTag } from '$types/matrix/room';
 
 import { PowerIcon } from '$components/power';
-import { Info, menuIcon, userFallbackIcon } from '$components/icons/phosphor';
+import { ArrowSquareOut, Info, menuIcon, userFallbackIcon } from '$components/icons/phosphor';
 import { getPowerTagIconSrc } from '$hooks/useMemberPowerTag';
 import { useSableCosmetics } from '$hooks/useSableCosmetics';
 import { SwipeableMessageWrapper, type SwipeActionMode } from '$components/SwipeableMessageWrapper';
@@ -60,7 +60,11 @@ import { convertBeeperFormatToOurPerMessageProfile } from '$hooks/usePerMessageP
 import { MessageEditor } from './MessageEditor';
 import * as css from './styles.css';
 import { modalAtom, ModalType } from '$state/modal';
-import { OptionQuickMenu } from '$components/message/modals/Options';
+import { OptionQuickMenu, type ImageMenuContext } from '$components/message/modals/Options';
+import { ResponsiveMenu } from '$components/ResponsiveMenu';
+import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
+import { copyToClipboard } from '$utils/dom';
+import { CopyIcon } from '@phosphor-icons/react';
 
 export type ReactionHandler = (keyOrMxc: string, shortcode: string) => void;
 
@@ -384,6 +388,7 @@ function MessageInternal(
   }, []);
 
   const [isEmoji, setIsEmoji] = useState(false);
+  const [imageMenuContext, setImageMenuContext] = useState<ImageMenuContext | null>(null);
 
   const setModal = useSetAtom(modalAtom);
   const [contentVersion, setContentVersion] = useState(0);
@@ -524,6 +529,29 @@ function MessageInternal(
       if (!edit) openMobileOptions();
     },
   });
+
+  const linkMenu = useMenuAnchor<HTMLDivElement>();
+  const linkHrefRef = useRef<string>('');
+  const handleOpenLink = () => {
+    const href = linkHrefRef.current;
+    if (href) {
+      // Mirror a real link click: window.open doesn't route to the system
+      // browser from Sable's desktop webview, but a target=_blank anchor does.
+      const link = document.createElement('a');
+      link.href = href;
+      link.target = '_blank';
+      link.rel = 'noopener noreferrer';
+      link.style.display = 'none';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    }
+    linkMenu.close();
+  };
+  const handleCopyLinkUrl = () => {
+    if (linkHrefRef.current) copyToClipboard(linkHrefRef.current);
+    linkMenu.close();
+  };
 
   const tagIconSrc = memberPowerTag?.icon
     ? getPowerTagIconSrc(mx, useAuthentication, memberPowerTag.icon)
@@ -910,6 +938,7 @@ function MessageInternal(
         canPinEvent: canPinEvent,
         canDelete: canDelete,
         setIsEmoji: setIsEmoji,
+        imageMenuContext: 'message',
         imagePackRooms: imagePackRooms,
         ActualMessage: (
           <div style={{ width: '100%' }}>
@@ -930,8 +959,39 @@ function MessageInternal(
 
   const contextMenuHandler: MouseEventHandler<HTMLDivElement> = (evt) => {
     if (evt.altKey || !window.getSelection()?.isCollapsed || edit) return;
-    const tag = (evt.target as HTMLElement).tagName;
+    const target = evt.target as HTMLElement;
+    // Image contexts take priority over links, so a right-click on a linked
+    // image offers Copy/Save Image instead of the URL actions.
+    const imageTarget = target.closest('[data-message-attachment], img');
+    if (!imageTarget) {
+      const anchor = target instanceof Element ? target.closest('a[href]') : undefined;
+      if (anchor) {
+        linkHrefRef.current = anchor.getAttribute('href') ?? '';
+        evt.preventDefault();
+        evt.stopPropagation();
+        linkMenu.triggerProps.onContextMenu(evt);
+        return;
+      }
+    }
+    const tag = target.tagName;
     if (typeof tag === 'string' && tag.toLowerCase() === 'a') return;
+    setImageMenuContext(
+      imageTarget
+        ? {
+            isAttachment: imageTarget.closest('[data-message-attachment]') !== null,
+            src:
+              imageTarget instanceof HTMLImageElement
+                ? (imageTarget.getAttribute('src') ?? '')
+                : '',
+            title:
+              imageTarget instanceof HTMLImageElement
+                ? (imageTarget.getAttribute('title') ??
+                  imageTarget.getAttribute('alt') ??
+                  undefined)
+                : undefined,
+          }
+        : null
+    );
     if (isMobileOrTablet()) {
       evt.preventDefault();
       // The long-press timer already opened the sheet; this is its synthetic follow-up.
@@ -944,6 +1004,7 @@ function MessageInternal(
 
   const handleOpenMenu: MouseEventHandler<HTMLButtonElement> = (evt) => {
     const target = evt.currentTarget.parentElement?.parentElement ?? evt.currentTarget;
+    setImageMenuContext('message');
     window.requestAnimationFrame(() => {
       menu.openAt(target);
     });
@@ -1024,9 +1085,46 @@ function MessageInternal(
             setIsEmoji={setIsEmoji}
             canSendReaction={canSendReaction}
             isGif={isGif}
+            imageMenuContext={imageMenuContext}
           />
         </div>
       )}
+
+      <ResponsiveMenu
+        anchor={linkMenu.anchor}
+        requestClose={linkMenu.close}
+        position="Bottom"
+        align="Start"
+        offset={0}
+        menu={
+          <Menu variant="Surface" style={{ maxWidth: toRem(200), width: '100vw' }}>
+            <Box direction="Column" gap="100" style={{ padding: config.space.S100 }}>
+              <MenuItem
+                as="button"
+                radii="300"
+                size="300"
+                after={menuIcon(CopyIcon)}
+                onClick={handleCopyLinkUrl}
+              >
+                <Text size="T300" style={{ flexGrow: 1 }}>
+                  Copy URL
+                </Text>
+              </MenuItem>
+              <MenuItem
+                as="button"
+                radii="300"
+                size="300"
+                after={menuIcon(ArrowSquareOut)}
+                onClick={handleOpenLink}
+              >
+                <Text size="T300" style={{ flexGrow: 1 }}>
+                  Open Link
+                </Text>
+              </MenuItem>
+            </Box>
+          </Menu>
+        }
+      />
 
       <div
         style={{

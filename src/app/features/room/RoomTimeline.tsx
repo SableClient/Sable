@@ -75,6 +75,7 @@ import {
 import { useTimelineEventRenderer } from '$hooks/timeline/useTimelineEventRenderer';
 import { RoomMediaViewer } from '$components/image-viewer/RoomMediaViewer';
 import type { RoomMediaItem } from '$components/image-viewer/RoomMediaViewer';
+import { getMediaBundleEvents } from './mediaBundle';
 import type { IImageContent } from '$types/matrix/common';
 import { useTimelineRendererContext } from '$hooks/timeline/useTimelineRendererContext';
 import { useUrlPreviewPrefetch } from '$hooks/timeline/useUrlPreviewPrefetch';
@@ -1009,14 +1010,29 @@ export function RoomTimeline({
   const openRoomMedia = useCallback(
     (mEvent: MatrixEvent) => {
       const mediaEventId = mEvent.getId();
-      if (!isMobile || !mediaEventId || !getRoomMediaItem(mEvent, room, nicknames)) return false;
-      setRoomMedia(
-        timelineSyncRef.current.timeline.linkedTimelines.flatMap((timeline) =>
-          timeline.getEvents().flatMap((timelineEvent) => {
-            const item = getRoomMediaItem(timelineEvent, room, nicknames);
+      if (!mediaEventId || !getRoomMediaItem(mEvent, room, nicknames)) return false;
+      const processedMediaEvents = processedEventsRef.current.flatMap((row) =>
+        getRoomMediaItem(row.mEvent, room, nicknames) ? [row.mEvent] : []
+      );
+      if (isMobile) {
+        setRoomMedia(
+          processedMediaEvents.flatMap((m) => {
+            const item = getRoomMediaItem(m, room, nicknames);
             return item ? [item] : [];
           })
-        )
+        );
+        setSelectedMediaEventId(mediaEventId);
+        return true;
+      }
+      // Desktop zooms are scoped to the attachment bundle around the clicked event,
+      // so arrow keys navigate its siblings and lone images keep the plain viewer.
+      const bundle = getMediaBundleEvents(processedEventsRef.current, mediaEventId);
+      if (bundle.length < 2) return false;
+      setRoomMedia(
+        bundle.flatMap((timelineEvent) => {
+          const item = getRoomMediaItem(timelineEvent, room, nicknames);
+          return item ? [item] : [];
+        })
       );
       setSelectedMediaEventId(mediaEventId);
       return true;

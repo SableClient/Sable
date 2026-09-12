@@ -13,6 +13,7 @@ import {
   trimLeadingSlash,
   trimSlash,
   trimTrailingSlash,
+  wrapIndex,
 } from './common';
 
 describe('bytesToSize', () => {
@@ -170,5 +171,18 @@ describe('trimLeadingSlash / trimTrailingSlash / trimSlash', () => {
     ['/', ''],
   ])('trimSlash(%s) → %s', (input, expected) => {
     expect(trimSlash(input)).toBe(expected);
+  });
+});
+
+describe('wrapIndex', () => {
+  it.each([
+    [0, 1, 3, 1],
+    [2, 1, 3, 0],
+    [0, -1, 3, 2],
+    [4, -1, 5, 3],
+    [1, 0, 3, 1],
+    [7, 2, 5, 4],
+  ])('wraps %i + %i in %i to %i', (index, offset, length, expected) => {
+    expect(wrapIndex(index, offset, length)).toBe(expected);
   });
 });

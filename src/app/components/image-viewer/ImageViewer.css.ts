@@ -148,16 +148,56 @@ const mobileGalleryControl = {
   top: '50%',
   zIndex: 1,
   transform: 'translateY(-50%)',
-  backgroundColor: '#0009',
+  backgroundColor: 'rgba(0, 0, 0, 0.5)',
   color: '#fff',
+  transition: 'background-color 150ms ease, opacity 150ms ease',
+};
+
+// Desktop hides the chevrons until the cursor is over the viewer; keyboard
+// users can still tab to them, which reveals them again.
+export const ImageViewerControlsHidden = style({
+  opacity: 0,
+  pointerEvents: 'none',
+  selectors: {
+    '&:focus-visible': {
+      opacity: 1,
+      pointerEvents: 'auto',
+    },
+  },
+});
+
+// The global `button:hover` lift would replace the -50% centering transform and
+// bounce the hitbox under the cursor, so re-assert it here and only fade color.
+const galleryControlStates = {
+  selectors: {
+    '&:hover': {
+      transform: 'translateY(-50%)',
+      backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    },
+    '&:focus-visible': {
+      transform: 'translateY(-50%)',
+      backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    },
+    '&:active': {
+      transform: 'translateY(-50%)',
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+    },
+  },
 };
 
 export const ImageViewerPrevious = style({
   ...mobileGalleryControl,
+  ...galleryControlStates,
   left: `calc(${config.space.S100} + ${safeAreaLeft})`,
 });
 
 export const ImageViewerNext = style({
   ...mobileGalleryControl,
+  ...galleryControlStates,
   right: `calc(${config.space.S100} + ${safeAreaRight})`,
+});
+
+// Dimmed rest state for the button whose direction wraps around the bundle end.
+export const ImageViewerEdge = style({
+  backgroundColor: 'rgba(0, 0, 0, 0.2)',
 });

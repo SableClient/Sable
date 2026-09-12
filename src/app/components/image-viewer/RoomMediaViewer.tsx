@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Box, Chip, Spinner, Text } from 'folds';
 import type { EncryptedAttachmentInfo } from 'browser-encrypt-attachment';
+import type { MatrixClient } from '$types/matrix-sdk';
 import { ModalOverlay } from '$components/modal-overlay/ModalOverlay';
 import { useCreateObjectURL } from '$hooks/useObjectURL';
 import { useMatrixClient } from '$hooks/useMatrixClient';
@@ -20,6 +21,7 @@ import { isTauri } from '@tauri-apps/api/core';
 import { useSetting } from '$state/hooks/settings';
 import { settingsAtom } from '$state/settings';
 import { timeDayMonthYear, timeHourMinute, today, yesterday } from '$utils/time';
+import { wrapIndex } from '$utils/common';
 import { ImageViewer } from './ImageViewer';
 
 export type RoomMediaItem = {
@@ -43,6 +45,49 @@ type RoomMediaViewerProps = {
 
 type ResolvedMedia = { item: RoomMediaItem; src: string };
 
+// Bounded so large bundles stay flat in memory; unreferenced bitmaps and HTTP
+// entries are evicted by the browser on its own.
+const PRELOAD_AHEAD = 2;
+const PRELOAD_BEHIND = 2;
+
+type MediaResolution = {
+  mx: MatrixClient;
+  useAuthentication: boolean;
+  createObjectURL: (data: Blob) => string;
+  tauri: boolean;
+};
+
+// Shared by live resolution and preloading so both register the same caches
+// (encryption keys, loopback, HTTP). Web encrypted media is skipped: its blob
+// lives in the hook's own cache, so a second download would double bandwidth.
+const preloadRoomMediaItem = async (
+  item: RoomMediaItem,
+  { mx, useAuthentication, tauri }: Omit<MediaResolution, 'createObjectURL'>
+): Promise<void> => {
+  if (item.encInfo && !tauri) return;
+  const rawMediaUrl = item.url.startsWith('http')
+    ? item.url
+    : mxcUrlToHttp(mx, item.url, useAuthentication);
+  let src = rawMediaUrl;
+  if (item.encInfo) {
+    if (!src) return;
+    await setMediaEncryption(src, item.encInfo, item.mimeType ?? FALLBACK_MIMETYPE);
+    src = rewriteAuthenticatedMediaUrl(src)!;
+  } else if (tauri) {
+    if (!src) return;
+    src = await prepareLoopbackImageSource(src);
+  }
+  if (src) await loadImage(src);
+};
+
+const loadImage = (src: string): Promise<void> =>
+  new Promise((resolve) => {
+    const image = new Image();
+    image.addEventListener('load', () => resolve(), { once: true });
+    image.addEventListener('error', () => resolve(), { once: true });
+    image.src = src;
+  });
+
 const formatSentAt = (ts: number | undefined, hour24Clock: boolean): string | undefined => {
   if (ts === undefined) return undefined;
   const time = timeHourMinute(ts, hour24Clock);
@@ -56,11 +101,15 @@ function ResolvedRoomMedia({
   requestClose,
   onPrevious,
   onNext,
+  atStart,
+  atEnd,
 }: {
   item: RoomMediaItem;
   requestClose: () => void;
   onPrevious?: () => void;
   onNext?: () => void;
+  atStart?: boolean;
+  atEnd?: boolean;
 }) {
   const mx = useMatrixClient();
   const useAuthentication = useMediaAuthentication();
@@ -115,11 +164,10 @@ function ResolvedRoomMedia({
   }, [item, rawMediaUrl, resolvedMediaUrl, tauri, createObjectURL, retryToken]);
 
   const loading = !error && resolved?.item.eventId !== item.eventId;
-  const showingResolved = resolved?.item.eventId === item.eventId;
 
   return (
     <>
-      {resolved && showingResolved && !error && (
+      {resolved && !error && (
         <ImageViewer
           alt={resolved.item.body}
           filename={resolved.item.filename}
@@ -130,6 +178,8 @@ function ResolvedRoomMedia({
           requestClose={requestClose}
           onPrevious={onPrevious}
           onNext={onNext}
+          atStart={atStart}
+          atEnd={atEnd}
           getDownloadBlob={
             item.encInfo && rawMediaUrl
               ? () =>
@@ -189,12 +239,44 @@ export function RoomMediaViewer({
 }: RoomMediaViewerProps) {
   const selectedIndex = items.findIndex((mediaItem) => mediaItem.eventId === selectedEventId);
   const item = items[selectedIndex];
+  const mx = useMatrixClient();
+  const useAuthentication = useMediaAuthentication();
+  const tauri = isTauri();
+
+  // Preload a small sliding window around the current image — forward first,
+  // then backward — so navigation swaps without re-fetching.
+  useEffect(() => {
+    if (items.length < 2 || selectedIndex < 0) return undefined;
+    let cancelled = false;
+    const forward = items.slice(selectedIndex + 1, selectedIndex + 1 + PRELOAD_AHEAD);
+    const backward = items
+      .slice(Math.max(selectedIndex - PRELOAD_BEHIND, 0), selectedIndex)
+      .toReversed();
+    const run = async () => {
+      for (const next of [...forward, ...backward]) {
+        if (cancelled) return;
+        try {
+          // oxlint-disable-next-line no-await-in-loop -- forward neighbours download before backward ones
+          await preloadRoomMediaItem(next, { mx, useAuthentication, tauri });
+        } catch {
+          // Preloading is best-effort; the real navigation reports its own errors.
+        }
+      }
+    };
+    void run();
+    return () => {
+      cancelled = true;
+    };
+  }, [items, selectedIndex, mx, useAuthentication, tauri]);
 
   useEffect(() => {
     if (!item) requestClose();
   }, [item, requestClose]);
 
   if (!item) return null;
+
+  const selectRelative = (offset: number) =>
+    selectEvent(items[wrapIndex(selectedIndex, offset, items.length)]!.eventId);
 
   return (
     <ModalOverlay
@@ -207,14 +289,10 @@ export function RoomMediaViewer({
       <ResolvedRoomMedia
         item={item}
         requestClose={requestClose}
-        onPrevious={
-          selectedIndex > 0 ? () => selectEvent(items[selectedIndex - 1]!.eventId) : undefined
-        }
-        onNext={
-          selectedIndex < items.length - 1
-            ? () => selectEvent(items[selectedIndex + 1]!.eventId)
-            : undefined
-        }
+        atStart={selectedIndex === 0}
+        atEnd={selectedIndex === items.length - 1}
+        onPrevious={() => selectRelative(-1)}
+        onNext={() => selectRelative(1)}
       />
     </ModalOverlay>
   );

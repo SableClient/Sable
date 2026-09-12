@@ -284,7 +284,9 @@ function WrappedMessage({
         onEdit={handleSwipeEdit}
         onActionModeChange={handleSwipeActionChange}
       >
-        <CompactLayout before={headerJSX}>{msgContentJSX}</CompactLayout>
+        <CompactLayout avatar={avatarJSX} before={headerJSX}>
+          {msgContentJSX}
+        </CompactLayout>
       </SwipeableMessageWrapper>
     );
   if (messageLayout === MessageLayout.Bubble)
@@ -606,13 +608,13 @@ function MessageInternal(
                 <UsernameBold>{cleanedDisplayName}</UsernameBold>
               </Text>
             </Username>
-            {showPronouns && (
+            {showPronouns && messageLayout !== MessageLayout.Compact && (
               <Pronouns
                 pronouns={mergedPronouns}
                 tagColor={accessibleNameColor(pmpNameColor) ?? usernameColor ?? 'currentColor'}
               />
             )}
-            {showPmPInfo && (
+            {showPmPInfo && messageLayout !== MessageLayout.Compact && (
               <Box>
                 <Text as="span">
                   <Text
@@ -688,15 +690,17 @@ function MessageInternal(
   };
 
   const avatarJSX = (collapsed?: boolean) => {
-    if (!collapsed && messageLayout !== MessageLayout.Compact)
+    if (!collapsed)
       return (
         <AvatarBase
           className={messageLayout === MessageLayout.Bubble ? css.BubbleAvatarBase : undefined}
         >
           <Avatar
-            className={css.MessageAvatar}
+            className={
+              messageLayout === MessageLayout.Compact ? css.CompactAvatar : css.MessageAvatar
+            }
             as="button"
-            size="300"
+            size="200"
             data-user-id={senderId}
             data-parent-message-id={mEvent.getId() ?? ':3'}
             onClick={onUserClick}

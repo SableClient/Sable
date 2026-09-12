@@ -266,6 +266,29 @@ export const resolveSection = (pathname: string): SectionNav | null => {
   return null;
 };
 
+const ROOM_ID_OR_ALIAS_PATH_PATTERNS = [
+  HOME_ROOM_PATH,
+  HOME_ROOM_FORUM_PATH,
+  DIRECT_ROOM_PATH,
+  DIRECT_ROOM_FORUM_PATH,
+  SPACE_ROOM_PATH,
+  SPACE_ROOM_FORUM_PATH,
+];
+
+/**
+ * Extracts the room id/alias segment straight from a pathname, independent of any
+ * navigation history. Route components normally get this via `useParams`, but that
+ * requires being mounted inside the matched route element — callers mounted above
+ * the router (e.g. app-wide feature components) need to match the pathname directly.
+ */
+export const matchRoomIdOrAlias = (pathname: string): string | undefined => {
+  for (const pattern of ROOM_ID_OR_ALIAS_PATH_PATTERNS) {
+    const encoded = matchPath({ path: pattern, end: false }, pathname)?.params.roomIdOrAlias;
+    if (encoded) return decodeURIComponent(encoded);
+  }
+  return undefined;
+};
+
 export const getSettingsPath = (section?: string, focus?: string): string => {
   const path = trimTrailingSlash(generatePath(SETTINGS_PATH, { section: section ?? null }));
   if (!focus) return path;

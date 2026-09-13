@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "Sable",
-  "version": "1.21.0",
+  "version": "1.22.0",
   "identifier": "moe.sable.client",
   "build": {
     "frontendDist": "../dist",
@@ -64,7 +64,9 @@
   },
   "plugins": {
     "updater": {
-      "endpoints": ["https://github.com/SableClient/Sable/releases/latest/download/latest.json"],
+      "endpoints": [
+        "https://github.com/SableClient/Sable/releases/latest/download/latest.json"
+      ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IEM0NDc2QkI0NjdCODlEQUUKUldTdW5iaG50R3RIeFBQeGFwcDZNcGhCQ2Y4UFgzVnptRmNRZjRoVDl0MkdOZmREdC9pTUZrZnAK"
     },
     "typegen": {
@@ -78,11 +80,17 @@
     },
     "deep-link": {
       "desktop": {
-        "schemes": ["sable", "moe.sable.app"]
+        "schemes": [
+          "sable",
+          "moe.sable.app"
+        ]
       },
       "mobile": [
         {
-          "scheme": ["sable", "moe.sable.app"],
+          "scheme": [
+            "sable",
+            "moe.sable.app"
+          ],
           "appLink": false
         }
       ]

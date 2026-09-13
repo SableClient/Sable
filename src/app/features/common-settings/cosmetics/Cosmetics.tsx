@@ -42,6 +42,14 @@ import { CustomStateEvent } from '$types/matrix/room';
 import { AvatarUploadTile } from '$components/avatar-upload-tile/AvatarUploadTile';
 import type { CustomRoomMemberEventContent } from '$unstable/CustomRoomMemberEventContent';
 import * as prefix from '$unstable/prefixes';
+import { useSetting } from '$state/hooks/settings';
+import { settingsAtom } from '$state/settings';
+import {
+  PER_ROOM_PRIVACY_BLUR_OPTIONS,
+  PRIVACY_BLUR_DEFAULT,
+  SettingMenuSelector,
+  type PrivacyBlurValue,
+} from '$components/setting-menu-selector';
 
 const log = createLogger('Cosmetics');
 
@@ -237,6 +245,33 @@ function CosmeticsFont({
   );
 }
 
+function SelectPerRoomPrivacyBlur({ roomId }: { roomId: string }) {
+  const [perRoomBlurArray, setPerRoomBlurArray] = useSetting(settingsAtom, 'perRoomPrivacyBlur');
+  const override = perRoomBlurArray?.find((item) => item.roomId === roomId);
+  const value: PrivacyBlurValue =
+    override === undefined ? PRIVACY_BLUR_DEFAULT : override.blur ? 'on' : 'off';
+
+  const handleSelect = (next: PrivacyBlurValue) => {
+    const filtered = perRoomBlurArray.filter((item) => item.roomId !== roomId);
+    setPerRoomBlurArray(
+      next === PRIVACY_BLUR_DEFAULT ? filtered : [...filtered, { roomId, blur: next === 'on' }]
+    );
+  };
+
+  return (
+    <SettingMenuSelector
+      value={value}
+      options={PER_ROOM_PRIVACY_BLUR_OPTIONS}
+      onSelect={handleSelect}
+      renderOption={({ option, selected }) => (
+        <Box grow="Yes">
+          <Text size="T300">{selected ? <b>{option.label}</b> : option.label}</Text>
+        </Box>
+      )}
+    />
+  );
+}
+
 type CosmeticsProps = {
   requestBack?: () => void;
   requestClose: () => void;
@@ -407,12 +442,20 @@ export function Cosmetics({ requestBack, requestClose }: CosmeticsProps) {
               </Box>
               <Box direction="Column" gap="100">
                 <Text size="L400">Settings</Text>
-                <SequenceCard
-                  className={SequenceCardStyle}
-                  variant="SurfaceVariant"
-                  direction="Column"
-                  gap="400"
-                ></SequenceCard>
+                {!isSpace && (
+                  <SequenceCard
+                    className={SequenceCardStyle}
+                    variant="SurfaceVariant"
+                    direction="Column"
+                    gap="400"
+                  >
+                    <SettingTile
+                      title="Blur Media"
+                      description="Override your account-wide media-blurring preference for this room only."
+                      after={<SelectPerRoomPrivacyBlur roomId={room.roomId} />}
+                    />
+                  </SequenceCard>
+                )}
                 <SequenceCard
                   className={SequenceCardStyle}
                   variant="SurfaceVariant"

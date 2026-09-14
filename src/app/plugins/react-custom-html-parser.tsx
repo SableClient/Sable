@@ -792,6 +792,28 @@ export const getReactCustomHtmlParser = (
           );
         }
 
+        if (name === 'dl') {
+          return (
+            <dl {...props} className={css.DescriptionList}>
+              {renderChildren()}
+            </dl>
+          );
+        }
+        if (name === 'dt') {
+          return (
+            <dt {...props} className={css.DescriptionTerm}>
+              {renderChildren()}
+            </dt>
+          );
+        }
+        if (name === 'dd') {
+          return (
+            <dd {...props} className={css.DescriptionDetails}>
+              {renderChildren()}
+            </dd>
+          );
+        }
+
         if (name === 'code') {
           if (parent && 'name' in parent && parent.name === 'pre') {
             const codeContent = renderChildren();

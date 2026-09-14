@@ -43,6 +43,9 @@ const permittedHtmlTags = [
   'img',
   'details',
   'summary',
+  'dl',
+  'dt',
+  'dd',
 ] as const;
 
 const permittedTagToAttributes = {

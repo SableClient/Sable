@@ -338,3 +338,25 @@ export const Td = style([
     minWidth: toRem(100),
   },
 ]);
+
+export const DescriptionList = style([
+  DefaultReset,
+  {
+    display: 'flex',
+    flexDirection: 'column',
+  },
+]);
+
+export const DescriptionTerm = style([
+  DefaultReset,
+  {
+    fontWeight: 'bolder',
+  },
+]);
+
+export const DescriptionDetails = style([
+  DefaultReset,
+  {
+    marginInlineStart: config.space.S700,
+  },
+]);

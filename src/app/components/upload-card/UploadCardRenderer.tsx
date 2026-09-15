@@ -321,9 +321,10 @@ function PreviewAudio({ fileItem }: PreviewAudioProps) {
 type MediaPreviewProps = {
   fileItem: TUploadItem;
   onSpoiler: (marked: boolean) => void;
+  onOpen?: () => void;
   children: ReactNode;
 };
-function MediaPreview({ fileItem, onSpoiler, children }: MediaPreviewProps) {
+function MediaPreview({ fileItem, onSpoiler, onOpen, children }: MediaPreviewProps) {
   const { originalFile, metadata } = fileItem;
   const fileUrl = useObjectURL(originalFile);
 
@@ -334,7 +335,9 @@ function MediaPreview({ fileItem, onSpoiler, children }: MediaPreviewProps) {
         overflow: 'hidden',
         backgroundColor: 'black',
         position: 'relative',
+        cursor: onOpen ? 'zoom-in' : undefined,
       }}
+      onClick={onOpen}
     >
       {children}
       <Box
@@ -352,7 +355,10 @@ function MediaPreview({ fileItem, onSpoiler, children }: MediaPreviewProps) {
           radii="Pill"
           aria-pressed={metadata.markedAsSpoiler}
           before={sizedIcon(EyeSlash, '50')}
-          onClick={() => onSpoiler(!metadata.markedAsSpoiler)}
+          onClick={(event: React.MouseEvent) => {
+            event.stopPropagation();
+            onSpoiler(!metadata.markedAsSpoiler);
+          }}
         >
           <Text size="B300">Spoiler</Text>
         </Chip>
@@ -370,6 +376,7 @@ type UploadCardRendererProps = {
   onComplete?: (upload: UploadSuccess) => void;
   roomId: string;
   hideCaption?: boolean;
+  onOpenPreview?: () => void;
 };
 export function UploadCardRenderer({
   isEncrypted,
@@ -380,6 +387,7 @@ export function UploadCardRenderer({
   onComplete,
   roomId,
   hideCaption,
+  onOpenPreview,
 }: Readonly<UploadCardRendererProps>) {
   const mx = useMatrixClient();
   const mediaConfig = useMediaConfig();
@@ -507,7 +515,7 @@ export function UploadCardRenderer({
       bottom={
         <>
           {isImageMimeType(fileItem.originalFile.type) && (
-            <MediaPreview fileItem={fileItem} onSpoiler={handleSpoiler}>
+            <MediaPreview fileItem={fileItem} onSpoiler={handleSpoiler} onOpen={onOpenPreview}>
               <PreviewImage fileItem={fileItem} />
             </MediaPreview>
           )}

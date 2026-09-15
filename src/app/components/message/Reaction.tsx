@@ -10,6 +10,8 @@ import { useAtomValue } from 'jotai';
 import { Image as MediaImage } from '$components/media';
 import { useRenderableMediaUrl } from '$hooks/useRenderableMediaUrl';
 import { nicknamesAtom } from '$state/nicknames';
+import { settingsAtom } from '$state/settings';
+import { useSetting } from '$state/hooks/settings';
 import * as css from './Reaction.css';
 
 export const Reaction = as<
@@ -22,6 +24,8 @@ export const Reaction = as<
   }
 >(({ className, mx, count, reaction, useAuthentication, ...props }, ref) => {
   const [imgError, setImgError] = useState(false);
+  const [hideSingleReactionCount] = useSetting(settingsAtom, 'hideSingleReactionCount');
+  const showCount = !hideSingleReactionCount || count > 1;
   const rawReactionUrl = reaction.startsWith('mxc://')
     ? (mxcUrlToHttp(mx, reaction, useAuthentication) ?? undefined)
     : undefined;
@@ -30,7 +34,7 @@ export const Reaction = as<
   return (
     <Box
       as="button"
-      className={classNames(css.Reaction, className)}
+      className={classNames(css.Reaction, !showCount && css.ReactionNoCount, className)}
       alignItems="Center"
       shrink="No"
       gap="200"
@@ -64,9 +68,11 @@ export const Reaction = as<
           </Text>
         )}
       </Text>
-      <Text as="span" size="T300">
-        {count}
-      </Text>
+      {showCount && (
+        <Text as="span" size="T300">
+          {count}
+        </Text>
+      )}
     </Box>
   );
 });

@@ -137,6 +137,9 @@ describe('profile persistence', () => {
     expect(
       accountData.get(MATRIX_UNSTABLE_MSC4461_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME)
     ).toEqual(catalog);
+    expect(
+      accountData.get(MATRIX_UNSTABLE_MSC4461_ACCOUNT_PER_MESSAGE_PROFILES_PROPERTY_NAME_V2)
+    ).toBeUndefined();
   });
 
   it('cleans up an empty legacy index', async () => {

@@ -20,6 +20,7 @@
  */
 
 import { run } from '@tauri-apps/cli';
+import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
 import process from 'node:process';
@@ -42,6 +43,25 @@ async function runTauri(args) {
     await run(args, 'tauri');
   } catch (error) {
     logger.error(`Failed to run tauri: ${error?.message ?? error}`);
+    process.exit(1);
+  }
+}
+
+function resolveCefPath() {
+  if (process.env.CEF_PATH) {
+    logger.info(`${dim('Using CEF_PATH from environment:')} ${process.env.CEF_PATH}`);
+    return;
+  }
+  if (process.platform !== 'linux') return;
+  try {
+    const cefPath = execFileSync(join(__dirname, 'fetch-cef.sh'), {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'inherit'],
+    }).trim();
+    process.env.CEF_PATH = cefPath;
+    logger.info(`${dim('CEF_PATH:')} ${cefPath}`);
+  } catch (error) {
+    logger.error(`Failed to fetch CEF: ${error?.message ?? error}`);
     process.exit(1);
   }
 }
@@ -86,6 +106,10 @@ async function main() {
 
   if (platform === 'cef' && cmd === 'build' && !tauriArgs.includes('--no-bundle')) {
     args.splice(1, 0, '--no-bundle');
+  }
+
+  if (platform === 'cef') {
+    resolveCefPath();
   }
 
   return runTauri(args);

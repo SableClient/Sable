@@ -1,4 +1,4 @@
-import { style } from '@vanilla-extract/css';
+import { globalStyle, style } from '@vanilla-extract/css';
 
 export const UserQuickMenuButton = style({
   selectors: {
@@ -6,4 +6,10 @@ export const UserQuickMenuButton = style({
       background: 'transparent',
     },
   },
+});
+
+export const BusyCursor = style({});
+
+globalStyle(`body.${BusyCursor}, body.${BusyCursor} *`, {
+  cursor: 'wait !important',
 });

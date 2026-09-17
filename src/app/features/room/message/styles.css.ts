@@ -156,6 +156,14 @@ export const BubbleAvatarBase = style({
   paddingTop: 0,
 });
 
+export const CompactAvatar = style({
+  cursor: 'pointer',
+  height: '1em',
+  width: '1em',
+  marginTop: '-2px',
+  borderRadius: 2,
+});
+
 export const MessageAvatar = style({
   cursor: 'pointer',
 });

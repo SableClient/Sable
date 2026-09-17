@@ -96,6 +96,7 @@ import {
 import { UploadCardRenderer } from '$components/upload-card';
 import type { UploadBoardImperativeHandlers } from '$components/upload-board';
 import { UploadBoard, UploadBoardContent, UploadBoardHeader } from '$components/upload-board';
+import { StagedUploadViewer } from './input/StagedUploadViewer';
 import type { Upload, UploadSuccess } from '$state/upload';
 import { UploadStatus, createUploadFamilyObserverAtom } from '$state/upload';
 import { loadImageElementFromMediaUrl } from '$utils/dom';
@@ -379,6 +380,7 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     replyDraftRef.current = replyDraft;
 
     const [uploadBoard, setUploadBoard] = useState(true);
+    const [stagedViewIndex, setStagedViewIndex] = useState<number | undefined>();
     const [uploadSending, setUploadSending] = useState(false);
     const [uploadBusy, setUploadBusy] = useState(false);
     const [ingestingFiles, setIngestingFiles] = useState(false);
@@ -391,6 +393,14 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
     const draftEpochRef = useRef(0);
     const mountedRef = useRef(false);
     const [selectedFiles, setSelectedFiles] = useAtom(roomIdToUploadItemsAtomFamily(draftKey));
+    // Tile order is newest-first, and the zoom bundle follows it.
+    const stagedImageItems = useMemo(
+      () =>
+        Array.from(selectedFiles)
+          .toReversed()
+          .filter((f) => isImageMimeType(f.originalFile.type)),
+      [selectedFiles]
+    );
     const selectedFilesRef = useRef(selectedFiles);
     selectedFilesRef.current = selectedFiles;
     const uploadItemOverridesRef = useRef(new Map<TUploadContent, Partial<TUploadItem>>());
@@ -2057,12 +2067,25 @@ export const RoomInput = forwardRef<HTMLDivElement, RoomInputProps>(
                               hideCaption={
                                 selectedFiles.length == 1 && sendIndividualAttachmentAsCaption
                               }
+                              onOpenPreview={
+                                isImageMimeType(fileItem.originalFile.type)
+                                  ? () => setStagedViewIndex(stagedImageItems.indexOf(fileItem))
+                                  : undefined
+                              }
                             />
                           ))}
                       </UploadBoardContent>
                     </Scroll>
                   )}
                 </UploadBoard>
+              )}
+              {stagedViewIndex !== undefined && (
+                <StagedUploadViewer
+                  items={stagedImageItems}
+                  index={stagedViewIndex}
+                  requestClose={() => setStagedViewIndex(undefined)}
+                  selectIndex={setStagedViewIndex}
+                />
               )}
               {scheduledTime && (
                 <div>

@@ -1,5 +1,6 @@
 import type { MouseEventHandler, MouseEvent } from 'react';
 import { forwardRef, startTransition, useState, useEffect } from 'react';
+import classNames from 'classnames';
 import type { Room } from '$types/matrix-sdk';
 import { RoomEvent as RoomEventEnum } from '$types/matrix-sdk';
 import {
@@ -73,6 +74,7 @@ import { useRoomMenuActions } from '$hooks/useRoomMenuActions';
 
 // Call Hooks & Plugins
 import { useCallMembers, useCallSession } from '$hooks/useCall';
+import { useCallSpeakers } from '$hooks/useCallSpeakers';
 import { useCallEmbed, useCallStart } from '$hooks/useCallEmbed';
 import { callChatAtom } from '$state/callEmbed';
 import { useCallPreferencesAtom } from '$state/hooks/callPreferences';
@@ -359,6 +361,8 @@ export function RoomNavItem({
     undefined;
 
   const isActiveCall = callEmbed?.roomId === room.roomId;
+  const speakers = useCallSpeakers(isActiveCall ? callEmbed : undefined);
+  const isDmPartnerSpeaking = !!dmUserId && speakers.has(dmUserId);
 
   const menu = useMenuAnchor<HTMLElement>();
 
@@ -527,6 +531,7 @@ export function RoomNavItem({
                       <Avatar
                         size={hideText ? undefined : '200'}
                         radii="400"
+                        className={classNames(isDmPartnerSpeaking && css.SpeakerAvatarRing)}
                         style={hideTextStyling(hideText)}
                       >
                         {showAvatar || (avatarSrc && isStrict) ? (
@@ -703,6 +708,7 @@ export function RoomNavItem({
               room={room}
               callMembership={callMembership}
               hideText={hideText}
+              activeSpeakers={speakers}
             />
           ))}
         </Box>

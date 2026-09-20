@@ -1228,7 +1228,7 @@ jobs:
           git clone --depth 1 \
             "https://x-access-token:${FLATHUB_TOKEN}@github.com/flathub/moe.sable.client.git" flathub
 
-          gh release view "$TAG" --json assets \
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json assets \
             --jq '.assets[] | select(.name | test("-linux-(x86_64|aarch64)\\.tar\\.gz$"))
                   | "\(.name) \(.digest)"' > assets.txt
 

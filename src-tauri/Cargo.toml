@@ -41,7 +41,7 @@ percent-encoding = "2"
 # Enables `stream` (for native_upload's `Body::wrap_stream`) on the reqwest that
 # tauri-plugin-http pulls in without it. default-features = false keeps
 # openssl-sys out of the Android cross-compile.
-reqwest = { version = "0.12", default-features = false, features = ["stream"] }
+reqwest = { version = "0.13", default-features = false, features = ["stream"] }
 async-stream = "0.3"
 base64 = "0.23"
 zeroize = "1"
@@ -95,7 +95,7 @@ tauri-plugin-dialog = "2"
 # wry/tauri-runtime-wry/webkit2gtk.
 # Pinned to =2.0.0 because 2.1.0+ introduced an unconditional call to
 # tauri::webview_version() which is gated behind tauri's `wry` feature.
-tauri-plugin-devtools = { version = "=2.1.0", default-features = false, optional = true }
+tauri-plugin-devtools = { version = "=2.2.1", default-features = false, optional = true }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 enigo = "0.6.1"

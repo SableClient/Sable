@@ -1,5 +1,5 @@
 import { style } from '@vanilla-extract/css';
-import { config } from 'folds';
+import { color, config } from 'folds';
 
 export const CategoryButton = style({
   flexGrow: 1,
@@ -18,4 +18,9 @@ export const NavItemChipIcon = style({
   justifyContent: 'center',
   lineHeight: 0,
   flexShrink: 0,
+});
+
+export const SpeakerAvatarRing = style({
+  boxShadow: `0 0 0 ${config.borderWidth.B600} ${color.Success.Main}`,
+  borderRadius: config.radii.Pill,
 });

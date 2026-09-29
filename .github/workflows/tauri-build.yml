@@ -236,7 +236,8 @@ jobs:
     name: Build Android
     needs: setup-release
     runs-on: ubuntu-latest
-    timeout-minutes: 45
+    # Release builds compile both FOSS and Google variants for two ABIs.
+    timeout-minutes: 90
     permissions:
       contents: write
       id-token: write

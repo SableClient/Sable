@@ -334,6 +334,10 @@ jobs:
         run: |
           # Reproducible builds: rebuilders have no Sentry secrets.
           unset VITE_SENTRY_DSN VITE_SENTRY_ENVIRONMENT SENTRY_AUTH_TOKEN SENTRY_ORG SENTRY_PROJECT
+          PROJECT_ROOT="$PWD"
+          CARGO_HOME="${CARGO_HOME:-$HOME/.cargo}"
+          RUSTUP_HOME="${RUSTUP_HOME:-$HOME/.rustup}"
+          export RUSTFLAGS="${RUSTFLAGS:+$RUSTFLAGS }--remap-path-prefix=$PROJECT_ROOT=/usr/src/sable --remap-path-prefix=$CARGO_HOME=/usr/local/cargo --remap-path-prefix=$RUSTUP_HOME=/usr/local/rustup"
           # tauri-build validates every file in capabilities/, so the geolocation
           # permissions must be absent, not just unreferenced.
           rm src-tauri/capabilities/geolocation.json

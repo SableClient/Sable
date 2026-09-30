@@ -1,6 +1,6 @@
 [package]
 name = "sable"
-version = "1.22.5"
+version = "1.22.11"
 description = "Yet another matrix client but better"
 authors = ["Sable Maintainers"]
 license = "AGPL-3.0-or-later"

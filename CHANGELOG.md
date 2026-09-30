@@ -1,5 +1,11 @@
 # Sable Client Changelog
 
+## 1.22.11 (2026-09-30)
+
+### Fixes
+
+* Fix nondeterministic ordering of embedded assets and CSP hashes in Android builds. by @eleboucher in #2152
+
 ## 1.22.5 (2026-09-20)
 
 ### Fixes

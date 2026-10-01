@@ -44,6 +44,11 @@ export type PerRoomShowRoomIcon = {
   display: ShowRoomIcon;
 };
 
+export type PerRoomPrivacyBlur = {
+  roomId: string;
+  blur: boolean;
+};
+
 export type JumboEmojiSize = 'none' | 'extraSmall' | 'small' | 'normal' | 'large' | 'extraLarge';
 
 /** Reorderable inline trigger buttons in the message composer. */
@@ -251,6 +256,7 @@ export interface Settings {
   showPersonaSetting: boolean;
   closeFoldersByDefault: boolean;
   perRoomShowRoomIcon: PerRoomShowRoomIcon[];
+  perRoomPrivacyBlur: PerRoomPrivacyBlur[];
   showRoomIcon: ShowRoomIcon;
   roomIconOverlay: boolean;
   showRoomBanners: boolean;
@@ -448,6 +454,7 @@ export const defaultSettings: Settings = {
   showPersonaSetting: false,
   closeFoldersByDefault: false,
   perRoomShowRoomIcon: [],
+  perRoomPrivacyBlur: [],
   showRoomIcon: ShowRoomIcon.Strict,
   roomIconOverlay: true,
   showRoomBanners: true,

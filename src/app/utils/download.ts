@@ -51,11 +51,31 @@ const sanitizeDownloadFilename = (filename: string, fallback = 'download'): stri
   return safeName;
 };
 
+const MIME_EXTENSIONS: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/gif': '.gif',
+  'image/webp': '.webp',
+  'image/avif': '.avif',
+  'image/apng': '.png',
+  'image/svg+xml': '.svg',
+};
+
+const HAS_EXTENSION = /\.[a-z0-9]{1,10}$/i;
+
 export const getDownloadFilename = (
   filename: unknown,
   body?: unknown,
-  fallback = 'download'
-): string => sanitizeDownloadFilename(getAttachmentFilename(filename, body, fallback), fallback);
+  fallback = 'download',
+  mimeType?: string
+): string => {
+  let name = sanitizeDownloadFilename(getAttachmentFilename(filename, body, fallback), fallback);
+  if (mimeType) {
+    const extension = MIME_EXTENSIONS[mimeType.trim().toLowerCase()];
+    if (extension && !HAS_EXTENSION.test(name)) name += extension;
+  }
+  return name;
+};
 
 const splitExtension = (filename: string): [stem: string, extension: string] => {
   const at = filename.lastIndexOf('.');

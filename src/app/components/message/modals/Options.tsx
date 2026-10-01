@@ -4,7 +4,7 @@ import type {
   RoomPinnedEventsEventContent,
   StateEvents,
 } from '$types/matrix-sdk';
-import { type Room, type MatrixEvent, type Relations, EventType } from '$types/matrix-sdk';
+import { type Room, type MatrixEvent, type Relations, EventType, MsgType } from '$types/matrix-sdk';
 import {
   canEditEvent,
   canForwardEvent,
@@ -47,9 +47,14 @@ import { MessageDeleteItem } from './MessageDelete';
 import FocusTrap from 'focus-trap-react';
 import { stopPropagation } from '$utils/keyboard';
 import { modalAtom, ModalType, pushModalAtom } from '$state/modal';
-import { copyToClipboard } from '$utils/dom';
+import { copyImageToClipboard, copyToClipboard } from '$utils/dom';
 import { getMatrixToRoomEvent } from '$plugins/matrix-to';
 import { getViaServers } from '$plugins/via-servers';
+import { decryptFile, downloadEncryptedMedia, downloadMedia, mxcUrlToHttp } from '$utils/matrix';
+import { getTauriMediaHttpTarget } from '$utils/mediaUrl';
+import { useMediaAuthentication } from '$hooks/useMediaAuthentication';
+import { FALLBACK_MIMETYPE } from '$utils/mimeTypes';
+import { showToast } from '$state/toast';
 import { useRoomPinnedEvents } from '$hooks/useRoomPinnedEvents';
 import { EmojiBoard } from '$components/emoji-board';
 import { MemoizedBody, type ReactionHandler } from '$features/room/message';
@@ -61,13 +66,16 @@ import {
   useBookmarkActions,
   useIsBookmarked,
 } from '$features/bookmarks';
-import { CopyIcon } from '@phosphor-icons/react';
+import { CopyIcon, DownloadIcon } from '@phosphor-icons/react';
 import * as OptionsCss from './Options.css';
+import { getDownloadFilename, saveFileToDevice } from '$utils/download';
 import {
   MATRIX_SABLE_UNSTABLE_FAVORITE_GIFS,
   MATRIX_UNSTABLE_PER_MESSAGE_PROFILE_PROPERTY_NAME,
 } from '$unstable/prefixes';
 import { useFavoriteGifs } from '$hooks/useFavoriteGifs';
+import type { IEncryptedFile } from '$types/matrix/common';
+import { getIncomingMediaMxcUrl } from '../MsgTypeRenderers';
 import { getFavoriteGifFromMessageContent } from '$utils/favoriteGif';
 import { TemporaryPersonaPicker } from '$features/room/persona-picker/PersonaPicker';
 import { type PerMessageProfileMsc4461 } from '$hooks/usePerMessageProfile';
@@ -193,6 +201,172 @@ const MessageCopyTextItem = as<
     >
       <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
         Copy Message
+      </Text>
+    </MenuItem>
+  );
+});
+
+export type ImageMenuContext = { isAttachment: boolean; src: string; title?: string } | 'message';
+
+const contentFilename = (
+  content: Record<string, unknown>
+): { filename?: string; body?: string } => {
+  const info = content.info as { filename?: string } | undefined;
+  return {
+    filename:
+      info?.filename ?? (typeof content.filename === 'string' ? content.filename : undefined),
+    body: typeof content.body === 'string' ? content.body : undefined,
+  };
+};
+
+const filenameFromSrc = (src: string): string | undefined => {
+  const url = getTauriMediaHttpTarget(src);
+  if (!url) return undefined;
+  try {
+    const pathname = new URL(url).pathname;
+    const segments = pathname.split('/');
+    const segment = decodeURIComponent(segments[segments.length - 1] || '');
+    return segment || undefined;
+  } catch {
+    return undefined;
+  }
+};
+
+export const downloadMessageImage = async (
+  mx: MatrixClient,
+  useAuthentication: boolean,
+  content: Record<string, unknown>
+): Promise<Blob | null> => {
+  const mxc = getIncomingMediaMxcUrl(
+    (content.file as { url?: unknown } | undefined)?.url ?? content.url
+  );
+  if (!mxc) return null;
+  const src = mxcUrlToHttp(mx, mxc, useAuthentication);
+  if (!src) return null;
+  const encInfo = content.file as IEncryptedFile | undefined;
+  if (encInfo)
+    return downloadEncryptedMedia(src, (buf) =>
+      decryptFile(
+        buf,
+        (content.info as { mimetype?: string } | undefined)?.mimetype ?? FALLBACK_MIMETYPE,
+        encInfo
+      )
+    );
+  return downloadMedia(src);
+};
+
+export const copyMessageImageToClipboard = async (
+  mx: MatrixClient,
+  useAuthentication: boolean,
+  content: Record<string, unknown>
+): Promise<void> => {
+  const blob = await downloadMessageImage(mx, useAuthentication, content);
+  if (!blob) return;
+  const copied = await copyImageToClipboard(blob);
+  if (!copied) throw new Error('Failed to write to clipboard');
+};
+
+export const saveMessageImageToDevice = async (
+  mx: MatrixClient,
+  useAuthentication: boolean,
+  content: Record<string, unknown>
+): Promise<void> => {
+  const blob = await downloadMessageImage(mx, useAuthentication, content);
+  if (!blob) return;
+  const { filename, body } = contentFilename(content);
+  await saveFileToDevice(blob, getDownloadFilename(filename, body, 'image', blob.type));
+};
+
+export const copyImageFromSrcToClipboard = async (src: string): Promise<void> => {
+  const blob = await downloadMedia(src);
+  const copied = await copyImageToClipboard(blob);
+  if (!copied) throw new Error('Failed to write to clipboard');
+};
+
+export const saveImageFromSrcToDevice = async (src: string, title?: string): Promise<void> => {
+  const blob = await downloadMedia(src);
+  await saveFileToDevice(
+    blob,
+    resolveImageSaveFilename({ isAttachment: false, src, title }, blob.type)
+  );
+};
+
+export const resolveImageSaveFilename = (
+  imageMenuContext: Exclude<ImageMenuContext, null>,
+  blobType: string
+): string => {
+  if (imageMenuContext === 'message') {
+    return getDownloadFilename(undefined, undefined, 'image', blobType);
+  }
+  return getDownloadFilename(
+    imageMenuContext.title,
+    filenameFromSrc(imageMenuContext.src),
+    'image',
+    blobType
+  );
+};
+
+type MessageImageAction = 'copy' | 'save';
+
+const MessageImageActionItem = as<
+  'button',
+  {
+    mEvent: MatrixEvent;
+    onClose: () => void;
+    imageMenuContext: Exclude<ImageMenuContext, null>;
+    action: MessageImageAction;
+  }
+>(({ mEvent, onClose, imageMenuContext, action, ...props }, ref) => {
+  const mx = useMatrixClient();
+  const useAuthentication = useMediaAuthentication();
+  const content = mEvent.getContent();
+  const isImageMessage =
+    content.msgtype === MsgType.Image &&
+    getIncomingMediaMxcUrl((content.file as { url?: unknown } | undefined)?.url ?? content.url) !==
+      undefined;
+  const useContentPath =
+    (imageMenuContext === 'message' || imageMenuContext.isAttachment) && isImageMessage;
+
+  const isCopy = action === 'copy';
+
+  const runAction = async () => {
+    if (useContentPath) {
+      if (isCopy) await copyMessageImageToClipboard(mx, useAuthentication, content);
+      else await saveMessageImageToDevice(mx, useAuthentication, content);
+      return;
+    }
+    if (imageMenuContext === 'message') return;
+    if (isCopy) await copyImageFromSrcToClipboard(imageMenuContext.src);
+    else await saveImageFromSrcToDevice(imageMenuContext.src, imageMenuContext.title);
+  };
+
+  const handleAction = () => {
+    onClose();
+    document.body.classList.add(OptionsCss.BusyCursor);
+    void runAction()
+      .then(() => {
+        if (isCopy) showToast('Image copied to clipboard');
+      })
+      .catch((error) => {
+        const message = error instanceof Error ? error.message : 'unknown error';
+        showToast(isCopy ? `Failed to copy image: ${message}` : `Failed to save image: ${message}`);
+      })
+      .finally(() => {
+        document.body.classList.remove(OptionsCss.BusyCursor);
+      });
+  };
+
+  return (
+    <MenuItem
+      size="300"
+      after={menuIcon(isCopy ? CopyIcon : DownloadIcon)}
+      radii="300"
+      onClick={handleAction}
+      {...props}
+      ref={ref}
+    >
+      <Text className={css.MessageMenuItemText} as="span" size="T300" truncate>
+        {isCopy ? 'Copy Image' : 'Save Image'}
       </Text>
     </MenuItem>
   );
@@ -442,6 +616,7 @@ export function OptionQuickMenu({
   imagePackRooms,
   setIsEmoji,
   isGif,
+  imageMenuContext,
 }: OptionMenuProps) {
   const mx = useMatrixClient();
   const isThreadedMessage = isThreadRelationEvent(mEvent, mEvent.threadRootId);
@@ -548,6 +723,7 @@ export function OptionQuickMenu({
               emojiBoardAnchor={menuAnchor}
               canSendReaction={canSendReaction}
               isGif={isGif}
+              imageMenuContext={imageMenuContext}
             />
           }
         >
@@ -604,6 +780,7 @@ export type OptionMenuProps = {
   setIsEmoji?: Dispatch<SetStateAction<boolean>>;
   ActualMessage?: ReactNode;
   isModal?: boolean;
+  imageMenuContext?: ImageMenuContext | null;
   closeMessageMenu?: () => void;
 };
 
@@ -626,6 +803,7 @@ function OptionMenu({
   ActualMessage,
   isModal,
   isGif,
+  imageMenuContext,
   closeMessageMenu,
 }: OptionMenuProps) {
   const mobileSheetClose = useMobileSheetClose();
@@ -643,6 +821,19 @@ function OptionMenu({
     getEventEdits(evtTimeline.getTimelineSet(), evtId, mEvent.getType())?.getRelations();
   const isEdited = !!edits?.length;
   const [showPersonaSetting] = useSetting(settingsAtom, 'showPersonaSetting');
+  const imageContent = mEvent.getContent();
+  const hasCopyableImage =
+    imageContent.msgtype === MsgType.Image &&
+    getIncomingMediaMxcUrl(imageContent.file?.url ?? imageContent.url) !== undefined;
+  const resolvedImageContext: ImageMenuContext | null =
+    imageMenuContext === undefined ? 'message' : imageMenuContext;
+  const showCopySaveImage =
+    resolvedImageContext === null
+      ? false
+      : resolvedImageContext === 'message'
+        ? hasCopyableImage
+        : (resolvedImageContext.isAttachment && hasCopyableImage) ||
+          resolvedImageContext.src.length > 0;
 
   const closeAfterHandOff = closeMessageMenu ?? requestClose;
 
@@ -885,6 +1076,22 @@ function OptionMenu({
               <MessageCopyLinkItem room={room} mEvent={mEvent} onClose={onTotalClose} />
 
               <MessageCopyTextItem room={room} mEvent={mEvent} onClose={onTotalClose} />
+              {resolvedImageContext !== null && showCopySaveImage && (
+                <>
+                  <MessageImageActionItem
+                    mEvent={mEvent}
+                    onClose={onTotalClose}
+                    imageMenuContext={resolvedImageContext}
+                    action="copy"
+                  />
+                  <MessageImageActionItem
+                    mEvent={mEvent}
+                    onClose={onTotalClose}
+                    imageMenuContext={resolvedImageContext}
+                    action="save"
+                  />
+                </>
+              )}
               {canForwardEvent(mEvent) && (
                 <MessageForwardItem room={room} mEvent={mEvent} onClose={closeMenu} />
               )}

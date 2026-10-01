@@ -76,6 +76,30 @@ export const addTauriMediaRetryRevision = (mediaUrl: string, revision: number): 
   return rewriteAuthenticatedMediaUrl(target) ?? mediaUrl;
 };
 
+/**
+ * Returns the inner http(s) target of a renderable media URL, stripped of the
+ * outer cache/session markers. Null when the URL isn't a http(s) media URL.
+ */
+export const getTauriMediaHttpTarget = (src: string): string | null => {
+  const innerTarget = getTauriMediaSourceUrl(src);
+  if (!innerTarget) return null;
+  let url: string;
+  try {
+    url = decodeURIComponent(innerTarget);
+  } catch {
+    return null;
+  }
+  let parsedUrl: URL;
+  try {
+    parsedUrl = new URL(url);
+  } catch {
+    return null;
+  }
+  if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') return null;
+  TAURI_MEDIA_OUTER_QUERY_PARAMS.forEach((param) => parsedUrl.searchParams.delete(param));
+  return parsedUrl.toString();
+};
+
 // Without it the retried `src` is identical, so the browser never re-requests.
 const addWebMediaRetryRevision = (mediaUrl: string, revision: number): string => {
   let parsedUrl: URL;
@@ -114,7 +138,6 @@ export const prepareLoopbackImageSource = async (source: string): Promise<string
     return source;
   }
 };
-
 export const mxcUrlToHttp = (
   mx: MatrixClient,
   mxcUrl: string,

@@ -157,7 +157,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
     const galleryMimeType = info?.mimetype?.toLowerCase();
     // On iOS the primary action saves trusted images straight to Photos (PhotoKit).
     const iosSaveToPhotos = iosApp() && (galleryMimeType?.startsWith('image/') ?? false);
-    const downloadFilename = getDownloadFilename(filename, alt, 'image');
+    const downloadFilename = getDownloadFilename(filename, alt, 'image', galleryMimeType);
     const canSaveToGallery = isAndroidTauri() && (galleryMimeType?.startsWith('image/') ?? false);
 
     const loadDownloadBlob = () => (getDownloadBlob ? getDownloadBlob() : downloadMedia(src));
@@ -188,7 +188,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
       }
       await saveFileToDevice(
         fileContent,
-        downloadFilename,
+        getDownloadFilename(filename, alt, 'image', fileContent.type),
         galleryMimeType || fileContent.type || undefined
       );
     };
@@ -347,7 +347,7 @@ export const ImageViewer = as<'div', ImageViewerProps>(
                   {...copyImageActivation}
                 >
                   <Text size="T300" style={{ flexGrow: 1 }}>
-                    Copy image
+                    Copy Image
                   </Text>
                 </MenuItem>
                 {canSaveToGallery && (

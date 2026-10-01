@@ -67,6 +67,8 @@ export class CallEmbed {
 
   private readonly disposables: Array<() => void> = [];
 
+  private activeSpeakersListeners = new Set<(userIds: string[]) => void>();
+
   static getIntent(dm: boolean, ongoing: boolean, video: boolean | undefined): ElementCallIntent {
     if (ongoing) {
       if (dm) {
@@ -275,6 +277,21 @@ export class CallEmbed {
       })
     );
 
+    // The call widget pushes the current set of active speakers
+    this.disposables.push(
+      this.listenAction(ElementWidgetActions.ActiveSpeakers, (evt) => {
+        evt.preventDefault();
+        this.call.transport.reply(evt.detail as IWidgetApiRequest, {});
+        const data = (evt.detail as { data?: { userIds?: unknown } }).data;
+        const userIds = data?.userIds;
+        if (Array.isArray(userIds)) {
+          this.activeSpeakersListeners.forEach((listener) =>
+            listener(userIds.filter((id): id is string => typeof id === 'string'))
+          );
+        }
+      })
+    );
+
     this.start();
   }
 
@@ -284,6 +301,14 @@ export class CallEmbed {
 
   get document(): Document | undefined {
     return this.iframe.contentDocument ?? this.iframe.contentWindow?.document;
+  }
+
+  // Suscribe to active speakers
+  public onActiveSpeakers(listener: (userIds: string[]) => void): () => void {
+    this.activeSpeakersListeners.add(listener);
+    return () => {
+      this.activeSpeakersListeners.delete(listener);
+    };
   }
 
   public setTheme(theme: ElementCallThemeKind) {

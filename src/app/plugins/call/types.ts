@@ -25,4 +25,5 @@ export enum ElementWidgetActions {
   HangupCall = 'im.vector.hangup',
   Close = 'io.element.close',
   DeviceMute = 'io.element.device_mute',
+  ActiveSpeakers = 'io.element.active_speakers',
 }

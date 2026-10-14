@@ -287,7 +287,7 @@ jobs:
           workspaces: src-tauri
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6.3.0
+        uses: gradle/actions/setup-gradle@3f5f9adaf7d9fecd50b5935e54106014257a94e6 # v6.4.0
 
       - name: Resolve NDK
         shell: bash
@@ -806,7 +806,7 @@ jobs:
           done
 
       - name: Upload .deb as workflow artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: sable-linux-deb-${{ matrix.arch }}
           path: src-tauri/target/release/bundle/deb/Sable-*.deb
@@ -831,7 +831,7 @@ jobs:
           persist-credentials: false
 
       - name: Download .deb artifact and compute checksum
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: sable-linux-deb-x86_64
           path: deb-artifact
@@ -906,7 +906,7 @@ jobs:
           persist-credentials: false
 
       - name: Download .deb artifact and compute checksum
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: sable-linux-deb-x86_64
           path: deb-artifact
@@ -1027,7 +1027,7 @@ jobs:
             builddir packaging/flatpak/nightly/moe.sable.client.Nightly.yml
 
       - name: Upload the exported repo
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: flatpak-nightly-repo-${{ matrix.arch }}
           path: repo
@@ -1078,7 +1078,7 @@ jobs:
 
       - name: Download the exported repos
         if: ${{ steps.gate.outputs.enabled == 'true' }}
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           pattern: flatpak-nightly-repo-*
           path: arch-repos
